@@ -290,6 +290,8 @@ body.foto .mesa { padding: 10px; }
 .porton span:last-child { transform: rotate(-48deg); }
 .pagina:has(.tabla-caja) { max-width: 1000px; }
 .tabla-caja { overflow-x: auto; }
+/* Las páginas se desplazan enteras: ningún bloque de adentro se encoge para caber */
+.pagina > * { flex-shrink: 0; }
 .tabla { width: 100%; border-collapse: collapse; }
 .tabla th, .tabla td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--linea); }
 .tabla th { font-family: var(--letras); font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--luna); font-weight: 400; }
