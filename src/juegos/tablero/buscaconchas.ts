@@ -6,7 +6,7 @@ import { barajar, crearMesa, mmss } from './mesa';
 const LADO = 9, ERIZOS = 12, LIMITE = 300, SEGURAS = LADO * LADO - ERIZOS;
 
 export async function crear(c: Contexto): Promise<Partida> {
-  const m = crearMesa(c.caja, 'buscaconchas'), r = generador(c.semilla);
+  const m = crearMesa(c.caja, 'buscaconchas', c.aspecto), r = generador(c.semilla);
   const orden = barajar(Array.from({ length: LADO * LADO }, (_, i) => i), r);
   const erizo = new Array<boolean>(LADO * LADO).fill(false);
   for (const i of orden.slice(0, ERIZOS)) erizo[i] = true;

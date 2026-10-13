@@ -20,7 +20,7 @@ function pistas(intento: string[], secreta: string[]): Pista[] {
 }
 
 export async function crear(c: Contexto): Promise<Partida> {
-  const m = crearMesa(c.caja, 'palabra');
+  const m = crearMesa(c.caja, 'palabra', c.aspecto);
   const secreta = [...PALABRAS[Math.floor(azar(c.semilla, 'palabra') * PALABRAS.length)]];
   const grilla = m.el('div', 'letras', m.tablero);
   const celdas = Array.from({ length: INTENTOS }, () => Array.from({ length: LETRAS }, () => m.el('div', 'letra', grilla)));

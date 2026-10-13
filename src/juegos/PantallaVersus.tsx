@@ -22,6 +22,8 @@ export function PestanaVersus({ modo }: { modo: '1v1' | '3v3' }) {
   const sesion = useSesion();
   const [datos, setDatos] = useState<Datos | null>(null);
   const [puntos, setPuntos] = useState<Puntos>(PUNTOS_BASE);
+  const [elegido, setElegido] = useState('');
+  const irARetar = () => document.getElementById('retar')?.scrollIntoView({ behavior: 'smooth' });
   const recargar = () => cargar(modo).then(setDatos);
   useEffect(() => { recargar(); leerPuntos().then(setPuntos); }, [modo]);
 
@@ -39,6 +41,13 @@ export function PestanaVersus({ modo }: { modo: '1v1' | '3v3' }) {
         ? 'Tú y tu rival juegan el mismo desafío, cada uno a su hora y con un solo intento por ronda. Cuando ambos jugaron, se compara y hay ganador.'
         : 'Cada integrante del equipo juega una vez el mismo desafío, a su hora y con un solo intento. Se suman los tres y gana el equipo con más.'}
         {' '}Ganar da {puntos.victoria} puntos, empatar {puntos.empate} y perder {puntos.derrota}, por el multiplicador de la jornada.</p>
+      {sesion.usuarioId && (
+        <div class="fila">
+          {modo === '1v1' && <button class="boton principal" onClick={irARetar}>Retar a alguien</button>}
+          {sesion.perfil?.rol === 'admin' && <a class="boton" href="#/admin">Crear enfrentamientos oficiales (Mesa de control)</a>}
+        </div>
+      )}
+      {modo === '3v3' && <p class="tenue chico">Los enfrentamientos entre equipos los arma el organizador, una vez sorteados los equipos.</p>}
 
       {!datos ? <p class="tenue">Cargando…</p>
         : !datos.disponible ? <p class="aviso atencion">El versus todavía no está activado: falta que el organizador ejecute el último bloque de la base de datos.</p>
@@ -90,7 +99,7 @@ export function PestanaVersus({ modo }: { modo: '1v1' | '3v3' }) {
               </section>
             )}
 
-            {modo === '1v1' && <Retar yo={yo} personas={datos.personas} alCrear={recargar} />}
+            {modo === '1v1' && <Retar yo={yo} personas={datos.personas} alCrear={recargar} elegido={elegido} />}
           </>
         )}
 
@@ -98,12 +107,12 @@ export function PestanaVersus({ modo }: { modo: '1v1' | '3v3' }) {
         <h2>Tipos de enfrentamiento</h2>
         <div class="rejilla-juegos">
           {tipos.map((t) => {
-            const base = t.base ? juegoPorId(t.base) : undefined, abierto = !!base?.listo;
+            const base = t.base ? juegoPorId(t.base) : undefined, abierto = !!base?.listo, puede = abierto && modo === '1v1' && !!yo && !!datos?.disponible;
             return (
-              <div key={t.id} class={`tarjeta${abierto ? '' : ' cerrada'}`} style={base ? `--tono:${MOTORES[base.motor].color}` : undefined}>
+              <div key={t.id} onClick={puede ? () => { setElegido(t.base!); irARetar(); } : undefined} class={`tarjeta${abierto ? '' : ' cerrada'}${puede ? ' activa' : ''}`} style={base ? `--tono:${MOTORES[base.motor].color}` : undefined}>
                 <h3>{t.nombre}</h3>
                 <p>{t.idea}</p>
-                <span class="pie"><span class="premia">{base ? `Sobre ${base.nombre}` : 'Juego en vivo'}</span><span class="estado">{abierto ? 'Disponible' : base ? 'Pronto' : 'Pronto, en vivo'}</span></span>
+                <span class="pie"><span class="premia">{base ? `Sobre ${base.nombre}` : 'Juego en vivo'}</span><span class="estado">{puede ? 'Retar' : abierto ? 'Disponible' : base ? 'Pronto' : 'Pronto, en vivo'}</span></span>
               </div>
             );
           })}
@@ -114,11 +123,12 @@ export function PestanaVersus({ modo }: { modo: '1v1' | '3v3' }) {
 }
 
 /** Amistoso: cualquiera reta a cualquiera, sin puntos para el torneo. */
-function Retar({ yo, personas, alCrear }: { yo: string; personas: V.Persona[]; alCrear(): void }) {
+function Retar({ yo, personas, alCrear, elegido }: { yo: string; personas: V.Persona[]; alCrear(): void; elegido: string }) {
   const opciones = jugables('1v1');
   const [buscar, setBuscar] = useState('');
   const [rival, setRival] = useState('');
   const [juego, setJuego] = useState(opciones[0]?.base ?? '');
+  useEffect(() => { if (elegido) setJuego(elegido); }, [elegido]);
   const [rondas, setRondas] = useState(1);
   const [aviso, setAviso] = useState<{ texto: string; ok: boolean } | null>(null);
   const filtradas = personas.filter((p) => p.id !== yo && p.nombre.toLowerCase().includes(buscar.trim().toLowerCase()));
@@ -131,7 +141,7 @@ function Retar({ yo, personas, alCrear }: { yo: string; personas: V.Persona[]; a
   };
 
   return (
-    <section class="bloque">
+    <section class="bloque" id="retar">
       <h2>Retar a alguien (amistoso)</h2>
       <p class="tenue chico">Sirve para practicar: no da puntos del torneo.</p>
       <div class="formulario">

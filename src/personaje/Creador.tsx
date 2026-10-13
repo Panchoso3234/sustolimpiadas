@@ -107,7 +107,10 @@ export function Creador() {
   }, [sesion.usuarioId]);
 
   const cambiar = (k: keyof Aspecto, v: number | string) => setP((antes) => ({ ...antes, apariencia: { ...antes.apariencia, [k]: v } }));
-  const pintar = (id: string, color: string) => setP((antes) => ({ ...antes, apariencia: { ...antes.apariencia, colores: { ...antes.apariencia.colores, [id]: color } } }));
+  const pintar = (id: string, color: string) => {
+    const origen = ranuras.find((r) => r.id === id), gemelas = origen ? ranuras.filter((r) => r.parte !== origen.parte && r.color === origen.color) : [];
+    setP((antes) => ({ ...antes, apariencia: { ...antes.apariencia, colores: { ...antes.apariencia.colores, [id]: color, ...Object.fromEntries(gemelas.map((g) => [g.id, color])) } } }));
+  };
   const despintar = () => setP((antes) => ({ ...antes, apariencia: { ...antes.apariencia, colores: {} } }));
   // Al cambiar de cabeza o de cuerpo sus colores son otros: se limpian los de esa parte
   const cambiarBase = (k: 'cabeza' | 'cuerpo', v: number) => setP((antes) => ({

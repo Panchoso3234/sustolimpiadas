@@ -7,7 +7,7 @@ import { barajar, crearMesa, mmss } from './mesa';
 
 /** Cazanúmeros: tocar del 1 al 25 en orden, lo más rápido posible. */
 export async function numeros(c: Contexto): Promise<Partida> {
-  const m = crearMesa(c.caja, 'neon'), LIMITE = 60, TOTAL = 25;
+  const m = crearMesa(c.caja, 'neon', c.aspecto), LIMITE = 60, TOTAL = 25;
   const orden = barajar(Array.from({ length: TOTAL }, (_, i) => i + 1), generador(c.semilla));
   const grilla = m.el('div', 'numeros', m.tablero);
   let sigue = 1, errores = 0, terminado = false;
@@ -46,7 +46,7 @@ const COLORES: [string, string][] = [['Rojo', '#e5484d'], ['Azul', '#3b82f6'], [
 
 /** Tinta Tramposa: responder de qué color está pintada la palabra, no lo que dice. */
 export async function tinta(c: Contexto): Promise<Partida> {
-  const m = crearMesa(c.caja, 'neon'), r = generador(c.semilla), LIMITE = 45;
+  const m = crearMesa(c.caja, 'neon', c.aspecto), r = generador(c.semilla), LIMITE = 45;
   m.el('p', 'tinta-ayuda', m.tablero, '¿De qué color está pintada la palabra?');
   const palabra = m.el('div', 'tinta-palabra', m.tablero), barra = m.el('div', 'tinta-botones', m.tablero);
   let color = 0, puntos = 0, racha = 0, mejor = 0, buenas = 0, malas = 0, terminado = false;
@@ -79,7 +79,7 @@ export async function tinta(c: Contexto): Promise<Partida> {
 
 /** Eco del Templo: repetir una secuencia de piedras que crece de a una. Un error termina la partida. */
 export async function eco(c: Contexto): Promise<Partida> {
-  const m = crearMesa(c.caja, 'templo'), r = generador(c.semilla), MAXIMO = 20, TONOS = [262, 330, 392, 523];
+  const m = crearMesa(c.caja, 'templo', c.aspecto), r = generador(c.semilla), MAXIMO = 20, TONOS = [262, 330, 392, 523];
   const secuencia = Array.from({ length: MAXIMO }, () => Math.floor(r() * 4));
   const grilla = m.el('div', 'eco', m.tablero);
   let ronda = 1, paso = 0, mostrando = true, terminado = false, puntos = 0;
@@ -117,7 +117,7 @@ export async function eco(c: Contexto): Promise<Partida> {
 
 /** Mercado Relámpago: sumas, restas y multiplicaciones contra el reloj. Cada cuatro cuentas sube la dificultad. */
 export async function calculo(c: Contexto): Promise<Partida> {
-  const m = crearMesa(c.caja, 'mercado'), r = generador(c.semilla), LIMITE = 60;
+  const m = crearMesa(c.caja, 'mercado', c.aspecto), r = generador(c.semilla), LIMITE = 60;
   const cuenta = m.el('div', 'calc-cuenta', m.tablero), visor = m.el('div', 'calc-visor', m.tablero), teclas = m.el('div', 'calc-teclas', m.tablero);
   let hechas = 0, respuesta = 0, escrito = '', puntos = 0, racha = 0, mejor = 0, buenas = 0, malas = 0, terminado = false;
   const pintar = () => { visor.textContent = escrito || '?'; };

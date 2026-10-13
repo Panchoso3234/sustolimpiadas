@@ -18,7 +18,7 @@ export interface Juego {
 
 /** Puntaje que nadie debería superar jugando limpio: sobre esto, la marca se muestra como dudosa al organizador. */
 export const TOPES: Record<string, number> = {
-  cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2100, calculo: 1800, parejas: 1000, buscaconchas: 1000, luces: 1170,
+  puente: 2000, rodillos: 2000, puertas: 2000, lava: 2000, huevo: 3000, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, subasta: 2500, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2100, calculo: 1800, parejas: 1000, buscaconchas: 1000, luces: 1170,
   cartero: 1000, cofre: 900, palabra: 1000, totem: 1000, catapulta: 1400, bolos: 750, minigolf: 1000,
 };
 
@@ -38,14 +38,22 @@ const j = (numero: number, id: string, nombre: string, motor: Motor, idea: strin
   ({ id, numero, nombre, motor, idea, premia, controles, unidad: 'puntos', listo: controles !== '', ...extra });
 
 export const JUEGOS: Juego[] = [
-  j(1, 'puente', 'Puente Colgante', 'A', 'Tablones que se caen un segundo después de pisarlos.', 'Ritmo y decisión'),
-  j(2, 'rodillos', 'Rodillos del Volcán', 'A', 'Barras giratorias que te barren: saltar o agacharse.', 'Sincronía'),
-  j(3, 'puertas', 'Puertas Falsas', 'A', 'Filas de puertas: unas se abren, otras son pared.', 'Memoria y arrojo'),
-  j(4, 'lava', 'Sube la Lava', 'A', 'Escalar plataformas mientras la lava sube.', 'Ruta y sangre fría'),
-  j(5, 'huevo', 'Caza del Huevo', 'B', 'Huevos al centro; cada equipo los lleva a su nido. Se pueden robar del nido ajeno.', 'Reparto de roles'),
-  j(6, 'sumo', 'Sumo de Balsas', 'B', 'Empujar a los demás fuera de una balsa que se achica.', 'Posición'),
-  j(7, 'futbol', 'Fútbol de Cocos', 'B', 'Dos equipos, un coco gigante, dos arcos.', 'Coordinación'),
-  j(8, 'faro', 'Rey del Faro', 'B', 'Sumas mientras estés dentro de la zona iluminada, que se mueve.', 'Aguante'),
+  j(1, 'puente', 'Puente Colgante', 'A', 'Cruza el río por tablones que ceden medio segundo después de pisarlos.', 'Ritmo y decisión',
+    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Salta con Espacio o el botón Saltar. Entre fila y fila hay un hueco: sin saltar, te caes. Los tablones anchos son puntos de control.'),
+  j(2, 'rodillos', 'Rodillos del Volcán', 'A', 'Una pasarela sobre la lava con barras que giran a ras de suelo.', 'Sincronía',
+    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Salta las barras con Espacio o el botón Saltar: si te alcanzan, sales volando. Cada tramo empieza en un punto de control.'),
+  j(3, 'puertas', 'Puertas Falsas', 'A', 'Seis muros de cuatro puertas: una o dos se abren, las demás son pared.', 'Memoria y arrojo',
+    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Corre contra una puerta para probarla. Las puertas son las mismas durante todo el día: recuerda cuáles abrían.'),
+  j(4, 'lava', 'Sube la Lava', 'A', 'Trepa de plataforma en plataforma mientras la lava sube cada vez más rápido.', 'Ruta y sangre fría',
+    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Salta con Espacio o el botón Saltar. Si la lava te toca, se acaba: cuenta hasta dónde llegaste.'),
+  j(5, 'huevo', 'Caza del Huevo', 'B', 'Tres contra tres: lleva huevos del centro a tu nido, roba del nido rival y bota al que lleve uno.', 'Reparto de roles',
+    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Pasa sobre un huevo para tomarlo y llévalo al círculo de tu color. Embiste con Espacio o el botón: si chocas a un rival cargado, lo suelta. A los 40 segundos aparece un huevo dorado que vale 3. Juegas con dos compañeros de máquina.'),
+  j(6, 'sumo', 'Sumo de Balsas', 'B', 'Seis sobre una balsa que se achica. Empuja a los demás al agua y no caigas.', 'Posición',
+    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Embiste con Espacio o el botón Embestir (se recarga en un segundo). Suma botar rivales y aguantar; el último en pie se lleva el premio mayor.'),
+  j(7, 'futbol', 'Fútbol de Cocos', 'B', 'Tres contra tres con un coco gigante. Tu equipo ataca hacia la derecha.', 'Coordinación',
+    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Empuja el coco con el cuerpo; embiste con Espacio o el botón para pegarle fuerte. Tu aro es el blanco. Dura 90 segundos.'),
+  j(8, 'faro', 'Rey del Faro', 'B', 'De noche, la luz del faro recorre la cancha: suma quien se mantiene dentro.', 'Aguante',
+    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Quédate dentro del círculo de luz y saca a los demás embistiendo con Espacio o el botón. Dura un minuto.'),
   j(9, 'totem', 'Tiro al Tótem', 'C', 'Diez flechas a la diana, con un viento que cambia en cada tiro.', 'Cálculo',
     'Mueve la mira con el mouse o el dedo y toca para disparar. El viento empuja la flecha hacia donde apunta la veleta: apunta al lado contrario. La mira nunca se queda quieta.'),
   j(10, 'catapulta', 'Catapulta de Sandías', 'C', 'Cinco sandías para botar las torres de cajas de sus plataformas.', 'Estimación',
@@ -72,8 +80,10 @@ export const JUEGOS: Juego[] = [
     'Toca las casas en el orden en que quieres visitarlas; el recorrido se dibuja solo. Puedes deshacer. Al entregar se compara tu ruta con la mejor posible.'),
   j(21, 'cofre', 'El Cofre o la Ola', 'F', 'Diez cofres: sigue sacando tesoro o plántate antes de que llegue la ola.', 'Manejo del riesgo',
     'En cada cofre eliges: Sacar más (suma monedas, pero sube el riesgo) o Plantarte (guardas lo sacado). Si llega la ola, pierdes lo de ese cofre.'),
-  j(22, 'bajo', 'El Más Bajo', 'F', 'Todos eligen un número en secreto; gana el más bajo que nadie repitió.', 'Leer al grupo', '', { soloVivo: true }),
-  j(23, 'subasta', 'Subasta a Ciegas', 'F', 'Pujar en secreto por cofres de valor oculto.', 'No sobrepagar', '', { soloVivo: true }),
+  j(22, 'bajo', 'El Más Bajo', 'F', 'Seis jugadores eligen un número en secreto; gana el más bajo que nadie repitió.', 'Leer al grupo',
+    'Elige un número del 1 al 10. Ganas la ronda (100 puntos) si es el más bajo que ningún rival eligió; si nadie lo repitió pero no era el más bajo, sumas 20. Son 10 rondas contra cinco rivales de máquina, cada uno con su manía.'),
+  j(23, 'subasta', 'Subasta a Ciegas', 'F', 'Ocho cofres de valor oculto y tres rivales pujando contra ti.', 'No sobrepagar',
+    'Ves una estimación del valor de cada cofre. Elige cuánto ofrecer y aprieta Pujar; gana quien más ofrece y paga lo ofrecido. Tu puntaje es la ganancia total: el valor real menos lo que pagaste. No pujar también es una jugada.'),
   j(24, 'palabra', 'Palabra del Día', 'F', 'Adivina la palabra de 5 letras en 6 intentos.', 'Descarte',
     'Escribe una palabra de 5 letras y aprieta Enter. Verde: letra en su lugar. Amarillo: está, pero en otro lugar. Gris: no está.'),
   j(25, 'eco', 'Eco del Templo', 'E', 'Cuatro piedras se encienden en secuencia. Repítela; cada ronda suma una más.', 'Memoria de secuencias',
@@ -83,7 +93,7 @@ export const JUEGOS: Juego[] = [
 ];
 
 /** Juegos de acertijo fijo: quien ya lo jugó conoce la solución, así que se juegan una sola vez al día. */
-export const UNA_VEZ = new Set(['palabra', 'parejas', 'buscaconchas', 'luces', 'cartero', 'cofre']);
+export const UNA_VEZ = new Set(['palabra', 'parejas', 'buscaconchas', 'luces', 'cartero', 'cofre', 'bajo', 'subasta']);
 
 export const juegoPorId = (id: string) => JUEGOS.find((x) => x.id === id);
 
@@ -107,8 +117,10 @@ export const VERSUS: TipoVersus[] = [
   v('1v1', 'golf-duelo', 'Minigolf mano a mano', 'Los mismos seis hoyos; gana quien usa menos golpes.', 'minigolf'),
   v('1v1', 'conchas-linea', 'Cuatro Conchas en Línea', 'Por turnos, el primero en alinear cuatro.'),
   v('1v1', 'balsas', 'Batalla de Balsas', 'Batalla naval: esconde tus balsas y hunde las del rival.'),
-  v('1v1', 'sumo-1v1', 'Sumo de Balsas 1v1', 'Empuja a tu rival fuera de la balsa.'),
-  v('1v1', 'carrera', 'Carrera cara a cara', 'El mismo circuito de obstáculos, al mismo tiempo.'),
+  v('1v1', 'sumo-1v1', 'Sumo de Balsas 1v1', 'Los mismos cinco rivales de máquina para cada uno; gana quien aguanta y bota más.', 'sumo'),
+  v('1v1', 'carrera', 'Carrera cara a cara', 'El mismo puente de tablones para los dos; gana quien cruza más rápido.', 'puente'),
+  v('1v1', 'lava-duelo', 'Duelo en la Lava', 'La misma escalera sobre la lava; gana quien llega más alto o más rápido.', 'lava'),
+  v('1v1', 'subasta-duelo', 'Subasta en duelo', 'Los mismos cofres y postores; gana quien saca más ganancia.', 'subasta'),
   v('3v3', 'cocos-equipo', 'Cosecha en Equipo', 'Cada integrante atrapa cocos; se suman los tres.', 'cocos'),
   v('3v3', 'eco-cadena', 'Eco en Cadena', 'La misma secuencia para los seis; suma hasta dónde llegó cada uno.', 'eco'),
   v('3v3', 'caceria', 'Cacería de Cangrejos', 'Cada integrante limpia el mismo tablero; suma el equipo.', 'cangrejos'),
@@ -120,10 +132,11 @@ export const VERSUS: TipoVersus[] = [
   v('3v3', 'fareros', 'Fareros', 'Los tres apagan los mismos tableros de luces.', 'luces'),
   v('3v3', 'conchas-equipo', 'Erizos Ocultos en Equipo', 'El mismo campo de erizos para todos; suma el equipo.', 'buscaconchas'),
   v('3v3', 'tesoro', 'Tesoro Compartido', 'Las mismas olas para los seis: suma lo que guardó cada equipo.', 'cofre'),
-  v('3v3', 'huevo', 'Caza del Huevo', 'Huevos al centro; cada equipo los lleva a su nido y roba del ajeno.'),
-  v('3v3', 'futbol', 'Fútbol de Cocos', 'Un coco gigante y dos arcos.'),
-  v('3v3', 'faro', 'Rey del Faro', 'Suma el equipo que más tiempo pasa en la zona iluminada.'),
-  v('3v3', 'sumo-equipos', 'Sumo de Balsas por equipos', 'Tres contra tres en una balsa que se achica.'),
+  v('3v3', 'huevo', 'Caza del Huevo', 'Cada integrante juega su partida contra la máquina; suman los tres.', 'huevo'),
+  v('3v3', 'futbol', 'Fútbol de Cocos', 'Cada integrante juega su partido contra la máquina; suman los tres.', 'futbol'),
+  v('3v3', 'faro', 'Rey del Faro', 'La misma luz y los mismos rivales para todos; suma el equipo.', 'faro'),
+  v('3v3', 'sumo-equipos', 'Sumo de Balsas por equipos', 'Cada integrante sube a la balsa por su cuenta; suma el equipo.', 'sumo'),
+  v('3v3', 'relevos', 'Carrera de Relevos', 'Los tres corren los Rodillos del Volcán; suma el equipo.', 'rodillos'),
   v('3v3', 'bandera', 'Captura la Bandera', 'Robar la bandera rival y traerla a la base.'),
 ];
 

@@ -395,3 +395,12 @@ revoke execute on function public.marcas_por_equipo() from public;
 revoke execute on function public.cerrar_vencidos() from public;
 grant execute on function public.marcas_por_equipo() to anon, authenticated;
 grant execute on function public.cerrar_vencidos() to anon, authenticated;
+
+-- ───────── Un intento al día en los juegos de acertijo fijo ─────────
+-- Quien termina estos juegos ya conoce la solución, así que solo vale la primera partida del día.
+-- Primero se borran las repeticiones que ya existan (se conserva la primera de cada persona, juego y día).
+delete from public.marcas m using public.marcas n
+  where m.juego in ('palabra', 'parejas', 'buscaconchas', 'luces', 'cartero', 'cofre', 'bajo', 'subasta')
+    and n.perfil_id = m.perfil_id and n.juego = m.juego and n.fecha = m.fecha and n.id < m.id;
+create unique index if not exists marcas_una_vez on public.marcas (perfil_id, juego, fecha)
+  where juego in ('palabra', 'parejas', 'buscaconchas', 'luces', 'cartero', 'cofre', 'bajo', 'subasta');

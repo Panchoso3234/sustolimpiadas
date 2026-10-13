@@ -9,7 +9,7 @@ const FIGURAS = ['fish_blue', 'fish_brown', 'fish_green', 'fish_grey', 'fish_gre
 const ruta = (figura: string) => `${import.meta.env.BASE_URL}figuras/${figura}.png`;
 
 export async function crear(c: Contexto): Promise<Partida> {
-  const m = crearMesa(c.caja, 'parejas'), r = generador(c.semilla);
+  const m = crearMesa(c.caja, 'parejas', c.aspecto), r = generador(c.semilla);
   const mazo = barajar([...FIGURAS, ...FIGURAS], r);
   const grilla = m.el('div', 'cartas', m.tablero);
   let abiertas: number[] = [], bloqueo = false, fallos = 0, hechas = 0, terminado = false;

@@ -9,7 +9,7 @@ const COFRES = 10, PASOS = 14;
 const riesgo = (paso: number) => Math.min(0.9, 0.06 + 0.07 * paso); // probabilidad de ola al hacer la sacada número paso+1
 
 export async function crear(c: Contexto): Promise<Partida> {
-  const m = crearMesa(c.caja, 'cofre'), r = generador(c.semilla);
+  const m = crearMesa(c.caja, 'cofre', c.aspecto), r = generador(c.semilla);
   const cofres = Array.from({ length: COFRES }, () => {
     const monedas: number[] = [];
     let ola = PASOS;

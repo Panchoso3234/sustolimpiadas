@@ -42,7 +42,7 @@ function mejorRuta(puntos: P[]): number {
 }
 
 export async function crear(c: Contexto): Promise<Partida> {
-  const m = crearMesa(c.caja, 'cartero'), puntos = pueblo(c.semilla), casas = puntos.length - 1, optimo = mejorRuta(puntos);
+  const m = crearMesa(c.caja, 'cartero', c.aspecto), puntos = pueblo(c.semilla), casas = puntos.length - 1, optimo = mejorRuta(puntos);
   const ruta: number[] = [];
   let terminado = false;
 

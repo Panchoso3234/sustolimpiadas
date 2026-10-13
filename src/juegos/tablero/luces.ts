@@ -7,7 +7,7 @@ import { barajar, crearMesa, mmss } from './mesa';
 const TABLEROS = [{ lado: 4, toques: 5 }, { lado: 5, toques: 7 }, { lado: 5, toques: 9 }], LIMITE = 180;
 
 export async function crear(c: Contexto): Promise<Partida> {
-  const m = crearMesa(c.caja, 'luces'), r = generador(c.semilla);
+  const m = crearMesa(c.caja, 'luces', c.aspecto), r = generador(c.semilla);
   const armados = TABLEROS.map(({ lado, toques }) => {
     const luz = new Array<boolean>(lado * lado).fill(false);
     for (const i of barajar(luz.map((_, k) => k), r).slice(0, toques)) cambiar(luz, lado, i);
@@ -23,6 +23,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   }
 
   const titulo = m.el('div', 'sigla', m.tablero), grilla = m.el('div', 'faro', m.tablero);
+  m.el('p', 'chico', m.tablero, 'Meta: dejar todas las luces apagadas (oscuras). Al lograrlo pasas al tablero siguiente.');
   let actual = 0, resueltos = 0, toques = 0, terminado = false, botones: HTMLButtonElement[] = [];
 
   const pintar = () => { const { luz } = armados[actual]; botones.forEach((b, i) => { b.classList.toggle('encendida', luz[i]); b.setAttribute('aria-pressed', String(luz[i])); }); };

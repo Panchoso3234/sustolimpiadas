@@ -1,3 +1,5 @@
+import type { Aspecto } from '../../personaje/catalogo';
+import { foto } from '../../personaje/miniaturas';
 import { alCambiarVolumen, cargarMuestras, tocarMuestra, volumen } from '../sonido';
 
 // Motores E y F · Tablero, memoria y decisión. Son juegos de mesa: no necesitan 3D, así que se arman con elementos
@@ -5,7 +7,7 @@ import { alCambiarVolumen, cargarMuestras, tocarMuestra, volumen } from '../soni
 
 export type Mesa = ReturnType<typeof crearMesa>;
 
-export function crearMesa(caja: HTMLElement, clase: string) {
+export function crearMesa(caja: HTMLElement, clase: string, aspecto?: Aspecto) {
   const el = <K extends keyof HTMLElementTagNameMap>(tag: K, clases = '', padre?: HTMLElement, texto?: string): HTMLElementTagNameMap[K] => {
     const e = document.createElement(tag);
     if (clases) e.className = clases;
@@ -18,6 +20,10 @@ export function crearMesa(caja: HTMLElement, clase: string) {
   const tablero = el('div', 'mesa-tablero oculta', fondo);
   const barra = el('div', 'juego-hud', caja), elTiempo = el('div', 'dato', barra), elExtra = el('div', 'dato centro', barra), elPuntos = el('div', 'dato', barra);
   const elAviso = el('div', 'juego-aviso', caja);
+  // El personaje del jugador mira la partida desde una esquina y reacciona a aciertos y errores
+  const retrato = el('div', 'mesa-avatar', caja);
+  if (aspecto) foto(aspecto, 180, 'cabeza').then((imagen) => retrato.appendChild(imagen)).catch(() => {});
+  const animo = (gesto: string) => { retrato.classList.remove('feliz', 'triste'); void retrato.offsetWidth; retrato.classList.add(gesto); };
   let borrarAviso = 0;
 
   let ctx: AudioContext | null = null, salida: GainNode | null = null, muestras: Record<string, AudioBuffer> = {};
@@ -55,8 +61,8 @@ export function crearMesa(caja: HTMLElement, clase: string) {
       tono,
       efecto,
       toque() { if (efecto('click', 0.6)) return; tono(520, 0.06, 'triangle', 0.15); },
-      bien() { if (efecto('bien')) return; tono(660, 0.09); tono(990, 0.14, 'triangle', 0.18, 0.07); },
-      mal() { if (efecto('mal')) return; tono(180, 0.25, 'sawtooth', 0.16); },
+      bien() { animo('feliz'); if (efecto('bien')) return; tono(660, 0.09); tono(990, 0.14, 'triangle', 0.18, 0.07); },
+      mal() { animo('triste'); if (efecto('mal')) return; tono(180, 0.25, 'sawtooth', 0.16); },
       fanfarria() { /* el cierre lo toca la sala, igual para todos los juegos */ },
     },
     /** Se llama diez veces por segundo mientras corre la partida. */

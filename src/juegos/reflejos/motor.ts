@@ -9,7 +9,7 @@ import { alCambiarVolumen, cargarMuestras, tocarMuestra, volumen } from '../soni
 // los sonidos y los toques. Cada juego solo agrega sus piezas y sus reglas.
 
 /** Qué parte del mundo tiene que caber siempre en pantalla, sea un monitor ancho o un celular parado. */
-export interface Encuadre { ancho: number; alto: number; centro: [number, number, number]; inclinacion: number }
+export interface Encuadre { ancho: number; alto: number; centro: [number, number, number]; inclinacion: number; /** Sin arena, mar ni barco: para juegos con otro ambiente. */ sinPlaya?: boolean }
 
 export interface Tono { tipo?: OscillatorType; vol?: number; cuando?: number; hasta?: number }
 
@@ -39,12 +39,11 @@ export function crearEscenario(caja: HTMLElement, encuadre: Encuadre) {
     escena.add(m);
     return m;
   };
-  plano(ARENA, 400, 400, 0, 0);
-  const mar = plano(MAR, 400, 160, 0.02, -110);
-  const espuma = plano('#eafaff', 400, 1.2, 0.03, -29.6);
+  const arena = plano(ARENA, 400, 400, 0, 0), mar = plano(MAR, 400, 160, 0.02, -110), espuma = plano('#eafaff', 400, 1.2, 0.03, -29.6);
+  arena.visible = mar.visible = espuma.visible = !encuadre.sinPlaya;
 
   // Un barco pirata fondeado mar adentro. Si el modelo no carga, la playa queda igual.
-  cargar('pirata', 'ship-pirate-small').then((modelo) => {
+  if (!encuadre.sinPlaya) cargar('pirata', 'ship-pirate-small').then((modelo) => {
     const barco = modelo.clone(), caja3 = new THREE.Box3().setFromObject(modelo), s = 9 / Math.max(0.01, caja3.max.y - caja3.min.y);
     barco.scale.setScalar(s);
     barco.position.set(19, -caja3.min.y * s - 0.7, -56);

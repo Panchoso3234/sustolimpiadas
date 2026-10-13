@@ -29,6 +29,16 @@ export type CrearJuego = (c: Contexto) => Promise<Partida>;
 
 /** Cada juego se descarga recién cuando alguien lo abre. */
 export const CARGADORES: Record<string, () => Promise<CrearJuego>> = {
+  puente: () => import('./carreras/pistas').then((m) => m.puente),
+  rodillos: () => import('./carreras/pistas').then((m) => m.rodillos),
+  puertas: () => import('./carreras/pistas').then((m) => m.puertas),
+  lava: () => import('./carreras/pistas').then((m) => m.lava),
+  huevo: () => import('./arena/juegos').then((m) => m.huevo),
+  sumo: () => import('./arena/juegos').then((m) => m.sumo),
+  futbol: () => import('./arena/juegos').then((m) => m.futbol),
+  faro: () => import('./arena/juegos').then((m) => m.faro),
+  bajo: () => import('./tablero/pujas').then((m) => m.bajo),
+  subasta: () => import('./tablero/pujas').then((m) => m.subasta),
   numeros: () => import('./tablero/mentales').then((m) => m.numeros),
   tinta: () => import('./tablero/mentales').then((m) => m.tinta),
   eco: () => import('./tablero/mentales').then((m) => m.eco),
