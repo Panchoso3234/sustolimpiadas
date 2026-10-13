@@ -238,7 +238,7 @@ body.foto .mesa { padding: 10px; }
 .carta.lista { opacity: .55; cursor: default; }
 .carta.cambia { outline: 4px solid var(--calabaza); transform: scale(1.08) rotate(4deg); }
 
-.arena { display: grid; grid-template-columns: repeat(var(--lado), 1fr); gap: 3px; width: 100%; max-width: 460px; }
+.mesa .arena { display: grid; grid-template-columns: repeat(var(--lado), 1fr); gap: 3px; width: 100%; max-width: 460px; }
 .casilla { aspect-ratio: 1; border: 0; border-radius: 6px; background: #e0bf7a; box-shadow: inset 0 -3px 0 #c9a45c; font: inherit; font-weight: 800; font-size: clamp(.9rem, 3.6vw, 1.25rem); cursor: pointer; padding: 0; color: var(--noche); }
 .casilla.abierta { background: #fff8e6; box-shadow: none; cursor: default; }
 .casilla.n1 { color: #2b6fd6; } .casilla.n2 { color: #2f8f4e; } .casilla.n3 { color: #d1383f; } .casilla.n4 { color: #6a3fb8; } .casilla.n5, .casilla.n6, .casilla.n7, .casilla.n8 { color: #8a4a12; }
@@ -307,9 +307,9 @@ body.foto .mesa { padding: 10px; }
 .mesa.templo { background: linear-gradient(#1d3a2f, #0e1f1a); }
 .mesa.mercado { background: linear-gradient(#f0a35e, #b9542e); }
 .numeros { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; width: 100%; max-width: 420px; }
-.numero { aspect-ratio: 1; border: 0; border-radius: 12px; background: #2b1a52; color: #fff; font: 800 clamp(1.1rem, 5vw, 1.7rem) var(--cuerpo); cursor: pointer; }
-.numero:disabled { background: #d9c9a3; color: #a8966a; cursor: default; }
-.numero.error { background: var(--sangre); }
+.numeros .numero { aspect-ratio: 1; border: 0; border-radius: 12px; background: #2b1a52; color: #fff; font: 800 clamp(1.1rem, 5vw, 1.7rem) var(--cuerpo); cursor: pointer; }
+.numeros .numero:disabled { background: #d9c9a3; color: #a8966a; cursor: default; }
+.numeros .numero.error { background: var(--sangre); }
 .tinta-ayuda { font-weight: 800; }
 .tinta-palabra { font: 400 clamp(3rem, 15vw, 5.5rem) var(--display); line-height: 1.1; padding: 8px 0 14px; }
 .tinta-botones { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
