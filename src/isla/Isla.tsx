@@ -45,7 +45,7 @@ const INFO: Record<string, Panel> = {
   camping: { sigla: 'Sureste', titulo: 'El campamento', lineas: ['Dos carpas y una fogata chica. El mejor lugar para ver las estrellas.'] },
   muelle: { sigla: 'Costa este', titulo: 'El muelle', lineas: ['Aquí se pesca con paciencia. Si miras un rato, verás saltar a los peces.'], enlace: { texto: 'Jugar El Cofre o la Ola', href: '#/juegos/cofre' } },
   lago: { sigla: 'Este', titulo: 'El lago', lineas: ['Agua quieta, un islote con su árbol y un embarcadero. Los tranquilos vienen a pescar.'] },
-  ruinas: { sigla: 'Bosque del noroeste', titulo: 'Las ruinas', lineas: ['Columnas rotas y una cabeza de piedra que nadie sabe quién talló.', 'Dicen que son más antiguas que el portón de la arena.'], enlace: { texto: 'Jugar Semáforo Tiki', href: '#/juegos/semaforo' } },
+  ruinas: { sigla: 'Bosque del noroeste', titulo: 'Las ruinas', lineas: ['Columnas rotas y una cabeza de piedra que nadie sabe quién talló.', 'Dicen que son más antiguas que el portón de la arena.'], enlace: { texto: 'Jugar Eco del Templo', href: '#/juegos/eco' } },
   cementerio: { sigla: 'Noreste', titulo: 'El cementerio', lineas: ['De día no pasa nada. De noche aparecen tres fantasmas y los habitantes vienen a contar historias.', 'Será el centro de la Noche de Brujas del 30 de octubre.'] },
   caleta: { sigla: 'Costa oeste', titulo: 'La caleta', lineas: ['Dos chozas sobre pilotes, pescado secándose al sol y un bote azul.'], enlace: { texto: 'Jugar Mata-Cangrejos', href: '#/juegos/cangrejos' } },
 };

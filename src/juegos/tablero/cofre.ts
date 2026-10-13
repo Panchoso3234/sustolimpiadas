@@ -53,7 +53,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   };
 
   const siguiente = (texto: string, clase: string) => {
-    m.el('span', `ficha ${clase}`, historial, texto);
+    m.el('span', `pasada ${clase}`, historial, texto);
     espera = true;
     pintar();
     m.despues(1.1, () => {

@@ -270,8 +270,8 @@ body.foto .mesa { padding: 10px; }
 .cofre-pozo { font-family: var(--display); font-size: clamp(1.4rem, 5vw, 2rem); color: #8a5a12; }
 .cofre-riesgo { font-weight: 800; }
 .cofre-historial { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; min-height: 28px; }
-.cofre-historial .ficha { font-weight: 800; font-size: .86rem; padding: 2px 9px; border-radius: 99px; background: #cfeeda; }
-.cofre-historial .ficha.mal { background: #f6d0d4; }
+.cofre-historial .pasada { font-weight: 800; font-size: .86rem; padding: 2px 9px; border-radius: 99px; background: #cfeeda; }
+.cofre-historial .pasada.mal { background: #f6d0d4; }
 
 .letras { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: min(100%, 300px); }
 .letra { aspect-ratio: 1; border: 2px solid #b88a4a; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: clamp(1.3rem, 6vw, 1.9rem); background: #fff8e6; }

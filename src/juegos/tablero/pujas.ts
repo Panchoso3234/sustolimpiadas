@@ -91,11 +91,11 @@ export async function subasta(c: Contexto): Promise<Partida> {
       if (neto < 0) sobrepagos++;
       if (neto >= 0) m.sonido.bien(); else m.sonido.mal();
       nota.textContent = `Te lo llevaste por ${mia}. Valía ${lote.valor}: ${neto >= 0 ? `ganas ${neto}` : `pierdes ${-neto}`}. Los rivales ofrecieron ${lote.ofertas.join(', ')}.`;
-      m.el('span', `ficha ${neto >= 0 ? 'bien' : 'mal'}`, historial, `${neto >= 0 ? '+' : ''}${neto}`);
+      m.el('span', `pasada ${neto >= 0 ? 'bien' : 'mal'}`, historial, `${neto >= 0 ? '+' : ''}${neto}`);
     } else {
       m.sonido.toque();
       nota.textContent = `Se lo llevó un rival por ${mejorRival}. Valía ${lote.valor}${mejorRival > lote.valor ? ': pagó de más' : ''}.`;
-      m.el('span', 'ficha', historial, '—');
+      m.el('span', 'pasada', historial, '—');
     }
     pintar();
     m.despues(3, () => {

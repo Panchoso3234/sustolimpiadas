@@ -46,7 +46,8 @@ export async function unEnfrentamiento(id: number): Promise<Enfrentamiento | nul
 
 /** Marcas que a esta persona le toca ver: las propias siempre; las del rival solo cuando el enfrentamiento cerró. */
 export async function marcasDe(ids: number[]): Promise<MarcaVersus[]> {
-  if (!ids.length) return [];
+  // Sin sesión no hay marcas que ver: se evita una consulta que la base rechazaría
+  if (!ids.length || !(await supabase.auth.getSession()).data.session) return [];
   const { data } = await supabase.from('enfrentamiento_marcas').select('enfrentamiento_id,perfil_id,ronda,lado,puntaje,terminado').in('enfrentamiento_id', ids);
   return (data as MarcaVersus[] | null) ?? [];
 }

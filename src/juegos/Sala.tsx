@@ -150,7 +150,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
       {(fase === 'cuenta' || fase === 'jugando') && (
         <div class="sala-salir">
           {!reto && <button class="boton" onClick={salir}>Salir</button>}
-          <button class="boton" aria-pressed={callado} onClick={() => { silenciar(!callado); setCallado(!callado); }}>{callado ? 'Sonido: no' : 'Sonido: sí'}</button>
+          <button class="boton" aria-pressed={callado} onClick={(ev) => { silenciar(!callado); setCallado(!callado); ev.currentTarget.blur(); }}>{callado ? 'Sonido: no' : 'Sonido: sí'}</button>
         </div>
       )}
       {fase === 'cuenta' && <div class="sala-cuenta" key={cuenta} aria-live="assertive">{cuenta}</div>}
