@@ -64,7 +64,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     resueltos++;
     m.sonido.bien();
     if (resueltos === TABLEROS.length) return terminar();
-    m.hud.aviso('¡Apagado!', 'bien', 0.9);
+    m.hud.aviso(`¡Apagado! Va el tablero ${actual + 2} de ${TABLEROS.length}`, 'oro', 1.6);
     actual++;
     montar();
   }

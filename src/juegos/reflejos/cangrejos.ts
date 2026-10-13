@@ -15,7 +15,7 @@ function programa(semilla: string): Asomo[] {
   const r = generador(semilla), lista: Asomo[] = [], libre = new Array<number>(9).fill(0);
   let t = 1.2;
   while (t < DURA - 1) {
-    const avance = t / DURA, base = 1.25 - 0.55 * avance, dobles = r() < 0.15 + 0.3 * avance ? 2 : 1;
+    const avance = t / DURA, base = 1.05 - 0.55 * avance, dobles = r() < 0.15 + 0.3 * avance ? 2 : 1;
     for (let i = 0; i < 2; i++) {
       let hoyo = Math.floor(r() * 9);
       const u = r();
@@ -26,7 +26,7 @@ function programa(semilla: string): Asomo[] {
       lista.push({ t, hoyo, tipo, dura });
       libre[hoyo] = t + dura + SUBE * 2 + 0.35;
     }
-    t += 0.85 - 0.42 * avance + r() * 0.2;
+    t += 0.75 - 0.4 * avance + r() * 0.2;
   }
   return lista;
 }

@@ -174,7 +174,8 @@ export async function crearKenney(a: Aspecto): Promise<Kenney> {
       const gorro = new THREE.Group();
       ponerSombrero(gorro, a.sombrero, a.colorSombrero);
       gorro.scale.setScalar((Math.max(tam.x, tam.z) / 0.8) * 1.02);
-      gorro.position.set(centro.x, centro.y + tam.y * 0.08, centro.z);
+      // Los sombreros se diseñaron para una cabeza redonda; estas son más bajas que anchas, así que se bajan lo que sobra
+      gorro.position.set(centro.x, centro.y + (tam.y - Math.max(tam.x, tam.z)) / 2 + tam.y * 0.05, centro.z);
       gorro.traverse((o) => { o.castShadow = true; });
       colgar(gorro, cab, 'head');
     }

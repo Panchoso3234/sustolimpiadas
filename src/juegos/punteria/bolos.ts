@@ -6,7 +6,7 @@ import { arrastre, caja, guia, mat, pasos, rapier, seguir, type Cuerpo } from '.
 
 // Bolos de Coco: cinco turnos de dos tiros sobre una pista de arena inclinada hacia un lado.
 // La inclinación de cada turno sale de la semilla. Diez puntos por bolo, +50 por chuza y +20 por semichuza.
-const TURNOS = 5, FONDO = -15, LINEA = 3.2, ANCHO = 2.6, VEL_MIN = 11, VEL_MAX = 24, ASIENTO = 3.4;
+const TURNOS = 5, FONDO = -15, LINEA = 3.2, ANCHO = 2.6, VEL_MIN = 11, VEL_MAX = 24, ASIENTO = 5.2;
 
 export async function crear(c: Contexto): Promise<Partida> {
   const e = crearEscenario(c.caja, { ancho: 9.5, alto: 15, centro: [0, 0.4, -3.4], inclinacion: 0.6 });
@@ -147,7 +147,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (lanzada < 0) return; // antes del tiro no corre la física: nada se desliza solo por la pendiente
     avanzar(dt);
     const p = bola.translation();
-    if (t - lanzada > ASIENTO || (p.z < FONDO - 6 && t - lanzada > 1.6) || Math.abs(p.x) > 12) contar();
+    if (t - lanzada > ASIENTO || (p.z < FONDO - 6 && t - lanzada > 3.6) || Math.abs(p.x) > 12) contar();
   });
 
   return {

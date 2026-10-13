@@ -16,12 +16,13 @@ function programa(semilla: string): Caida[] {
   const r = generador(semilla), lista: Caida[] = [];
   let llega = 2.6, x = 0;
   while (llega < DURA) {
-    const avance = llega / DURA, v = 6 + 5 * avance, intervalo = 1.05 - 0.6 * avance + r() * 0.25;
+    const avance = llega / DURA, v = 7 + 7 * avance, intervalo = 0.9 - 0.55 * avance + r() * 0.2;
     // Cada coco queda al alcance desde el anterior: nunca hay uno imposible
-    x = limitar(x + (r() * 2 - 1) * V_MAX * 0.7 * intervalo, -ANCHO, ANCHO);
+    const destino = (r() * 2 - 1) * ANCHO, alcance = V_MAX * 0.7 * intervalo; // un punto cualquiera del ancho, recortado a lo que se alcanza a correr
+    x += limitar(destino - x, -alcance, alcance);
     const caida = (CIMA - ATRAPA) / v;
     lista.push({ llega, t: llega - caida, x, v, tipo: r() < 0.07 ? 'dorado' : 'coco' });
-    const conCangrejo = r() < 0.2 + 0.35 * avance, lado = r() < 0.5 ? -1 : 1, lejos = 1.95 + r() * 1.6, desfase = (r() - 0.5) * 0.3;
+    const conCangrejo = r() < 0.3 + 0.4 * avance, lado = r() < 0.5 ? -1 : 1, lejos = 1.95 + r() * 1.6, desfase = (r() - 0.5) * 0.3;
     if (conCangrejo) {
       // El cangrejo cae cerca del coco, pero siempre deja un lado libre para atraparlo
       const cx = Math.abs(x + lado * lejos) > ANCHO ? x - lado * lejos : x + lado * lejos;

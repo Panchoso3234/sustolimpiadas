@@ -2,7 +2,7 @@ import { generador } from '../../nucleo/azar';
 import type { Contexto, Partida } from '../marco';
 import { barajar, crearMesa, mmss } from './mesa';
 
-// Buscaconchas: buscaminas en la arena. 9×9 casillas y 12 erizos; el primer toque nunca es un erizo.
+// Erizos Ocultos (antes Buscaconchas): buscaminas en la arena. 9×9 casillas y 12 erizos; el primer toque nunca es un erizo.
 const LADO = 9, ERIZOS = 12, LIMITE = 300, SEGURAS = LADO * LADO - ERIZOS;
 
 export async function crear(c: Contexto): Promise<Partida> {
@@ -11,7 +11,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   const erizo = new Array<boolean>(LADO * LADO).fill(false);
   for (const i of orden.slice(0, ERIZOS)) erizo[i] = true;
   const abierta = new Array<boolean>(LADO * LADO).fill(false), bandera = new Array<boolean>(LADO * LADO).fill(false);
-  let primera = true, modoBandera = false, destapadas = 0, terminado = false;
+  let primera = true, modoBandera = false, destapadas = 0, terminado = false, congelado = false;
 
   const vecinas = (i: number) => {
     const x = i % LADO, y = Math.floor(i / LADO), lista: number[] = [];
@@ -62,13 +62,20 @@ export async function crear(c: Contexto): Promise<Partida> {
   }
 
   function destapar(inicio: number) {
-    if (terminado || abierta[inicio] || bandera[inicio] || m.reloj() <= 0) return;
+    if (terminado || congelado || abierta[inicio] || bandera[inicio] || m.reloj() <= 0) return;
     if (primera) {
       primera = false;
       // Si el primer toque cae en un erizo, ese erizo se muda a la primera casilla libre
       if (erizo[inicio]) { erizo[inicio] = false; erizo[erizo.findIndex((si, k) => !si && k !== inicio)] = true; }
     }
-    if (erizo[inicio]) { casillas[inicio].classList.add('pisada'); return terminar(false); }
+    if (erizo[inicio]) {
+      casillas[inicio].classList.add('pisada', 'erizo');
+      congelado = true;
+      m.sonido.mal();
+      m.hud.aviso('¡Pisaste un erizo!', 'mal', 1.4);
+      m.despues(1.5, () => terminar(false));
+      return;
+    }
     m.sonido.toque();
     const cola = [inicio];
     while (cola.length) {

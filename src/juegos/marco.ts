@@ -29,6 +29,10 @@ export type CrearJuego = (c: Contexto) => Promise<Partida>;
 
 /** Cada juego se descarga recién cuando alguien lo abre. */
 export const CARGADORES: Record<string, () => Promise<CrearJuego>> = {
+  numeros: () => import('./tablero/mentales').then((m) => m.numeros),
+  tinta: () => import('./tablero/mentales').then((m) => m.tinta),
+  eco: () => import('./tablero/mentales').then((m) => m.eco),
+  calculo: () => import('./tablero/mentales').then((m) => m.calculo),
   parejas: () => import('./tablero/parejas').then((m) => m.crear),
   buscaconchas: () => import('./tablero/buscaconchas').then((m) => m.crear),
   luces: () => import('./tablero/luces').then((m) => m.crear),

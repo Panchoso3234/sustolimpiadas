@@ -88,5 +88,13 @@ export async function crear(c: Contexto): Promise<Partida> {
     m.hud.extra(`${fallos} ${fallos === 1 ? 'fallo' : 'fallos'}`);
     if (t >= LIMITE) terminar();
   });
-  return { empezar: m.empezar, destruir: m.destruir };
+  return {
+    empezar() {
+      m.empezar();
+      bloqueo = true;
+      lista.forEach((_, i) => mostrar(i, true));
+      m.despues(1.6, () => { lista.forEach((x, i) => { if (!x.lista) mostrar(i, false); }); bloqueo = false; });
+    },
+    destruir: m.destruir,
+  };
 }

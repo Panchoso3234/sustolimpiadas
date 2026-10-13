@@ -18,7 +18,7 @@ export interface Juego {
 
 /** Puntaje que nadie debería superar jugando limpio: sobre esto, la marca se muestra como dudosa al organizador. */
 export const TOPES: Record<string, number> = {
-  cocos: 2200, cangrejos: 1500, tambores: 16000, semaforo: 1000, parejas: 1000, buscaconchas: 1000, luces: 1170,
+  cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2100, calculo: 1800, parejas: 1000, buscaconchas: 1000, luces: 1170,
   cartero: 1000, cofre: 900, palabra: 1000, totem: 1000, catapulta: 1400, bolos: 750, minigolf: 1000,
 };
 
@@ -58,13 +58,13 @@ export const JUEGOS: Juego[] = [
     'Mueve a tu personaje con el mouse, el dedo o las flechas. Cada coco seguido vale más; un cangrejo te quita una vida. Dura 60 segundos o hasta quedarte sin vidas.'),
   j(14, 'cangrejos', 'Mata-Cangrejos', 'D', 'Pégale a los cangrejos que asoman, no a las tortugas.', 'Reacción con freno',
     'Toca o haz clic sobre los cangrejos antes de que se escondan. Pegarle a una tortuga resta puntos. Dura 45 segundos.'),
-  j(15, 'tambores', 'Tambores de la Isla', 'D', 'Golpea cada tambor justo cuando la marca llega a él.', 'Oído',
-    'Teclas D, F, J y K, o toca los tambores. Mientras más exacto el golpe, más puntos. Sube el volumen: el ritmo se escucha.'),
-  j(16, 'semaforo', 'Semáforo Tiki', 'D', 'Toca apenas el tiki grande abra los ojos en verde. Hay señales falsas.', 'Autocontrol',
-    'Toca la pantalla o aprieta Espacio solo cuando el tiki del centro se ponga verde. Los otros colores y los tikis chicos son trampa: si tocas antes, pierdes la ronda. Son 10 rondas.'),
+  j(15, 'numeros', 'Cazanúmeros', 'D', 'Veinticinco números revueltos: tócalos del 1 al 25 lo más rápido que puedas.', 'Atención y velocidad',
+    'Toca los números en orden, partiendo por el 1. Arriba dice cuál toca. Equivocarse resta puntos. Tienes un minuto.'),
+  j(16, 'tinta', 'Tinta Tramposa', 'D', 'La palabra dice un color, pero está pintada de otro. Responde el color de la tinta.', 'Autocontrol',
+    'Aprieta el botón (o las teclas 1 a 4) del color con que está PINTADA la palabra, no el que dice. Los aciertos seguidos valen más y cada error resta. Dura 45 segundos.'),
   j(17, 'parejas', 'Parejas del Arrecife', 'E', 'Memoria de 10 parejas, con cartas que cambian de lugar cuando fallas mucho.', 'Memoria',
     'Da vuelta dos cartas: si son iguales, se quedan. Cada cuatro fallos, dos cartas boca abajo intercambian su lugar (verás cuáles). Menos tiempo y menos fallos, más puntos.'),
-  j(18, 'buscaconchas', 'Buscaconchas', 'E', 'Despeja la arena sin pisar ninguno de los 12 erizos.', 'Deducción',
+  j(18, 'buscaconchas', 'Erizos Ocultos', 'E', 'Despeja la arena sin pisar ninguno de los 12 erizos.', 'Deducción',
     'Cada número dice cuántos erizos hay alrededor. Clic para destapar; clic derecho, o el botón Banderín, para marcar un erizo. Pisar un erizo termina la partida.'),
   j(19, 'luces', 'Luces del Faro', 'E', 'Tres tableros: apaga todas las luces. Cada toque cambia también las vecinas.', 'Lógica',
     'Toca una luz y cambian ella y sus cuatro vecinas. Apaga el tablero completo para pasar al siguiente. Tienes tres minutos para los tres.'),
@@ -76,7 +76,14 @@ export const JUEGOS: Juego[] = [
   j(23, 'subasta', 'Subasta a Ciegas', 'F', 'Pujar en secreto por cofres de valor oculto.', 'No sobrepagar', '', { soloVivo: true }),
   j(24, 'palabra', 'Palabra del Día', 'F', 'Adivina la palabra de 5 letras en 6 intentos.', 'Descarte',
     'Escribe una palabra de 5 letras y aprieta Enter. Verde: letra en su lugar. Amarillo: está, pero en otro lugar. Gris: no está.'),
+  j(25, 'eco', 'Eco del Templo', 'E', 'Cuatro piedras se encienden en secuencia. Repítela; cada ronda suma una más.', 'Memoria de secuencias',
+    'Mira el orden en que brillan las piedras y repítelo tocándolas. Cada ronda la secuencia crece y va más rápido. Un error termina la partida.'),
+  j(26, 'calculo', 'Mercado Relámpago', 'F', 'Sumas, restas y multiplicaciones contra el reloj, cada vez más difíciles.', 'Cálculo mental',
+    'Escribe el resultado con el teclado o los botones y aprieta OK (Enter). Los aciertos seguidos valen más y cada error resta. Tienes un minuto.'),
 ];
+
+/** Juegos de acertijo fijo: quien ya lo jugó conoce la solución, así que se juegan una sola vez al día. */
+export const UNA_VEZ = new Set(['palabra', 'parejas', 'buscaconchas', 'luces', 'cartero', 'cofre']);
 
 export const juegoPorId = (id: string) => JUEGOS.find((x) => x.id === id);
 
@@ -86,9 +93,11 @@ export interface TipoVersus { id: string; modo: '1v1' | '3v3'; nombre: string; i
 const v = (modo: '1v1' | '3v3', id: string, nombre: string, idea: string, base?: string): TipoVersus => ({ id, modo, nombre, idea, base });
 
 export const VERSUS: TipoVersus[] = [
-  v('1v1', 'duelo-tiki', 'Duelo Tiki', 'Las mismas diez señales para los dos: gana quien reacciona mejor sin caer en las trampas.', 'semaforo'),
+  v('1v1', 'duelo-tinta', 'Duelo de Tinta', 'Las mismas palabras tramposas para los dos: gana quien acierta más sin caer.', 'tinta'),
   v('1v1', 'cangrejos-dos', 'Cangrejos a Dos Manos', 'El mismo tablero de cangrejos y tortugas; gana quien caza más.', 'cangrejos'),
-  v('1v1', 'pulso', 'Pulso de Tambores', 'La misma canción para ambos; gana el más exacto.', 'tambores'),
+  v('1v1', 'carrera-numeros', 'Carrera de Números', 'El mismo tablero revuelto; gana quien llega primero al 25.', 'numeros'),
+  v('1v1', 'eco-duelo', 'Duelo de Ecos', 'La misma secuencia; gana quien la sigue más lejos.', 'eco'),
+  v('1v1', 'mercado-duelo', 'Regateo Relámpago', 'Las mismas cuentas; gana quien resuelve más.', 'calculo'),
   v('1v1', 'duelo-cocos', 'Duelo de Cocos', 'La misma lluvia de cocos y cangrejos para los dos.', 'cocos'),
   v('1v1', 'parejas-duelo', 'Parejas cara a cara', 'El mismo mazo: gana quien lo limpia más rápido y con menos fallos.', 'parejas'),
   v('1v1', 'bolos-duelo', 'Bolos cara a cara', 'La misma pista inclinada; gana quien bota más.', 'bolos'),
@@ -101,14 +110,15 @@ export const VERSUS: TipoVersus[] = [
   v('1v1', 'sumo-1v1', 'Sumo de Balsas 1v1', 'Empuja a tu rival fuera de la balsa.'),
   v('1v1', 'carrera', 'Carrera cara a cara', 'El mismo circuito de obstáculos, al mismo tiempo.'),
   v('3v3', 'cocos-equipo', 'Cosecha en Equipo', 'Cada integrante atrapa cocos; se suman los tres.', 'cocos'),
-  v('3v3', 'coro', 'Tambores en Coro', 'La misma canción para los seis; suma el equipo completo.', 'tambores'),
+  v('3v3', 'eco-cadena', 'Eco en Cadena', 'La misma secuencia para los seis; suma hasta dónde llegó cada uno.', 'eco'),
   v('3v3', 'caceria', 'Cacería de Cangrejos', 'Cada integrante limpia el mismo tablero; suma el equipo.', 'cangrejos'),
-  v('3v3', 'tikis-cadena', 'Tikis en Cadena', 'Los reflejos de los tres, sumados.', 'semaforo'),
+  v('3v3', 'mercado-equipo', 'Mercado en Equipo', 'Las mismas cuentas para todos; suma el equipo.', 'calculo'),
+  v('3v3', 'tinta-equipo', 'Tinta en Equipo', 'Las mismas palabras tramposas; suma el equipo.', 'tinta'),
   v('3v3', 'arqueros', 'Arqueros del Tótem', 'Treinta flechas por equipo con los mismos vientos.', 'totem'),
   v('3v3', 'bolos-equipo', 'Torneo de Bolos', 'Cada integrante juega sus cinco turnos; suma el equipo.', 'bolos'),
   v('3v3', 'asedio', 'Asedio de Sandías', 'Los tres disparan a las mismas torres; suman las cajas botadas.', 'catapulta'),
   v('3v3', 'fareros', 'Fareros', 'Los tres apagan los mismos tableros de luces.', 'luces'),
-  v('3v3', 'conchas-equipo', 'Buscaconchas en Equipo', 'El mismo campo de erizos para todos; suma el equipo.', 'buscaconchas'),
+  v('3v3', 'conchas-equipo', 'Erizos Ocultos en Equipo', 'El mismo campo de erizos para todos; suma el equipo.', 'buscaconchas'),
   v('3v3', 'tesoro', 'Tesoro Compartido', 'Las mismas olas para los seis: suma lo que guardó cada equipo.', 'cofre'),
   v('3v3', 'huevo', 'Caza del Huevo', 'Huevos al centro; cada equipo los lleva a su nido y roba del ajeno.'),
   v('3v3', 'futbol', 'Fútbol de Cocos', 'Un coco gigante y dos arcos.'),
