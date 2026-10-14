@@ -22,7 +22,12 @@ export interface Reto {
   empezar(): Promise<string>;
   /** Envía el resultado. Devuelve el motivo si falló. */
   terminar(r: Resultado): Promise<string | null>;
+  /** Cada 2 segundos mientras se juega: cuánto lleva, por si la partida se corta. */
+  latido?(puntaje: number): void;
 }
+
+/** Los puntos que muestra el marcador del juego ("120 pts"); los juegos que muestran avance ("3 / 10") cuentan 0. */
+const puntajeEnPantalla = (caja: HTMLElement | null) => Number(caja?.querySelector('.juego-hud .dato:last-child')?.textContent?.match(/(\d+)\s*pts/)?.[1] ?? 0);
 
 async function aspectoDe(usuarioId: string | null): Promise<Aspecto> {
   if (usuarioId) {
@@ -131,6 +136,17 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
     if (prueba.has('foto')) document.body.classList.add('foto');
     jugar();
   }, []);
+
+  // En un enfrentamiento: aviso antes de cerrar la pestaña y latido con lo que se lleva
+  useEffect(() => {
+    if (!reto || (fase !== 'cuenta' && fase !== 'jugando')) return;
+    const avisar = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', avisar);
+    const latir = () => reto.latido?.(puntajeEnPantalla(caja.current));
+    const reloj = fase === 'jugando' ? setInterval(latir, 2000) : undefined;
+    if (fase === 'jugando') latir();
+    return () => { window.removeEventListener('beforeunload', avisar); clearInterval(reloj); };
+  }, [fase]);
 
   const salir = () => { cerrar(); setFase('previa'); };
   const local = marcaLocal(juego.id, fecha), volver = reto?.volver ?? '#/juegos';

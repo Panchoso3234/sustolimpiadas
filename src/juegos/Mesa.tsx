@@ -230,7 +230,7 @@ export function Enfrentamientos() {
                   <td><b>{nombreVersus(e.modo, e.juego)}</b><br /><span class="tenue chico">{e.modo}{e.modo === '1v1' && e.rondas > 1 ? ` · mejor de ${e.rondas}` : ''} · {e.oficial ? 'oficial' : 'amistoso'}</span></td>
                   <td>{na} <span class="tenue">vs</span> {nb}</td>
                   <td>{e.jornada}<br /><span class="tenue chico">{V.fechaCorta(e.plazo)}</span></td>
-                  <td>{hechas('a')}/{esperadas('a')} · {hechas('b')}/{esperadas('b')}</td>
+                  <td>{hechas('a')}/{esperadas('a')} · {hechas('b')}/{esperadas('b')}{(() => { const n = marcas.filter((m) => m.enfrentamiento_id === e.id && V.cortada(m)).length; return n ? <><br /><span class="alerta chico">{n} {n === 1 ? 'partida cortada' : 'partidas cortadas'}</span></> : null; })()}</td>
                   <td>{e.estado === 'cerrado' ? <>{e.puntos_a} a {e.puntos_b}<br /><span class="tenue chico">{e.ganador === 'empate' ? 'Empate' : `Gana ${e.ganador === 'a' ? na : nb}`}</span></> : e.estado === 'anulado' ? 'Anulado' : '—'}</td>
                   <td>
                     <div class="acciones">

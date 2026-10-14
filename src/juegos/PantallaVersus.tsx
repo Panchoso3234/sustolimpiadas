@@ -68,7 +68,7 @@ export function PestanaVersus({ modo }: { modo: '1v1' | '3v3' }) {
               {!pendientes.length && <p class="tenue">No tienes enfrentamientos pendientes.</p>}
               <ul class="duelos">
                 {pendientes.map(({ e, lado }) => {
-                  const hechas = datos.marcas.filter((m) => m.enfrentamiento_id === e.id && m.perfil_id === yo).length, total = e.modo === '1v1' ? e.rondas : 1;
+                  const hechas = datos.marcas.filter((m) => m.enfrentamiento_id === e.id && m.perfil_id === yo && m.terminado).length, total = e.modo === '1v1' ? e.rondas : 1;
                   return (
                     <li key={e.id}>
                       <span class="quienes"><b>{nombreVersus(e.modo, e.juego)}</b><span>contra {nombre(e, otro(lado))} · {e.oficial ? `jornada ${e.jornada}` : 'amistoso'} · {V.fechaCorta(e.plazo) === 'sin plazo' ? 'sin plazo' : `hasta el ${V.fechaCorta(e.plazo)}`}</span></span>
@@ -90,7 +90,7 @@ export function PestanaVersus({ modo }: { modo: '1v1' | '3v3' }) {
                     const mias = lado === 'a' ? e.puntos_a : e.puntos_b, suyas = lado === 'a' ? e.puntos_b : e.puntos_a;
                     return (
                       <li key={e.id} class={como}>
-                        <span class="quienes"><b>{como === 'gana' ? 'Ganaste' : como === 'empata' ? 'Empate' : 'Perdiste'} · {mias} a {suyas}</b><span>{nombreVersus(e.modo, e.juego)} contra {nombre(e, otro(lado))}</span></span>
+                        <a class="quienes" href={`#/juegos/duelo/${e.id}`}><b>{como === 'gana' ? 'Ganaste' : como === 'empata' ? 'Empate' : 'Perdiste'} · {mias} a {suyas}</b><span>{nombreVersus(e.modo, e.juego)} contra {nombre(e, otro(lado))} · ver detalle</span></a>
                         <span class="tenue chico">{e.oficial ? `+${puntosVersus(puntos, como, e.jornada)} pts del torneo` : 'amistoso'}</span>
                       </li>
                     );
@@ -183,17 +183,22 @@ export function Duelo({ id }: { id: number }) {
   const { e } = estado, juego = e ? JUEGOS.find((x) => x.id === e.juego) : undefined;
   if (!e || !juego?.listo) return mensaje('Este enfrentamiento no existe');
   const lado = V.ladoDe(e, sesion.usuarioId, estado.equipos), volver = `#/juegos/${e.modo}`;
+  if (e.estado === 'cerrado') return <ResultadoDuelo e={e} lado={lado} marcas={estado.marcas} personas={estado.personas} equipos={estado.equipos} />;
   if (!lado) return mensaje(sesion.usuarioId ? 'No eres parte de este enfrentamiento' : 'Entra con Discord para jugar');
-  if (e.estado !== 'pendiente') return mensaje('Este enfrentamiento ya está cerrado');
-  const total = e.modo === '1v1' ? e.rondas : 1, jugadas = new Set(estado.marcas.filter((m) => m.perfil_id === sesion.usuarioId).map((m) => m.ronda));
+  if (e.estado !== 'pendiente') return mensaje('Este enfrentamiento fue anulado');
+  const mias = estado.marcas.filter((m) => m.perfil_id === sesion.usuarioId);
+  const total = e.modo === '1v1' ? e.rondas : 1, jugadas = new Set(mias.filter((m) => m.terminado).map((m) => m.ronda));
   let ronda = 1;
   while (ronda <= total && jugadas.has(ronda)) ronda++;
   if (ronda > total) return mensaje('Ya jugaste todas tus rondas');
+  const previa = mias.find((m) => m.ronda === ronda); // partida que se cortó a medias
 
   const rival = V.nombreLado(e, lado === 'a' ? 'b' : 'a', estado.personas, estado.equipos);
   const reto: Reto = {
     titulo: `${nombreVersus(e.modo, e.juego)} · contra ${rival}${total > 1 ? ` · ronda ${ronda} de ${total}` : ''}`,
-    aviso: 'Tienes un solo intento. Si sales o recargas a mitad de partida, el intento se pierde. Tu rival juega exactamente el mismo desafío.',
+    aviso: previa
+      ? 'Tu partida de esta ronda se cortó. Si fue en los primeros 10 segundos, puedes jugarla de nuevo una vez; si no, vale lo que alcanzaste a llevar.'
+      : 'Tienes un solo intento. Si cierras la pestaña en los primeros 10 segundos, puedes empezar de nuevo una vez; después, vale lo que llevabas. Tu rival juega exactamente el mismo desafío.',
     volver,
     practica: `#/juegos/${e.juego}`,
     async empezar() {
@@ -202,6 +207,65 @@ export function Duelo({ id }: { id: number }) {
       return r.semilla;
     },
     terminar: (r) => V.terminarRonda(e.id, ronda, r.puntaje, r.detalle),
+    latido: (puntaje) => V.latidoRonda(e.id, ronda, puntaje),
   };
   return <Sala key={`${e.id}-${ronda}`} juego={juego} reto={reto} />;
+}
+
+/** "mejorRacha" → "Mejor racha" */
+const legible = (clave: string) => { const t = clave.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').toLowerCase(); return t[0].toUpperCase() + t.slice(1); };
+
+function Celda({ m }: { m?: V.MarcaVersus }) {
+  if (!m) return <td class="tenue">No jugó</td>;
+  const datos = Object.entries(m.detalle ?? {}).filter(([k, v]) => k !== 'semilla' && k !== 'interrumpido' && ['number', 'string', 'boolean'].includes(typeof v));
+  return (
+    <td>
+      <b class="grande">{m.puntaje}</b>{V.cortada(m) && <span class="etiqueta">se cortó</span>}
+      {datos.length > 0 && <dl class="desglose chico">{datos.map(([k, v]) => <div key={k}><dt>{legible(k)}</dt><dd>{v === true ? 'sí' : v === false ? 'no' : String(v)}</dd></div>)}</dl>}
+    </td>
+  );
+}
+
+/** Resultado completo de un enfrentamiento cerrado: rondas, desglose lado a lado, puntos del torneo y revancha. */
+function ResultadoDuelo({ e, lado, marcas, personas, equipos }: { e: V.Enfrentamiento; lado: V.Lado | null; marcas: V.MarcaVersus[]; personas: V.Persona[]; equipos: V.Equipo[] }) {
+  const sesion = useSesion();
+  const [puntos, setPuntos] = useState<Puntos>(PUNTOS_BASE);
+  const [aviso, setAviso] = useState<{ texto: string; ok: boolean } | null>(null);
+  useEffect(() => { leerPuntos().then(setPuntos); }, []);
+  const yo = lado ?? 'a', el = yo === 'a' ? 'b' : 'a', n = (l: V.Lado) => V.nombreLado(e, l, personas, equipos);
+  const como = e.ganador === 'empate' ? 'empata' : e.ganador === yo ? 'gana' : 'pierde';
+  const delLado = (l: V.Lado) => marcas.filter((m) => m.lado === l);
+  const filas = e.modo === '1v1'
+    ? Array.from({ length: e.rondas }, (_, i) => ({ titulo: `Ronda ${i + 1}`, a: delLado(yo).find((m) => m.ronda === i + 1), b: delLado(el).find((m) => m.ronda === i + 1) }))
+    : Array.from({ length: 3 }, (_, i) => {
+      const a = delLado(yo)[i], b = delLado(el)[i], quien = (m?: V.MarcaVersus) => personas.find((p) => p.id === m?.perfil_id)?.nombre ?? '—';
+      return { titulo: `${quien(a)} / ${quien(b)}`, a, b };
+    });
+  const revancha = async () => {
+    const otro = yo === 'a' ? e.b_perfil : e.a_perfil;
+    const error = await V.crearEnfrentamientos([{ modo: '1v1', juego: e.juego, rondas: e.rondas, jornada: 1, plazo: null, oficial: false, a_perfil: sesion.usuarioId, b_perfil: otro, a_equipo: null, b_equipo: null }]);
+    setAviso(error ? { texto: `No se pudo crear: ${error}`, ok: false } : { texto: 'Revancha creada: ya aparece en tus enfrentamientos y en los de tu rival.', ok: true });
+  };
+
+  return (
+    <div class="pagina">
+      <div class="sigla">{nombreVersus(e.modo, e.juego)} · {e.oficial ? `jornada ${e.jornada}` : 'amistoso'}</div>
+      <h1>{lado ? (como === 'gana' ? '¡Ganaste!' : como === 'empata' ? 'Empate' : 'Perdiste') : e.ganador === 'empate' ? 'Empate' : `Ganó ${n(e.ganador as V.Lado)}`}</h1>
+      <p class="marcador-duelo"><b>{n(yo)}</b> {yo === 'a' ? e.puntos_a : e.puntos_b} <span class="tenue">a</span> {yo === 'a' ? e.puntos_b : e.puntos_a} <b>{n(el)}</b>
+        <span class="tenue chico"> · {e.modo === '1v1' ? 'rondas ganadas' : 'puntos sumados'}</span></p>
+      {lado && <p>{e.oficial ? `Para el torneo: +${puntosVersus(puntos, como, e.jornada)} puntos (jornada ${e.jornada}).` : 'Amistoso: no da puntos del torneo.'}</p>}
+      {marcas.length > 0 && <div class="tabla-caja">
+        <table class="tabla duelo-detalle">
+          <thead><tr><th>{e.modo === '1v1' ? 'Ronda' : 'Integrantes'}</th><th>{n(yo)}</th><th>{n(el)}</th></tr></thead>
+          <tbody>{filas.map((f, i) => <tr key={i}><th>{f.titulo}</th><Celda m={f.a} /><Celda m={f.b} /></tr>)}</tbody>
+        </table>
+      </div>}
+      {!marcas.length && <p class="tenue chico">Entra con Discord para ver el detalle de cada ronda.</p>}
+      <div class="fila">
+        {lado && e.modo === '1v1' && sesion.usuarioId && <button class="boton principal" onClick={revancha}>Pedir revancha</button>}
+        <a class="boton" href={`#/juegos/${e.modo}`}>Volver a los enfrentamientos</a>
+      </div>
+      {aviso && <p class={`aviso ${aviso.ok ? 'ok' : 'error'}`}>{aviso.texto}</p>}
+    </div>
+  );
 }

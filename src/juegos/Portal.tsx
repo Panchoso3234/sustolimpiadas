@@ -28,7 +28,7 @@ function usePendientes(usuarioId: string | null): Record<string, number> {
       const marcas = await V.marcasDe(mios.map((e) => e.id));
       const nueva: Record<string, number> = {};
       for (const e of mios) {
-        const hechas = marcas.filter((m) => m.enfrentamiento_id === e.id && m.perfil_id === usuarioId).length;
+        const hechas = marcas.filter((m) => m.enfrentamiento_id === e.id && m.perfil_id === usuarioId && m.terminado).length;
         if (hechas < (e.modo === '1v1' ? e.rondas : 1)) nueva[e.modo] = (nueva[e.modo] ?? 0) + 1;
       }
       if (vigente) setCuenta(nueva);

@@ -352,3 +352,13 @@ body.foto .mesa { padding: 10px; }
 /* Creador: cada color con su código debajo */
 .color-libre.grande { flex-direction: column; align-items: center; gap: 3px; }
 code.hex { font: 700 .74rem ui-monospace, monospace; color: var(--tenue); letter-spacing: .03em; }
+
+/* Resultado completo de un enfrentamiento */
+a.quienes { color: inherit; text-decoration: none; }
+a.quienes:hover b { text-decoration: underline; }
+.marcador-duelo { font-size: 1.4rem; }
+.duelo-detalle td { vertical-align: top; }
+.duelo-detalle b.grande { font-size: 1.6rem; display: inline-block; margin-bottom: 6px; }
+.duelo-detalle .desglose { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 6px; }
+.duelo-detalle .desglose dd { font-size: .95rem; }
+.etiqueta { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: var(--calabaza); color: #1c1826; font-size: .75rem; font-weight: 800; vertical-align: middle; }

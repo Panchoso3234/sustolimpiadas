@@ -222,6 +222,9 @@ create table if not exists public.enfrentamiento_marcas (
   creado timestamptz not null default now(),
   primary key (enfrentamiento_id, perfil_id, ronda)
 );
+-- Control de pestaña cerrada: el juego avisa cada 2 segundos cuánto lleva (avance) y se permite un reinicio si se cortó en los primeros 10 segundos
+alter table public.enfrentamiento_marcas add column if not exists avance timestamptz;
+alter table public.enfrentamiento_marcas add column if not exists reinicios smallint not null default 0;
 
 alter table public.enfrentamientos enable row level security;
 alter table public.enfrentamiento_marcas enable row level security;
@@ -274,6 +277,11 @@ declare
 begin
   select * into e from public.enfrentamientos where id = p_id for update;
   if not found or e.estado <> 'pendiente' then return; end if;
+  -- Al cerrar a la fuerza, una partida que quedó a medias vale lo último que el juego alcanzó a guardar
+  if p_forzar then
+    update public.enfrentamiento_marcas set terminado = true, detalle = detalle || '{"interrumpido": true}'::jsonb
+      where enfrentamiento_id = p_id and not terminado;
+  end if;
   if e.modo = '1v1' then
     esperadas_a := e.rondas; esperadas_b := e.rondas;
   else
@@ -303,11 +311,14 @@ end;
 $$;
 
 -- Empezar una ronda gasta el intento y entrega la semilla del desafío. Solo se puede una vez por ronda.
+-- Si la partida anterior se cortó (pestaña cerrada, se fue la conexión): en los primeros 10 segundos se permite un reinicio;
+-- después, la ronda se cierra con lo que el juego alcanzó a guardar y se devuelve un texto vacío.
 create or replace function public.empezar_ronda(p_enf bigint, p_ronda integer) returns text
 language plpgsql security definer set search_path = '' as $$
 declare
   e public.enfrentamientos%rowtype;
   mi_lado text;
+  previa public.enfrentamiento_marcas%rowtype;
 begin
   if (select auth.uid()) is null then raise exception 'Hay que entrar con Discord.'; end if;
   select * into e from public.enfrentamientos where id = p_enf;
@@ -315,14 +326,32 @@ begin
   mi_lado := public.lado_de(p_enf, (select auth.uid()));
   if mi_lado is null then raise exception 'No eres parte de este enfrentamiento.'; end if;
   if p_ronda < 1 or p_ronda > e.rondas or (e.modo = '3v3' and p_ronda <> 1) then raise exception 'Esa ronda no existe.'; end if;
-  begin
+  select * into previa from public.enfrentamiento_marcas where enfrentamiento_id = p_enf and perfil_id = (select auth.uid()) and ronda = p_ronda for update;
+  if not found then
     insert into public.enfrentamiento_marcas (enfrentamiento_id, perfil_id, ronda, lado) values (p_enf, (select auth.uid()), p_ronda, mi_lado);
-  exception when unique_violation then
+  elsif previa.terminado then
     raise exception 'Ya jugaste esta ronda.';
-  end;
+  elsif previa.reinicios = 0 and coalesce(previa.avance, previa.creado) - previa.creado < interval '13 seconds' then -- 10 s de juego más la carga y la cuenta 3-2-1
+    update public.enfrentamiento_marcas set reinicios = 1, creado = now(), avance = null, puntaje = 0
+      where enfrentamiento_id = p_enf and perfil_id = (select auth.uid()) and ronda = p_ronda;
+  else
+    update public.enfrentamiento_marcas set terminado = true, detalle = detalle || '{"interrumpido": true}'::jsonb
+      where enfrentamiento_id = p_enf and perfil_id = (select auth.uid()) and ronda = p_ronda;
+    perform public.resolver_enfrentamiento(p_enf, false);
+    return '';
+  end if;
   return e.semilla || '|r' || p_ronda;
 end;
 $$;
+
+-- Cada 2 segundos, mientras se juega una ronda: cuánto lleva. Si la partida se corta, vale esto.
+create or replace function public.latido_ronda(p_enf bigint, p_ronda integer, p_puntaje integer) returns void
+language sql security definer set search_path = '' as $$
+  update public.enfrentamiento_marcas set avance = now(), puntaje = greatest(0, least(p_puntaje, 1000000))
+    where enfrentamiento_id = p_enf and perfil_id = (select auth.uid()) and ronda = p_ronda and not terminado;
+$$;
+revoke execute on function public.latido_ronda(bigint, integer, integer) from public, anon;
+grant execute on function public.latido_ronda(bigint, integer, integer) to authenticated;
 
 create or replace function public.terminar_ronda(p_enf bigint, p_ronda integer, p_puntaje integer, p_detalle jsonb) returns void
 language plpgsql security definer set search_path = '' as $$

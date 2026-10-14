@@ -8,7 +8,10 @@ export interface Enfrentamiento {
   a_perfil: string | null; b_perfil: string | null; a_equipo: number | null; b_equipo: number | null;
   estado: 'pendiente' | 'cerrado' | 'anulado'; ganador: Lado | 'empate' | null; puntos_a: number; puntos_b: number; creado_por: string; creado: string;
 }
-export interface MarcaVersus { enfrentamiento_id: number; perfil_id: string; ronda: number; lado: Lado; puntaje: number; terminado: boolean }
+export interface MarcaVersus {
+  enfrentamiento_id: number; perfil_id: string; ronda: number; lado: Lado; puntaje: number; terminado: boolean;
+  detalle: Record<string, unknown>; creado: string; avance: string | null; reinicios: number;
+}
 export interface Persona { id: string; nombre: string; rol: Rol }
 export interface Equipo { id: number; nombre: string; miembros: string[] }
 export type NuevoEnfrentamiento = Pick<Enfrentamiento, 'modo' | 'juego' | 'rondas' | 'jornada' | 'plazo' | 'oficial' | 'a_perfil' | 'b_perfil' | 'a_equipo' | 'b_equipo'>;
@@ -48,8 +51,11 @@ export async function unEnfrentamiento(id: number): Promise<Enfrentamiento | nul
 export async function marcasDe(ids: number[]): Promise<MarcaVersus[]> {
   // Sin sesión no hay marcas que ver: se evita una consulta que la base rechazaría
   if (!ids.length || !(await supabase.auth.getSession()).data.session) return [];
-  const { data } = await supabase.from('enfrentamiento_marcas').select('enfrentamiento_id,perfil_id,ronda,lado,puntaje,terminado').in('enfrentamiento_id', ids);
-  return (data as MarcaVersus[] | null) ?? [];
+  const { data, error } = await supabase.from('enfrentamiento_marcas').select('enfrentamiento_id,perfil_id,ronda,lado,puntaje,terminado,detalle,creado,avance,reinicios').in('enfrentamiento_id', ids);
+  if (!error) return (data as MarcaVersus[] | null) ?? [];
+  // Si la base aún no tiene las columnas nuevas (falta volver a ejecutar esquema.sql), se piden las de antes
+  const viejo = await supabase.from('enfrentamiento_marcas').select('enfrentamiento_id,perfil_id,ronda,lado,puntaje,terminado').in('enfrentamiento_id', ids);
+  return ((viejo.data as MarcaVersus[] | null) ?? []).map((m) => ({ ...m, detalle: {}, creado: '', avance: null, reinicios: 0 }));
 }
 
 export async function crearEnfrentamientos(filas: NuevoEnfrentamiento[]): Promise<string | null> {
@@ -60,8 +66,17 @@ export async function crearEnfrentamientos(filas: NuevoEnfrentamiento[]): Promis
 
 export async function empezarRonda(id: number, ronda: number): Promise<{ semilla?: string; error?: string }> {
   const { data, error } = await supabase.rpc('empezar_ronda', { p_enf: id, p_ronda: ronda });
+  if (data === '') return { error: 'Tu partida anterior de esta ronda se cortó después de los primeros 10 segundos, así que vale lo que alcanzaste a llevar. Vuelve a tus enfrentamientos para ver la ronda siguiente.' };
   return error || typeof data !== 'string' ? { error: error?.message ?? 'No se pudo empezar la ronda.' } : { semilla: data };
 }
+
+/** Avisa cuánto lleva la partida en curso; si se corta, vale esto. No espera respuesta. */
+export function latidoRonda(id: number, ronda: number, puntaje: number): void {
+  supabase.rpc('latido_ronda', { p_enf: id, p_ronda: ronda, p_puntaje: Math.max(0, Math.round(puntaje)) }).then(() => undefined, () => undefined);
+}
+
+/** Una ronda se cortó si quedó a medias o si se cerró con lo guardado. */
+export const cortada = (m: MarcaVersus) => !!m.detalle?.interrumpido || (!m.terminado && !!m.avance && Date.now() - Date.parse(m.avance) > 30_000);
 
 export async function terminarRonda(id: number, ronda: number, puntaje: number, detalle: Record<string, unknown>): Promise<string | null> {
   const { error } = await supabase.rpc('terminar_ronda', { p_enf: id, p_ronda: ronda, p_puntaje: puntaje, p_detalle: detalle });
