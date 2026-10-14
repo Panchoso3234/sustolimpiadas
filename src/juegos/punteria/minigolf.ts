@@ -146,7 +146,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     puntosGuia.forEach((p, i) => { p.visible = !!v && tiro.fuerza > 0.12; if (v) { const s = (i + 1) * 0.045; p.position.set(pos.x + v.x * s, 0.3, pos.z + v.z * s); } });
     const m = HOYOS[actual]?.movil;
     if (m && !terminado) {
-      const corre = Math.sin(t * 1.2) * m[5];
+      const corre = Math.sin(t * 1.2 * (1 + (c.nivel - 1) * 0.12)) * m[5];
       movilAhora = [m[0] + (m[4] === 'x' ? corre : 0), m[1] + (m[4] === 'z' ? corre : 0), m[2], m[3]];
       bloque.position.set(movilAhora[0], 0.4, movilAhora[1]);
       if (quieta()) chocar(movilAhora); // si la pelota está parada en su camino, la empuja

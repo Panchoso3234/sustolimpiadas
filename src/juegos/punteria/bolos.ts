@@ -13,7 +13,7 @@ const TURNOS = 5, FONDO = -19, EMPUJE_EFECTO = 0.09, LINEA = 3.2, ANCHO = 2.6, V
 export async function crear(c: Contexto): Promise<Partida> {
   const e = crearEscenario(c.caja, { ancho: 9.5, alto: 18.5, centro: [0, 0.4, -5.4], inclinacion: 0.6 });
   const R = await rapier(), r = generador(c.semilla);
-  const pendientes = Array.from({ length: TURNOS }, (_, i) => Math.round((r() * 2 - 1) * (1.2 + i * 0.5) * 10) / 10);
+  const pendientes = Array.from({ length: TURNOS }, (_, i) => Math.round((r() * 2 - 1) * (1.2 + i * 0.5) * (1 + (c.nivel - 1) * 0.12) * 10) / 10);
   const rocas = Array.from({ length: TURNOS }, (_, i) => (i >= 2 ? (r() * 2 - 1) * 1.7 : null));
   const mundo = new R.World({ x: 0, y: -22, z: 0 }), cuerpos: Cuerpo[] = [];
   mundo.createCollider(R.ColliderDesc.cuboid(40, 1, 40).setTranslation(0, -1, 0).setFriction(0.5));

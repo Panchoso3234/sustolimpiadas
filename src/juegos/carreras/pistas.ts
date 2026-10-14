@@ -47,7 +47,7 @@ export function puertas(c: Contexto): Promise<Partida> {
   const largo = MUROS * ENTRE + 6;
   bloques.push({ x: 0, y: 0, z: -largo / 2 + 3, w: ANCHO, h: 1, d: largo, color: '#3b2d5c' }, { x: 0, y: 0.02, z: 1, w: ANCHO, h: 1, d: 3, color: '#4a3a70', tipo: 'control' });
   for (let m = 0; m < MUROS; m++) {
-    const z = -4 - m * ENTRE, buena = Math.floor(r() * 4), segunda = Math.floor(r() * 4), dosBuenas = m < 2;
+    const z = -4 - m * ENTRE, buena = Math.floor(r() * 4), segunda = Math.floor(r() * 4), dosBuenas = m < Math.max(0, 3 - c.nivel);
     for (let i = 0; i < 4; i++) {
       const real = i === buena || (dosBuenas && i === segunda);
       bloques.push({ x: -ANCHO / 2 + PUERTA * (i + 0.5), y: 3.2, z, w: PUERTA - 0.06, h: 3.2, d: 0.45, color: i % 2 ? '#c79bff' : '#b58af0', tipo: real ? 'real' : 'falsa' });
@@ -57,7 +57,7 @@ export function puertas(c: Contexto): Promise<Partida> {
   }
   const fin = -largo + 5;
   bloques.push({ x: 0, y: 0.03, z: fin, w: ANCHO, h: 1, d: 3, color: '#ffd23c', tipo: 'meta' });
-  return crearCarrera(c, { bloques, inicio: [0, 0.1, 1.2], cielo: '#1a1230', abismo: '#0b0718', limite: 75, ritmo: 30, progreso: (_x, _y, z) => z / fin });
+  return crearCarrera(c, { bloques, inicio: [0, 0.1, 1.2], cielo: '#1a1230', abismo: '#0b0718', limite: 75 - (c.nivel - 1) * 5, ritmo: 30, progreso: (_x, _y, z) => z / fin });
 }
 
 /** Sube la Lava: una escalera de plataformas sueltas y la lava subiendo cada vez más rápido. Sin segundas oportunidades.

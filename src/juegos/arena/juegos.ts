@@ -20,7 +20,7 @@ const SOLOS = [0, 1, 2, 3, 4, 5], EQUIPOS = [0, 0, 0, 1, 1, 1];
 
 /** Sumo de Balsas: seis sobre una balsa redonda que se achica. Empuja a los demás al agua y no caigas tú. */
 export function sumo(c: Contexto): Promise<Partida> {
-  const R0 = 9, DURA = 70, radio = (t: number) => Math.max(3.6, R0 - 0.078 * t);
+  const R0 = 9, DURA = 70, radio = (t: number) => Math.max(3.6, R0 - 0.078 * (1 + (c.nivel - 1) * 0.1) * t);
   let balsa: THREE.Mesh, fuerza: { x: number; z: number; malla: THREE.Mesh } | null = null, proximo = 8;
   const vivos = (m: Mundo) => m.entes.filter((x) => x.vivo).length;
   const sobrevive = (m: Mundo, t: number) => m.yo.dato.cayo ?? t;
@@ -36,7 +36,7 @@ export function sumo(c: Contexto): Promise<Partida> {
     rival(m, x, t): Orden {
       if (Math.hypot(x.x, x.z) > radio(t) - 1.7) return { x: 0, z: 0 }; // primero, no caerse
       const otro = cercano(x, m.entes.filter((o) => o.vivo && o !== x));
-      return otro ? { x: otro.x, z: otro.z, embestir: lejos(x, otro) < 3.4, carga: 0.2 + m.r() * 0.5 } : { x: 0, z: 0 };
+      return otro ? { x: otro.x, z: otro.z, embestir: lejos(x, otro) < 3.4, carga: 0.2 + (c.nivel - 1) * 0.08 + m.r() * 0.5 } : { x: 0, z: 0 };
     },
     // Cerca del borde la balsa está mojada: se resbala
     roce: (_m, x, t) => (Math.hypot(x.x, x.z) > radio(t) - 1.5 ? 0.35 : 1),
@@ -128,7 +128,7 @@ export function futbol(c: Contexto): Promise<Partida> {
       const orilla = Math.abs(pelota.z) > FONDO / 2 - 2.2;
       const bienPuesto = (pelota.x - x.x) * Math.sign(meta.x) > 0.2;
       if (orilla) return { x: pelota.x - Math.sign(meta.x) * 0.8, z: pelota.z - Math.sign(pelota.z) * 1.1, embestir: bienPuesto && cerca < 2 };
-      return { ...(bienPuesto ? { x: pelota.x, z: pelota.z } : detrasDe(pelota, meta, 1.6)), embestir: bienPuesto && cerca < 2.2 };
+      return { ...(bienPuesto ? { x: pelota.x, z: pelota.z } : detrasDe(pelota, meta, 1.6)), embestir: bienPuesto && cerca < 2.2 + (c.nivel - 1) * 0.2 };
     },
     paso(m, t, dt) {
       // Si la pelota queda casi quieta junto a un borde por 2,5 segundos, se saca hacia el centro
@@ -165,9 +165,9 @@ export function futbol(c: Contexto): Promise<Partida> {
 export function faro(c: Contexto): Promise<Partida> {
   const ANCHO = 22, FONDO = 14, DURA = 60, APAGON = 1.4;
   let luz: THREE.Mesh, foco: THREE.PointLight, f1 = 0, f2 = 0, apagones: number[] = [], saltos = 0;
-  const radio = (t: number) => Math.max(1.6, 2.7 - t * 0.018);
+  const ritmoLuz = 1 + (c.nivel - 1) * 0.08, radio = (t: number) => Math.max(1.6, 2.7 - t * 0.018 * (1 + (c.nivel - 1) * 0.15));
   // Cada apagón hace saltar la luz a otra parte de su recorrido
-  const centro = (t: number) => { const salto = apagones.filter((a) => t >= a + APAGON).length * 2.1; return { x: 7.6 * Math.sin(0.33 * t + f1 + salto), z: 4.3 * Math.sin(0.47 * t + f2 + salto) }; };
+  const centro = (t: number) => { const salto = apagones.filter((a) => t >= a + APAGON).length * 2.1; return { x: 7.6 * Math.sin(0.33 * ritmoLuz * t + f1 + salto), z: 4.3 * Math.sin(0.47 * ritmoLuz * t + f2 + salto) }; };
   const apagada = (t: number) => apagones.some((a) => t >= a && t < a + APAGON);
   const parpadea = (t: number) => apagones.some((a) => t >= a - 0.7 && t < a);
   const RADIO = 2.7;
@@ -245,7 +245,7 @@ export function huevo(c: Contexto): Promise<Partida> {
         if (intruso) return { x: intruso.x, z: intruso.z, embestir: lejos(x, intruso) < 2.6 };
         return { x: propio.x + (x.equipo === 0 ? 2.6 : -2.6), z: m.yo.z * 0.3 };
       }
-      if (ladron && rol === 1 && lejos(x, ladron) < 9) return { x: ladron.x, z: ladron.z, embestir: lejos(x, ladron) < 2.6 };
+      if (ladron && rol === 1 && lejos(x, ladron) < 8 + c.nivel) return { x: ladron.x, z: ladron.z, embestir: lejos(x, ladron) < 2.6 };
       const suelto = cercano(x, huevos.filter((h) => h.estado === 'suelo'));
       if (suelto) return suelto;
       const ajeno = nidoDe(1 - x.equipo);

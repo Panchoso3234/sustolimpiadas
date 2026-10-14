@@ -45,7 +45,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     movil = null;
     const conMovil = nivel > 0 ? 1 + Math.floor(r() * 2) : -1;
     for (let i = 0; i < 3; i++) {
-      const x = 2.5 + i * 5 + r() * 1.2, alto = 1 + Math.floor(r() * 3) * 0.9, ancho = 2.6, columnas = 1 + Math.floor(r() * 2), pisos = 2 + Math.floor(r() * 3) + nivel;
+      const x = 2.5 + i * 5 + r() * 1.2, alto = 1 + Math.floor(r() * 3) * 0.9, ancho = 2.6, columnas = 1 + Math.floor(r() * 2), pisos = 2 + Math.floor(r() * 3) + nivel + Math.floor((c.nivel - 1) / 2);
       const tarima = caja(ancho, alto, 2.4, i === conMovil ? '#7a8fb0' : '#9a97a6');
       e.escena.add(tarima);
       let techo: () => number, arriba = alto;
@@ -135,7 +135,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     });
     if (terminado || t <= 0) return;
     if (movil) {
-      const y = movil.y + Math.sin(t * 1.1) * 0.9;
+      const y = movil.y + Math.sin(t * (1.1 + (c.nivel - 1) * 0.15)) * 0.9;
       movil.cuerpo.setNextKinematicTranslation({ x: movil.x, y, z: 0 });
       movil.malla.position.y = y;
     }

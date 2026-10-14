@@ -120,7 +120,7 @@ export async function crearArena(c: Contexto, a: Arena): Promise<Partida> {
       const largo = Math.hypot(dx, dz);
       if (largo > 0.25) { dx /= largo; dz /= largo; } else dx = dz = 0;
       if (t >= x.aturdido) {
-        const fuerza = x.humano ? 1 : 0.86; // los rivales corren un poco menos que tú
+        const fuerza = x.humano ? 1 : 0.86 + (c.nivel - 1) * 0.03; // los de máquina corren un poco menos que tú (menos diferencia en cada jornada)
         x.vx += dx * ACEL * fuerza * dt;
         x.vz += dz * ACEL * fuerza * dt;
         if (orden.embestir && t >= x.recarga && largo > 0.25) {

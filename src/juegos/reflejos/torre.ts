@@ -13,6 +13,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   const e = crearEscenario(c.caja, { ancho: 14, alto: 12, centro: [0, 2, 0], inclinacion: 0.5, sinPlaya: true });
   e.escena.background = new THREE.Color('#24375f');
   const r = generador(c.semilla), tono = r();
+  const perfecto = PERFECTO - (c.nivel - 1) * 0.015, apuro = 1 + (c.nivel - 1) * 0.07; // cada jornada: margen más justo y bloques más rápidos
   const k = await e.personaje(c.aspecto, 1.5);
   k.grupo.position.set(2.7, 0, 2.7);
   k.grupo.rotation.y = 0.8;
@@ -37,7 +38,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     eje = pisos.length % 2 ? 'x' : 'z';
     actual = { ...previo, malla: bloque(previo.w, previo.d, pisos.length) };
     fase = r() * Math.PI * 2;
-    vel = Math.min(10, 4 + pisos.length * 0.13);
+    vel = Math.min(10, 4 + pisos.length * 0.13) * apuro;
   };
   const terminar = () => {
     if (terminado) return;
@@ -53,7 +54,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   const soltar = () => {
     if (terminado || !empezado || !actual || e.reloj() <= 0) return;
     const previo = pisos[pisos.length - 1], tam = eje === 'x' ? 'w' : 'd', delta = actual[eje] - previo[eje];
-    if (Math.abs(delta) < PERFECTO) {
+    if (Math.abs(delta) < perfecto) {
       actual[eje] = previo[eje];
       perfectos++; racha++;
       mejorRacha = Math.max(mejorRacha, racha);

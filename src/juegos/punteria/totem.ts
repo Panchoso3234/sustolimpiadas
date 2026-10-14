@@ -105,7 +105,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   e.hud.puntos(0);
   e.alCuadro((t) => {
     // La mira sigue al dedo pero se mece; cada flecha se mece un poco más
-    const meneo = 0.34 + flecha * 0.03;
+    const meneo = (0.34 + flecha * 0.03) * (1 + (c.nivel - 1) * 0.1);
     mira.position.x = apunte.x + (Math.sin(t * 1.7) + Math.sin(t * 2.9) * 0.5) * meneo;
     mira.position.y = apunte.y + Math.cos(t * 1.3) * meneo * 0.8;
     mira.visible = !vuelo && !terminado && t > 0;
