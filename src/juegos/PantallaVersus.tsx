@@ -241,6 +241,7 @@ export function Duelo({ id }: { id: number }) {
       return r.semilla;
     },
     terminar: (r) => V.terminarRonda(e.id, ronda, r.puntaje, r.detalle),
+    nivel: e.jornada,
     latido: (puntaje) => V.latidoRonda(e.id, ronda, puntaje),
   };
   return <Sala key={`${e.id}-${ronda}`} juego={juego} reto={reto} />;

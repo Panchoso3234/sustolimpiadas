@@ -1,6 +1,7 @@
 import type { Aspecto } from '../../personaje/catalogo';
 import { foto } from '../../personaje/miniaturas';
 import { alCambiarVolumen, cargarMuestras, tocarMuestra, volumen } from '../sonido';
+import { ajustesPartida } from '../marco';
 
 // Motores E y F · Tablero, memoria y decisión. Son juegos de mesa: no necesitan 3D, así que se arman con elementos
 // de la página (livianos en cualquier equipo). Esto resuelve lo común: el fondo, el marcador, el reloj y los sonidos.
@@ -95,7 +96,16 @@ export function crearMesa(caja: HTMLElement, clase: string, aspecto?: Aspecto) {
       caja.replaceChildren();
     },
   };
-  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__juego = { saltar: (s: number) => { salto += s; }, reloj, cuadro: () => {} };
+  // Individual: al cambiar de pestaña el reloj se congela y sigue al volver; el tablero se tapa para no estudiarlo en pausa
+  let pausado = false;
+  const alCambiarVista = () => {
+    if (!ajustesPartida.pausable) return;
+    if (document.hidden && corriendo) { fijo = reloj(); corriendo = false; pausado = true; tablero.classList.add('oculta'); }
+    else if (!document.hidden && pausado) { pausado = false; salto = fijo; inicio = performance.now(); corriendo = true; tablero.classList.remove('oculta'); api.hud.aviso('Pausa: sigues donde quedaste', '', 1.4); }
+  };
+  document.addEventListener('visibilitychange', alCambiarVista);
+  limpiezas.push(() => document.removeEventListener('visibilitychange', alCambiarVista));
+  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__juego = { saltar: (s: number) => { salto += s; }, reloj, cuadro: () => {}, vista: alCambiarVista };
   return api;
 }
 

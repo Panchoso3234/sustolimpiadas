@@ -3,6 +3,7 @@ import { cargar, type Origen as Paquete } from '../../nucleo/modelos';
 import type { Aspecto } from '../../personaje/catalogo';
 import { crearKenney, type Kenney } from '../../personaje/kenney';
 import { alCambiarVolumen, cargarMuestras, tocarMuestra, volumen } from '../sonido';
+import { ajustesPartida } from '../marco';
 
 // Motor D · Reflejos y ritmo. Resuelve una sola vez lo que comparten sus cuatro juegos: una playa pequeña en 3D,
 // la cámara que se acomoda a cualquier pantalla, el reloj de la partida, el marcador, los textos que saltan,
@@ -231,8 +232,18 @@ export function crearEscenario(caja: HTMLElement, encuadre: Encuadre) {
     },
   };
 
+  // Individual: al cambiar de pestaña el reloj se congela y sigue al volver (en un enfrentamiento corre igual)
+  let pausado = false;
+  const alCambiarVista = () => {
+    if (!ajustesPartida.pausable) return;
+    if (document.hidden && corriendo) { fijo = reloj(); corriendo = false; pausado = true; }
+    else if (!document.hidden && pausado) { pausado = false; salto = fijo; inicio = previo = performance.now(); corriendo = true; api.hud.aviso('Pausa: sigues donde quedaste', '', 1.4); }
+  };
+  document.addEventListener('visibilitychange', alCambiarVista);
+  limpiezas.push(() => document.removeEventListener('visibilitychange', alCambiarVista));
+
   // Para probar sin esperar: adelantar el reloj y dibujar un cuadro a mano
-  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__juego = { saltar: (s: number) => { salto += s; }, cuadro: paso, reloj };
+  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__juego = { saltar: (s: number) => { salto += s; }, cuadro: paso, reloj, vista: alCambiarVista };
   return api;
 }
 

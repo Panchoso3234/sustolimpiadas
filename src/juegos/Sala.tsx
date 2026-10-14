@@ -4,7 +4,7 @@ import { supabase, useSesion } from '../nucleo/supabase';
 import { aspectoAleatorio, normalizarAspecto, normalizarPersonaje, type Aspecto } from '../personaje/catalogo';
 import { MOTORES, VERSUS, type Juego } from './catalogo';
 import { guardarMarca, marcaLocal, tablaDelDia, type Fila, type Guardado } from './marcas';
-import { CARGADORES, type Partida, type Resultado } from './marco';
+import { CARGADORES, ajustesPartida, jornadaDe, type Partida, type Resultado } from './marco';
 import { PUNTOS_BASE, leerPuntos, puntosPorPuesto, type Puntos } from './puntos';
 import { estaCallado, fanfarria, silenciar } from './sonido';
 
@@ -24,6 +24,8 @@ export interface Reto {
   terminar(r: Resultado): Promise<string | null>;
   /** Cada 2 segundos mientras se juega: cuánto lleva, por si la partida se corta. */
   latido?(puntaje: number): void;
+  /** Jornada del enfrentamiento: fija la dificultad, igual para ambos lados. */
+  nivel?: number;
 }
 
 /** Los puntos que muestra el marcador del juego ("120 pts"); los juegos que muestran avance ("3 / 10") cuentan 0. */
@@ -78,6 +80,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
   const [motivo, setMotivo] = useState('');
   const [version, setVersion] = useState(0);
   const [callado, setCallado] = useState(estaCallado);
+  const [ayuda, setAyuda] = useState(false);
   const fecha = useRef(fechaChile(Date.now())).current, motor = MOTORES[juego.motor];
   const usuarioId = sesion.usuarioId, usuario = useRef(usuarioId);
   usuario.current = usuarioId;
@@ -101,8 +104,9 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
       // En un enfrentamiento el intento se gasta aquí, cuando el juego ya está descargado
       const semilla = reto ? await reto.empezar() : `${juego.id}|${fecha}|${Math.random().toString(36).slice(2, 10)}`;
       if (mio !== turno.current || !caja.current) return;
+      ajustesPartida.pausable = !reto; // en un enfrentamiento el reloj no se detiene al cambiar de pestaña
       const nueva = await crear({
-        caja: caja.current, semilla, aspecto,
+        caja: caja.current, semilla, aspecto, nivel: reto?.nivel ?? jornadaDe(fecha),
         alTerminar(r) {
           if (mio !== turno.current) return;
           setResultado(r);
@@ -126,6 +130,8 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
         if (mio !== turno.current) return;
       }
       setFase('jugando');
+      setAyuda(true);
+      setTimeout(() => { if (mio === turno.current) setAyuda(false); }, 6000);
       nueva.empezar();
     } catch (e) {
       if (mio !== turno.current) return;
@@ -166,6 +172,8 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
         </div>
       )}
       {fase === 'cuenta' && <div class="sala-cuenta" key={cuenta} aria-live="assertive">{cuenta}</div>}
+      {fase === 'cuenta' && <div class="sala-tutorial"><b>Cómo se juega</b><p>{juego.controles}</p></div>}
+      {fase === 'jugando' && ayuda && <div class="sala-teclas" aria-hidden="true">{juego.controles}</div>}
       {(fase === 'previa' || fase === 'cargando' || fase === 'error') && (
         <div class="sala-telon">
           <div class="sala-panel">

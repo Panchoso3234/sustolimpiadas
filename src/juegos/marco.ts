@@ -17,8 +17,16 @@ export interface Contexto {
   /** Igual para todos durante el día: mismo desafío para todos. */
   semilla: string;
   aspecto: Aspecto;
+  /** Dificultad de 1 a 4: sube con cada jornada del torneo. En un enfrentamiento es la de su jornada, igual para ambos lados. */
+  nivel: number;
   alTerminar(r: Resultado): void;
 }
+
+/** Lo que la sala le avisa a los motores para la partida que parte (shortcut: un valor compartido; basta porque hay una sola partida a la vez). */
+export const ajustesPartida = { pausable: true };
+
+/** Jornada del torneo (1 a 4) de una fecha "AAAA-MM-DD": parten los viernes desde el 16 de octubre; antes cuenta como la 1. */
+export const jornadaDe = (fecha: string) => Math.min(4, Math.max(1, Math.floor((Date.parse(fecha) - Date.parse('2026-10-16')) / (7 * 864e5)) + 1));
 
 export interface Partida {
   empezar(): void;
