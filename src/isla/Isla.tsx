@@ -154,7 +154,7 @@ const fechaLarga = (fecha: string) => new Date(`${fecha}T12:00:00`).toLocaleDate
 // baja: sin sombras · media: sombras livianas · alta: sombras nítidas · ultra: además oclusión ambiental y contorno
 const NIVELES = ['baja', 'media', 'alta', 'ultra'];
 const AJUSTES = [
-  { pixeles: 1, sombras: 0, cada: 0 },
+  { pixeles: 0.8, sombras: 0, cada: 0 }, // un poco menos de nitidez: en tarjetas de video integradas es lo que más alivia
   { pixeles: 1, sombras: 1024, cada: 3 },
   { pixeles: 1.5, sombras: 2048, cada: 2 },
   { pixeles: 2, sombras: 2048, cada: 1 },
@@ -460,7 +460,7 @@ export function Isla() {
     };
     const cuadro = (ahora: number) => { if (!vivo) return; cronometrar(ahora); paso(); requestAnimationFrame(cuadro); };
     requestAnimationFrame(cuadro);
-    if (import.meta.env.DEV) Object.assign(window, { __paso: paso, __camara: camara, __control: control, __calidad: aplicarCalidad, __render: render }); // para capturas de prueba
+    if (import.meta.env.DEV) Object.assign(window, { __paso: paso, __camara: camara, __control: control, __calidad: aplicarCalidad, __render: render, __escena: escena }); // para capturas de prueba
 
     mando.current = {
       seguir(clave) { const h = habitantes.find((x) => x.clave === clave); if (h) irA(h); },

@@ -5,14 +5,15 @@ const QUEDAN = ['position', 'normal', 'uv'];
 
 /**
  * Junta en una sola malla por material todas las piezas fijas de un grupo, para dibujar mucho menos.
- * Se saltan las ramas marcadas con `userData.movil` (se animan) o `userData.info` (se funden aparte, para poder tocarlas).
+ * Las ramas marcadas con `userData.movil` (se animan) se funden dentro de sí mismas; las con `userData.info` se funden aparte, para poder tocarlas.
  */
 export function fundir(grupo: THREE.Object3D) {
   grupo.updateMatrixWorld(true);
   const inversa = new THREE.Matrix4().copy(grupo.matrixWorld).invert(), local = new THREE.Matrix4();
   const lotes = new Map<string, THREE.Mesh[]>();
   const recorrer = (o: THREE.Object3D) => {
-    if (o.userData.movil || o.userData.info) return;
+    if (o.userData.info) return;
+    if (o.userData.movil) return fundir(o); // lo que se mueve se funde por dentro, con sus propias piezas fijas
     const m = o as THREE.Mesh;
     if (m.isMesh && !(o as THREE.InstancedMesh).isInstancedMesh && !Array.isArray(m.material)) {
       const clave = `${m.material.uuid}|${m.castShadow}`;

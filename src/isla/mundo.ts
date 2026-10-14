@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { azar } from '../nucleo/azar';
 import { SEMILLA_ISLA } from '../nucleo/config';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { fundir } from '../nucleo/fundir';
 import { cargar, copia, sembrar, type Paquete, type Siembra } from '../nucleo/modelos';
 import { ANILLO, BANCOS, CASAS, CENTRO, PUENTE, PUENTE_NORTE, RADIO_PUEBLO, RIO, SITIOS, borde, caminos, costa, distRio, distTramo, polar, sueloFirme, terreno } from './cerebro';
@@ -875,7 +876,28 @@ export function crearMundo(escena: THREE.Scene, clima: 0 | 1 | 2) {
   for (const f of animados) f(7.31, 0.5);
   mundo.traverse((o) => { if (antes.get(o) !== huella(o)) o.userData.movil = true; });
   for (const mano of manos) mano.userData.movil = true;
-  for (const o of interactivos) fundir(o);
+  // Lo que se puede tocar también se funde con el paisaje; para tocarlo queda una figura invisible con su misma forma
+  mundo.updateMatrixWorld(true);
+  const inversa = new THREE.Matrix4().copy(mundo.matrixWorld).invert();
+  const formas = interactivos.map((o) => {
+    const piezas: THREE.BufferGeometry[] = [];
+    o.traverse((x) => {
+      const malla = x as THREE.Mesh;
+      if (!malla.isMesh || (x as THREE.InstancedMesh).isInstancedMesh) return;
+      const g = malla.geometry.index ? malla.geometry.toNonIndexed() : malla.geometry.clone();
+      for (const nombre of Object.keys(g.attributes)) if (nombre !== 'position') g.deleteAttribute(nombre);
+      g.morphAttributes = {};
+      piezas.push(g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inversa, malla.matrixWorld)));
+    });
+    const forma = new THREE.Mesh(mergeGeometries(piezas, false) ?? new THREE.BufferGeometry());
+    piezas.forEach((g) => g.dispose());
+    forma.visible = false; // no se dibuja, pero el puntero sí la encuentra
+    forma.userData.info = o.userData.info;
+    delete o.userData.info;
+    mundo.add(forma);
+    return forma;
+  });
+  interactivos.splice(0, interactivos.length, ...formas);
   fundir(mundo);
 
   const DIA = new THREE.Color('#9fd8ff'), NOCHE = new THREE.Color('#0d1830'), ATARDECER = new THREE.Color('#ffa56a'), GRIS = new THREE.Color('#a4b0c0');
