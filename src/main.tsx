@@ -1,12 +1,16 @@
 import { render } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import './estilos.css';
+import { Ajustes, Recorrido, mostrarRecorridoAlInicio } from './Ajustes';
+import { Campana } from './Campana';
 import { Galeria } from './Galeria';
 import { Isla } from './isla/Isla';
 import { entrar, salir, useSesion } from './nucleo/supabase';
 import { Portal } from './juegos/Portal';
 import { Admin, Arena } from './paginas';
+import { Perfil } from './Perfil';
 import { Creador } from './personaje/Creador';
+import './nucleo/preferencias';
 
 const RUTAS = [
   { ruta: 'isla', titulo: 'Isla' },
@@ -20,6 +24,7 @@ const rutaActual = () => location.hash.replace(/^#\/?/, '') || 'isla';
 function App() {
   const [ruta, setRuta] = useState(rutaActual);
   const sesion = useSesion();
+  const [recorrido, setRecorrido] = useState(mostrarRecorridoAlInicio);
   useEffect(() => {
     const f = () => setRuta(rutaActual());
     window.addEventListener('hashchange', f);
@@ -38,8 +43,9 @@ function App() {
         </nav>
         <div class="cuenta">
           {sesion.cargando ? null : sesion.usuarioId
-            ? <><span class="nombre">{sesion.perfil?.nombre ?? 'Sesión iniciada'}</span><button class="boton" onClick={() => salir()}>Salir</button></>
+            ? <><Campana yo={sesion.usuarioId} /><a class="nombre" href="#/perfil" title="Mi perfil">{sesion.perfil?.nombre ?? 'Mi perfil'}</a><button class="boton" onClick={() => salir()}>Salir</button></>
             : <button class="boton principal" onClick={() => entrar()}>Entrar con Discord</button>}
+          <a class="boton" href="#/ajustes" aria-label="Ajustes" title="Ajustes">⚙</a>
         </div>
       </header>
       <main>
@@ -47,9 +53,12 @@ function App() {
           : seccion === 'juegos' ? <Portal sub={sub} extra={extra} />
           : seccion === 'arena' ? <Arena />
           : seccion === 'admin' ? <Admin />
+          : seccion === 'perfil' ? <Perfil key={sub} id={sub} />
+          : seccion === 'ajustes' ? <Ajustes alVerRecorrido={() => setRecorrido(true)} />
           : seccion === 'modelos' ? <Galeria />
           : <Isla />}
       </main>
+      {recorrido && <Recorrido alCerrar={() => setRecorrido(false)} />}
     </>
   );
 }

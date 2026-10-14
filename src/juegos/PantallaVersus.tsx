@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
-import { useSesion } from '../nucleo/supabase';
+import { fechaChile } from '../nucleo/azar';
+import { supabase, useSesion } from '../nucleo/supabase';
 import { JUEGOS, MOTORES, VERSUS, juegoPorId, nombreVersus } from './catalogo';
 import { PUNTOS_BASE, leerPuntos, puntosVersus, type Puntos } from './puntos';
 import { Sala, type Reto } from './Sala';
@@ -18,14 +19,47 @@ async function cargar(modo: '1v1' | '3v3'): Promise<Datos> {
 /** Tipos de versus que ya se pueden jugar en diferido en un modo. */
 const jugables = (modo: '1v1' | '3v3') => VERSUS.filter((t) => t.modo === modo && t.base && juegoPorId(t.base)?.listo);
 
-export function PestanaVersus({ modo }: { modo: '1v1' | '3v3' }) {
+/** Cuánto ha jugado cada integrante del equipo hoy y en la jornada (las jornadas parten los viernes desde el 16 de octubre). */
+function EstadoEquipo({ equipo, personas }: { equipo: V.Equipo; personas: V.Persona[] }) {
+  const [cuentas, setCuentas] = useState<Record<string, { hoy: number; jornada: number; juegos: number }> | null>(null);
+  const hoy = fechaChile(Date.now()), dias = Math.floor((Date.parse(hoy) - Date.parse('2026-10-16')) / 864e5);
+  const inicio = dias < 0 ? hoy : fechaChile(Date.parse('2026-10-16T12:00:00Z') + (dias - (dias % 7)) * 864e5);
+  useEffect(() => {
+    supabase.from('marcas').select('perfil_id,juego,fecha').in('perfil_id', equipo.miembros).gte('fecha', inicio).limit(3000).then(({ data }) => {
+      const r: Record<string, { hoy: number; jornada: number; juegos: number }> = {};
+      for (const id of equipo.miembros) {
+        const suyas = ((data as { perfil_id: string; juego: string; fecha: string }[] | null) ?? []).filter((m) => m.perfil_id === id);
+        r[id] = { hoy: suyas.filter((m) => m.fecha === hoy).length, jornada: suyas.length, juegos: new Set(suyas.map((m) => m.juego)).size };
+      }
+      setCuentas(r);
+    });
+  }, [equipo.id]);
+  return (
+    <ul class="estado-equipo">
+      {equipo.miembros.map((id) => {
+        const c = cuentas?.[id];
+        return (
+          <li key={id} class={c?.hoy ? 'activo' : ''}>
+            <a href={`#/perfil/${id}`}><b>{personas.find((p) => p.id === id)?.nombre ?? 'Participante'}</b></a>
+            <span class="tenue chico">{!c ? '…' : `${c.hoy ? `✓ jugó hoy (${c.hoy})` : 'no ha jugado hoy'} · ${c.jornada} partidas en ${c.juegos} juegos esta ${dias < 0 ? 'jornada (aún no parte)' : 'jornada'}`}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; preset?: string }) {
   const sesion = useSesion();
   const [datos, setDatos] = useState<Datos | null>(null);
   const [puntos, setPuntos] = useState<Puntos>(PUNTOS_BASE);
-  const [elegido, setElegido] = useState('');
+  // "#/juegos/1v1/<persona>.<juego>": llega desde el botón Retar de una tabla, con rival y juego ya elegidos
+  const [rivalPre, juegoPre = ''] = preset.split('.');
+  const [elegido, setElegido] = useState(juegoPre);
   const irARetar = () => document.getElementById('retar')?.scrollIntoView({ behavior: 'smooth' });
   const recargar = () => cargar(modo).then(setDatos);
   useEffect(() => { recargar(); leerPuntos().then(setPuntos); }, [modo]);
+  useEffect(() => { if (preset && datos) setTimeout(irARetar, 50); }, [preset, !!datos]);
 
   const yo = sesion.usuarioId, tipos = VERSUS.filter((t) => t.modo === modo);
   const miEquipo = datos?.equipos.find((q) => yo && q.miembros.includes(yo));
@@ -58,7 +92,7 @@ export function PestanaVersus({ modo }: { modo: '1v1' | '3v3' }) {
               <section class="bloque">
                 <h2>Mi equipo</h2>
                 {miEquipo
-                  ? <p><b>{miEquipo.nombre}</b> · {miEquipo.miembros.map((id) => datos.personas.find((p) => p.id === id)?.nombre ?? 'Participante').join(', ')}</p>
+                  ? <><p><b>{miEquipo.nombre}</b></p><EstadoEquipo equipo={miEquipo} personas={datos.personas} /></>
                   : <p class="tenue">Todavía no tienes equipo. Los equipos se sortean en La Llegada.</p>}
               </section>
             )}
@@ -99,7 +133,7 @@ export function PestanaVersus({ modo }: { modo: '1v1' | '3v3' }) {
               </section>
             )}
 
-            {modo === '1v1' && <Retar yo={yo} personas={datos.personas} alCrear={recargar} elegido={elegido} />}
+            {modo === '1v1' && <Retar yo={yo} personas={datos.personas} alCrear={recargar} elegido={elegido} rivalInicial={rivalPre} />}
           </>
         )}
 
@@ -123,10 +157,10 @@ export function PestanaVersus({ modo }: { modo: '1v1' | '3v3' }) {
 }
 
 /** Amistoso: cualquiera reta a cualquiera, sin puntos para el torneo. */
-function Retar({ yo, personas, alCrear, elegido }: { yo: string; personas: V.Persona[]; alCrear(): void; elegido: string }) {
+function Retar({ yo, personas, alCrear, elegido, rivalInicial }: { yo: string; personas: V.Persona[]; alCrear(): void; elegido: string; rivalInicial: string }) {
   const opciones = jugables('1v1');
   const [buscar, setBuscar] = useState('');
-  const [rival, setRival] = useState('');
+  const [rival, setRival] = useState(rivalInicial !== yo && personas.some((p) => p.id === rivalInicial) ? rivalInicial : '');
   const [juego, setJuego] = useState(opciones[0]?.base ?? '');
   useEffect(() => { if (elegido) setJuego(elegido); }, [elegido]);
   const [rondas, setRondas] = useState(1);

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { fechaChile, generador } from '../nucleo/azar';
 import { supabase, useSesion } from '../nucleo/supabase';
 import { aspectoAleatorio, normalizarAspecto, normalizarPersonaje, type Aspecto } from '../personaje/catalogo';
-import { MOTORES, type Juego } from './catalogo';
+import { MOTORES, VERSUS, type Juego } from './catalogo';
 import { guardarMarca, marcaLocal, tablaDelDia, type Fila, type Guardado } from './marcas';
 import { CARGADORES, type Partida, type Resultado } from './marco';
 import { PUNTOS_BASE, leerPuntos, puntosPorPuesto, type Puntos } from './puntos';
@@ -55,10 +55,11 @@ function Tabla({ juego, fecha, usuarioId, version }: { juego: Juego; fecha: stri
   if (!estado) return <p class="tenue chico">Cargando la tabla…</p>;
   if (!estado.disponible) return <p class="tenue chico">La tabla compartida todavía no está activada; por ahora tu marca queda anotada en este navegador.</p>;
   if (!estado.filas.length) return <p class="tenue chico">Nadie ha marcado hoy. La primera marca es tuya.</p>;
-  const total = estado.filas.length, mio = estado.filas.findIndex((f) => f.perfil === usuarioId), top = estado.filas.slice(0, 8);
+  const retable = VERSUS.some((t) => t.modo === '1v1' && t.base === juego.id), total = estado.filas.length, mio = estado.filas.findIndex((f) => f.perfil === usuarioId), top = estado.filas.slice(0, 8);
   const fila = (f: Fila, i: number) => (
     <li key={f.perfil} class={f.perfil === usuarioId ? 'mia' : ''}>
-      <span class="puesto">{i + 1}</span><span class="quien">{f.nombre}</span><b>{f.puntaje}</b><span class="torneo" title="Puntos del torneo por este puesto">+{puntosPorPuesto(puntos, i, total)}</span>
+      <span class="puesto">{i + 1}</span><a class="quien" href={`#/perfil/${f.perfil}`}>{f.nombre}</a><b>{f.puntaje}</b><span class="torneo" title="Puntos del torneo por este puesto">+{puntosPorPuesto(puntos, i, total)}</span>
+      {usuarioId && f.perfil !== usuarioId && retable && <a class="retar-mini" href={`#/juegos/1v1/${f.perfil}.${juego.id}`} title={`Retar a ${f.nombre} a un duelo amistoso`}>Retar</a>}
     </li>
   );
   return <ol class="marcas">{top.map(fila)}{mio >= top.length && fila(estado.filas[mio], mio)}</ol>;
@@ -84,8 +85,11 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
   const cerrar = () => { turno.current++; partida.current?.destruir(); partida.current = null; };
   useEffect(() => cerrar, []);
 
-  const jugar = async () => {
+  // Práctica: se juega igual, pero la marca no se guarda en ninguna parte
+  const practica = useRef(false);
+  const jugar = async (soloPractica = false) => {
     cerrar();
+    practica.current = !reto && soloPractica;
     const mio = turno.current;
     setFase('cargando');
     setResultado(null);
@@ -104,6 +108,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
           setResultado(r);
           setFase('resultado');
           if (reto) { fanfarria(false); reto.terminar(r).then((error) => { if (mio === turno.current) setEnvio({ error }); }); }
+          else if (practica.current) fanfarria(false);
           else {
             const previa = marcaLocal(juego.id, fecha);
             fanfarria(!previa || r.puntaje > previa.mejor);
@@ -173,8 +178,9 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
               : <p class="chico tenue">Premia: {juego.premia.toLowerCase()}. {local ? `Tu mejor marca de hoy: ${local.mejor} ${juego.unidad} en ${local.intentos} ${local.intentos === 1 ? 'intento' : 'intentos'}.` : 'Todavía no juegas hoy.'}</p>}
             {fase === 'error' && <p class="aviso error">{motivo || 'No se pudo cargar el juego. Revisa tu conexión y prueba de nuevo.'}</p>}
             <div class="fila">
-              {!(reto && fase === 'error') && <button class="boton principal grande" disabled={fase === 'cargando'} onClick={jugar}>{fase === 'cargando' ? 'Preparando…' : reto ? 'Jugar mi intento' : 'Jugar'}</button>}
+              {!(reto && fase === 'error') && <button class="boton principal grande" disabled={fase === 'cargando'} onClick={() => jugar()}>{fase === 'cargando' ? 'Preparando…' : reto ? 'Jugar mi intento' : 'Jugar'}</button>}
               {reto && fase !== 'error' && <a class="boton" href={reto.practica}>Practicar primero</a>}
+              {!reto && <button class="boton" disabled={fase === 'cargando'} onClick={() => jugar(true)} title="Juegas igual, pero la marca no se guarda">Práctica (no guarda)</button>}
               <a class="boton" href={volver}>{reto ? 'Volver a mis enfrentamientos' : 'Volver al portal'}</a>
             </div>
             {reto && <p class="chico tenue">Practicar abre el mismo juego en modo individual, con un desafío distinto: no gasta tu intento.</p>}
@@ -195,14 +201,15 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
               </p>
             ) : (
               <p class="chico tenue">
-                {!guardado ? 'Guardando tu marca…'
+                {practica.current ? 'Partida de práctica: no se guardó en ninguna parte.'
+                  : !guardado ? 'Guardando tu marca…'
                   : guardado.donde === 'nube' ? 'Marca guardada en la tabla.'
                   : guardado.donde === 'sin-sesion' ? 'Entra con Discord para que tu marca aparezca en la tabla. Por ahora quedó anotada en este navegador.'
                   : 'No se pudo guardar en la tabla compartida; quedó anotada en este navegador.'}
               </p>
             )}
             <div class="fila">
-              {!reto && <button class="boton principal grande" onClick={jugar}>Jugar otra vez</button>}
+              {!reto && <button class="boton principal grande" onClick={() => jugar(practica.current)}>{practica.current ? 'Practicar otra vez' : 'Jugar otra vez'}</button>}
               <a class={reto ? 'boton principal grande' : 'boton'} href={volver}>{reto ? 'Volver a mis enfrentamientos' : 'Volver al portal'}</a>
             </div>
             {!reto && <><div class="sigla">Tabla de hoy</div><Tabla juego={juego} fecha={fecha} usuarioId={usuarioId} version={version} /></>}

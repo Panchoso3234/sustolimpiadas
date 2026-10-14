@@ -1,15 +1,22 @@
-// Volumen de los juegos: un solo interruptor de silencio que recuerdan todos los motores.
+// Volumen de los juegos: un interruptor de silencio y un nivel (0 a 1) que recuerdan todos los motores.
 const CLAVE = 'susto.silencio';
-let callado = false;
-try { callado = localStorage.getItem(CLAVE) === '1'; } catch { /* sin almacenamiento */ }
+let callado = false, nivel = 1;
+try { callado = localStorage.getItem(CLAVE) === '1'; nivel = Math.min(1, Math.max(0, Number(localStorage.getItem('susto.volumen') ?? 1) || 0)); } catch { /* sin almacenamiento */ }
 const oyentes = new Set<() => void>();
 
 export const estaCallado = () => callado;
-export const volumen = () => (callado ? 0 : 1);
+export const nivelVolumen = () => nivel;
+export const volumen = () => (callado ? 0 : nivel);
 
 export function silenciar(si: boolean) {
   callado = si;
   try { localStorage.setItem(CLAVE, si ? '1' : '0'); } catch { /* sin almacenamiento */ }
+  oyentes.forEach((f) => f());
+}
+
+export function ponerVolumen(n: number) {
+  nivel = Math.min(1, Math.max(0, n));
+  try { localStorage.setItem('susto.volumen', String(nivel)); } catch { /* sin almacenamiento */ }
   oyentes.forEach((f) => f());
 }
 
@@ -24,7 +31,7 @@ export function fanfarria(mejor: boolean) {
   if (callado) return;
   try {
     const ctx = new AudioContext(), salida = ctx.createGain(), notas = mejor ? [523, 659, 784, 1047, 1319] : [523, 659, 784];
-    salida.gain.value = 0.5;
+    salida.gain.value = 0.5 * nivel;
     salida.connect(ctx.destination);
     notas.forEach((frec, i) => {
       const t = ctx.currentTime + 0.05 + i * 0.11, osc = ctx.createOscillator(), g = ctx.createGain(), dura = i === notas.length - 1 ? 0.5 : 0.18;

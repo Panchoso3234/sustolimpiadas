@@ -362,3 +362,59 @@ a.quienes:hover b { text-decoration: underline; }
 .duelo-detalle .desglose { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 6px; }
 .duelo-detalle .desglose dd { font-size: .95rem; }
 .etiqueta { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: var(--calabaza); color: #1c1826; font-size: .75rem; font-weight: 800; vertical-align: middle; }
+
+/* Campana de avisos */
+.campana { position: relative; }
+.campana > .boton { position: relative; }
+.campana .globo { position: absolute; top: -6px; right: -6px; min-width: 1.5em; padding: 0 5px; border-radius: 99px; background: var(--sangre); color: #fff; font-style: normal; font-size: .72rem; font-weight: 800; text-align: center; }
+.campana-lista { position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; width: min(360px, calc(100vw - 32px)); max-height: 70vh; overflow: auto; padding: 10px; background: var(--noche-2); border: 2px solid var(--linea); border-radius: 14px; box-shadow: 0 12px 30px #0008; }
+.campana-lista ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.campana-lista li a { display: block; padding: 8px 10px; border-radius: 10px; background: var(--tabla); color: var(--hueso); text-decoration: none; font-size: .92rem; }
+.campana-lista li.nuevo a { border-left: 4px solid var(--calabaza); font-weight: 800; }
+.campana-lista li a:hover { background: var(--linea); }
+.cuenta a.nombre { color: var(--hueso); text-decoration: none; }
+.cuenta a.nombre:hover { text-decoration: underline; }
+
+/* Portal: buscador, filtros y favoritos */
+.filtros { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.filtros .texto { flex: 1 1 200px; max-width: 320px; }
+.tarjeta .estrella { position: absolute; top: 10px; right: 10px; z-index: 2; width: 34px; height: 34px; display: grid; place-items: center; background: #14203acc; border: 1px solid var(--linea); border-radius: 50%; color: var(--hueso); font-size: 1.2rem; line-height: 1; cursor: pointer; padding: 0; }
+.tarjeta .estrella.puesta { color: var(--luna); }
+.tarjeta .estado.hecho { background: var(--alga); }
+
+/* Tabla del día: enlace al perfil y botón de reto */
+.marcas a.quien { color: inherit; text-decoration: none; }
+.marcas a.quien:hover { text-decoration: underline; }
+.retar-mini { font-size: .75rem; font-weight: 800; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--calabaza); color: var(--calabaza); text-decoration: none; }
+.retar-mini:hover { background: var(--calabaza); color: var(--noche); }
+
+/* Perfil */
+.cifras { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.cifras div { display: flex; flex-direction: column; padding: 10px 14px; border-radius: 12px; background: var(--noche-2); }
+.cifras b { font-size: 1.6rem; font-family: var(--display); font-weight: 400; }
+.cifras span { color: var(--tenue); font-size: .85rem; }
+.insignias { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.insignias li { display: flex; flex-direction: column; padding: 8px 12px; border-radius: 12px; background: var(--noche-2); color: var(--tenue); opacity: .65; }
+.insignias li.tiene { opacity: 1; color: var(--hueso); border: 2px solid var(--luna); }
+.insignias li.tiene b { color: var(--luna); }
+.insignias span { font-size: .8rem; }
+
+/* Estado del equipo (3v3) */
+.estado-equipo { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.estado-equipo li { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; padding: 6px 12px; border-radius: 10px; background: var(--noche-2); border-left: 4px solid var(--linea); }
+.estado-equipo li.activo { border-left-color: var(--alga); }
+.estado-equipo a { color: var(--hueso); }
+
+/* Ajustes */
+.formulario.ajustes { flex-direction: column; align-items: stretch; }
+.formulario.ajustes label { max-width: none; }
+.formulario .casilla { flex-direction: row; align-items: center; gap: 8px; color: var(--hueso); font-weight: 600; font-size: .95rem; }
+.formulario input[type="range"] { width: min(360px, 100%); }
+
+/* Recorrido de bienvenida */
+.recorrido { position: fixed; inset: 0; z-index: 50; display: grid; place-items: end center; padding: 16px; background: #0007; }
+.recorrido-panel { width: min(520px, 100%); display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; border-radius: 16px; background: var(--noche-2); border: 2px solid var(--luna); box-shadow: 0 16px 40px #000a; margin-bottom: 4vh; }
+.recorrido-panel h2 { margin: 0; font-family: var(--display); font-weight: 400; }
+
+/* Modo daltónico: sin pares rojo/verde */
+body.daltonico { --alga: #56b4e9; --sangre: #e69f00; }

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { generador } from '../../nucleo/azar';
+import { esDaltonico } from '../../nucleo/preferencias';
 import { aspectoAleatorio } from '../../personaje/catalogo';
 import type { Kenney } from '../../personaje/kenney';
 import { crearMando } from '../mando';
@@ -46,7 +47,8 @@ export interface Arena {
   resultado(m: Mundo, t: number): Resultado;
 }
 
-export const COLOR_EQUIPO = ['#3f8cff', '#ef5565', '#3fc79a', '#ffb02e', '#c79bff', '#ff7ab8'];
+// En modo daltónico, colores que se distinguen sin depender del rojo y el verde (paleta Okabe-Ito)
+export const COLOR_EQUIPO = esDaltonico() ? ['#3f8cff', '#e69f00', '#f0e442', '#56b4e9', '#d55e00', '#cc79a7'] : ['#3f8cff', '#ef5565', '#3fc79a', '#ffb02e', '#c79bff', '#ff7ab8'];
 const ACEL = 46, ROCE = 5.5, VEL = 7.6, IMPULSO = 10, RECARGA = 1.1;
 export const lejos = (a: { x: number; z: number }, b: { x: number; z: number }) => Math.hypot(a.x - b.x, a.z - b.z);
 
