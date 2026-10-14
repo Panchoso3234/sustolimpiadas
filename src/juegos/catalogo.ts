@@ -55,7 +55,7 @@ export const JUEGOS: Juego[] = [
   j(8, 'faro', 'Rey del Faro', 'B', 'De noche, la luz del faro recorre la cancha: suma quien se mantiene dentro.', 'Aguante',
     'Muévete con las flechas o WASD; en celular, arrastra el dedo. Quédate dentro del círculo de luz y saca a los demás embistiendo con Espacio o el botón. Dura un minuto.'),
   j(9, 'totem', 'Tiro al Tótem', 'C', 'Diez flechas a la diana, con un viento que cambia en cada tiro.', 'Cálculo',
-    'Mueve la mira con el mouse o el dedo y toca para disparar. El viento empuja la flecha hacia donde apunta la veleta: apunta al lado contrario. La mira nunca se queda quieta.'),
+    'Mueve la mira con el mouse o el dedo y toca para disparar. El viento empuja la flecha hacia donde apunta la veleta: apunta al lado contrario. La mira nunca se queda quieta. Desde la flecha 4 el viento también sopla hacia arriba o abajo (↑ ↓), y desde la 5 la diana se mueve.'),
   j(10, 'catapulta', 'Catapulta de Sandías', 'C', 'Cinco sandías para botar las torres de cajas de sus plataformas.', 'Estimación',
     'Arrastra hacia atrás y suelta: mientras más lejos tires, más fuerza. La línea punteada muestra por dónde sale la sandía. Cada caja que cae de su plataforma suma.'),
   j(11, 'bolos', 'Bolos de Coco', 'C', 'Cinco turnos de bolos en la playa, con la arena inclinada.', 'Precisión',

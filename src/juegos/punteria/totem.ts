@@ -6,6 +6,7 @@ import { caja, mat } from './fisica';
 
 // Tiro al Tótem: diez flechas a una diana. El viento de cada flecha sale de la semilla; la flecha se desvía hacia
 // donde sopla y además cae un poco, así que hay que apuntar corrido. La mira se mece: también hay que elegir el momento.
+// Desde la flecha 4 el viento también sopla hacia arriba o abajo, y desde la 5 la diana se mueve de lado a lado.
 const FLECHAS = 10, RADIO = 2.4, Z = -6, ALTO = 4.6, POR_NUDO = 0.32, CAIDA = 0.3, VUELO = 0.42, PLAZO = 12;
 const ANILLOS = ['#f3ecdc', '#2b3047', '#3f8cff', '#ef5565', '#ffd23c'];
 
@@ -13,6 +14,10 @@ export async function crear(c: Contexto): Promise<Partida> {
   const e = crearEscenario(c.caja, { ancho: 12, alto: 10, centro: [0, 4.4, Z], inclinacion: 0.03 });
   const r = generador(c.semilla);
   const vientos = Array.from({ length: FLECHAS }, (_, i) => Math.round((r() * 2 - 1) * (3 + 0.6 * i) * 10) / 10);
+  const vientosY = Array.from({ length: FLECHAS }, (_, i) => (i >= 3 ? Math.round((r() * 2 - 1) * 1.6 * 10) / 10 : 0));
+  const MUEVE = 1.1 + 0.3 * c.nivel, mueve = (n: number) => n >= 4;
+  const diana = new THREE.Group();
+  e.escena.add(diana);
 
   const [k] = await Promise.all([
     e.personaje(c.aspecto, 2.2),
@@ -26,16 +31,16 @@ export async function crear(c: Contexto): Promise<Partida> {
   // Diana sobre un poste
   const poste = caja(0.5, ALTO, 0.5, '#8a5a38');
   poste.position.set(0, ALTO / 2 - 0.3, Z - 0.4);
-  e.escena.add(poste);
+  diana.add(poste);
   ANILLOS.forEach((color, i) => {
     const disco = new THREE.Mesh(new THREE.CircleGeometry(RADIO * (1 - i / ANILLOS.length), 40), new THREE.MeshBasicMaterial({ color }));
     disco.position.set(0, ALTO, Z + i * 0.01);
-    e.escena.add(disco);
+    diana.add(disco);
   });
   const respaldo = new THREE.Mesh(new THREE.CylinderGeometry(RADIO + 0.2, RADIO + 0.2, 0.3, 40), mat('#a06a3c'));
   respaldo.rotation.x = Math.PI / 2;
   respaldo.position.set(0, ALTO, Z - 0.17);
-  e.escena.add(respaldo);
+  diana.add(respaldo);
 
   // Veleta: una manga que apunta hacia donde sopla el viento y crece con su fuerza
   const mastil = caja(0.12, 2.6, 0.12, '#6f4826'), manga = new THREE.Mesh(new THREE.ConeGeometry(0.34, 1.5, 8), mat('#ff9a2e'));
@@ -66,10 +71,10 @@ export async function crear(c: Contexto): Promise<Partida> {
   const tiros: number[] = [];
 
   const anunciar = () => {
-    const v = vientos[flecha];
+    const v = vientos[flecha], vy = vientosY[flecha];
     e.hud.tiempo(`Flecha ${flecha + 1} de ${FLECHAS}`);
-    e.hud.extra(Math.abs(v) < 0.05 ? 'Sin viento' : `Viento ${v > 0 ? '→' : '←'} ${Math.abs(v).toFixed(1)}`);
-    manga.rotation.z = v >= 0 ? -Math.PI / 2 : Math.PI / 2;
+    e.hud.extra(`${Math.abs(v) < 0.05 ? 'Sin viento' : `Viento ${v > 0 ? '→' : '←'} ${Math.abs(v).toFixed(1)}`}${Math.abs(vy) >= 0.05 ? ` · ${vy > 0 ? '↑' : '↓'} ${Math.abs(vy).toFixed(1)}` : ''}${mueve(flecha) ? ' · diana en movimiento' : ''}`);
+    manga.rotation.z = (v >= 0 ? -Math.PI / 2 : Math.PI / 2) + (v >= 0 ? 1 : -1) * Math.atan2(vy, Math.max(0.5, Math.abs(v)));
     manga.scale.set(1, 0.35 + Math.abs(v) / 6, 1);
   };
 
@@ -77,7 +82,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (terminado || vuelo || t < libre || t <= 0) return;
     const o = moldeFlecha.clone();
     e.escena.add(o);
-    vuelo = { o, desde: new THREE.Vector3(mira.position.x * 0.3, 2.2, 9), hasta: new THREE.Vector3(mira.position.x + vientos[flecha] * POR_NUDO, mira.position.y - CAIDA, Z + 0.06), t0: t };
+    vuelo = { o, desde: new THREE.Vector3(mira.position.x * 0.3, 2.2, 9), hasta: new THREE.Vector3(mira.position.x + vientos[flecha] * POR_NUDO, mira.position.y - CAIDA + vientosY[flecha] * POR_NUDO, Z + 0.06), t0: t };
     e.sonido.ruido(0.12, 0.18);
     e.gesto(k, 'attack-melee-right', 0.5, 'holding-right');
   };
@@ -104,6 +109,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     mira.position.x = apunte.x + (Math.sin(t * 1.7) + Math.sin(t * 2.9) * 0.5) * meneo;
     mira.position.y = apunte.y + Math.cos(t * 1.3) * meneo * 0.8;
     mira.visible = !vuelo && !terminado && t > 0;
+    diana.position.x = mueve(flecha) && !terminado ? Math.sin(t * 0.9) * MUEVE : diana.position.x * 0.9;
     if (terminado || t <= 0) return;
     if (vuelo) {
       const q = limitar((t - vuelo.t0) / VUELO, 0, 1);
@@ -111,8 +117,9 @@ export async function crear(c: Contexto): Promise<Partida> {
       vuelo.o.position.y += Math.sin(q * Math.PI) * 0.7;
       if (q < 1) return;
       vuelo.o.position.copy(vuelo.hasta);
-      const d = Math.hypot(vuelo.hasta.x, vuelo.hasta.y - ALTO), gana = d > RADIO ? 0 : Math.max(10, Math.ceil((1 - d / RADIO) * 10) * 10);
+      const d = Math.hypot(vuelo.hasta.x - diana.position.x, vuelo.hasta.y - ALTO), gana = d > RADIO ? 0 : Math.max(10, Math.ceil((1 - d / RADIO) * 10) * 10);
       if (!gana) { fallidas++; e.escena.remove(vuelo.o); }
+      else diana.attach(vuelo.o); // la flecha queda clavada y se mueve con la diana
       if (gana >= 90) centros++;
       mejor = Math.max(mejor, gana);
       puntos += gana;
