@@ -39,13 +39,13 @@ const j = (numero: number, id: string, nombre: string, motor: Motor, idea: strin
 
 export const JUEGOS: Juego[] = [
   j(1, 'puente', 'Puente Colgante', 'A', 'Cruza el río por tablones que ceden medio segundo después de pisarlos.', 'Ritmo y decisión',
-    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Salta con Espacio o el botón Saltar. Entre fila y fila hay un hueco: sin saltar, te caes. Los tablones anchos son puntos de control.'),
-  j(2, 'rodillos', 'Rodillos del Volcán', 'A', 'Una pasarela sobre la lava con barras que giran a ras de suelo.', 'Sincronía',
-    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Salta las barras con Espacio o el botón Saltar: si te alcanzan, sales volando. Cada tramo empieza en un punto de control.'),
+    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Salta con Espacio o el botón Saltar. Entre fila y fila hay un hueco: sin saltar, te caes. Algunos tablones van y vienen de lado. Los tablones anchos son puntos de control. La figura blanca transparente es el fantasma de ritmo: corre al paso de una buena marca. Con el botón Cámara (o la tecla V) miras desde arriba.'),
+  j(2, 'rodillos', 'Rodillos del Volcán', 'A', 'Una pasarela sobre la lava con barras que giran: unas se saltan y otras se pasan agachado.', 'Sincronía',
+    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Salta las barras rojas con Espacio o el botón Saltar; pasa las naranjas (altas) agachado, manteniendo Shift, C o el botón Agacharse. Si te alcanzan, sales volando. Cada tramo empieza en un punto de control. La figura blanca transparente es el fantasma de ritmo: corre al paso de una buena marca. Con el botón Cámara (o la tecla V) miras desde arriba.'),
   j(3, 'puertas', 'Puertas Falsas', 'A', 'Seis muros de cuatro puertas: una o dos se abren, las demás son pared.', 'Memoria y arrojo',
-    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Corre contra una puerta para probarla. Las puertas son las mismas durante todo el día: recuerda cuáles abrían.'),
+    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Corre contra una puerta para probarla. Recuerda cuáles abrían: si te caes, vuelves al último punto de control. La figura blanca transparente es el fantasma de ritmo: corre al paso de una buena marca. Con el botón Cámara (o la tecla V) miras desde arriba.'),
   j(4, 'lava', 'Sube la Lava', 'A', 'Trepa de plataforma en plataforma mientras la lava sube cada vez más rápido.', 'Ruta y sangre fría',
-    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Salta con Espacio o el botón Saltar. Si la lava te toca, se acaba: cuenta hasta dónde llegaste.'),
+    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Salta con Espacio o el botón Saltar. Algunas plataformas van y vienen y las oscuras se desmoronan al pisarlas. Si la lava te toca, se acaba: cuenta hasta dónde llegaste. La figura blanca transparente es el fantasma de ritmo: corre al paso de una buena marca. Con el botón Cámara (o la tecla V) miras desde arriba.'),
   j(5, 'huevo', 'Caza del Huevo', 'B', 'Tres contra tres: lleva huevos del centro a tu nido, roba del nido rival y bota al que lleve uno.', 'Reparto de roles',
     'Muévete con las flechas o WASD; en celular, arrastra el dedo. Pasa sobre un huevo para tomarlo y llévalo al círculo de tu color. Embiste con Espacio o el botón: si chocas a un rival cargado, lo suelta. A los 40 segundos aparece un huevo dorado que vale 3. Juegas con dos compañeros de máquina.'),
   j(6, 'sumo', 'Sumo de Balsas', 'B', 'Seis sobre una balsa que se achica. Empuja a los demás al agua y no caigas.', 'Posición',

@@ -473,3 +473,8 @@ body.daltonico { --alga: #56b4e9; --sangre: #e69f00; }
 .bolos-efecto { position: absolute; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 6px; z-index: 5; }
 .bolos-efecto .boton { padding: 5px 10px; font-size: .86rem; }
 body.foto .bolos-efecto { display: none; }
+
+/* Carreras: botón de agacharse y cámara */
+.mando-accion.segunda { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); background: rgba(255, 176, 46, .85); padding: 12px 18px; font-size: .95rem; }
+.camara-boton { position: absolute; right: 12px; top: 56px; padding: 5px 12px; font-size: .86rem; background: rgba(28, 44, 77, .88); z-index: 5; }
+body.foto .camara-boton, body.foto .mando-accion { display: none; }
