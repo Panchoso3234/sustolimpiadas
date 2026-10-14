@@ -2,8 +2,8 @@ import { generador } from '../../nucleo/azar';
 import type { Contexto, Partida } from '../marco';
 import { crearMesa } from './mesa';
 
-// Juego de decisión contra rivales de máquina. Lo que eligen los rivales en cada ronda sale de la semilla,
-// así que todos los jugadores enfrentan exactamente a los mismos rivales con las mismas jugadas.
+// Juego de decisión contra rivales de máquina. Lo que eligen los rivales sale de la semilla, pero dos de ellos se
+// adaptan a ti: Marea va por el número que más usas y Faro copia el último que elegiste. Repetir una costumbre cuesta.
 
 const RIVALES = ['Coco', 'Brisa', 'Tiki', 'Marea', 'Faro'];
 
@@ -18,7 +18,10 @@ export async function bajo(c: Contexto): Promise<Partida> {
     while (n < 9 && (dado -= pesos[n]) > 0) n++;
     return n + 1;
   }));
-  const titulo = m.el('div', 'sigla', m.tablero), botones = m.el('div', 'bajo-numeros', m.tablero), mesa = m.el('div', 'bajo-mesa', m.tablero), nota = m.el('p', 'chico', m.tablero);
+  const dados = Array.from({ length: RONDAS }, () => [r(), r()]);
+  const titulo = m.el('div', 'sigla', m.tablero);
+  m.el('p', 'chico tenue', m.tablero, 'Ojo: Marea estudia el número que más usas y Faro copia el último que elegiste.');
+  const botones = m.el('div', 'bajo-numeros', m.tablero), mesa = m.el('div', 'bajo-mesa', m.tablero), nota = m.el('p', 'chico', m.tablero);
   let ronda = 0, puntos = 0, ganadas = 0, unicas = 0, espera = false, terminado = false;
   const elecciones: number[] = [];
 
@@ -26,8 +29,17 @@ export async function bajo(c: Contexto): Promise<Partida> {
   const elegir = (mio: number) => {
     if (terminado || espera || m.reloj() <= 0) return;
     espera = true;
+    // Los rivales que se adaptan miran lo que elegiste en las rondas anteriores
+    const rivales = [...jugadas[ronda]], antes = [...elecciones];
+    if (antes.length) {
+      const veces = new Map<number, number>();
+      for (const n of antes) veces.set(n, (veces.get(n) ?? 0) + 1);
+      const moda = [...veces].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
+      if (dados[ronda][0] < 0.55 + 0.05 * c.nivel) rivales[3] = moda;
+      if (dados[ronda][1] < 0.5) rivales[4] = antes[antes.length - 1];
+    }
     elecciones.push(mio);
-    const todas = [mio, ...jugadas[ronda]], unicos = todas.filter((n) => todas.indexOf(n) === todas.lastIndexOf(n)), menor = unicos.length ? Math.min(...unicos) : 0;
+    const todas = [mio, ...rivales], unicos = todas.filter((n) => todas.indexOf(n) === todas.lastIndexOf(n)), menor = unicos.length ? Math.min(...unicos) : 0;
     mesa.replaceChildren();
     todas.forEach((n, i) => {
       const ficha = m.el('div', `bajo-ficha${n === menor ? ' gana' : unicos.includes(n) ? '' : ' repetida'}`, mesa);

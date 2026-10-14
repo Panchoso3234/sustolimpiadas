@@ -81,7 +81,7 @@ export const JUEGOS: Juego[] = [
   j(21, 'cofre', 'El Cofre o la Ola', 'F', 'Diez cofres: sigue sacando tesoro o plántate antes de que llegue la ola.', 'Manejo del riesgo',
     'En cada cofre eliges: Sacar más (suma monedas, pero sube el riesgo) o Plantarte (guardas lo sacado). Arriba ves cómo está el mar (en tormenta hay más riesgo y paga más) y cuánto podría salir. Tienes dos catalejos que te dicen si la próxima sacada es segura. Si llega la ola, pierdes lo de ese cofre.'),
   j(22, 'bajo', 'El Más Bajo', 'F', 'Seis jugadores eligen un número en secreto; gana el más bajo que nadie repitió.', 'Leer al grupo',
-    'Elige un número del 1 al 10. Ganas la ronda (100 puntos) si es el más bajo que ningún rival eligió; si nadie lo repitió pero no era el más bajo, sumas 20. Son 10 rondas contra cinco rivales de máquina, cada uno con su manía.'),
+    'Elige un número del 1 al 10. Ganas la ronda (100 puntos) si es el más bajo que ningún rival eligió; si nadie lo repitió pero no era el más bajo, sumas 20. Son 10 rondas contra cinco rivales de máquina, cada uno con su manía; Marea va por el número que más usas y Faro copia tu último número.'),
   j(23, 'torre', 'Torre Tambaleante', 'D', 'Un bloque va y viene sobre la torre: suéltalo justo encima. Lo que sobresale, se corta.', 'Precisión y temple',
     'Toca la pantalla, haz clic o aprieta Espacio para soltar el bloque. Si sobresale, se corta y el siguiente es más chico; si cae justo encima es un perfecto y suma racha. Cada piso va más rápido.'),
   j(24, 'palabra', 'Palabra del Día', 'F', 'Adivina la palabra de 5 letras en 6 intentos. Cada partida trae un tema como pista.', 'Descarte',
