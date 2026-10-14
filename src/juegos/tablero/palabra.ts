@@ -1,10 +1,11 @@
 import { azar } from '../../nucleo/azar';
 import type { Contexto, Partida } from '../marco';
 import { crearMesa, mmss } from './mesa';
-import { PALABRAS } from './palabras';
+import { TEMAS, VALIDAS } from './palabras';
 
-// Palabra del Día: adivinar una palabra de cinco letras en seis intentos. Se acepta cualquier combinación de letras
-// (no hay diccionario que rechace palabras), así que conviene escribir palabras de verdad para descartar bien.
+// Palabra del Día: adivinar una palabra de cinco letras en seis intentos. La palabra sale de un tema, que se muestra
+// como pista. Si un intento no está en el diccionario se avisa, pero apretando Enter otra vez se usa igual
+// (así una palabra de verdad que falte en la lista nunca deja a nadie sin poder jugar).
 const LETRAS = 5, INTENTOS = 6, FILAS = ['QWERTYUIOP', 'ASDFGHJKLÑ', 'ZXCVBNM'];
 type Pista = 'verde' | 'amarilla' | 'gris';
 const VALOR: Record<Pista, number> = { gris: 0, amarilla: 1, verde: 2 };
@@ -21,11 +22,13 @@ function pistas(intento: string[], secreta: string[]): Pista[] {
 
 export async function crear(c: Contexto): Promise<Partida> {
   const m = crearMesa(c.caja, 'palabra', c.aspecto);
-  const secreta = [...PALABRAS[Math.floor(azar(c.semilla, 'palabra') * PALABRAS.length)]];
+  const temas = Object.keys(TEMAS), tema = temas[Math.floor(azar(c.semilla, 'tema') * temas.length)], opciones = TEMAS[tema];
+  const secreta = [...opciones[Math.floor(azar(c.semilla, 'palabra') * opciones.length)]];
+  m.el('div', 'palabra-tema', m.tablero, `Tema: ${tema}`);
   const grilla = m.el('div', 'letras', m.tablero);
   const celdas = Array.from({ length: INTENTOS }, () => Array.from({ length: LETRAS }, () => m.el('div', 'letra', grilla)));
   const teclado = m.el('div', 'teclado', m.tablero), teclas = new Map<string, HTMLButtonElement>(), mejor = new Map<string, Pista>();
-  let fila = 0, actual: string[] = [], terminado = false;
+  let fila = 0, actual: string[] = [], terminado = false, dudosa = '';
 
   FILAS.forEach((letras, n) => {
     const linea = m.el('div', 'linea', teclado);
@@ -41,8 +44,8 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (acerto) m.sonido.fanfarria(); else m.sonido.mal();
     c.alTerminar({
       puntaje: acerto ? (INTENTOS + 1 - fila) * 150 + Math.max(0, 100 - Math.floor(t / 3)) : 0,
-      lineas: [['Resultado', acerto ? `Adivinada en ${fila} ${fila === 1 ? 'intento' : 'intentos'}` : 'No adivinada'], ['La palabra era', secreta.join('')], ['Tiempo', mmss(t)]],
-      detalle: { acerto, intentos: fila, seg: Math.round(t) },
+      lineas: [['Resultado', acerto ? `Adivinada en ${fila} ${fila === 1 ? 'intento' : 'intentos'}` : 'No adivinada'], ['La palabra era', secreta.join('')], ['Tema', tema], ['Tiempo', mmss(t)]],
+      detalle: { acerto, intentos: fila, tema, seg: Math.round(t) },
     });
   };
 
@@ -51,6 +54,9 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (tecla === 'Backspace') { actual.pop(); }
     else if (tecla === 'Enter') {
       if (actual.length < LETRAS) return m.hud.aviso('Faltan letras', 'mal', 0.8);
+      const escrita = actual.join('');
+      if (!VALIDAS.has(escrita) && dudosa !== escrita) { dudosa = escrita; return m.hud.aviso('No la conozco. Enter otra vez para usarla igual', '', 1.6); }
+      dudosa = '';
       const p = pistas(actual, secreta);
       actual.forEach((l, i) => {
         celdas[fila][i].classList.add(p[i]);

@@ -465,3 +465,6 @@ body.daltonico { --alga: #56b4e9; --sangre: #e69f00; }
 .cofre-mar { font-weight: 800; padding: 3px 12px; border-radius: 99px; background: #fff3c4; color: #5a4a2a; }
 .cofre-mar.oleaje { background: #d8ecff; color: #234a7a; }
 .cofre-mar.tormenta { background: #3a3550; color: #fff; }
+
+/* Palabra del Día: tema como pista */
+.palabra-tema { font-weight: 800; padding: 3px 14px; border-radius: 99px; background: var(--luna); color: var(--noche); }
