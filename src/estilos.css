@@ -468,3 +468,8 @@ body.daltonico { --alga: #56b4e9; --sangre: #e69f00; }
 
 /* Palabra del Día: tema como pista */
 .palabra-tema { font-weight: 800; padding: 3px 14px; border-radius: 99px; background: var(--luna); color: var(--noche); }
+
+/* Bolos: efecto del coco */
+.bolos-efecto { position: absolute; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 6px; z-index: 5; }
+.bolos-efecto .boton { padding: 5px 10px; font-size: .86rem; }
+body.foto .bolos-efecto { display: none; }

@@ -5,13 +5,16 @@ import { crearEscenario, limitar } from '../reflejos/motor';
 import { arrastre, caja, guia, mat, pasos, rapier, seguir, type Cuerpo } from './fisica';
 
 // Bolos de Coco: cinco turnos de dos tiros sobre una pista de arena inclinada hacia un lado.
-// La inclinación de cada turno sale de la semilla. Diez puntos por bolo, +50 por chuza y +20 por semichuza.
-const TURNOS = 5, FONDO = -15, LINEA = 3.2, ANCHO = 2.6, VEL_MIN = 11, VEL_MAX = 24, ASIENTO = 5.2;
+// La inclinación de cada turno sale de la semilla. Desde el tercer turno hay una roca en la pista, y al coco se le puede
+// dar efecto (curva a un lado) para esquivarla o para pelear contra la pendiente.
+// Diez puntos por bolo, +50 por chuza y +20 por semichuza.
+const TURNOS = 5, FONDO = -19, EMPUJE_EFECTO = 0.09, LINEA = 3.2, ANCHO = 2.6, VEL_MIN = 11, VEL_MAX = 24, ASIENTO = 5.2;
 
 export async function crear(c: Contexto): Promise<Partida> {
-  const e = crearEscenario(c.caja, { ancho: 9.5, alto: 15, centro: [0, 0.4, -3.4], inclinacion: 0.6 });
+  const e = crearEscenario(c.caja, { ancho: 9.5, alto: 18.5, centro: [0, 0.4, -5.4], inclinacion: 0.6 });
   const R = await rapier(), r = generador(c.semilla);
   const pendientes = Array.from({ length: TURNOS }, (_, i) => Math.round((r() * 2 - 1) * (1.2 + i * 0.5) * 10) / 10);
+  const rocas = Array.from({ length: TURNOS }, (_, i) => (i >= 2 ? (r() * 2 - 1) * 1.7 : null));
   const mundo = new R.World({ x: 0, y: -22, z: 0 }), cuerpos: Cuerpo[] = [];
   mundo.createCollider(R.ColliderDesc.cuboid(40, 1, 40).setTranslation(0, -1, 0).setFriction(0.5));
 
@@ -21,9 +24,9 @@ export async function crear(c: Contexto): Promise<Partida> {
   k.grupo.rotation.y = Math.PI * 0.85;
 
   // Pista y flecha de la inclinación
-  const pista = new THREE.Mesh(new THREE.PlaneGeometry(ANCHO * 2 + 1.2, 22), new THREE.MeshStandardMaterial({ color: '#e3c88c', roughness: 1 }));
+  const pista = new THREE.Mesh(new THREE.PlaneGeometry(ANCHO * 2 + 1.2, 28), new THREE.MeshStandardMaterial({ color: '#e3c88c', roughness: 1 }));
   pista.rotation.x = -Math.PI / 2;
-  pista.position.set(0, 0.03, -7);
+  pista.position.set(0, 0.03, -9);
   const raya = new THREE.Mesh(new THREE.PlaneGeometry(ANCHO * 2 + 1.2, 0.14), new THREE.MeshBasicMaterial({ color: '#b88a4a' }));
   raya.rotation.x = -Math.PI / 2;
   raya.position.set(0, 0.05, LINEA - 0.9);
@@ -33,6 +36,31 @@ export async function crear(c: Contexto): Promise<Partida> {
   flecha.add(cuerpoFlecha, punta);
   flecha.position.set(0, 0.35, -6);
   e.escena.add(pista, raya, flecha);
+
+  // Roca en la pista (desde el tercer turno): se mueve de lugar en cada turno
+  const roca = new THREE.Mesh(new THREE.DodecahedronGeometry(0.75, 0), mat('#8d8a99'));
+  roca.scale.set(1, 0.75, 1);
+  e.escena.add(roca);
+  const cuerpoRoca = mundo.createRigidBody(R.RigidBodyDesc.kinematicPositionBased().setTranslation(0, -5, -9));
+  mundo.createCollider(R.ColliderDesc.ball(0.7).setFriction(0.4).setRestitution(0.4), cuerpoRoca);
+
+  // Efecto: el coco se va curvando hacia un lado mientras rueda
+  let efecto = 0;
+  const panel = document.createElement('div');
+  panel.className = 'bolos-efecto';
+  const opciones: [number, string][] = [[-1, '↶ Curva izq.'], [0, 'Recto'], [1, 'Curva der. ↷']];
+  const botonesEfecto = opciones.map(([valor, texto]) => {
+    const b = document.createElement('button');
+    b.className = 'boton';
+    b.textContent = texto;
+    b.addEventListener('click', () => ponerEfecto(valor));
+    panel.appendChild(b);
+    return b;
+  });
+  const ponerEfecto = (valor: number) => { efecto = valor; botonesEfecto.forEach((b, i) => { b.setAttribute('aria-pressed', String(opciones[i][0] === valor)); b.classList.toggle('principal', opciones[i][0] === valor); }); };
+  ponerEfecto(0);
+  c.caja.appendChild(panel);
+  e.escuchar(window, 'keydown', (ev) => { if (lanzada >= 0) return; if (ev.key === 'a' || ev.key === 'A') ponerEfecto(Math.max(-1, efecto - 1)); if (ev.key === 'd' || ev.key === 'D') ponerEfecto(Math.min(1, efecto + 1)); });
 
   // Diez bolos en triángulo
   const moldeBolo = new THREE.Group(), tronco = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 1.4, 8), mat('#f3ecdc')), franja = new THREE.Mesh(new THREE.CylinderGeometry(0.235, 0.26, 0.2, 8), mat('#ef5565'));
@@ -76,8 +104,12 @@ export async function crear(c: Contexto): Promise<Partida> {
     flecha.rotation.y = p >= 0 ? 0 : Math.PI;
     flecha.scale.setScalar(0.5 + Math.abs(p) / 3);
     flecha.visible = Math.abs(p) > 0.05;
+    const x = rocas[turno];
+    roca.visible = x !== null;
+    roca.position.set(x ?? 0, 0.45, -9);
+    cuerpoRoca.setTranslation({ x: x ?? 0, y: x === null ? -5 : 0.5, z: -9 }, true);
     e.hud.tiempo(`Turno ${turno + 1} de ${TURNOS} · tiro ${tirada + 1}`);
-    e.hud.extra(Math.abs(p) < 0.05 ? 'Pista pareja' : `Inclinada ${p > 0 ? '→' : '←'} ${Math.abs(p).toFixed(1)}`);
+    e.hud.extra(`${Math.abs(p) < 0.05 ? 'Pista pareja' : `Inclinada ${p > 0 ? '→' : '←'} ${Math.abs(p).toFixed(1)}`}${x !== null ? ' · roca en la pista' : ''}`);
   };
 
   const velocidad = (dx: number, dy: number, fuerza: number) => {
@@ -135,7 +167,8 @@ export async function crear(c: Contexto): Promise<Partida> {
     anunciar();
   };
 
-  const avanzar = pasos(mundo);
+  // Mientras rueda hacia los bolos, el efecto lo empuja de a poco hacia un lado
+  const avanzar = pasos(mundo, () => { if (lanzada >= 0 && efecto && bola.translation().z > FONDO + 1) bola.applyImpulse({ x: efecto * EMPUJE_EFECTO, y: 0, z: 0 }, true); });
   armar();
   anunciar();
   e.hud.puntos(0);
