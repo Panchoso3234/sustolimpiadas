@@ -455,3 +455,8 @@ body.daltonico { --alga: #56b4e9; --sangre: #e69f00; }
 .voltorb .pista span { font-size: clamp(.7rem, 2.8vw, .85rem); }
 .voltorb .pista.columna { background: #3a5a2b; }
 .voltorb .pista.esquina { background: none; }
+
+/* Ruta del Cartero: calles y casas urgentes */
+.mapa .calles { stroke: #c9e8b4; stroke-width: 1.6; fill: none; }
+.mapa .urgente .techo { fill: #ff9a2e; }
+.mapa .reloj { font-size: 4.2px; text-anchor: middle; }

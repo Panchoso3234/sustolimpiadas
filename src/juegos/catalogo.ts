@@ -18,7 +18,7 @@ export interface Juego {
 
 /** Puntaje que nadie debería superar jugando limpio: sobre esto, la marca se muestra como dudosa al organizador. */
 export const TOPES: Record<string, number> = {
-  puente: 2000, rodillos: 2000, puertas: 2000, lava: 2000, huevo: 3000, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, torre: 2400, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2800, calculo: 1800, parejas: 1000, buscaconchas: 1800, luces: 1170,
+  puente: 2000, rodillos: 2000, puertas: 2000, lava: 2000, huevo: 3000, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, torre: 2400, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2800, calculo: 1800, parejas: 1000, buscaconchas: 1800, luces: 1800,
   cartero: 1000, cofre: 900, palabra: 1000, totem: 1000, catapulta: 1400, bolos: 750, minigolf: 1000,
 };
 
@@ -74,10 +74,10 @@ export const JUEGOS: Juego[] = [
     'Da vuelta dos cartas: si son iguales, se quedan. La medusa no tiene pareja: abrirla resta puntos y tapa lo que tenías abierto. Cada cuatro fallos, dos cartas boca abajo intercambian su lugar (verás cuáles). Termina los tres tableros rápido para el bono.'),
   j(18, 'buscaconchas', 'Erizos Ocultos', 'E', 'Bajo la arena hay ×1, ×2, ×3 y erizos. Las pistas de cada fila y columna te dicen dónde cavar.', 'Deducción',
     'Cada fila y columna muestra cuánto suman sus números y cuántos erizos tiene (🦔). Tus monedas de la ronda se multiplican por cada número que destapas. Destapa todos los ×2 y ×3 para ganar la ronda, o Plántate para guardar lo que llevas. Pisar un erizo pierde lo de la ronda. Clic derecho (o el botón) marca una sospecha. Son 5 rondas en 4 minutos.'),
-  j(19, 'luces', 'Luces del Faro', 'E', 'Tres tableros: apaga todas las luces. Cada toque cambia también las vecinas.', 'Lógica',
-    'Toca una luz y cambian ella y sus cuatro vecinas. Apaga el tablero completo para pasar al siguiente. Tienes tres minutos para los tres.'),
-  j(20, 'cartero', 'Ruta del Cartero', 'E', 'Reparte en las ocho casas y vuelve al correo por el camino más corto.', 'Optimización',
-    'Toca las casas en el orden en que quieres visitarlas; el recorrido se dibuja solo. Puedes deshacer. Al entregar se compara tu ruta con la mejor posible.'),
+  j(19, 'luces', 'Luces del Faro', 'E', 'Cinco tableros: apaga todas las luces. Cada toque cambia también las vecinas.', 'Lógica',
+    'Toca una luz y cambian ella y sus cuatro vecinas. Apaga el tablero completo para pasar al siguiente. Si lo logras con pocos toques (el par aparece arriba) ganas un bono. Tienes cuatro minutos para los cinco.'),
+  j(20, 'cartero', 'Ruta del Cartero', 'E', 'Reparte en las nueve casas por las calles y vuelve al correo por el camino más corto. Las urgentes van primero.', 'Optimización',
+    'Toca las casas en el orden en que quieres visitarlas; el recorrido va por las calles y se dibuja solo. Las casas con ⏰ deben estar entre tus primeras 4 entregas (cada una atrasada resta 120). Puedes deshacer. Al entregar se compara tu ruta con la mejor posible.'),
   j(21, 'cofre', 'El Cofre o la Ola', 'F', 'Diez cofres: sigue sacando tesoro o plántate antes de que llegue la ola.', 'Manejo del riesgo',
     'En cada cofre eliges: Sacar más (suma monedas, pero sube el riesgo) o Plantarte (guardas lo sacado). Si llega la ola, pierdes lo de ese cofre.'),
   j(22, 'bajo', 'El Más Bajo', 'F', 'Seis jugadores eligen un número en secreto; gana el más bajo que nadie repitió.', 'Leer al grupo',

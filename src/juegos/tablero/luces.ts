@@ -2,9 +2,10 @@ import { generador } from '../../nucleo/azar';
 import type { Contexto, Partida } from '../marco';
 import { barajar, crearMesa, mmss } from './mesa';
 
-// Luces del Faro: tres tableros seguidos. Cada toque cambia la luz tocada y sus cuatro vecinas.
+// Luces del Faro: cinco tableros seguidos. Cada toque cambia la luz tocada y sus cuatro vecinas.
+// Resolver un tablero con pocos toques (cerca del par, los toques con que se armó) da un bono.
 // Cada tablero se arma partiendo de todo apagado y aplicando toques al azar, así siempre tiene solución.
-const TABLEROS = [{ lado: 4, toques: 5 }, { lado: 5, toques: 7 }, { lado: 5, toques: 9 }], LIMITE = 180;
+const TABLEROS = [{ lado: 4, toques: 5 }, { lado: 5, toques: 7 }, { lado: 5, toques: 9 }, { lado: 6, toques: 10 }, { lado: 6, toques: 12 }], LIMITE = 240;
 
 export async function crear(c: Contexto): Promise<Partida> {
   const m = crearMesa(c.caja, 'luces', c.aspecto), r = generador(c.semilla);
@@ -24,12 +25,13 @@ export async function crear(c: Contexto): Promise<Partida> {
 
   const titulo = m.el('div', 'sigla', m.tablero), grilla = m.el('div', 'faro', m.tablero);
   m.el('p', 'chico', m.tablero, 'Meta: dejar todas las luces apagadas (oscuras). Al lograrlo pasas al tablero siguiente.');
-  let actual = 0, resueltos = 0, toques = 0, terminado = false, botones: HTMLButtonElement[] = [];
+  let actual = 0, resueltos = 0, toques = 0, enTablero = 0, bonos = 0, terminado = false, botones: HTMLButtonElement[] = [];
 
   const pintar = () => { const { luz } = armados[actual]; botones.forEach((b, i) => { b.classList.toggle('encendida', luz[i]); b.setAttribute('aria-pressed', String(luz[i])); }); };
   const montar = () => {
     const { lado } = armados[actual];
-    titulo.textContent = `Tablero ${actual + 1} de ${TABLEROS.length}`;
+    titulo.textContent = `Tablero ${actual + 1} de ${TABLEROS.length} · par: ${armados[actual].minimo} toques`;
+    enTablero = 0;
     grilla.replaceChildren();
     grilla.style.setProperty('--lado', String(lado));
     botones = Array.from({ length: lado * lado }, (_, i) => {
@@ -48,9 +50,9 @@ export async function crear(c: Contexto): Promise<Partida> {
     m.detener();
     if (todos) m.sonido.fanfarria();
     c.alTerminar({
-      puntaje: resueltos * 300 + (todos ? Math.round(Math.max(0, LIMITE - t) * 1.5) : 0),
-      lineas: [['Tableros apagados', `${resueltos} de ${TABLEROS.length}`], ['Toques', String(toques)], ['Tiempo', mmss(t)]],
-      detalle: { resueltos, toques, seg: Math.round(t) },
+      puntaje: resueltos * 200 + bonos + (todos ? Math.round(Math.max(0, LIMITE - t) * 1.5) : 0),
+      lineas: [['Tableros apagados', `${resueltos} de ${TABLEROS.length}`], ['Bono por pocos toques', String(bonos)], ['Toques', String(toques)], ['Tiempo', mmss(t)]],
+      detalle: { resueltos, toques, bonos, seg: Math.round(t) },
     });
   };
 
@@ -59,13 +61,17 @@ export async function crear(c: Contexto): Promise<Partida> {
     const { luz, lado } = armados[actual];
     cambiar(luz, lado, i);
     toques++;
+    enTablero++;
     m.sonido.toque();
     pintar();
     if (luz.some(Boolean)) return;
     resueltos++;
+    const par = armados[actual].minimo, bono = enTablero <= par ? 80 : enTablero <= par + 2 ? 40 : 0;
+    bonos += bono;
     m.sonido.bien();
+    if (bono) m.hud.aviso(`¡Con ${enTablero} toques! +${bono}`, 'oro', 1.2);
     if (resueltos === TABLEROS.length) return terminar();
-    m.hud.aviso(`¡Apagado! Va el tablero ${actual + 2} de ${TABLEROS.length}`, 'oro', 1.6);
+    if (!bono) m.hud.aviso(`¡Apagado! Va el tablero ${actual + 2} de ${TABLEROS.length}`, 'oro', 1.6);
     actual++;
     montar();
   }
@@ -74,7 +80,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   m.hud.tiempo(mmss(LIMITE));
   m.alTic((t) => {
     m.hud.tiempo(mmss(LIMITE - t));
-    m.hud.extra(`${toques} toques`);
+    m.hud.extra(`${enTablero} toques en este tablero`);
     m.hud.puntos(`${resueltos} / ${TABLEROS.length}`);
     if (t >= LIMITE) terminar();
   });
