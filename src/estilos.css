@@ -512,3 +512,13 @@ body.foto ::-webkit-scrollbar { display: none; }
 .agua-c.tocado { background: var(--calabaza); }
 .agua-c.hundido { background: var(--sangre); }
 .agua-c.espera { outline: 2px dashed var(--luna); }
+
+/* Mi personaje: crear el propio o elegir uno de la lista */
+.modo-personaje { margin-bottom: 10px; }
+.preseleccion { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.preseleccion button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 6px; border-radius: 12px; border: 2px solid var(--linea); background: var(--noche-2); color: var(--hueso); cursor: pointer; font: inherit; }
+.preseleccion button:hover { border-color: var(--tenue); }
+.preseleccion button.elegida { border-color: var(--calabaza); background: #3a2a1a; }
+.preseleccion img, .preseleccion .hueco { width: 96px; height: 96px; }
+.preseleccion b { font-size: .95rem; }
+.preseleccion span { font-size: .75rem; color: var(--tenue); text-align: center; }

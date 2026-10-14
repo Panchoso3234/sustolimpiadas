@@ -64,6 +64,8 @@ export interface Aspecto {
   colorAccesorio: string;
   altura: number;
   contextura: number;
+  /** Si es un personaje preseleccionado (ver presets.ts): su id. Esos no se editan. */
+  preset?: string;
 }
 
 export interface Personaje {
@@ -94,6 +96,7 @@ export function normalizarAspecto(dato: unknown): Aspecto {
     sombrero: entero(d.sombrero, SOMBREROS.length, 0), colorSombrero: esColor(d.colorSombrero) ? d.colorSombrero.toLowerCase() : base.colorSombrero,
     lentes: entero(d.lentes, ANTEOJOS.length, 0), objeto: entero(d.objeto, OBJETOS.length, 0), espalda: entero(d.espalda, ESPALDAS.length, 0),
     colorAccesorio: esColor(d.colorAccesorio) ? d.colorAccesorio.toLowerCase() : base.colorAccesorio, altura: unidad(d.altura), contextura: unidad(d.contextura),
+    ...(typeof d.preset === 'string' && /^[a-z0-9-]{2,24}$/.test(d.preset) ? { preset: d.preset } : {}),
   };
 }
 

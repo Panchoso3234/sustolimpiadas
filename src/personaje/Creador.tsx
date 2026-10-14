@@ -4,7 +4,8 @@ import { entrar, supabase, useSesion } from '../nucleo/supabase';
 import * as C from './catalogo';
 import type { Aspecto, Personaje } from './catalogo';
 import { crearKenney, type Kenney, type Ranura } from './kenney';
-import { miniatura, tarjeta, type Encuadre } from './miniaturas';
+import { foto, miniatura, tarjeta, type Encuadre } from './miniaturas';
+import { FRANQUICIA, PRESELECCIONADOS, preseleccionado } from './presets';
 import { crearVisor } from './visor';
 
 const BORRADOR = 'susto.personaje';
@@ -56,11 +57,25 @@ function Mini({ aspecto, campo, indice, tipo }: { aspecto: Aspecto; campo: keyof
   return src ? <img src={src} alt="" width="72" height="72" /> : <div class="hueco" />;
 }
 
+/** Retrato de un personaje preseleccionado para la lista. */
+function Retrato({ aspecto }: { aspecto: Aspecto }) {
+  const [src, setSrc] = useState('');
+  useEffect(() => {
+    let vigente = true;
+    foto(aspecto, 160, 'cuerpo').then((c) => { if (vigente) setSrc(c.toDataURL('image/png')); }).catch(() => undefined);
+    return () => { vigente = false; };
+  }, [aspecto]);
+  return src ? <img src={src} alt="" width="96" height="96" /> : <div class="hueco" />;
+}
+
 export function Creador() {
   const sesion = useSesion();
   const [p, setP] = useState<Personaje>(leerBorrador);
   const [paraMinis, setParaMinis] = useState<Aspecto>(p.apariencia); // se actualiza con retraso para no redibujar decenas de miniaturas en cada movimiento
   const [seccion, setSeccion] = useState('base');
+  // Dos caminos: crear un personaje propio o elegir uno de la lista (que no se edita)
+  const [modo, setModo] = useState<'crear' | 'elegir'>(p.apariencia.preset ? 'elegir' : 'crear');
+  const elegido = preseleccionado(p.apariencia.preset);
   const [ranuras, setRanuras] = useState<Ranura[]>([]);
   const [pose, setPose] = useState('idle');
   const [aviso, setAviso] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
@@ -100,7 +115,7 @@ export function Creador() {
     supabase.from('personajes').select('nombre,apariencia,personalidad,voz,frase').eq('perfil_id', sesion.usuarioId).maybeSingle()
       .then(({ data }) => {
         if (!vigente) return;
-        if (data) setP(C.normalizarPersonaje(data));
+        if (data) { const guardado = C.normalizarPersonaje(data); setP(guardado); setModo(guardado.apariencia.preset ? 'elegir' : 'crear'); }
         else if (sesion.perfil) setP((antes) => (antes.nombre ? antes : { ...antes, nombre: sesion.perfil!.nombre.slice(0, 24) }));
       });
     return () => { vigente = false; };
@@ -161,7 +176,7 @@ export function Creador() {
         </div>
         <p class="tenue chico">Arrastra para girar · 144 combinaciones de cabeza y cuerpo, más colores y accesorios</p>
         <div class="fila">
-          <button class="boton" onClick={() => setP((a) => ({ ...C.personajeAleatorio(), nombre: a.nombre, frase: a.frase }))}>Al azar</button>
+          {!elegido && <button class="boton" onClick={() => setP((a) => ({ ...C.personajeAleatorio(), nombre: a.nombre, frase: a.frase }))}>Al azar</button>}
           <button class="boton" onClick={abrirTarjeta}>Tarjeta para compartir</button>
           {sesion.usuarioId
             ? <button class="boton principal" disabled={guardando} onClick={guardar}>{guardando ? 'Guardando…' : 'Guardar personaje'}</button>
@@ -173,6 +188,36 @@ export function Creador() {
       </div>
 
       <div class="creador-panel">
+        <div class="modos modo-personaje" role="group" aria-label="Cómo tener tu personaje">
+          <button class={modo === 'crear' ? 'activa' : ''} aria-pressed={modo === 'crear'} onClick={() => setModo('crear')}><b>Crear el mío</b><span>Armarlo pieza por pieza</span></button>
+          <button class={modo === 'elegir' ? 'activa' : ''} aria-pressed={modo === 'elegir'} onClick={() => setModo('elegir')}><b>Elegir uno de la lista</b><span>{FRANQUICIA}</span></button>
+        </div>
+
+        {modo === 'elegir' && (
+          <>
+            <p class="tenue chico">Personajes listos para usar, hechos con las mismas piezas del creador como homenaje de fans (personajes de HoYoverse). No se pueden editar: se usan tal cual. Toca uno para verlo y después guárdalo.</p>
+            <div class="preseleccion">
+              {PRESELECCIONADOS.map((x) => (
+                <button key={x.id} class={elegido?.id === x.id ? 'elegida' : ''} aria-pressed={elegido?.id === x.id} onClick={() => { setP(x.personaje); setAviso(null); }}>
+                  <Retrato aspecto={x.personaje.apariencia} />
+                  <b>{x.nombre}</b>
+                  <span>{x.titulo}</span>
+                </button>
+              ))}
+            </div>
+            {elegido && <p class="aviso ok">Elegiste a <b>{elegido.nombre}</b>. {sesion.usuarioId ? 'Aprieta "Guardar personaje" para que sea el tuyo.' : 'Entra con Discord para guardarlo.'}</p>}
+          </>
+        )}
+
+        {modo === 'crear' && elegido && (
+          <div class="campo">
+            <p class="aviso atencion">Ahora usas a <b>{elegido.nombre}</b>, un personaje preseleccionado: no se puede editar.</p>
+            <button class="boton principal" onClick={() => setP({ ...C.personajeAleatorio(), nombre: sesion.perfil?.nombre.slice(0, 24) ?? '' })}>Empezar uno propio</button>
+            <p class="tenue chico">Se arma uno nuevo al azar para que lo cambies a tu gusto. Tu personaje guardado no cambia hasta que aprietes "Guardar personaje".</p>
+          </div>
+        )}
+
+        {modo === 'crear' && !elegido && <>
         <div class="pestanas" role="tablist">
           {SECCIONES.map((s) => (
             <button key={s.id} role="tab" aria-selected={s.id === seccion} class={s.id === seccion ? 'activa' : ''} onClick={() => setSeccion(s.id)}>{s.titulo}</button>
@@ -266,6 +311,7 @@ export function Creador() {
             </div>
           </>
         )}
+        </>}
       </div>
 
       {imagenTarjeta && (
