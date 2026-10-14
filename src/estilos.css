@@ -460,3 +460,8 @@ body.daltonico { --alga: #56b4e9; --sangre: #e69f00; }
 .mapa .calles { stroke: #c9e8b4; stroke-width: 1.6; fill: none; }
 .mapa .urgente .techo { fill: #ff9a2e; }
 .mapa .reloj { font-size: 4.2px; text-anchor: middle; }
+
+/* El Cofre o la Ola: estado del mar */
+.cofre-mar { font-weight: 800; padding: 3px 12px; border-radius: 99px; background: #fff3c4; color: #5a4a2a; }
+.cofre-mar.oleaje { background: #d8ecff; color: #234a7a; }
+.cofre-mar.tormenta { background: #3a3550; color: #fff; }
