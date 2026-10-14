@@ -18,7 +18,7 @@ export interface Juego {
 
 /** Puntaje que nadie debería superar jugando limpio: sobre esto, la marca se muestra como dudosa al organizador. */
 export const TOPES: Record<string, number> = {
-  puente: 2000, rodillos: 2000, puertas: 2000, lava: 2000, huevo: 3000, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, torre: 2400, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2100, calculo: 1800, parejas: 1000, buscaconchas: 1000, luces: 1170,
+  puente: 2000, rodillos: 2000, puertas: 2000, lava: 2000, huevo: 3000, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, torre: 2400, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2800, calculo: 1800, parejas: 1000, buscaconchas: 1000, luces: 1170,
   cartero: 1000, cofre: 900, palabra: 1000, totem: 1000, catapulta: 1400, bolos: 750, minigolf: 1000,
 };
 
@@ -63,15 +63,15 @@ export const JUEGOS: Juego[] = [
   j(12, 'minigolf', 'Minigolf del Volcán', 'C', 'Seis hoyos con paredes, rebotes y pozas de lava. El recorrido cambia cada día.', 'Planificación',
     'Arrastra hacia atrás y suelta para golpear la pelota. Caer a la lava cuesta un golpe y vuelves al punto anterior. Menos golpes, más puntos.'),
   j(13, 'cocos', 'Cocos al Vuelo', 'D', 'Atrapa los cocos que caen de las palmeras y esquiva los cangrejos.', 'Reacción sostenida',
-    'Mueve a tu personaje con el mouse, el dedo o las flechas. Cada coco seguido vale más; un cangrejo te quita una vida. Dura 60 segundos o hasta quedarte sin vidas.'),
+    'Mueve a tu personaje con el mouse, el dedo o las flechas. Un aro en la arena avisa dónde cae cada cosa (rojo: cangrejo). Cada coco seguido vale más; la bola azul es un imán y la rosada da una vida. Dura 60 segundos o hasta quedarte sin vidas.'),
   j(14, 'cangrejos', 'Mata-Cangrejos', 'D', 'Pégale a los cangrejos que asoman, no a las tortugas.', 'Reacción con freno',
-    'Toca o haz clic sobre los cangrejos antes de que se escondan. Pegarle a una tortuga resta puntos. Dura 45 segundos.'),
+    'Toca o haz clic sobre los cangrejos antes de que se escondan. Algunos amagan: se esconden un instante y vuelven a salir. Pegarle a una tortuga resta puntos. Dura 45 segundos.'),
   j(15, 'numeros', 'Cazanúmeros', 'D', 'Veinticinco números revueltos: tócalos del 1 al 25 lo más rápido que puedas.', 'Atención y velocidad',
-    'Toca los números en orden, partiendo por el 1. Arriba dice cuál toca. Equivocarse resta puntos. Tienes un minuto.'),
+    'Toca los números en orden, partiendo por el 1. Arriba dice cuál toca. Cada tantos aciertos las fichas cambian de lugar. Equivocarse resta puntos. Tienes un minuto.'),
   j(16, 'tinta', 'Tinta Tramposa', 'D', 'La palabra dice un color, pero está pintada de otro. Responde el color de la tinta.', 'Autocontrol',
-    'Aprieta el botón (o las teclas 1 a 4) del color con que está PINTADA la palabra, no el que dice. Los aciertos seguidos valen más y cada error resta. Dura 45 segundos.'),
-  j(17, 'parejas', 'Parejas del Arrecife', 'E', 'Memoria de 10 parejas, con cartas que cambian de lugar cuando fallas mucho.', 'Memoria',
-    'Da vuelta dos cartas: si son iguales, se quedan. Cada cuatro fallos, dos cartas boca abajo intercambian su lugar (verás cuáles). Menos tiempo y menos fallos, más puntos.'),
+    'Aprieta el botón (o las teclas 1 a 6) del color con que está PINTADA la palabra, no el que dice. Ojo: a ratos la regla se invierte y vale lo que DICE (te avisa arriba). Después de 10 respuestas entran dos colores más. Dura 45 segundos.'),
+  j(17, 'parejas', 'Parejas del Arrecife', 'E', 'Tres tableros de 6, 8 y 10 parejas, con medusas tramposas y cartas que cambian de lugar.', 'Memoria',
+    'Da vuelta dos cartas: si son iguales, se quedan. La medusa no tiene pareja: abrirla resta puntos y tapa lo que tenías abierto. Cada cuatro fallos, dos cartas boca abajo intercambian su lugar (verás cuáles). Termina los tres tableros rápido para el bono.'),
   j(18, 'buscaconchas', 'Erizos Ocultos', 'E', 'Despeja la arena sin pisar ninguno de los 12 erizos.', 'Deducción',
     'Cada número dice cuántos erizos hay alrededor. Clic para destapar; clic derecho, o el botón Banderín, para marcar un erizo. Pisar un erizo termina la partida.'),
   j(19, 'luces', 'Luces del Faro', 'E', 'Tres tableros: apaga todas las luces. Cada toque cambia también las vecinas.', 'Lógica',
@@ -86,10 +86,10 @@ export const JUEGOS: Juego[] = [
     'Toca la pantalla, haz clic o aprieta Espacio para soltar el bloque. Si sobresale, se corta y el siguiente es más chico; si cae justo encima es un perfecto y suma racha. Cada piso va más rápido.'),
   j(24, 'palabra', 'Palabra del Día', 'F', 'Adivina la palabra de 5 letras en 6 intentos.', 'Descarte',
     'Escribe una palabra de 5 letras y aprieta Enter. Verde: letra en su lugar. Amarillo: está, pero en otro lugar. Gris: no está.'),
-  j(25, 'eco', 'Eco del Templo', 'E', 'Cuatro piedras se encienden en secuencia. Repítela; cada ronda suma una más.', 'Memoria de secuencias',
-    'Mira el orden en que brillan las piedras y repítelo tocándolas. Cada ronda la secuencia crece y va más rápido. Un error termina la partida.'),
-  j(26, 'calculo', 'Mercado Relámpago', 'F', 'Sumas, restas y multiplicaciones contra el reloj, cada vez más difíciles.', 'Cálculo mental',
-    'Escribe el resultado con el teclado o los botones y aprieta OK (Enter). Los aciertos seguidos valen más y cada error resta. Tienes un minuto.'),
+  j(25, 'eco', 'Eco del Templo', 'E', 'Seis piedras se encienden en secuencia. Repítela; cada ronda suma una más, y algunas van al revés.', 'Memoria de secuencias',
+    'Mira el orden en que brillan las piedras y repítelo tocándolas. Desde la ronda 4, una de cada tres se repite al revés (de la última a la primera) y vale el doble. Un error termina la partida.'),
+  j(26, 'calculo', 'Mercado Relámpago', 'F', 'Sumas, restas, multiplicaciones y compras de la feria contra el reloj.', 'Cálculo mental',
+    'Escribe el resultado con el teclado o los botones y aprieta OK (Enter). Cada cuenta tiene su propio plazo (arriba, al centro), que se acorta. Los aciertos seguidos valen más y cada error resta. Tienes un minuto.'),
 ];
 
 export const juegoPorId = (id: string) => JUEGOS.find((x) => x.id === id);

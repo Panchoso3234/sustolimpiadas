@@ -437,3 +437,9 @@ body.daltonico { --alga: #56b4e9; --sangre: #e69f00; }
 @keyframes revuelto { from { transform: scale(.6) rotate(-12deg); opacity: .4; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .numeros.revuelto .numero { animation: none; } }
 .tinta-ayuda.reves { color: var(--luna); background: #3a2a0a; padding: 4px 12px; border-radius: 99px; }
+
+/* Parejas: tableros que crecen y medusas */
+.cartas[data-cartas="12"] { grid-template-columns: repeat(4, 1fr); max-width: 420px; margin: 0 auto; }
+.cartas[data-cartas="21"], .cartas[data-cartas="22"] { grid-template-columns: repeat(6, 1fr); }
+.carta.medusa { background: #ffe6f2; outline: 2px solid var(--sangre); opacity: 1; }
+.carta.medusa .cara { font-size: clamp(1.4rem, 6vw, 2.2rem); }
