@@ -9,21 +9,25 @@ import { crearCangrejo, crearHoyo, crearTortuga } from './piezas';
 const DURA = 45, PASO = 3.5, SUBE = 0.14, ABAJO = -1.05, ARRIBA = 0.38;
 
 type Tipo = 'cangrejo' | 'dorado' | 'tortuga';
-interface Asomo { t: number; hoyo: number; tipo: Tipo; dura: number; golpe?: number; cerrado?: boolean }
+// amago: el cangrejo se esconde un momento a mitad de camino y vuelve a salir (escondido no se le puede pegar)
+interface Asomo { t: number; hoyo: number; tipo: Tipo; dura: number; amago?: number; golpe?: number; cerrado?: boolean }
+const ESCONDE = 0.32;
+const escondido = (a: Asomo, t: number) => a.amago !== undefined && t >= a.t + SUBE + a.amago && t < a.t + SUBE + a.amago + ESCONDE;
 
-function programa(semilla: string): Asomo[] {
+function programa(semilla: string, nivel: number): Asomo[] {
   const r = generador(semilla), lista: Asomo[] = [], libre = new Array<number>(9).fill(0);
   let t = 1.2;
   while (t < DURA - 1) {
-    const avance = t / DURA, base = 1.05 - 0.55 * avance, dobles = r() < 0.15 + 0.3 * avance ? 2 : 1;
+    const avance = t / DURA, base = (0.95 - 0.5 * avance) * (1 - (nivel - 1) * 0.07), dobles = r() < 0.15 + 0.3 * avance ? 2 : 1;
     for (let i = 0; i < 2; i++) {
       let hoyo = Math.floor(r() * 9);
       const u = r();
       if (i >= dobles) continue;
       for (let k = 0; k < 9 && libre[hoyo] > t; k++) hoyo = (hoyo + 1) % 9;
       if (libre[hoyo] > t) continue;
-      const tipo: Tipo = u < 0.05 ? 'dorado' : u < 0.27 + 0.1 * avance ? 'tortuga' : 'cangrejo', dura = tipo === 'dorado' ? base * 0.6 : base;
-      lista.push({ t, hoyo, tipo, dura });
+      const tipo: Tipo = u < 0.05 ? 'dorado' : u < 0.27 + 0.1 * avance ? 'tortuga' : 'cangrejo', amaga = tipo === 'cangrejo' && avance > 0.25 && r() < 0.3;
+      const dura = (tipo === 'dorado' ? base * 0.6 : base) + (amaga ? ESCONDE : 0);
+      lista.push({ t, hoyo, tipo, dura, amago: amaga ? base * 0.4 : undefined });
       libre[hoyo] = t + dura + SUBE * 2 + 0.35;
     }
     t += 0.75 - 0.4 * avance + r() * 0.2;
@@ -33,7 +37,7 @@ function programa(semilla: string): Asomo[] {
 
 export async function crear(c: Contexto): Promise<Partida> {
   const e = crearEscenario(c.caja, { ancho: PASO * 2 + 4.6, alto: 12.6, centro: [0, 0.6, -0.2], inclinacion: 0.86 });
-  const asomos = programa(c.semilla), totalCangrejos = asomos.filter((a) => a.tipo !== 'tortuga').length;
+  const asomos = programa(c.semilla, c.nivel), totalCangrejos = asomos.filter((a) => a.tipo !== 'tortuga').length;
 
   const [k] = await Promise.all([
     e.personaje(c.aspecto, 3.4),
@@ -67,7 +71,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     const t = e.reloj(), toque = e.apuntar(ev).intersectObjects(blancos)[0];
     if (!toque || t <= 0) return;
     const hoyo = toque.object.userData.hoyo as number;
-    const a = asomos.find((x) => x.hoyo === hoyo && x.golpe === undefined && t >= x.t && t <= x.t + x.dura + SUBE * 2);
+    const a = asomos.find((x) => x.hoyo === hoyo && x.golpe === undefined && t >= x.t && t <= x.t + x.dura + SUBE * 2 && !escondido(x, t));
     if (!a) return;
     a.golpe = t;
     const { x, z } = toque.object.position;
@@ -127,7 +131,10 @@ export async function crear(c: Contexto): Promise<Partida> {
         if (a.tipo === 'cangrejo') racha = 0; // se escapó
         continue;
       }
-      const sube = limitar((t - a.t) / SUBE, 0, 1), baja = limitar((fin - t) / SUBE, 0, 1), q = Math.min(sube, baja);
+      const sube = limitar((t - a.t) / SUBE, 0, 1), baja = limitar((fin - t) / SUBE, 0, 1);
+      // durante el amago baja y vuelve a subir
+      const amago = a.amago === undefined ? 1 : limitar(Math.abs((t - (a.t + SUBE + a.amago)) / (ESCONDE / 2) - 1) * 1.6 - 0.6, 0, 1);
+      const q = Math.min(sube, baja, escondido(a, t) ? amago : 1);
       b.visible = true;
       b.position.y = ABAJO + (ARRIBA - ABAJO) * q + Math.sin(t * 9 + a.hoyo) * 0.04;
       b.rotation.y = Math.sin(t * 5 + a.hoyo * 2) * 0.25;

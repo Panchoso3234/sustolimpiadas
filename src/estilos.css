@@ -315,7 +315,7 @@ body.foto .mesa { padding: 10px; }
 .tinta-ayuda { font-weight: 800; }
 .tinta-palabra { font: 400 clamp(3rem, 15vw, 5.5rem) var(--display); line-height: 1.1; padding: 8px 0 14px; }
 .tinta-botones { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
-.eco { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; max-width: 360px; }
+.eco { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; max-width: 420px; }
 .eco-pad { aspect-ratio: 1; border: 4px solid #3a342c; border-radius: 22px; cursor: pointer; opacity: .45; transition: opacity .08s, transform .08s; }
 .eco-pad.p0 { background: #e5484d; } .eco-pad.p1 { background: #3b82f6; } .eco-pad.p2 { background: #30a46c; } .eco-pad.p3 { background: #e2b100; }
 .eco-pad.viva { opacity: 1; transform: scale(1.05); box-shadow: 0 0 26px currentColor; }
@@ -426,3 +426,14 @@ body.daltonico { --alga: #56b4e9; --sangre: #e69f00; }
 .sala-teclas { position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%); z-index: 6; max-width: calc(100% - 32px); padding: 6px 14px; border-radius: 99px; background: #14203ad9; color: var(--hueso); font-size: .88rem; text-align: center; pointer-events: none; animation: teclas-fuera 6s ease forwards; }
 @keyframes teclas-fuera { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .sala-teclas { animation: none; } }
+
+/* Mejoras de los juegos de mente */
+.eco-pad.p4 { background: #9b59d0; } .eco-pad.p5 { background: #f76b15; }
+.numeros .numero.tema0 { background: #2b1a52; }
+.numeros .numero.tema1 { background: #12506b; border-radius: 50%; }
+.numeros .numero.tema2 { background: #6b2a3a; border-radius: 40% 40% 12px 12px; }
+.numeros .numero.tema3 { background: #1f5a3a; border-radius: 12px 40% 12px 40%; }
+.numeros.revuelto .numero:not(:disabled) { animation: revuelto .35s ease-out; }
+@keyframes revuelto { from { transform: scale(.6) rotate(-12deg); opacity: .4; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .numeros.revuelto .numero { animation: none; } }
+.tinta-ayuda.reves { color: var(--luna); background: #3a2a0a; padding: 4px 12px; border-radius: 99px; }

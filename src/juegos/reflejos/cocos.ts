@@ -9,24 +9,27 @@ import { crearCangrejo, crearCanasta, crearCoco } from './piezas';
 const DURA = 60, ANCHO = 6.5, CIMA = 13.5, TALLA = 3.1, ATRAPA = TALLA + 0.75, V_MAX = 13, VIDAS = 3;
 const RADIO_COCO = 1.05, RADIO_CANGREJO = 0.9;
 
-type Tipo = 'coco' | 'dorado' | 'cangrejo';
-interface Caida { t: number; llega: number; x: number; v: number; tipo: Tipo; o?: THREE.Object3D; resuelto?: boolean; atrapado?: boolean; fin?: number; lado?: number }
+// iman: la canasta atrapa más ancho por unos segundos · vida: recupera un corazón
+type Tipo = 'coco' | 'dorado' | 'cangrejo' | 'iman' | 'vida';
+interface Caida { t: number; llega: number; x: number; v: number; tipo: Tipo; curva: number; o?: THREE.Object3D; marca?: THREE.Mesh; resuelto?: boolean; atrapado?: boolean; fin?: number; lado?: number }
+const IMAN = 6;
 
-function programa(semilla: string): Caida[] {
+function programa(semilla: string, nivel: number): Caida[] {
   const r = generador(semilla), lista: Caida[] = [];
   let llega = 2.6, x = 0;
   while (llega < DURA) {
-    const avance = llega / DURA, v = 7 + 7 * avance, intervalo = 0.9 - 0.55 * avance + r() * 0.2;
+    const avance = llega / DURA, v = (7 + 7 * avance) * (1 + (nivel - 1) * 0.08), intervalo = 0.9 - 0.55 * avance + r() * 0.2;
     // Cada coco queda al alcance desde el anterior: nunca hay uno imposible
     const destino = (r() * 2 - 1) * ANCHO, alcance = V_MAX * 0.7 * intervalo; // un punto cualquiera del ancho, recortado a lo que se alcanza a correr
     x += limitar(destino - x, -alcance, alcance);
     const caida = (CIMA - ATRAPA) / v;
-    lista.push({ llega, t: llega - caida, x, v, tipo: r() < 0.07 ? 'dorado' : 'coco' });
+    const suerte = r(), curva = avance > 0.4 && r() < 0.35 ? (r() < 0.5 ? -1 : 1) * (1.5 + r() * 1.5) : 0; // en la segunda mitad algunos caen en curva
+    lista.push({ llega, t: llega - caida, x, v, curva, tipo: suerte < 0.06 ? 'dorado' : suerte < 0.095 ? 'iman' : suerte < 0.12 ? 'vida' : 'coco' });
     const conCangrejo = r() < 0.3 + 0.4 * avance, lado = r() < 0.5 ? -1 : 1, lejos = 1.95 + r() * 1.6, desfase = (r() - 0.5) * 0.3;
     if (conCangrejo) {
       // El cangrejo cae cerca del coco, pero siempre deja un lado libre para atraparlo
       const cx = Math.abs(x + lado * lejos) > ANCHO ? x - lado * lejos : x + lado * lejos;
-      lista.push({ llega: llega + desfase, t: llega + desfase - caida, x: cx, v, tipo: 'cangrejo' });
+      lista.push({ llega: llega + desfase, t: llega + desfase - caida, x: cx, v, curva: 0, tipo: 'cangrejo' });
     }
     llega += intervalo;
   }
@@ -35,7 +38,7 @@ function programa(semilla: string): Caida[] {
 
 export async function crear(c: Contexto): Promise<Partida> {
   const e = crearEscenario(c.caja, { ancho: ANCHO * 2 + 3.5, alto: 15, centro: [0, 6.9, 0], inclinacion: 0.05 });
-  const caidas = programa(c.semilla), totalCocos = caidas.filter((x) => x.tipo !== 'cangrejo').length;
+  const caidas = programa(c.semilla, c.nivel), totalCocos = caidas.filter((x) => x.tipo === 'coco' || x.tipo === 'dorado').length;
 
   const [k] = await Promise.all([
     e.personaje(c.aspecto, TALLA),
@@ -47,8 +50,12 @@ export async function crear(c: Contexto): Promise<Partida> {
   const canasta = crearCanasta(), mancha = sombra(1.1);
   e.escena.add(canasta, mancha);
 
-  const moldes: Record<Tipo, THREE.Group> = { coco: await e.pieza('comida', 'coconut', 1), dorado: crearCoco(true), cangrejo: crearCangrejo() };
-  let px = 0, objetivo = 0, tecla = 0, puntos = 0, racha = 0, mejorRacha = 0, vidas = VIDAS, atrapados = 0, dorados = 0, golpes = 0, terminado = false, aturdido = 0;
+  const bolita = (color: string) => { const g = new THREE.Group(); g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.55, 1), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.35, flatShading: true }))); return g; };
+  const moldes: Record<Tipo, THREE.Group> = { coco: await e.pieza('comida', 'coconut', 1), dorado: crearCoco(true), cangrejo: crearCangrejo(), iman: bolita('#3f8cff'), vida: bolita('#ff7ab8') };
+  // Aviso en la arena: dónde va a caer cada cosa (roja si es un cangrejo)
+  const matMarca = { bien: new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.35, depthWrite: false }), mal: new THREE.MeshBasicMaterial({ color: '#ef5565', transparent: true, opacity: 0.5, depthWrite: false }) };
+  const geoMarca = new THREE.RingGeometry(0.45, 0.7, 20);
+  let px = 0, objetivo = 0, tecla = 0, puntos = 0, racha = 0, mejorRacha = 0, vidas = VIDAS, atrapados = 0, dorados = 0, golpes = 0, terminado = false, aturdido = 0, imanHasta = 0, extras = 0;
 
   // El dedo o el mouse marcan hacia dónde correr; las flechas también sirven
   const apuntarA = (ev: PointerEvent) => {
@@ -68,8 +75,8 @@ export async function crear(c: Contexto): Promise<Partida> {
     k.animar(vidas > 0 ? 'emote-yes' : 'die', vidas <= 0);
     c.alTerminar({
       puntaje: puntos,
-      lineas: [['Cocos atrapados', `${atrapados} de ${totalCocos}`], ['Cocos dorados', String(dorados)], ['Mejor racha', String(mejorRacha)], ['Cangrejazos', String(golpes)]],
-      detalle: { atrapados, total: totalCocos, dorados, golpes, racha: mejorRacha, seg: Math.round(t * 10) / 10 },
+      lineas: [['Cocos atrapados', `${atrapados} de ${totalCocos}`], ['Cocos dorados', String(dorados)], ['Mejor racha', String(mejorRacha)], ['Cangrejazos', String(golpes)], ['Premios', String(extras)]],
+      detalle: { atrapados, total: totalCocos, dorados, golpes, extras, racha: mejorRacha, seg: Math.round(t * 10) / 10 },
     });
   };
 
@@ -94,14 +101,19 @@ export async function crear(c: Contexto): Promise<Partida> {
 
     for (const f of caidas) {
       if (f.t > t) break;
-      if (f.fin !== undefined && t > f.fin) { if (f.o) { e.escena.remove(f.o); f.o = undefined; } continue; }
-      if (f.atrapado) continue;
-      if (!f.o) { f.o = moldes[f.tipo].clone(); e.escena.add(f.o); }
-      const y = CIMA - f.v * (t - f.t);
+      const quitarMarca = () => { if (f.marca) { e.escena.remove(f.marca); f.marca = undefined; } };
+      if (f.fin !== undefined && t > f.fin) { quitarMarca(); if (f.o) { e.escena.remove(f.o); f.o = undefined; } continue; }
+      if (f.atrapado) { quitarMarca(); continue; }
+      if (!f.o) {
+        f.o = moldes[f.tipo].clone(); e.escena.add(f.o);
+        f.marca = new THREE.Mesh(geoMarca, f.tipo === 'cangrejo' ? matMarca.mal : matMarca.bien); f.marca.rotation.x = -Math.PI / 2; f.marca.position.set(f.x, 0.06, 0.9); e.escena.add(f.marca);
+      }
+      const y = CIMA - f.v * (t - f.t), x = f.x + f.curva * Math.max(0, (f.llega - t) / (f.llega - f.t)); // la curva se endereza al llegar
+      if (f.marca) { const cerca = 1 - Math.max(0, (y - ATRAPA) / (CIMA - ATRAPA)); f.marca.scale.setScalar(0.6 + cerca * 0.8); if (y <= ATRAPA) quitarMarca(); }
       // El momento en que pasa por la canasta decide todo
       if (!f.resuelto && y <= ATRAPA) {
         f.resuelto = true;
-        const dx = Math.abs(f.x - px);
+        const dx = Math.abs(f.x - px), radio = t < imanHasta ? RADIO_COCO * 1.8 : RADIO_COCO;
         if (f.tipo === 'cangrejo') {
           if (dx < RADIO_CANGREJO) {
             vidas--; golpes++; racha = 0; aturdido = t + 0.5;
@@ -112,7 +124,17 @@ export async function crear(c: Contexto): Promise<Partida> {
             if (vidas <= 0) return terminar(t);
             continue;
           }
-        } else if (dx < RADIO_COCO) {
+        } else if ((f.tipo === 'iman' || f.tipo === 'vida') && dx < radio) {
+          extras++;
+          if (f.tipo === 'iman') { imanHasta = t + IMAN; e.hud.aviso('¡Imán! Atrapas más ancho', 'bien', 1); }
+          else if (vidas < VIDAS) { vidas++; e.hud.aviso('+1 vida', 'bien', 0.8); }
+          else { puntos += 30; e.flotante('+30', f.x, ATRAPA + 0.6, 0, 'oro'); }
+          e.sonido.efecto('campana', 0.6) || e.sonido.bien();
+          f.atrapado = true; e.escena.remove(f.o); f.o = undefined;
+          continue;
+        } else if (f.tipo === 'iman' || f.tipo === 'vida') {
+          // un premio que se escapa no corta la racha
+        } else if (dx < radio) {
           racha++; atrapados++;
           mejorRacha = Math.max(mejorRacha, racha);
           const gana = f.tipo === 'dorado' ? 40 : 10 + Math.min(racha, 15);
@@ -136,7 +158,7 @@ export async function crear(c: Contexto): Promise<Partida> {
         f.fin ??= t + 0.5;
         f.o.position.set(f.x, 0.45, 0);
       } else {
-        f.o.position.set(f.x, y, 0);
+        f.o.position.set(x, y, 0);
         if (f.tipo !== 'cangrejo') f.o.rotation.set(t * 3 + f.x, t * 2, 0);
         else f.o.rotation.z = Math.sin(t * 9 + f.x) * 0.35;
       }
@@ -144,7 +166,8 @@ export async function crear(c: Contexto): Promise<Partida> {
 
     e.hud.tiempo(mmss(DURA - t));
     e.hud.puntos(puntos);
-    e.hud.extra(`${'♥'.repeat(vidas)}${'♡'.repeat(VIDAS - vidas)}${racha >= 3 ? `  racha ${racha}` : ''}`);
+    e.hud.extra(`${'♥'.repeat(vidas)}${'♡'.repeat(VIDAS - vidas)}${t < imanHasta ? '  imán' : ''}${racha >= 3 ? `  racha ${racha}` : ''}`);
+    canasta.scale.setScalar(t < imanHasta ? 1.35 : 1);
     if (t >= DURA + 1.2) terminar(t);
   });
 
