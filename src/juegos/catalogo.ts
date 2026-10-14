@@ -18,7 +18,7 @@ export interface Juego {
 
 /** Puntaje que nadie debería superar jugando limpio: sobre esto, la marca se muestra como dudosa al organizador. */
 export const TOPES: Record<string, number> = {
-  puente: 2000, rodillos: 2000, puertas: 2000, lava: 2000, huevo: 3000, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, torre: 2400, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2800, calculo: 1800, parejas: 1000, buscaconchas: 1800, luces: 1800,
+  puente: 2000, rodillos: 2000, puertas: 2000, lava: 2000, huevo: 3400, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, torre: 2400, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2800, calculo: 1800, parejas: 1000, buscaconchas: 1800, luces: 1800,
   cartero: 1000, cofre: 1300, palabra: 1000, totem: 1000, catapulta: 2800, bolos: 750, minigolf: 1000,
 };
 
@@ -47,13 +47,13 @@ export const JUEGOS: Juego[] = [
   j(4, 'lava', 'Sube la Lava', 'A', 'Trepa de plataforma en plataforma mientras la lava sube cada vez más rápido.', 'Ruta y sangre fría',
     'Muévete con las flechas o WASD; en celular, arrastra el dedo. Salta con Espacio o el botón Saltar. Algunas plataformas van y vienen y las oscuras se desmoronan al pisarlas. Si la lava te toca, se acaba: cuenta hasta dónde llegaste. La figura blanca transparente es el fantasma de ritmo: corre al paso de una buena marca. Con el botón Cámara (o la tecla V) miras desde arriba.'),
   j(5, 'huevo', 'Caza del Huevo', 'B', 'Tres contra tres: lleva huevos del centro a tu nido, roba del nido rival y bota al que lleve uno.', 'Reparto de roles',
-    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Pasa sobre un huevo para tomarlo y llévalo al círculo de tu color. Embiste con Espacio o el botón: si chocas a un rival cargado, lo suelta. A los 40 segundos aparece un huevo dorado que vale 3. Juegas con dos compañeros de máquina.'),
+    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Pasa sobre un huevo para tomarlo y llévalo al círculo de tu color. Embiste con Espacio o el botón: si chocas a un rival cargado, lo suelta. A los 40 y a los 60 segundos aparece un huevo dorado que vale 3. Juegas con dos compañeros de máquina; en cada equipo uno junta huevos, otro caza a quien lleve uno y otro cuida el nido.'),
   j(6, 'sumo', 'Sumo de Balsas', 'B', 'Seis sobre una balsa que se achica. Empuja a los demás al agua y no caigas.', 'Posición',
-    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Embiste con Espacio o el botón Embestir (se recarga en un segundo). Suma botar rivales y aguantar; el último en pie se lleva el premio mayor.'),
+    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Embiste con Espacio o el botón Embestir; si lo mantienes apretado, cargas un empujón más fuerte. Cerca del borde la balsa resbala, y el coco dorado te hace más pesado unos segundos. Suma botar rivales y aguantar; el último en pie se lleva el premio mayor.'),
   j(7, 'futbol', 'Fútbol de Cocos', 'B', 'Tres contra tres con un coco gigante. Tu equipo ataca hacia la derecha.', 'Coordinación',
-    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Empuja el coco con el cuerpo; embiste con Espacio o el botón para pegarle fuerte. Tu aro es el blanco. Dura 90 segundos.'),
+    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Empuja el coco con el cuerpo; embiste con Espacio o el botón para pegarle (mantenlo apretado para un tiro cargado). Con el botón Pasar, o Shift / C, le pasas el coco a tu compañero más adelantado. Tu aro es el blanco. Dura 90 segundos.'),
   j(8, 'faro', 'Rey del Faro', 'B', 'De noche, la luz del faro recorre la cancha: suma quien se mantiene dentro.', 'Aguante',
-    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Quédate dentro del círculo de luz y saca a los demás embistiendo con Espacio o el botón. Dura un minuto.'),
+    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Quédate dentro del círculo de luz y saca a los demás embistiendo con Espacio o el botón. La luz se achica con el tiempo y, a ratos, parpadea, se apaga y reaparece en otro lado: anticípate. Dura un minuto.'),
   j(9, 'totem', 'Tiro al Tótem', 'C', 'Diez flechas a la diana, con un viento que cambia en cada tiro.', 'Cálculo',
     'Mueve la mira con el mouse o el dedo y toca para disparar. El viento empuja la flecha hacia donde apunta la veleta: apunta al lado contrario. La mira nunca se queda quieta. Desde la flecha 4 el viento también sopla hacia arriba o abajo (↑ ↓), y desde la 5 la diana se mueve.'),
   j(10, 'catapulta', 'Catapulta de Sandías', 'C', 'Cuatro sandías para botar las torres; si las botas todas, viene un segundo nivel con una plataforma que se mueve.', 'Estimación',

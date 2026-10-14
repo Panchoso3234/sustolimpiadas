@@ -82,12 +82,26 @@ export function sumo(c: Contexto): Promise<Partida> {
 /** Fútbol de Cocos: tres contra tres con un coco gigante. Tú atacas hacia la derecha. */
 export function futbol(c: Contexto): Promise<Partida> {
   const ANCHO = 26, FONDO = 15, ARCO = 2.7, DURA = 90, goles = [0, 0];
-  let pelota: Ente, propios = 0, quieta = 0;
+  let pelota: Ente, propios = 0, quieta = 0, pases = 0;
   const SITIOS: [number, number][] = [[-3, 0], [-7, -4], [-10, 3]];
   const salida = (i: number, equipo: number): [number, number] => { const [x, z] = SITIOS[i % 3]; return equipo === 0 ? [x, z] : [-x, -z]; };
   const puntaje = () => Math.max(0, goles[0] * 150 - goles[1] * 60 + propios * 100 + (goles[0] > goles[1] ? 250 : goles[0] === goles[1] ? 80 : 0));
   return crearArena(c, {
     ancho: ANCHO, fondo: FONDO, suelo: '#5fb86a', cielo: '#2d6b3a', dura: DURA, equipos: EQUIPOS, salida,
+    segunda: {
+      etiqueta: 'Pasar',
+      // Pase: si estás junto a la pelota, sale hacia el compañero más adelantado (un poco por delante de él)
+      accion(m, t) {
+        if (lejos(m.yo, pelota) > 1.9) { m.e.hud.aviso('Acércate a la pelota para pasar', '', 0.8); return; }
+        const companero = m.entes.filter((o) => o.equipo === 0 && o !== m.yo).sort((a, b) => b.x - a.x)[0];
+        if (!companero) return;
+        const destino = { x: companero.x + 1.5, z: companero.z }, d = lejos(pelota, destino) || 1;
+        pelota.vx = ((destino.x - pelota.x) / d) * 14; pelota.vz = ((destino.z - pelota.z) / d) * 14;
+        pelota.tocadoPor = m.yo.id; pelota.tocadoEn = t;
+        pases++;
+        m.e.sonido.efecto('soltar', 0.5);
+      },
+    },
     preparar(m) {
       const coco = new THREE.Mesh(new THREE.IcosahedronGeometry(0.9, 1), mat('#7a4f2a'));
       coco.position.y = 0.9;
@@ -140,25 +154,32 @@ export function futbol(c: Contexto): Promise<Partida> {
     marcador: () => ({ extra: `Tu equipo ${goles[0]} · ${goles[1]} Rival`, puntos: puntaje() }),
     resultado: () => ({
       puntaje: puntaje(),
-      lineas: [['Marcador', `${goles[0]} a ${goles[1]}`], ['Goles tuyos', String(propios)], ['Resultado', goles[0] > goles[1] ? 'Victoria' : goles[0] === goles[1] ? 'Empate' : 'Derrota']],
-      detalle: { favor: goles[0], contra: goles[1], propios },
+      lineas: [['Marcador', `${goles[0]} a ${goles[1]}`], ['Goles tuyos', String(propios)], ['Pases', String(pases)], ['Resultado', goles[0] > goles[1] ? 'Victoria' : goles[0] === goles[1] ? 'Empate' : 'Derrota']],
+      detalle: { favor: goles[0], contra: goles[1], propios, pases },
     }),
   });
 }
 
-/** Rey del Faro: de noche, la luz del faro recorre la cancha. Suma quien se mantiene dentro; los demás empujan para sacarte. */
+/** Rey del Faro: de noche, la luz del faro recorre la cancha. Suma quien se mantiene dentro; los demás empujan para sacarte.
+ *  La luz se achica con el tiempo y, a ratos, parpadea, se apaga y vuelve a aparecer en otro lado. */
 export function faro(c: Contexto): Promise<Partida> {
-  const ANCHO = 22, FONDO = 14, RADIO = 2.7, DURA = 60;
-  let luz: THREE.Mesh, foco: THREE.PointLight, f1 = 0, f2 = 0;
-  const centro = (t: number) => ({ x: 7.6 * Math.sin(0.33 * t + f1), z: 4.3 * Math.sin(0.47 * t + f2) });
+  const ANCHO = 22, FONDO = 14, DURA = 60, APAGON = 1.4;
+  let luz: THREE.Mesh, foco: THREE.PointLight, f1 = 0, f2 = 0, apagones: number[] = [], saltos = 0;
+  const radio = (t: number) => Math.max(1.6, 2.7 - t * 0.018);
+  // Cada apagón hace saltar la luz a otra parte de su recorrido
+  const centro = (t: number) => { const salto = apagones.filter((a) => t >= a + APAGON).length * 2.1; return { x: 7.6 * Math.sin(0.33 * t + f1 + salto), z: 4.3 * Math.sin(0.47 * t + f2 + salto) }; };
+  const apagada = (t: number) => apagones.some((a) => t >= a && t < a + APAGON);
+  const parpadea = (t: number) => apagones.some((a) => t >= a - 0.7 && t < a);
+  const RADIO = 2.7;
   const tiempo = (x: Ente) => x.dato.seg ?? 0;
-  const lider = (m: Mundo) => m.entes.every((x) => tiempo(x) <= tiempo(m.yo));
+  const lider = (m: Mundo) => tiempo(m.yo) > 0 && m.entes.every((x) => tiempo(x) <= tiempo(m.yo)); // con 0 s en la luz nadie es rey
   const puntaje = (m: Mundo, fin = false) => Math.round(tiempo(m.yo) * 25) + (fin && lider(m) ? 250 : 0);
   return crearArena(c, {
     ancho: ANCHO, fondo: FONDO, suelo: '#22345a', cielo: '#070b18', dura: DURA, equipos: SOLOS,
     salida: (i) => [(i % 3 - 1) * 6, i < 3 ? -4 : 4],
     preparar(m) {
       f1 = m.r() * 6.28; f2 = m.r() * 6.28;
+      apagones = [12, 24, 36, 48].map((s) => s + (m.r() - 0.5) * 4);
       m.e.escena.traverse((o) => { const l = o as THREE.Light; if (l.isLight) l.intensity *= 0.45; });
       luz = disco(RADIO, '#ffe08a', 0.45);
       foco = new THREE.PointLight('#ffe08a', 90, 11);
@@ -167,15 +188,19 @@ export function faro(c: Contexto): Promise<Partida> {
       for (const x of m.entes) { x.dato.ox = (m.r() - 0.5) * 2.6; x.dato.oz = (m.r() - 0.5) * 2.6; }
     },
     rival(m, x, t): Orden {
-      const p = centro(t), intruso = cercano(x, m.entes.filter((o) => o !== x && lejos(o, p) < RADIO));
-      if (intruso && lejos(x, intruso) < 2 && lejos(x, p) < RADIO + 1) return { x: intruso.x, z: intruso.z, embestir: true };
+      const p = centro(t), R = radio(t), intruso = cercano(x, m.entes.filter((o) => o !== x && lejos(o, p) < R));
+      if (intruso && lejos(x, intruso) < 2 && lejos(x, p) < R + 1) return { x: intruso.x, z: intruso.z, embestir: true };
       return { x: p.x + x.dato.ox, z: p.z + x.dato.oz };
     },
     paso(m, t, dt) {
-      const p = centro(t);
+      const p = centro(t), R = radio(t), oscuro = apagada(t), titila = parpadea(t) && Math.sin(t * 40) > 0;
       luz.position.x = foco.position.x = p.x;
       luz.position.z = foco.position.z = p.z;
-      for (const x of m.entes) if (lejos(x, p) < RADIO) x.dato.seg = tiempo(x) + dt;
+      luz.scale.setScalar(R / RADIO);
+      luz.visible = !oscuro && !titila;
+      foco.intensity = oscuro ? 0 : titila ? 30 : 90;
+      if (oscuro && saltos < apagones.filter((a) => t >= a).length) { saltos++; m.e.hud.aviso('¡Se apagó el faro!', '', 1); }
+      if (!oscuro) for (const x of m.entes) if (lejos(x, p) < R) x.dato.seg = tiempo(x) + dt;
     },
     marcador: (m) => ({ extra: `${tiempo(m.yo).toFixed(1)} s en la luz${lider(m) ? ' · vas primero' : ''}`, puntos: puntaje(m) }),
     resultado: (m) => ({
@@ -188,10 +213,10 @@ export function faro(c: Contexto): Promise<Partida> {
 
 /** Caza del Huevo: huevos al centro; cada equipo los lleva a su nido. Se puede robar del nido ajeno y botar al que lleva uno. */
 export function huevo(c: Contexto): Promise<Partida> {
-  const ANCHO = 24, FONDO = 15, NIDO = 2.1, DURA = 80, DORADO = 40;
+  const ANCHO = 24, FONDO = 15, NIDO = 2.1, DURA = 80, DORADOS = [40, 60];
   interface Huevo { x: number; z: number; estado: 'suelo' | 'lleva' | 'nido'; quien: Ente | null; nido: number; valor: number; malla: THREE.Mesh }
   const huevos: Huevo[] = [], nidoDe = (equipo: number) => ({ x: equipo === 0 ? -10 : 10, z: 0 });
-  let entregas = 0, robos = 0, doradoPuesto = false;
+  let entregas = 0, robos = 0, dorados = 0;
   const geo = new THREE.IcosahedronGeometry(0.38, 1);
   const poner = (m: Mundo, x: number, z: number, valor: number) => {
     const malla = new THREE.Mesh(geo, valor > 1 ? mat('#ffc93c', 0.4) : mat('#fff8e6'));
@@ -210,10 +235,17 @@ export function huevo(c: Contexto): Promise<Partida> {
       for (const equipo of [0, 1]) { const n = disco(NIDO, COLOR_EQUIPO[equipo], 0.55); n.position.x = nidoDe(equipo).x; m.e.escena.add(n); }
       for (let i = 0; i < 9; i++) { const a = m.r() * 6.28, d = 0.6 + m.r() * 2.2; poner(m, Math.sin(a) * d, Math.cos(a) * d, 1); }
     },
+    // Roles de los de máquina: recolector (junta huevos), cazador (persigue a quien lleva uno) y guardián (cuida el nido)
     rival(m, x): Orden {
       if (lleva(x)) return nidoDe(x.equipo);
+      const rol = x.id % 3, propio = nidoDe(x.equipo);
       const ladron = cercano(x, m.entes.filter((o) => o.equipo !== x.equipo && lleva(o)));
-      if (ladron && x.id % 2 === 1 && lejos(x, ladron) < 5) return { x: ladron.x, z: ladron.z, embestir: lejos(x, ladron) < 2.6 };
+      if (rol === 2) {
+        const intruso = cercano(propio, m.entes.filter((o) => o.equipo !== x.equipo && lejos(o, propio) < 4.5));
+        if (intruso) return { x: intruso.x, z: intruso.z, embestir: lejos(x, intruso) < 2.6 };
+        return { x: propio.x + (x.equipo === 0 ? 2.6 : -2.6), z: m.yo.z * 0.3 };
+      }
+      if (ladron && rol === 1 && lejos(x, ladron) < 9) return { x: ladron.x, z: ladron.z, embestir: lejos(x, ladron) < 2.6 };
       const suelto = cercano(x, huevos.filter((h) => h.estado === 'suelo'));
       if (suelto) return suelto;
       const ajeno = nidoDe(1 - x.equipo);
@@ -232,7 +264,7 @@ export function huevo(c: Contexto): Promise<Partida> {
       }
     },
     paso(m, t) {
-      if (!doradoPuesto && t >= DORADO) { doradoPuesto = true; poner(m, 0, 0, 3); m.e.hud.aviso('¡Huevo dorado al centro!', 'oro', 1.4); m.e.sonido.efecto('campana'); }
+      if (dorados < DORADOS.length && t >= DORADOS[dorados]) { dorados++; poner(m, 0, (m.r() - 0.5) * 4, 3); m.e.hud.aviso('¡Huevo dorado al centro! Vale 3', 'oro', 1.4); m.e.sonido.efecto('campana'); }
       for (const x of m.entes) {
         const h = lleva(x), libre = t >= (x.dato.espera ?? 0) && t >= x.aturdido;
         if (h) {

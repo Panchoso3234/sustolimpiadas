@@ -45,6 +45,8 @@ export interface Arena {
   termino?(m: Mundo, t: number): boolean;
   marcador(m: Mundo, t: number): { extra: string; puntos: number };
   resultado(m: Mundo, t: number): Resultado;
+  /** Segunda acción del jugador (botón aparte, o Shift / C): por ejemplo, pasar la pelota. */
+  segunda?: { etiqueta: string; accion(m: Mundo, t: number): void };
 }
 
 // En modo daltónico, colores que se distinguen sin depender del rojo y el verde (paleta Okabe-Ito)
@@ -56,7 +58,8 @@ export async function crearArena(c: Contexto, a: Arena): Promise<Partida> {
   const inclinacion = 0.98;
   const e = crearEscenario(c.caja, { ancho: (a.radio ? a.radio * 2 : a.ancho) + 3, alto: (a.radio ? a.radio * 2 : a.fondo) * Math.sin(inclinacion) + 4.5, centro: [0, 0.6, 0.6], inclinacion, sinPlaya: !a.playa });
   e.escena.background = new THREE.Color(a.cielo);
-  const mando = crearMando(e, c.caja, 'Embestir'), r = generador(c.semilla);
+  const mando = crearMando(e, c.caja, 'Embestir', a.segunda?.etiqueta), r = generador(c.semilla);
+  let segundaAntes = false;
 
   if (!a.radio) {
     const suelo = new THREE.Mesh(new THREE.PlaneGeometry(a.ancho, a.fondo), new THREE.MeshStandardMaterial({ color: a.suelo, roughness: 1 }));
@@ -105,7 +108,9 @@ export async function crearArena(c: Contexto, a: Arena): Promise<Partida> {
       let orden: Orden;
       if (x.humano) {
         // Mantener la acción carga la embestida (hasta 0,8 s); al soltar sale con más fuerza
-        const toque = mando.tomarAccion();
+        const toque = mando.tomarAccion(), segunda = mando.agachado;
+        if (segunda && !segundaAntes) a.segunda?.accion(m, t);
+        segundaAntes = segunda;
         if (mando.pulsada) carga = Math.min(0.8, carga + dt);
         const suelta = !mando.pulsada && (carga > 0 || toque);
         orden = { x: x.x + mando.x * 9, z: x.z + mando.z * 9, embestir: suelta, carga };
@@ -123,6 +128,7 @@ export async function crearArena(c: Contexto, a: Arena): Promise<Partida> {
           x.vx += dx * fuerzaEmbestida; x.vz += dz * fuerzaEmbestida;
           x.recarga = t + RECARGA;
           x.dato.embiste = t + 0.35;
+          x.dato.cargaGolpe = orden.carga ?? 0.25;
           if (x.humano) e.sonido.efecto('soltar', 0.5);
         }
       }
@@ -165,7 +171,8 @@ export async function crearArena(c: Contexto, a: Arena): Promise<Partida> {
       // Quien venía embistiendo empuja de verdad: el otro sale despedido (y aturdido, si es persona)
       for (const [golpea, recibe, s] of [[p, q, 1], [q, p, -1]] as const) {
         if (t >= (golpea.dato.embiste ?? 0)) continue;
-        const empuje = recibe.equipo < 0 ? 12 : 9.5;
+        // A una pelota, la embestida cargada le pega más fuerte (tiro cargado)
+        const empuje = recibe.equipo < 0 ? 12 * (1 + (golpea.dato.cargaGolpe ?? 0) * 1.2) : 9.5;
         recibe.vx += nx * s * empuje; recibe.vz += nz * s * empuje;
         if (recibe.equipo >= 0) recibe.aturdido = t + 0.35;
         golpea.dato.embiste = 0;
