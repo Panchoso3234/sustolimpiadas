@@ -7,23 +7,26 @@ import { arrastre, caja, guia, mat } from './fisica';
 // Minigolf del Volcán: seis hoyos por partida sobre un paño de 20 × 12. Hay doce diseñados; la semilla elige
 // cuáles tocan (el primero, de calentamiento, sale siempre), así el recorrido cambia cada día pero es igual para todos.
 // La pelota rebota en los muros y en las piedras; la lava cuesta un golpe y devuelve la pelota a donde estaba.
+// Desde el segundo hoyo hay un bloque que va y viene cruzando el camino (puesto a mano en cada hoyo para no chocar muros).
 const MX = 10, MZ = 6, RADIO = 0.3, VEL_MAX = 17, ROCE = 5.2, REBOTE = 0.72, TOPE = 8, HOYO = 0.5;
 type Caja = [x: number, z: number, ancho: number, fondo: number]; // centro y tamaño
-interface Hoyo { salida: [number, number]; meta: [number, number]; piedras: Caja[]; lava: Caja[] }
+/** Bloque que se mueve: su caja en reposo, el eje por donde va y viene y cuánto se aleja. */
+type Movil = [x: number, z: number, ancho: number, fondo: number, eje: 'x' | 'z', amplitud: number];
+interface Hoyo { salida: [number, number]; meta: [number, number]; piedras: Caja[]; lava: Caja[]; movil?: Movil }
 
 const TODOS: Hoyo[] = [
   { salida: [-8, 0], meta: [8, 0], piedras: [], lava: [] },
-  { salida: [-8, -3.5], meta: [8, 3.5], piedras: [[0, -2, 1, 8]], lava: [] },
-  { salida: [-8, 0], meta: [8, 0], piedras: [[-2.5, 3, 1, 6], [2.5, -3, 1, 6]], lava: [] },
-  { salida: [-8, 3.5], meta: [8, 3.5], piedras: [[0, 1.5, 12, 1]], lava: [[0, -3.5, 6, 2.4]] },
-  { salida: [-8, -4], meta: [7.5, 4], piedras: [[-3, -1.5, 1, 9], [3, 1.5, 1, 9]], lava: [[0, 0, 2.6, 2.6]] },
-  { salida: [-8.5, 0], meta: [0, 0], piedras: [[-3.2, 0, 1, 5], [0, -3.2, 5, 1], [0, 3.2, 5, 1]], lava: [[5.5, 0, 3, 5], [-0.2, -5, 9, 1.2]] },
-  { salida: [-8, 4], meta: [8, -4], piedras: [[-4, -2, 1, 8], [0, 2, 1, 8], [4, -2, 1, 8]], lava: [] },
-  { salida: [-8, 0], meta: [8, 0], piedras: [[0, 0, 3, 3]], lava: [[0, -4.5, 3, 3], [0, 4.5, 3, 3]] },
-  { salida: [-8, -4.5], meta: [-8, 4.5], piedras: [[-3, 0, 14, 1]], lava: [[9, 0, 2, 3]] },
-  { salida: [-8, 0], meta: [8, 0], piedras: [[-4, 3.5, 1, 5], [-4, -3.5, 1, 5], [2, 0, 1, 6]], lava: [] },
-  { salida: [0, 4.5], meta: [0, -4.5], piedras: [[0, 0, 10, 1]], lava: [[-8.5, 0, 3, 2], [8.5, 0, 3, 2]] },
-  { salida: [-8.5, 4.5], meta: [8.5, -4.5], piedras: [[-3, 1, 1, 10], [3, -1, 1, 10]], lava: [[0, 0, 2, 2]] },
+  { salida: [-8, -3.5], meta: [8, 3.5], piedras: [[0, -2, 1, 8]], lava: [], movil: [4, 0, 1, 2.2, 'z', 3.2] },
+  { salida: [-8, 0], meta: [8, 0], piedras: [[-2.5, 3, 1, 6], [2.5, -3, 1, 6]], lava: [], movil: [0, 0, 1, 2, 'z', 3.5] },
+  { salida: [-8, 3.5], meta: [8, 3.5], piedras: [[0, 1.5, 12, 1]], lava: [[0, -3.5, 6, 2.4]], movil: [0, 4.2, 2, 1, 'x', 4] },
+  { salida: [-8, -4], meta: [7.5, 4], piedras: [[-3, -1.5, 1, 9], [3, 1.5, 1, 9]], lava: [[0, 0, 2.6, 2.6]], movil: [6, 0, 1, 2, 'z', 3.5] },
+  { salida: [-8.5, 0], meta: [0, 0], piedras: [[-3.2, 0, 1, 5], [0, -3.2, 5, 1], [0, 3.2, 5, 1]], lava: [[5.5, 0, 3, 5], [-0.2, -5, 9, 1.2]], movil: [-6, 0, 1, 2, 'z', 3.5] },
+  { salida: [-8, 4], meta: [8, -4], piedras: [[-4, -2, 1, 8], [0, 2, 1, 8], [4, -2, 1, 8]], lava: [], movil: [6, 1, 1, 2, 'z', 2.5] },
+  { salida: [-8, 0], meta: [8, 0], piedras: [[0, 0, 3, 3]], lava: [[0, -4.5, 3, 3], [0, 4.5, 3, 3]], movil: [5, 0, 1, 2.2, 'z', 3.5] },
+  { salida: [-8, -4.5], meta: [-8, 4.5], piedras: [[-3, 0, 14, 1]], lava: [[9, 0, 2, 3]], movil: [6, 0, 2, 1, 'z', 3] },
+  { salida: [-8, 0], meta: [8, 0], piedras: [[-4, 3.5, 1, 5], [-4, -3.5, 1, 5], [2, 0, 1, 6]], lava: [], movil: [6, 0, 1, 2, 'z', 3.5] },
+  { salida: [0, 4.5], meta: [0, -4.5], piedras: [[0, 0, 10, 1]], lava: [[-8.5, 0, 3, 2], [8.5, 0, 3, 2]], movil: [0, -2.8, 2, 1, 'x', 4] },
+  { salida: [-8.5, 4.5], meta: [8.5, -4.5], piedras: [[-3, 1, 1, 10], [3, -1, 1, 10]], lava: [[0, 0, 2, 2]], movil: [6.5, 0, 1, 2, 'z', 3] },
 ];
 
 /** Los seis hoyos de la partida: el de calentamiento más cinco sorteados con la semilla, en orden de dificultad. */
@@ -61,7 +64,9 @@ export async function crear(c: Contexto): Promise<Partida> {
   tela.position.y = 1.15;
   bandera.add(tela);
   const pelota = new THREE.Mesh(new THREE.SphereGeometry(RADIO, 14, 10), mat('#ffffff'));
-  e.escena.add(piezas, hueco, bandera, pelota);
+  const bloque = caja(1, 0.8, 1, '#c0452f');
+  e.escena.add(piezas, hueco, bandera, pelota, bloque);
+  let movilAhora: Caja | null = null;
   const puntosGuia = guia(e.escena, 8);
 
   let actual = 0, golpes = 0, total = 0, terminado = false, empezado = false, cambio = -1;
@@ -74,6 +79,9 @@ export async function crear(c: Contexto): Promise<Partida> {
     piezas.clear();
     for (const [x, z, w, d] of h.piedras) { const p = caja(w, 0.8, d, '#9a97a6'); p.position.set(x, 0.4, z); piezas.add(p); }
     for (const [x, z, w, d] of h.lava) { const l = new THREE.Mesh(new THREE.PlaneGeometry(w, d), matLava); l.rotation.x = -Math.PI / 2; l.position.set(x, 0.06, z); piezas.add(l); }
+    bloque.visible = !!h.movil;
+    if (h.movil) bloque.scale.set(h.movil[2], 1, h.movil[3]);
+    movilAhora = null;
     hueco.position.set(h.meta[0], 0.07, h.meta[1]);
     bandera.position.set(h.meta[0], 0, h.meta[1]);
     pos.x = previa.x = h.salida[0]; pos.z = previa.z = h.salida[1];
@@ -107,19 +115,23 @@ export async function crear(c: Contexto): Promise<Partida> {
     cambio = t + 1.2;
   };
 
-  // Un paso corto de la pelota: avanza, rebota en bordes y piedras
+  /** Saca la pelota de una caja si la está tocando y, si iba hacia ella, la hace rebotar. */
+  const chocar = ([cx, cz, w, d]: Caja) => {
+    const px = limitar(pos.x, cx - w / 2, cx + w / 2), pz = limitar(pos.z, cz - d / 2, cz + d / 2), nx = pos.x - px, nz = pos.z - pz, lejos = Math.hypot(nx, nz);
+    if (lejos >= RADIO) return;
+    // Si quedó metida justo en el borde (la empujó el bloque que se mueve), sale por el lado más cercano
+    const ux = lejos ? nx / lejos : pos.x - cx >= 0 ? 1 : -1, uz = lejos ? nz / lejos : 0, hacia = vel.x * ux + vel.z * uz;
+    pos.x = px + ux * RADIO; pos.z = pz + uz * RADIO;
+    if (hacia < 0) { vel.x -= (1 + REBOTE) * hacia * ux; vel.z -= (1 + REBOTE) * hacia * uz; e.sonido.tono(240, 0.04, { tipo: 'square', vol: 0.06 }); }
+  };
+  // Un paso corto de la pelota: avanza, rebota en bordes, piedras y el bloque que se mueve
   const paso = (dt: number) => {
     const h = HOYOS[actual];
     pos.x += vel.x * dt; pos.z += vel.z * dt;
     if (Math.abs(pos.x) > MX - RADIO) { pos.x = Math.sign(pos.x) * (MX - RADIO); vel.x *= -REBOTE; }
     if (Math.abs(pos.z) > MZ - RADIO) { pos.z = Math.sign(pos.z) * (MZ - RADIO); vel.z *= -REBOTE; }
-    for (const [cx, cz, w, d] of h.piedras) {
-      const px = limitar(pos.x, cx - w / 2, cx + w / 2), pz = limitar(pos.z, cz - d / 2, cz + d / 2), nx = pos.x - px, nz = pos.z - pz, lejos = Math.hypot(nx, nz);
-      if (lejos >= RADIO || lejos === 0) continue;
-      const ux = nx / lejos, uz = nz / lejos, hacia = vel.x * ux + vel.z * uz;
-      pos.x = px + ux * RADIO; pos.z = pz + uz * RADIO;
-      if (hacia < 0) { vel.x -= (1 + REBOTE) * hacia * ux; vel.z -= (1 + REBOTE) * hacia * uz; e.sonido.tono(240, 0.04, { tipo: 'square', vol: 0.06 }); }
-    }
+    for (const piedra of h.piedras) chocar(piedra);
+    if (movilAhora) chocar(movilAhora);
     const rapidez = Math.hypot(vel.x, vel.z), nueva = Math.max(0, rapidez - ROCE * dt);
     if (nueva < 0.15) vel.x = vel.z = 0; else { vel.x *= nueva / rapidez; vel.z *= nueva / rapidez; }
   };
@@ -132,6 +144,13 @@ export async function crear(c: Contexto): Promise<Partida> {
     tela.rotation.y = Math.sin(t * 3) * 0.25;
     const v = tiro.tirando ? velocidad(tiro.dx, tiro.dy, tiro.fuerza) : null;
     puntosGuia.forEach((p, i) => { p.visible = !!v && tiro.fuerza > 0.12; if (v) { const s = (i + 1) * 0.045; p.position.set(pos.x + v.x * s, 0.3, pos.z + v.z * s); } });
+    const m = HOYOS[actual]?.movil;
+    if (m && !terminado) {
+      const corre = Math.sin(t * 1.2) * m[5];
+      movilAhora = [m[0] + (m[4] === 'x' ? corre : 0), m[1] + (m[4] === 'z' ? corre : 0), m[2], m[3]];
+      bloque.position.set(movilAhora[0], 0.4, movilAhora[1]);
+      if (quieta()) chocar(movilAhora); // si la pelota está parada en su camino, la empuja
+    }
     if (terminado || t <= 0) return;
     e.hud.extra(`Golpes: ${golpes}`);
     e.hud.puntos(Math.max(0, 1000 - Math.max(0, total - HOYOS.length) * 45));
