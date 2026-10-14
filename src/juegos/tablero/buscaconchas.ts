@@ -2,101 +2,121 @@ import { generador } from '../../nucleo/azar';
 import type { Contexto, Partida } from '../marco';
 import { barajar, crearMesa, mmss } from './mesa';
 
-// Erizos Ocultos (antes Buscaconchas): buscaminas en la arena. 9×9 casillas y 12 erizos; el primer toque nunca es un erizo.
-const LADO = 9, ERIZOS = 12, LIMITE = 300, SEGURAS = LADO * LADO - ERIZOS;
+// Erizos Ocultos: 5×5 casillas de arena. Bajo cada una hay un ×1, un ×2, un ×3 o un erizo. Al final de cada fila y
+// columna se ve cuánto suman sus números y cuántos erizos tiene, así que se deduce en vez de adivinar.
+// Las monedas de la ronda se multiplican por cada número destapado; destapando todos los ×2 y ×3 se gana la ronda.
+// Plantarse guarda lo que llevas; pisar un erizo pierde lo de la ronda y baja la dificultad.
+const LADO = 5, RONDAS = 5, LIMITE = 240;
+// [cuántos ×2, cuántos ×3, cuántos erizos] por dificultad, como en el juego de cartas en que se inspira
+const MEZCLAS: [number, number, number][][] = [
+  [[3, 1, 6], [0, 3, 6], [5, 0, 6], [2, 2, 6], [4, 1, 6]],
+  [[1, 3, 7], [6, 0, 7], [3, 2, 7], [0, 4, 7], [5, 1, 7]],
+  [[2, 3, 8], [7, 0, 8], [4, 2, 8], [1, 4, 8], [6, 1, 8]],
+  [[3, 3, 8], [0, 5, 8], [8, 0, 10], [5, 2, 10], [2, 4, 10]],
+  [[7, 1, 10], [1, 5, 10], [4, 3, 10], [9, 0, 10], [6, 2, 10]],
+];
+const ERIZO = 0;
 
 export async function crear(c: Contexto): Promise<Partida> {
   const m = crearMesa(c.caja, 'buscaconchas', c.aspecto), r = generador(c.semilla);
-  const orden = barajar(Array.from({ length: LADO * LADO }, (_, i) => i), r);
-  const erizo = new Array<boolean>(LADO * LADO).fill(false);
-  for (const i of orden.slice(0, ERIZOS)) erizo[i] = true;
-  const abierta = new Array<boolean>(LADO * LADO).fill(false), bandera = new Array<boolean>(LADO * LADO).fill(false);
-  let primera = true, modoBandera = false, destapadas = 0, terminado = false, congelado = false;
+  const grilla = m.el('div', 'voltorb', m.tablero);
+  const barra = m.el('div', 'fila centro', m.tablero);
+  const botonPlantar = m.el('button', 'boton principal', barra, 'Plantarse');
+  const botonNota = m.el('button', 'boton', barra, 'Marcar erizo: no');
+  botonNota.setAttribute('aria-pressed', 'false');
 
-  const vecinas = (i: number) => {
-    const x = i % LADO, y = Math.floor(i / LADO), lista: number[] = [];
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-      const nx = x + dx, ny = y + dy;
-      if ((dx || dy) && nx >= 0 && ny >= 0 && nx < LADO && ny < LADO) lista.push(ny * LADO + nx);
+  let valores: number[] = [], abierta: boolean[] = [], nota: boolean[] = [], casillas: HTMLButtonElement[] = [];
+  let ronda = 0, dificultad = Math.min(1, c.nivel - 1), monedas = 1, tocadas = 0, total = 0, ganadas = 0, pisadas = 0, terminado = false, pausa = false, modoNota = false;
+
+  botonNota.addEventListener('click', () => { modoNota = !modoNota; botonNota.textContent = `Marcar erizo: ${modoNota ? 'sí' : 'no'}`; botonNota.setAttribute('aria-pressed', String(modoNota)); });
+  botonPlantar.addEventListener('click', () => { if (!terminado && !pausa && tocadas > 0) cerrarRonda('plantado'); });
+
+  const faltan = () => valores.some((v, i) => v > 1 && !abierta[i]);
+
+  /** Reparte una ronda nueva y dibuja el tablero con las pistas de cada fila y columna. */
+  const armar = () => {
+    const opciones = MEZCLAS[dificultad], [dos, tres, erizos] = opciones[Math.floor(r() * opciones.length)];
+    valores = barajar([...Array<number>(dos).fill(2), ...Array<number>(tres).fill(3), ...Array<number>(erizos).fill(ERIZO), ...Array<number>(LADO * LADO - dos - tres - erizos).fill(1)], r);
+    abierta = valores.map(() => false);
+    nota = valores.map(() => false);
+    monedas = 1;
+    tocadas = 0;
+    grilla.replaceChildren();
+    casillas = [];
+    const pista = (lista: number[], clase: string) => {
+      const p = m.el('div', `pista ${clase}`, grilla);
+      m.el('b', '', p, String(lista.reduce((s, v) => s + v, 0)));
+      m.el('span', '', p, `🦔 ${lista.filter((v) => v === ERIZO).length}`);
+    };
+    for (let y = 0; y < LADO; y++) {
+      for (let x = 0; x < LADO; x++) {
+        const i = y * LADO + x, b = m.el('button', 'casilla', grilla);
+        b.setAttribute('aria-label', `Fila ${y + 1}, columna ${x + 1}`);
+        b.addEventListener('click', () => (modoNota ? anotar(i) : destapar(i)));
+        b.addEventListener('contextmenu', (e) => { e.preventDefault(); anotar(i); });
+        casillas.push(b);
+      }
+      pista(valores.slice(y * LADO, y * LADO + LADO), 'fila');
     }
-    return lista;
+    for (let x = 0; x < LADO; x++) pista(valores.filter((_, i) => i % LADO === x), 'columna');
+    m.el('div', 'pista esquina', grilla);
+    pausa = false;
   };
-  const cerca = (i: number) => vecinas(i).filter((k) => erizo[k]).length;
 
-  const grilla = m.el('div', 'arena', m.tablero);
-  grilla.style.setProperty('--bandera', `url(${import.meta.env.BASE_URL}figuras/bandera.png)`);
-  grilla.style.setProperty('--lado', String(LADO));
-  const casillas = erizo.map((_, i) => {
-    const b = m.el('button', 'casilla', grilla);
-    b.setAttribute('aria-label', `Casilla ${i + 1}`);
-    b.addEventListener('click', () => (modoBandera ? marcar(i) : destapar(i)));
-    b.addEventListener('contextmenu', (e) => { e.preventDefault(); marcar(i); });
-    return b;
-  });
-  const barra = m.el('div', 'fila centro', m.tablero), botonBandera = m.el('button', 'boton', barra, 'Banderín: no');
-  botonBandera.setAttribute('aria-pressed', 'false');
-  botonBandera.addEventListener('click', () => {
-    modoBandera = !modoBandera;
-    botonBandera.textContent = `Banderín: ${modoBandera ? 'sí' : 'no'}`;
-    botonBandera.setAttribute('aria-pressed', String(modoBandera));
-  });
+  const mostrarTodo = () => valores.forEach((v, i) => { if (!abierta[i]) { casillas[i].classList.add('vista', v === ERIZO ? 'erizo' : `n${v}`); casillas[i].textContent = v === ERIZO ? '' : `×${v}`; } });
 
-  const terminar = (gano: boolean) => {
+  const terminar = () => {
     if (terminado) return;
     terminado = true;
     const t = m.reloj();
     m.detener();
-    erizo.forEach((si, i) => { if (si) { casillas[i].textContent = ''; casillas[i].classList.remove('marcada'); casillas[i].classList.add('erizo'); } });
-    if (gano) m.sonido.fanfarria(); else m.sonido.mal();
     c.alTerminar({
-      puntaje: gano ? Math.max(300, Math.round(1000 - 5 * t)) : destapadas * 3,
-      lineas: [['Resultado', gano ? 'Arena despejada' : t >= LIMITE ? 'Se acabó el tiempo' : 'Pisaste un erizo'], ['Casillas destapadas', `${destapadas} de ${SEGURAS}`], ['Tiempo', mmss(t)]],
-      detalle: { gano, destapadas, seg: Math.round(t) },
+      puntaje: total,
+      lineas: [['Rondas jugadas', `${Math.min(ronda, RONDAS)} de ${RONDAS}`], ['Rondas ganadas', String(ganadas)], ['Erizos pisados', String(pisadas)], ['Tiempo', mmss(t)]],
+      detalle: { rondas: ronda, ganadas, pisadas, seg: Math.round(t) },
     });
   };
 
-  function marcar(i: number) {
-    if (terminado || abierta[i] || m.reloj() <= 0) return;
-    bandera[i] = !bandera[i];
-    casillas[i].classList.toggle('marcada', bandera[i]);
+  /** Fin de una ronda: se guardan (o se pierden) las monedas y se sigue con la siguiente. */
+  function cerrarRonda(como: 'ganada' | 'plantado' | 'erizo') {
+    pausa = true;
+    if (como === 'erizo') { pisadas++; dificultad = Math.max(0, dificultad - 1); m.sonido.mal(); m.hud.aviso('¡Erizo! Pierdes lo de esta ronda', 'mal', 1.4); }
+    else {
+      total += monedas;
+      if (como === 'ganada') { ganadas++; dificultad = Math.min(MEZCLAS.length - 1, dificultad + 1); m.sonido.bien(); m.hud.aviso(`¡Ronda ganada! +${monedas}`, 'oro', 1.4); }
+      else { m.sonido.toque(); m.hud.aviso(`Te plantaste: +${monedas}`, '', 1.2); }
+    }
+    mostrarTodo();
+    ronda++;
+    m.despues(1.8, () => { if (terminado) return; if (ronda >= RONDAS) terminar(); else armar(); });
   }
 
-  function destapar(inicio: number) {
-    if (terminado || congelado || abierta[inicio] || bandera[inicio] || m.reloj() <= 0) return;
-    if (primera) {
-      primera = false;
-      // Si el primer toque cae en un erizo, ese erizo se muda a la primera casilla libre
-      if (erizo[inicio]) { erizo[inicio] = false; erizo[erizo.findIndex((si, k) => !si && k !== inicio)] = true; }
-    }
-    if (erizo[inicio]) {
-      casillas[inicio].classList.add('pisada', 'erizo');
-      congelado = true;
-      m.sonido.mal();
-      m.hud.aviso('¡Pisaste un erizo!', 'mal', 1.4);
-      m.despues(1.5, () => terminar(false));
-      return;
-    }
-    m.sonido.toque();
-    const cola = [inicio];
-    while (cola.length) {
-      const i = cola.pop()!;
-      if (abierta[i] || bandera[i]) continue;
-      abierta[i] = true;
-      destapadas++;
-      const n = cerca(i), b = casillas[i];
-      b.classList.add('abierta', `n${n}`);
-      b.textContent = n ? String(n) : '';
-      if (n === 0) cola.push(...vecinas(i));
-    }
-    if (destapadas === SEGURAS) terminar(true);
+  function anotar(i: number) {
+    if (terminado || pausa || abierta[i] || m.reloj() <= 0) return;
+    nota[i] = !nota[i];
+    casillas[i].classList.toggle('marcada', nota[i]);
+  }
+
+  function destapar(i: number) {
+    if (terminado || pausa || abierta[i] || nota[i] || m.reloj() <= 0) return;
+    abierta[i] = true;
+    tocadas++;
+    const v = valores[i], b = casillas[i];
+    if (v === ERIZO) { b.classList.add('pisada', 'erizo'); return cerrarRonda('erizo'); }
+    b.classList.add('abierta', `n${v}`);
+    b.textContent = `×${v}`;
+    monedas *= v;
+    if (v > 1) m.sonido.tono(440 + v * 110, 0.12); else m.sonido.toque();
+    if (!faltan()) cerrarRonda('ganada');
   }
 
   m.hud.tiempo(mmss(LIMITE));
   m.alTic((t) => {
     m.hud.tiempo(mmss(LIMITE - t));
-    m.hud.extra(`Erizos: ${ERIZOS - bandera.filter(Boolean).length}`);
-    m.hud.puntos(`${destapadas} / ${SEGURAS}`);
-    if (t >= LIMITE) terminar(false);
+    m.hud.extra(`Ronda ${Math.min(ronda + 1, RONDAS)} · nivel ${dificultad + 1} · en juego: ${tocadas ? monedas : 0}`);
+    m.hud.puntos(`${total} pts`);
+    botonPlantar.disabled = pausa || tocadas === 0;
+    if (t >= LIMITE) terminar(); // lo que no alcanzaste a guardar se pierde
   });
-  return { empezar: m.empezar, destruir: m.destruir };
+  return { empezar() { m.empezar(); armar(); }, destruir: m.destruir };
 }

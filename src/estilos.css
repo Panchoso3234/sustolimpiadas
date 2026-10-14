@@ -443,3 +443,15 @@ body.daltonico { --alga: #56b4e9; --sangre: #e69f00; }
 .cartas[data-cartas="21"], .cartas[data-cartas="22"] { grid-template-columns: repeat(6, 1fr); }
 .carta.medusa { background: #ffe6f2; outline: 2px solid var(--sangre); opacity: 1; }
 .carta.medusa .cara { font-size: clamp(1.4rem, 6vw, 2.2rem); }
+
+/* Erizos Ocultos (estilo Voltorb Flip): 5×5 casillas más una columna y una fila de pistas */
+.voltorb { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; width: 100%; max-width: 440px; }
+.voltorb .casilla { font-size: clamp(1rem, 4.4vw, 1.4rem); }
+.voltorb .casilla.vista { opacity: .55; }
+.voltorb .casilla.marcada { background-image: none; background-color: #c98a4a; }
+.voltorb .casilla.marcada::after { content: "🦔?"; font-size: .8em; }
+.voltorb .pista { display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 6px; background: #2b4a6b; color: #fff; line-height: 1.1; padding: 2px; }
+.voltorb .pista b { font-size: clamp(.95rem, 3.8vw, 1.2rem); }
+.voltorb .pista span { font-size: clamp(.7rem, 2.8vw, .85rem); }
+.voltorb .pista.columna { background: #3a5a2b; }
+.voltorb .pista.esquina { background: none; }
