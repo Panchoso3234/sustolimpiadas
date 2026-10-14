@@ -64,7 +64,7 @@ function Grilla() {
   return (
     <>
       <h1>Elige tu juego</h1>
-      <p>Cada día el desafío es el mismo para todos. Juega las veces que quieras: vale tu mejor marca. Van {listos} de {JUEGOS.length} juegos abiertos · desafío del {fecha.split('-').reverse().join('/')}.</p>
+      <p>Cada partida trae un desafío nuevo, así que no sirve memorizar. Juega las veces que quieras: vale tu mejor marca del día. Van {listos} de {JUEGOS.length} juegos abiertos · desafío del {fecha.split('-').reverse().join('/')}.</p>
       {ORDEN_MOTORES.map((m) => (
         <section key={m} class="motor" style={`--tono:${MOTORES[m].color}`}>
           <h2>{MOTORES[m].nombre}</h2>

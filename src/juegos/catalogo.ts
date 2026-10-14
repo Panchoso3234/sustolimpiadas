@@ -18,7 +18,7 @@ export interface Juego {
 
 /** Puntaje que nadie debería superar jugando limpio: sobre esto, la marca se muestra como dudosa al organizador. */
 export const TOPES: Record<string, number> = {
-  puente: 2000, rodillos: 2000, puertas: 2000, lava: 2000, huevo: 3000, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, subasta: 2500, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2100, calculo: 1800, parejas: 1000, buscaconchas: 1000, luces: 1170,
+  puente: 2000, rodillos: 2000, puertas: 2000, lava: 2000, huevo: 3000, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, torre: 2400, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2100, calculo: 1800, parejas: 1000, buscaconchas: 1000, luces: 1170,
   cartero: 1000, cofre: 900, palabra: 1000, totem: 1000, catapulta: 1400, bolos: 750, minigolf: 1000,
 };
 
@@ -82,8 +82,8 @@ export const JUEGOS: Juego[] = [
     'En cada cofre eliges: Sacar más (suma monedas, pero sube el riesgo) o Plantarte (guardas lo sacado). Si llega la ola, pierdes lo de ese cofre.'),
   j(22, 'bajo', 'El Más Bajo', 'F', 'Seis jugadores eligen un número en secreto; gana el más bajo que nadie repitió.', 'Leer al grupo',
     'Elige un número del 1 al 10. Ganas la ronda (100 puntos) si es el más bajo que ningún rival eligió; si nadie lo repitió pero no era el más bajo, sumas 20. Son 10 rondas contra cinco rivales de máquina, cada uno con su manía.'),
-  j(23, 'subasta', 'Subasta a Ciegas', 'F', 'Ocho cofres de valor oculto y tres rivales pujando contra ti.', 'No sobrepagar',
-    'Ves una estimación del valor de cada cofre. Elige cuánto ofrecer y aprieta Pujar; gana quien más ofrece y paga lo ofrecido. Tu puntaje es la ganancia total: el valor real menos lo que pagaste. No pujar también es una jugada.'),
+  j(23, 'torre', 'Torre Tambaleante', 'D', 'Un bloque va y viene sobre la torre: suéltalo justo encima. Lo que sobresale, se corta.', 'Precisión y temple',
+    'Toca la pantalla, haz clic o aprieta Espacio para soltar el bloque. Si sobresale, se corta y el siguiente es más chico; si cae justo encima es un perfecto y suma racha. Cada piso va más rápido.'),
   j(24, 'palabra', 'Palabra del Día', 'F', 'Adivina la palabra de 5 letras en 6 intentos.', 'Descarte',
     'Escribe una palabra de 5 letras y aprieta Enter. Verde: letra en su lugar. Amarillo: está, pero en otro lugar. Gris: no está.'),
   j(25, 'eco', 'Eco del Templo', 'E', 'Cuatro piedras se encienden en secuencia. Repítela; cada ronda suma una más.', 'Memoria de secuencias',
@@ -91,9 +91,6 @@ export const JUEGOS: Juego[] = [
   j(26, 'calculo', 'Mercado Relámpago', 'F', 'Sumas, restas y multiplicaciones contra el reloj, cada vez más difíciles.', 'Cálculo mental',
     'Escribe el resultado con el teclado o los botones y aprieta OK (Enter). Los aciertos seguidos valen más y cada error resta. Tienes un minuto.'),
 ];
-
-/** Juegos de acertijo fijo: quien ya lo jugó conoce la solución, así que se juegan una sola vez al día. */
-export const UNA_VEZ = new Set(['palabra', 'parejas', 'buscaconchas', 'luces', 'cartero', 'cofre', 'bajo', 'subasta']);
 
 export const juegoPorId = (id: string) => JUEGOS.find((x) => x.id === id);
 
@@ -120,7 +117,7 @@ export const VERSUS: TipoVersus[] = [
   v('1v1', 'sumo-1v1', 'Sumo de Balsas 1v1', 'Los mismos cinco rivales de máquina para cada uno; gana quien aguanta y bota más.', 'sumo'),
   v('1v1', 'carrera', 'Carrera cara a cara', 'El mismo puente de tablones para los dos; gana quien cruza más rápido.', 'puente'),
   v('1v1', 'lava-duelo', 'Duelo en la Lava', 'La misma escalera sobre la lava; gana quien llega más alto o más rápido.', 'lava'),
-  v('1v1', 'subasta-duelo', 'Subasta en duelo', 'Los mismos cofres y postores; gana quien saca más ganancia.', 'subasta'),
+  v('1v1', 'torre-duelo', 'Duelo de Torres', 'El mismo ritmo para los dos; gana la torre más alta.', 'torre'),
   v('3v3', 'cocos-equipo', 'Cosecha en Equipo', 'Cada integrante atrapa cocos; se suman los tres.', 'cocos'),
   v('3v3', 'eco-cadena', 'Eco en Cadena', 'La misma secuencia para los seis; suma hasta dónde llegó cada uno.', 'eco'),
   v('3v3', 'caceria', 'Cacería de Cangrejos', 'Cada integrante limpia el mismo tablero; suma el equipo.', 'cangrejos'),
@@ -137,6 +134,7 @@ export const VERSUS: TipoVersus[] = [
   v('3v3', 'faro', 'Rey del Faro', 'La misma luz y los mismos rivales para todos; suma el equipo.', 'faro'),
   v('3v3', 'sumo-equipos', 'Sumo de Balsas por equipos', 'Cada integrante sube a la balsa por su cuenta; suma el equipo.', 'sumo'),
   v('3v3', 'relevos', 'Carrera de Relevos', 'Los tres corren los Rodillos del Volcán; suma el equipo.', 'rodillos'),
+  v('3v3', 'torre-equipo', 'Torres en Equipo', 'Cada integrante levanta su torre; suman los tres.', 'torre'),
   v('3v3', 'bandera', 'Captura la Bandera', 'Robar la bandera rival y traerla a la base.'),
 ];
 

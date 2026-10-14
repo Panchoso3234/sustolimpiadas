@@ -8,6 +8,8 @@ export interface Mando {
   /** Dirección pedida, cada eje entre -1 y 1. `z` negativo es "hacia el fondo". */
   readonly x: number;
   readonly z: number;
+  /** Si la acción está apretada en este momento. */
+  readonly pulsada: boolean;
   /** Verdadero una sola vez por cada pulsación de la acción. */
   tomarAccion(): boolean;
 }
@@ -18,14 +20,14 @@ const TECLAS: Record<string, [number, number]> = {
 
 export function crearMando(e: Escenario, caja: HTMLElement, etiqueta: string): Mando {
   const pulsadas = new Set<string>();
-  let palanca: { x0: number; y0: number; x: number; z: number } | null = null, accion = false;
+  let palanca: { x0: number; y0: number; x: number; z: number } | null = null, accion = false, apretada = false;
 
   e.escuchar(window, 'keydown', (ev) => {
     const k = ev.key.length === 1 ? ev.key.toLowerCase() : ev.key;
-    if (k === ' ') { if (!ev.repeat) accion = true; ev.preventDefault(); }
+    if (k === ' ') { if (!ev.repeat) accion = true; apretada = true; ev.preventDefault(); }
     else if (TECLAS[k]) { pulsadas.add(k); ev.preventDefault(); }
   });
-  e.escuchar(window, 'keyup', (ev) => { pulsadas.delete(ev.key.length === 1 ? ev.key.toLowerCase() : ev.key); });
+  e.escuchar(window, 'keyup', (ev) => { if (ev.key === ' ') apretada = false; pulsadas.delete(ev.key.length === 1 ? ev.key.toLowerCase() : ev.key); });
   e.escuchar(window, 'blur', () => pulsadas.clear());
 
   e.escuchar(e.lienzo, 'pointerdown', (ev) => { palanca = { x0: ev.clientX, y0: ev.clientY, x: 0, z: 0 }; e.lienzo.setPointerCapture(ev.pointerId); });
@@ -42,7 +44,8 @@ export function crearMando(e: Escenario, caja: HTMLElement, etiqueta: string): M
   const boton = document.createElement('button');
   boton.className = 'boton mando-accion';
   boton.textContent = etiqueta;
-  boton.addEventListener('pointerdown', (ev) => { ev.preventDefault(); accion = true; });
+  boton.addEventListener('pointerdown', (ev) => { ev.preventDefault(); accion = true; apretada = true; });
+  for (const fin of ['pointerup', 'pointerleave', 'pointercancel']) boton.addEventListener(fin, () => { apretada = false; });
   caja.appendChild(boton);
 
   const eje = (i: 0 | 1) => {
@@ -53,6 +56,7 @@ export function crearMando(e: Escenario, caja: HTMLElement, etiqueta: string): M
   return {
     get x() { return eje(0); },
     get z() { return eje(1); },
+    get pulsada() { return apretada; },
     tomarAccion() { const si = accion; accion = false; return si; },
   };
 }

@@ -25,7 +25,7 @@ export interface Ente {
   dato: Record<string, number>;
   k?: Kenney; malla?: THREE.Object3D;
 }
-export interface Orden { x: number; z: number; embestir?: boolean }
+export interface Orden { x: number; z: number; embestir?: boolean; /** De 0 a 0,8: cuánto se cargó la embestida. */ carga?: number }
 export interface Mundo { e: Escenario; entes: Ente[]; cosas: Ente[]; yo: Ente; r: () => number; ancho: number; fondo: number; cosa(r: number, masa: number, malla: THREE.Object3D, x: number, z: number): Ente }
 export interface Arena {
   /** Medidas de la cancha. Con `radio`, es redonda y sin bordes: quien sale, cae. */
@@ -39,6 +39,8 @@ export interface Arena {
   rival(m: Mundo, ente: Ente, t: number): Orden;
   paso(m: Mundo, t: number, dt: number): void;
   choque?(m: Mundo, a: Ente, b: Ente, fuerza: number, t: number): void;
+  /** Multiplica el roce de un personaje (menos de 1: resbala). */
+  roce?(m: Mundo, x: Ente, t: number): number;
   termino?(m: Mundo, t: number): boolean;
   marcador(m: Mundo, t: number): { extra: string; puntos: number };
   resultado(m: Mundo, t: number): Resultado;
@@ -86,7 +88,7 @@ export async function crearArena(c: Contexto, a: Arena): Promise<Partida> {
   });
   await a.preparar(m);
 
-  let terminado = false, empezado = false, resto = 0;
+  let terminado = false, empezado = false, resto = 0, carga = 0;
   const terminar = (t: number) => {
     if (terminado) return;
     terminado = true;
@@ -98,7 +100,15 @@ export async function crearArena(c: Contexto, a: Arena): Promise<Partida> {
   const fisica = (t: number, dt: number) => {
     for (const x of entes) {
       if (!x.vivo) continue;
-      const orden = x.humano ? { x: x.x + mando.x * 9, z: x.z + mando.z * 9, embestir: mando.tomarAccion() } : a.rival(m, x, t);
+      let orden: Orden;
+      if (x.humano) {
+        // Mantener la acción carga la embestida (hasta 0,8 s); al soltar sale con más fuerza
+        const toque = mando.tomarAccion();
+        if (mando.pulsada) carga = Math.min(0.8, carga + dt);
+        const suelta = !mando.pulsada && (carga > 0 || toque);
+        orden = { x: x.x + mando.x * 9, z: x.z + mando.z * 9, embestir: suelta, carga };
+        if (suelta) carga = 0;
+      } else orden = a.rival(m, x, t);
       let dx = orden.x - x.x, dz = orden.z - x.z;
       const largo = Math.hypot(dx, dz);
       if (largo > 0.25) { dx /= largo; dz /= largo; } else dx = dz = 0;
@@ -106,20 +116,33 @@ export async function crearArena(c: Contexto, a: Arena): Promise<Partida> {
         const fuerza = x.humano ? 1 : 0.86; // los rivales corren un poco menos que tú
         x.vx += dx * ACEL * fuerza * dt;
         x.vz += dz * ACEL * fuerza * dt;
-        if (orden.embestir && t >= x.recarga && largo > 0.25) { x.vx += dx * IMPULSO; x.vz += dz * IMPULSO; x.recarga = t + RECARGA; if (x.humano) e.sonido.efecto('soltar', 0.5); }
+        if (orden.embestir && t >= x.recarga && largo > 0.25) {
+          const fuerzaEmbestida = IMPULSO * (1 + (orden.carga ?? 0.25) * 1.6);
+          x.vx += dx * fuerzaEmbestida; x.vz += dz * fuerzaEmbestida;
+          x.recarga = t + RECARGA;
+          x.dato.embiste = t + 0.35;
+          if (x.humano) e.sonido.efecto('soltar', 0.5);
+        }
       }
     }
     for (const x of [...entes, ...cosas]) {
       if (!x.vivo) continue;
-      const freno = Math.max(0, 1 - (x.equipo < 0 ? 1.1 : ROCE) * dt);
+      const freno = Math.max(0, 1 - (x.equipo < 0 ? 1.1 : ROCE * (a.roce?.(m, x, t) ?? 1)) * dt);
       x.vx *= freno; x.vz *= freno;
       const rapidez = Math.hypot(x.vx, x.vz), tope = x.equipo < 0 ? 22 : VEL * 2.2;
       if (rapidez > tope) { x.vx *= tope / rapidez; x.vz *= tope / rapidez; }
       x.x += x.vx * dt; x.z += x.vz * dt;
       if (!a.radio) {
-        const mx = a.ancho / 2 - x.r, mz = a.fondo / 2 - x.r;
-        if (Math.abs(x.x) > mx) { x.x = Math.sign(x.x) * mx; x.vx *= -0.6; }
-        if (Math.abs(x.z) > mz) { x.z = Math.sign(x.z) * mz; x.vz *= -0.6; }
+        // Esquinas redondeadas: una pelota nunca queda atrapada en un rincón. Las pelotas rebotan más que la gente.
+        const mx = a.ancho / 2 - x.r, mz = a.fondo / 2 - x.r, e2 = x.equipo < 0 ? 0.85 : 0.6, rc = 2.2;
+        if (Math.abs(x.x) > mx) { x.x = Math.sign(x.x) * mx; x.vx *= -e2; }
+        if (Math.abs(x.z) > mz) { x.z = Math.sign(x.z) * mz; x.vz *= -e2; }
+        const cx = Math.sign(x.x) * (mx - rc), cz = Math.sign(x.z) * (mz - rc), ex = x.x - cx, ez = x.z - cz, de = Math.hypot(ex, ez);
+        if (Math.abs(x.x) > mx - rc && Math.abs(x.z) > mz - rc && de > rc) {
+          const nx = ex / de, nz = ez / de, hacia = x.vx * nx + x.vz * nz;
+          x.x = cx + nx * rc; x.z = cz + nz * rc;
+          if (hacia > 0) { x.vx -= (1 + e2) * hacia * nx; x.vz -= (1 + e2) * hacia * nz; }
+        }
       }
     }
     // Choques entre círculos: se separan y se reparten el golpe según su masa
@@ -137,6 +160,14 @@ export async function crearArena(c: Contexto, a: Arena): Promise<Partida> {
       q.vx += j * p.masa * nx; q.vz += j * p.masa * nz;
       p.tocadoPor = q.id; q.tocadoPor = p.id; p.tocadoEn = q.tocadoEn = t;
       a.choque?.(m, p, q, acerca, t);
+      // Quien venía embistiendo empuja de verdad: el otro sale despedido (y aturdido, si es persona)
+      for (const [golpea, recibe, s] of [[p, q, 1], [q, p, -1]] as const) {
+        if (t >= (golpea.dato.embiste ?? 0)) continue;
+        const empuje = recibe.equipo < 0 ? 12 : 9.5;
+        recibe.vx += nx * s * empuje; recibe.vz += nz * s * empuje;
+        if (recibe.equipo >= 0) recibe.aturdido = t + 0.35;
+        golpea.dato.embiste = 0;
+      }
       if (acerca > 5 && (p.humano || q.humano)) e.sonido.efecto('golpe', Math.min(0.8, acerca / 14));
     }
     a.paso(m, t, dt);
@@ -154,6 +185,7 @@ export async function crearArena(c: Contexto, a: Arena): Promise<Partida> {
       e.hud.puntos(marcador.puntos);
       if (t >= a.dura || a.termino?.(m, t)) terminar(t);
     }
+    m.yo.malla!.scale.setScalar(1 + carga * 0.7); // el aro del jugador crece mientras carga
     for (const x of entes) {
       const g = x.k!.grupo, rapidez = Math.hypot(x.vx, x.vz);
       g.visible = x.malla!.visible = x.vivo;

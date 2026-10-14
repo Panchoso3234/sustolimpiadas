@@ -38,7 +38,7 @@ export const CARGADORES: Record<string, () => Promise<CrearJuego>> = {
   futbol: () => import('./arena/juegos').then((m) => m.futbol),
   faro: () => import('./arena/juegos').then((m) => m.faro),
   bajo: () => import('./tablero/pujas').then((m) => m.bajo),
-  subasta: () => import('./tablero/pujas').then((m) => m.subasta),
+  torre: () => import('./reflejos/torre').then((m) => m.crear),
   numeros: () => import('./tablero/mentales').then((m) => m.numeros),
   tinta: () => import('./tablero/mentales').then((m) => m.tinta),
   eco: () => import('./tablero/mentales').then((m) => m.eco),

@@ -202,7 +202,7 @@ export function Creador() {
                     <button key={color} class={valor === color ? 'elegida' : ''} style={{ background: color }} aria-label={`Color ${color}`} aria-pressed={valor === color} onClick={() => cambiar(campo.k, color)} />
                   ))}
                   <label class="color-libre">Otro<input type="color" value={valor as string} onInput={(e) => cambiar(campo.k, e.currentTarget.value)} /></label>
-                  <input class="texto hex" aria-label="Color en hexadecimal" placeholder="#rrggbb" maxLength={7} onChange={(e) => { const v = e.currentTarget.value.trim().toLowerCase(); if (/^#[0-9a-f]{6}$/.test(v)) cambiar(campo.k, v); }} />
+                  <code class="hex" title="Código del color">{(valor as string).toUpperCase()}</code>
                 </div>
               )}
               {campo.tipo === 'rango' && (
@@ -225,7 +225,7 @@ export function Creador() {
                   {ranuras.filter((r) => r.parte === parte).map((r) => (
                     <label key={r.id} class="color-libre grande" title="Cambiar este color">
                       <input type="color" value={p.apariencia.colores[r.id] ?? r.color} aria-label={`Un color de ${parte === 'cabeza' ? 'la cabeza' : 'el cuerpo'}`} onInput={(e) => pintar(r.id, e.currentTarget.value)} />
-                      <input class="texto hex" aria-label="Color en hexadecimal" placeholder="#rrggbb" maxLength={7} onChange={(e) => { const v = e.currentTarget.value.trim().toLowerCase(); if (/^#[0-9a-f]{6}$/.test(v)) pintar(r.id, v); }} />
+                      <code class="hex" title="Código del color">{(p.apariencia.colores[r.id] ?? r.color).toUpperCase()}</code>
                     </label>
                   ))}
                 </div>

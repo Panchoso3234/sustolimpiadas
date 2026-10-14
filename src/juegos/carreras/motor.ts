@@ -65,6 +65,9 @@ export async function crearCarrera(c: Contexto, pista: Pista): Promise<Partida> 
   if (lava) { lava.rotation.x = -Math.PI / 2; e.escena.add(lava); }
 
   const p = new THREE.Vector3(...pista.inicio), v = new THREE.Vector3(), control = p.clone();
+  const sombraPies = new THREE.Mesh(new THREE.CircleGeometry(0.42, 20), new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.35, depthWrite: false }));
+  sombraPies.rotation.x = -Math.PI / 2;
+  e.escena.add(sombraPies);
   let enSuelo = false, aire = 0, aturdido = 0, caidas = 0, mejor = 0, terminado = false, empezado = false, rumbo = Math.PI;
   const solido = (x: (typeof piezas)[number]) => !x.fuera && x.b.tipo !== 'real';
 
@@ -166,10 +169,16 @@ export async function crearCarrera(c: Contexto, pista: Pista): Promise<Partida> 
     if (andando) rumbo = Math.atan2(v.x, v.z);
     k.grupo.position.copy(p);
     k.grupo.rotation.y = rumbo;
+    // La sombra cae en el bloque que está justo debajo: así se ve dónde vas a aterrizar
+    let piso = -Infinity;
+    for (const x of piezas) if (solido(x) && Math.abs(p.x - x.b.x) <= x.b.w / 2 && Math.abs(p.z - x.b.z) <= x.b.d / 2 && x.b.y <= p.y + 0.05) piso = Math.max(piso, x.b.y);
+    sombraPies.visible = piso > -Infinity;
+    sombraPies.position.set(p.x, piso + 0.03, p.z);
+    sombraPies.scale.setScalar(Math.max(0.45, 1 - (p.y - piso) * 0.12));
     if (!terminado) k.animar(!enSuelo ? 'jump' : andando ? 'sprint' : 'idle');
-    mira.set(p.x * 0.55, p.y + 6.2, p.z + 10.5);
+    mira.set(p.x * 0.35, p.y + 8.8, p.z + 8.4);
     e.camara.position.lerp(mira, empezado ? Math.min(1, 6 * dt) : 1);
-    e.camara.lookAt(p.x * 0.55, p.y + 1.2, p.z - 4);
+    e.camara.lookAt(p.x * 0.35, p.y + 0.2, p.z - 5.2);
     if (!empezado || terminado) return;
     e.hud.tiempo(mmss(pista.limite - t));
     e.hud.extra(`${Math.round(mejor * 100)} % de la pista`);

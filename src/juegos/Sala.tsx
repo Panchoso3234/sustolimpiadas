@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { fechaChile, generador } from '../nucleo/azar';
 import { supabase, useSesion } from '../nucleo/supabase';
 import { aspectoAleatorio, normalizarAspecto, normalizarPersonaje, type Aspecto } from '../personaje/catalogo';
-import { MOTORES, UNA_VEZ, type Juego } from './catalogo';
+import { MOTORES, type Juego } from './catalogo';
 import { guardarMarca, marcaLocal, tablaDelDia, type Fila, type Guardado } from './marcas';
 import { CARGADORES, type Partida, type Resultado } from './marco';
 import { PUNTOS_BASE, leerPuntos, puntosPorPuesto, type Puntos } from './puntos';
@@ -72,17 +72,9 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
   const [motivo, setMotivo] = useState('');
   const [version, setVersion] = useState(0);
   const [callado, setCallado] = useState(estaCallado);
-  const [yaEnTabla, setYaEnTabla] = useState(false);
-  const unaVez = !reto && UNA_VEZ.has(juego.id);
   const fecha = useRef(fechaChile(Date.now())).current, motor = MOTORES[juego.motor];
   const usuarioId = sesion.usuarioId, usuario = useRef(usuarioId);
   usuario.current = usuarioId;
-
-  // Con sesión, el intento del día también se comprueba contra la tabla (no solo en este navegador)
-  useEffect(() => {
-    if (!unaVez || !usuarioId) return;
-    tablaDelDia(juego.id, fecha).then((t) => setYaEnTabla(t.filas.some((f) => f.perfil === usuarioId)));
-  }, [unaVez, usuarioId]);
 
   const cerrar = () => { turno.current++; partida.current?.destruir(); partida.current = null; };
   useEffect(() => cerrar, []);
@@ -98,7 +90,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
     try {
       const [crear, aspecto] = await Promise.all([CARGADORES[juego.id](), aspectoDe(usuario.current)]);
       // En un enfrentamiento el intento se gasta aquí, cuando el juego ya está descargado
-      const semilla = reto ? await reto.empezar() : `${juego.id}|${fecha}`;
+      const semilla = reto ? await reto.empezar() : `${juego.id}|${fecha}|${Math.random().toString(36).slice(2, 10)}`;
       if (mio !== turno.current || !caja.current) return;
       const nueva = await crear({
         caja: caja.current, semilla, aspecto,
@@ -110,7 +102,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
           else {
             const previa = marcaLocal(juego.id, fecha);
             fanfarria(!previa || r.puntaje > previa.mejor);
-            guardarMarca(juego.id, fecha, r.puntaje, r.detalle, usuario.current).then((g) => { if (mio === turno.current) { setGuardado(g); setVersion((v) => v + 1); } });
+            guardarMarca(juego.id, fecha, r.puntaje, { ...r.detalle, semilla }, usuario.current).then((g) => { if (mio === turno.current) { setGuardado(g); setVersion((v) => v + 1); } });
           }
         },
       });
@@ -142,7 +134,6 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
 
   const salir = () => { cerrar(); setFase('previa'); };
   const local = marcaLocal(juego.id, fecha), volver = reto?.volver ?? '#/juegos';
-  const gastado = unaVez && (!!local || yaEnTabla) && fase !== 'cuenta' && fase !== 'jugando';
 
   return (
     <div class={`sala fase-${fase}`} style={`--tono:${motor.color}`}>
@@ -164,10 +155,9 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
             {reto
               ? <p class="aviso atencion">{reto.aviso}</p>
               : <p class="chico tenue">Premia: {juego.premia.toLowerCase()}. {local ? `Tu mejor marca de hoy: ${local.mejor} ${juego.unidad} en ${local.intentos} ${local.intentos === 1 ? 'intento' : 'intentos'}.` : 'Todavía no juegas hoy.'}</p>}
-            {unaVez && <p class={gastado ? 'aviso ok' : 'aviso atencion'}>{gastado ? 'Ya jugaste este juego hoy. Vuelve mañana: el desafío cambia a medianoche.' : 'Este juego se juega una sola vez al día: quien lo termina ya conoce la solución.'}</p>}
             {fase === 'error' && <p class="aviso error">{motivo || 'No se pudo cargar el juego. Revisa tu conexión y prueba de nuevo.'}</p>}
             <div class="fila">
-              {!(reto && fase === 'error') && !gastado && <button class="boton principal grande" disabled={fase === 'cargando'} onClick={jugar}>{fase === 'cargando' ? 'Preparando…' : reto ? 'Jugar mi intento' : 'Jugar'}</button>}
+              {!(reto && fase === 'error') && <button class="boton principal grande" disabled={fase === 'cargando'} onClick={jugar}>{fase === 'cargando' ? 'Preparando…' : reto ? 'Jugar mi intento' : 'Jugar'}</button>}
               {reto && fase !== 'error' && <a class="boton" href={reto.practica}>Practicar primero</a>}
               <a class="boton" href={volver}>{reto ? 'Volver a mis enfrentamientos' : 'Volver al portal'}</a>
             </div>
@@ -196,7 +186,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
               </p>
             )}
             <div class="fila">
-              {!reto && !unaVez && <button class="boton principal grande" onClick={jugar}>Jugar otra vez</button>}
+              {!reto && <button class="boton principal grande" onClick={jugar}>Jugar otra vez</button>}
               <a class={reto ? 'boton principal grande' : 'boton'} href={volver}>{reto ? 'Volver a mis enfrentamientos' : 'Volver al portal'}</a>
             </div>
             {!reto && <><div class="sigla">Tabla de hoy</div><Tabla juego={juego} fecha={fecha} usuarioId={usuarioId} version={version} /></>}

@@ -344,3 +344,11 @@ body.foto .mesa { padding: 10px; }
 .bajo-ficha span { font-size: .78rem; }
 .bajo-ficha.gana { background: #ffd23c; outline: 3px solid #b8860b; }
 .bajo-ficha.repetida { opacity: .45; text-decoration: line-through; }
+
+/* Isla: selector de calidad y medidor */
+.isla-calidad { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.isla-calidad select { font: inherit; font-weight: 800; color: var(--hueso); background: var(--noche-2); border: 0; border-radius: 6px; padding: 2px 4px; cursor: pointer; }
+.isla-medidor { position: absolute; left: 16px; bottom: 40px; padding: 6px 10px; border-radius: 8px; background: rgba(12, 19, 36, .85); font: 700 .82rem ui-monospace, monospace; color: var(--alga); pointer-events: none; }
+/* Creador: cada color con su código debajo */
+.color-libre.grande { flex-direction: column; align-items: center; gap: 3px; }
+code.hex { font: 700 .74rem ui-monospace, monospace; color: var(--tenue); letter-spacing: .03em; }

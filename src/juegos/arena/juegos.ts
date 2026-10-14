@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Contexto, Partida } from '../marco';
-import { COLOR_EQUIPO, crearArena, detrasDe, lejos, type Ente, type Mundo, type Orden } from './motor';
+import { COLOR_EQUIPO, crearArena, detrasDe, lejos, limitar, type Ente, type Mundo, type Orden } from './motor';
 
 // Los cuatro juegos de arena. Se juegan contra rivales manejados por la máquina (y con compañeros de máquina en los de equipo).
 
@@ -21,7 +21,7 @@ const SOLOS = [0, 1, 2, 3, 4, 5], EQUIPOS = [0, 0, 0, 1, 1, 1];
 /** Sumo de Balsas: seis sobre una balsa redonda que se achica. Empuja a los demás al agua y no caigas tú. */
 export function sumo(c: Contexto): Promise<Partida> {
   const R0 = 9, DURA = 70, radio = (t: number) => Math.max(3.6, R0 - 0.078 * t);
-  let balsa: THREE.Mesh;
+  let balsa: THREE.Mesh, fuerza: { x: number; z: number; malla: THREE.Mesh } | null = null, proximo = 8;
   const vivos = (m: Mundo) => m.entes.filter((x) => x.vivo).length;
   const sobrevive = (m: Mundo, t: number) => m.yo.dato.cayo ?? t;
   const puntaje = (m: Mundo, t: number) => (m.yo.dato.botados ?? 0) * 150 + Math.round(sobrevive(m, t)) * 6 + (m.yo.vivo && (vivos(m) === 1 || t >= DURA) ? 400 : 0);
@@ -36,11 +36,32 @@ export function sumo(c: Contexto): Promise<Partida> {
     rival(m, x, t): Orden {
       if (Math.hypot(x.x, x.z) > radio(t) - 1.7) return { x: 0, z: 0 }; // primero, no caerse
       const otro = cercano(x, m.entes.filter((o) => o.vivo && o !== x));
-      return otro ? { x: otro.x, z: otro.z, embestir: lejos(x, otro) < 3.2 } : { x: 0, z: 0 };
+      return otro ? { x: otro.x, z: otro.z, embestir: lejos(x, otro) < 3.4, carga: 0.2 + m.r() * 0.5 } : { x: 0, z: 0 };
     },
+    // Cerca del borde la balsa está mojada: se resbala
+    roce: (_m, x, t) => (Math.hypot(x.x, x.z) > radio(t) - 1.5 ? 0.35 : 1),
     paso(m, t) {
       const R = radio(t);
       balsa.scale.set(R, 1, R);
+      // Cada 10 segundos aparece un coco de fuerza: quien lo toma pesa el doble por 6 segundos
+      if (!fuerza && t >= proximo) {
+        const a = m.r() * 6.28, d = m.r() * (R - 2);
+        fuerza = { x: Math.sin(a) * d, z: Math.cos(a) * d, malla: new THREE.Mesh(new THREE.IcosahedronGeometry(0.45, 1), mat('#ffc93c', 0.5)) };
+        fuerza.malla.position.set(fuerza.x, 0.5, fuerza.z);
+        m.e.escena.add(fuerza.malla);
+      }
+      if (fuerza) {
+        fuerza.malla.rotation.y = t * 3;
+        const toma = m.entes.find((x) => x.vivo && lejos(x, fuerza!) < 1);
+        if (toma) {
+          toma.dato.fuerte = t + 6;
+          m.e.escena.remove(fuerza.malla);
+          fuerza = null;
+          proximo = t + 10;
+          if (toma === m.yo) { m.e.sonido.efecto('campana', 0.5); m.e.hud.aviso('¡Coco de fuerza!', 'oro', 1); }
+        }
+      }
+      for (const x of m.entes) x.masa = t < (x.dato.fuerte ?? 0) ? 2.2 : 1;
       for (const x of m.entes) {
         if (!x.vivo || Math.hypot(x.x, x.z) <= R + 0.15) continue;
         x.vivo = false;
@@ -61,7 +82,7 @@ export function sumo(c: Contexto): Promise<Partida> {
 /** Fútbol de Cocos: tres contra tres con un coco gigante. Tú atacas hacia la derecha. */
 export function futbol(c: Contexto): Promise<Partida> {
   const ANCHO = 26, FONDO = 15, ARCO = 2.7, DURA = 90, goles = [0, 0];
-  let pelota: Ente, propios = 0;
+  let pelota: Ente, propios = 0, quieta = 0;
   const SITIOS: [number, number][] = [[-3, 0], [-7, -4], [-10, 3]];
   const salida = (i: number, equipo: number): [number, number] => { const [x, z] = SITIOS[i % 3]; return equipo === 0 ? [x, z] : [-x, -z]; };
   const puntaje = () => Math.max(0, goles[0] * 150 - goles[1] * 60 + propios * 100 + (goles[0] > goles[1] ? 250 : goles[0] === goles[1] ? 80 : 0));
@@ -83,12 +104,28 @@ export function futbol(c: Contexto): Promise<Partida> {
     },
     rival(m, x): Orden {
       const meta = { x: x.equipo === 0 ? ANCHO / 2 : -ANCHO / 2, z: 0 }, cerca = lejos(x, pelota);
-      // El tercero de cada equipo se queda atrás cuidando el arco, salvo que la pelota le llegue
+      // El tercero de cada equipo cuida el arco, salvo que la pelota le llegue
       if (x.id % 3 === 2 && cerca > 5) return { x: -meta.x * 0.62 + pelota.x * 0.15, z: pelota.z * 0.6 };
+      // Solo el más cercano del equipo va a la pelota; el otro se abre para recibir
+      const companeros = m.entes.filter((o) => o.equipo === x.equipo && o.id % 3 !== 2);
+      const voy = companeros.every((o) => lejos(o, pelota) >= cerca - 0.01);
+      if (!voy) return { x: limitar(pelota.x + Math.sign(meta.x) * 4, -ANCHO / 2 + 2, ANCHO / 2 - 2), z: -pelota.z * 0.5 };
+      // Pegada a una orilla: se le entra desde adentro, sin empujarla contra la pared
+      const orilla = Math.abs(pelota.z) > FONDO / 2 - 2.2;
       const bienPuesto = (pelota.x - x.x) * Math.sign(meta.x) > 0.2;
+      if (orilla) return { x: pelota.x - Math.sign(meta.x) * 0.8, z: pelota.z - Math.sign(pelota.z) * 1.1, embestir: bienPuesto && cerca < 2 };
       return { ...(bienPuesto ? { x: pelota.x, z: pelota.z } : detrasDe(pelota, meta, 1.6)), embestir: bienPuesto && cerca < 2.2 };
     },
-    paso(m, t) {
+    paso(m, t, dt) {
+      // Si la pelota queda casi quieta junto a un borde por 2,5 segundos, se saca hacia el centro
+      const junto = Math.abs(pelota.z) > FONDO / 2 - 1.7 || Math.abs(pelota.x) > ANCHO / 2 - 1.7;
+      quieta = junto && Math.hypot(pelota.vx, pelota.vz) < 1.2 ? quieta + dt : 0;
+      if (quieta > 2.5) {
+        quieta = 0;
+        pelota.x *= 0.7; pelota.z *= 0.45; pelota.vx = pelota.vz = 0;
+        for (const x of m.entes) if (lejos(x, pelota) < 2.6) { const d = lejos(x, pelota) || 1; x.vx += ((x.x - pelota.x) / d) * 6; x.vz += ((x.z - pelota.z) / d) * 6; }
+        m.e.hud.aviso('Saque', '', 0.8);
+      }
       if (Math.abs(pelota.x) < ANCHO / 2 - pelota.r - 0.02 || Math.abs(pelota.z) > ARCO) return;
       const equipo = pelota.x > 0 ? 0 : 1;
       goles[equipo]++;

@@ -159,6 +159,9 @@ const AJUSTES = [
   { pixeles: 1.5, sombras: 2048, cada: 2 },
   { pixeles: 2, sombras: 2048, cada: 1 },
 ];
+function calidadAutomatica(): boolean {
+  try { const v = localStorage.getItem(CALIDAD + '2'); return !v || v === 'auto'; } catch { return true; }
+}
 function calidadInicial(): number {
   try { const v = NIVELES.indexOf(localStorage.getItem(CALIDAD + '2') ?? ''); if (v >= 0) return v; } catch { /* sin almacenamiento */ }
   return window.innerWidth >= 760 && (navigator.hardwareConcurrency ?? 4) > 4 ? 1 : 0; // media en PC, baja en celular
@@ -168,6 +171,9 @@ export function Isla() {
   const sesion = useSesion();
   const caja = useRef<HTMLDivElement>(null);
   const mando = useRef<{ seguir(clave: string): void; foto(): string; fichaDe(clave: string): void; lista(): Fila[]; calidad(nivel: number): void } | null>(null);
+  // Calidad automática: baja sola si el equipo no alcanza ~30 cuadros por segundo y sube si sobra (sin pasar de alta)
+  const autoRef = useRef(calidadAutomatica());
+  const [auto, setAuto] = useState(autoRef.current);
   const sonido = useRef<{ ctx: AudioContext; volumen: GainNode } | null>(null);
   const [hud, setHud] = useState({ hora: '', cantidad: 0, muestra: false, listo: false, clima: 0, evento: '' });
   const [ficha, setFicha] = useState<Ficha | null>(null);
@@ -437,7 +443,22 @@ export function Isla() {
       if (nivelActual > 0 && cuadros++ % AJUSTES[nivelActual].cada === 0) mundo.refrescarSombras();
       if (composer) composer.render(); else render.render(escena, camara);
     };
-    const cuadro = () => { if (!vivo) return; paso(); requestAnimationFrame(cuadro); };
+    let previo = performance.now(), promedio = 16, malos = 0, buenos = 0, cuenta = 0;
+    const medidor = new URLSearchParams(location.search).has('medir') ? document.createElement('div') : null;
+    if (medidor) { medidor.className = 'isla-medidor'; cont.appendChild(medidor); }
+    const cronometrar = (ahora: number) => {
+      const ms = ahora - previo;
+      previo = ahora;
+      if (ms > 250) return; // pestaña recién vuelta a la vista: no cuenta
+      promedio += (ms - promedio) * 0.05;
+      if (medidor && cuenta++ % 15 === 0) medidor.textContent = `${Math.round(1000 / promedio)} cuadros/s · ${promedio.toFixed(1)} ms por cuadro · ${render.info.render.calls} dibujos · ${Math.round(render.info.render.triangles / 1000)} mil triángulos · calidad ${NIVELES[nivelActual]}${autoRef.current ? ' (automática)' : ''}`;
+      if (!autoRef.current) return;
+      if (promedio > 34) { malos++; buenos = 0; } else if (promedio < 15) { buenos++; malos = 0; } else malos = buenos = 0;
+      const cambiar = (n: number) => { malos = buenos = 0; aplicarCalidad(n); setNivel(n); };
+      if (malos > 90 && nivelActual > 0) cambiar(nivelActual - 1);
+      else if (buenos > 480 && nivelActual < 2) cambiar(nivelActual + 1);
+    };
+    const cuadro = (ahora: number) => { if (!vivo) return; cronometrar(ahora); paso(); requestAnimationFrame(cuadro); };
     requestAnimationFrame(cuadro);
     if (import.meta.env.DEV) Object.assign(window, { __paso: paso, __camara: camara, __control: control, __calidad: aplicarCalidad, __render: render }); // para capturas de prueba
 
@@ -493,11 +514,12 @@ export function Isla() {
     sonido.current.volumen.gain.setTargetAtTime(prender ? 0.07 : 0, sonido.current.ctx.currentTime, 0.4);
     setConSonido(prender);
   };
-  const alternarCalidad = () => {
-    const nueva = (nivel + 1) % NIVELES.length;
-    setNivel(nueva);
-    try { localStorage.setItem(CALIDAD + '2', NIVELES[nueva]); } catch { /* sin almacenamiento */ }
-    mando.current?.calidad(nueva);
+  const elegirCalidad = (valor: string) => {
+    const automatica = valor === 'auto';
+    autoRef.current = automatica;
+    setAuto(automatica);
+    try { localStorage.setItem(CALIDAD + '2', automatica ? 'auto' : NIVELES[Number(valor)]); } catch { /* sin almacenamiento */ }
+    if (!automatica) { setNivel(Number(valor)); mando.current?.calidad(Number(valor)); }
   };
 
   const seguir = (clave: string) => { setSiguiendo(clave); if (clave) mando.current?.seguir(clave); };
@@ -518,7 +540,12 @@ export function Isla() {
         {miClave && <button class="boton" onClick={() => (siguiendo === miClave ? seguir('') : mando.current?.fichaDe(miClave))}>{siguiendo === miClave ? 'Dejar de seguir' : 'Mi personaje'}</button>}
         <button class="boton" onClick={() => setImagen(mando.current?.foto() ?? '')}>Foto</button>
         <button class="boton" aria-pressed={conSonido} onClick={alternarSonido}>{conSonido ? 'Música: sí' : 'Música: no'}</button>
-        <button class="boton" onClick={alternarCalidad}>Calidad: {NIVELES[nivel]}</button>
+        <label class="boton isla-calidad">Calidad
+          <select value={auto ? 'auto' : String(nivel)} onChange={(e) => elegirCalidad(e.currentTarget.value)}>
+            <option value="auto">Automática ({NIVELES[nivel]})</option>
+            {NIVELES.map((n, i) => <option key={n} value={String(i)}>{n[0].toUpperCase() + n.slice(1)}</option>)}
+          </select>
+        </label>
       </div>
       {filas && (
         <div class="isla-lista">

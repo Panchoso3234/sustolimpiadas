@@ -404,3 +404,7 @@ delete from public.marcas m using public.marcas n
     and n.perfil_id = m.perfil_id and n.juego = m.juego and n.fecha = m.fecha and n.id < m.id;
 create unique index if not exists marcas_una_vez on public.marcas (perfil_id, juego, fecha)
   where juego in ('palabra', 'parejas', 'buscaconchas', 'luces', 'cartero', 'cofre', 'bajo', 'subasta');
+
+-- ───────── Desafío nuevo en cada intento (14 de octubre) ─────────
+-- Ya no hay juegos de un solo intento al día: se quita la restricción.
+drop index if exists public.marcas_una_vez;
