@@ -142,6 +142,8 @@ export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; pres
         <div class="rejilla-juegos">
           {tipos.map((t) => {
             const base = t.base ? juegoPorId(t.base) : undefined, abierto = !!base?.listo, puede = abierto && modo === '1v1' && !!yo && !!datos?.disponible;
+            // Los que ya se juegan en vivo llevan a la pestaña En vivo
+            if (t.id === 'conchas-linea' || t.id === 'balsas') return <a key={t.id} class="tarjeta activa" href="#/juegos/vivo" style="--tono:#ffe08a"><h3>{t.nombre}</h3><p>{t.idea}</p><span class="pie"><span class="premia">Juego en vivo</span><span class="estado">Jugar en vivo</span></span></a>;
             return (
               <div key={t.id} onClick={puede ? () => { setElegido(t.base!); irARetar(); } : undefined} class={`tarjeta${abierto ? '' : ' cerrada'}${puede ? ' activa' : ''}`} style={base ? `--tono:${MOTORES[base.motor].color}` : undefined}>
                 <h3>{t.nombre}</h3>
