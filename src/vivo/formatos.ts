@@ -17,6 +17,7 @@ export const DUELOS: Record<string, Formato> = {
   serpientes: 'dividida',
   karts: 'dividida',
   defensa: 'dividida',
+  museo: 'dividida',
   totem: 'turnos',
   bolos: 'turnos',
   minigolf: 'turnos',
