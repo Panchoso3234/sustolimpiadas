@@ -2,27 +2,8 @@ import { generador } from '../../nucleo/azar';
 import type { Contexto, Partida } from '../marco';
 import { crearCarrera, type Barra, type Bloque } from './motor';
 
-// Las cuatro carreras. Cada una arma su pista con la semilla del día: mismo recorrido para todos.
+// Las dos carreras. Cada una arma su pista con la semilla del día: mismo recorrido para todos.
 
-/** Puente Colgante: tablones sobre el río que ceden medio segundo después de pisarlos. No se puede dudar.
- *  Desde la quinta fila, algunos tablones solitarios van y vienen de lado. */
-export function puente(c: Contexto): Promise<Partida> {
-  const r = generador(c.semilla), bloques: Bloque[] = [{ x: 0, y: 0, z: 0, w: 7, h: 1, d: 5, color: '#8a5a38', tipo: 'control' }];
-  const CARRILES = [-2.3, 0, 2.3], FILAS = 23, PASO = 3.3; // entre filas queda un hueco que obliga a saltar
-  let previos = [1];
-  for (let f = 1; f <= FILAS; f++) {
-    const z = -2.5 - f * PASO;
-    if (f % 8 === 0) { bloques.push({ x: 0, y: 0, z, w: 7, h: 0.6, d: 1.8, color: '#8a5a38', tipo: 'control' }); previos = [0, 1, 2]; continue; }
-    // Cada fila tiene uno o dos tablones, siempre con alguno al alcance desde la fila anterior
-    const base = previos[Math.floor(r() * previos.length)], paso = Math.floor(r() * 3) - 1, uno = Math.max(0, Math.min(2, base + paso)), otro = Math.floor(r() * 3), doble = r() < 0.4;
-    previos = doble && otro !== uno ? [uno, otro] : [uno];
-    const vaivén = f >= 5 && previos.length === 1 && r() < 0.35 + c.nivel * 0.05;
-    for (const carril of previos) bloques.push({ x: CARRILES[carril], y: 0, z, w: 1.9, h: 0.3, d: 1.7, color: vaivén ? '#d9a35a' : f % 2 ? '#c99655' : '#b98548', tipo: 'cae', mueve: vaivén ? { eje: 'x', amp: 1.1, vel: 1.5, fase: r() * 6.28 } : undefined });
-  }
-  const fin = -2.5 - (FILAS + 1) * PASO - 1.5;
-  bloques.push({ x: 0, y: 0, z: fin, w: 7, h: 1, d: 5, color: '#ffd23c', tipo: 'meta' });
-  return crearCarrera(c, { bloques, inicio: [0, 0.1, 0.5], cielo: '#bfe8ff', abismo: '#3fa9d6', limite: 90, ritmo: 32, progreso: (_x, _y, z) => z / fin });
-}
 
 /** Rodillos del Volcán: una pasarela con barras que giran. Las bajas se saltan; desde el segundo tramo hay barras
  *  altas (naranjas) que se pasan agachado. A tiempo, o se sale volando. */
@@ -60,19 +41,3 @@ export function puertas(c: Contexto): Promise<Partida> {
   return crearCarrera(c, { bloques, inicio: [0, 0.1, 1.2], cielo: '#1a1230', abismo: '#0b0718', limite: 75 - (c.nivel - 1) * 5, ritmo: 30, progreso: (_x, _y, z) => z / fin });
 }
 
-/** Sube la Lava: una escalera de plataformas sueltas y la lava subiendo cada vez más rápido. Sin segundas oportunidades.
- *  Algunas plataformas van y vienen de lado y otras (agrietadas, más oscuras) se desmoronan al pisarlas. */
-export function lava(c: Contexto): Promise<Partida> {
-  const r = generador(c.semilla), bloques: Bloque[] = [{ x: 0, y: 0, z: 0, w: 6, h: 1, d: 5, color: '#5a4a44' }], PELDANOS = 32, SUBE = 1.35;
-  let x = 0;
-  for (let i = 1; i <= PELDANOS; i++) {
-    x = Math.max(-5.5, Math.min(5.5, x + (r() < 0.5 ? -1 : 1) * (1.6 + r() * 1.7)));
-    const ancho = i % 8 === 0 ? 4.2 : 2.5 - Math.min(0.7, i * 0.02), descanso = i % 8 === 0, suerte = r();
-    const mueve = !descanso && i > 4 && suerte < 0.25 ? { eje: 'x' as const, amp: 1.2, vel: 1.3, fase: r() * 6.28 } : undefined;
-    const cae = !descanso && !mueve && i > 6 && suerte < 0.45;
-    bloques.push({ x, y: i * SUBE, z: (r() - 0.5) * 2, w: ancho, h: 0.4, d: 2.4, color: descanso ? '#8a7a70' : cae ? '#4a3a34' : mueve ? '#9a6a52' : i % 2 ? '#6b5a52' : '#7a675d', tipo: cae ? 'cae' : undefined, mueve });
-  }
-  const cima = (PELDANOS + 1) * SUBE;
-  bloques.push({ x, y: cima, z: 0, w: 5, h: 0.5, d: 4, color: '#ffd23c', tipo: 'meta' });
-  return crearCarrera(c, { bloques, inicio: [0, 0.1, 0.5], lava: { desde: -6.5, vel: 0.5, acel: 0.009 }, cielo: '#2a1a1e', abismo: '#ff6a1e', limite: 80, ritmo: 38, progreso: (_x, y) => y / cima });
-}

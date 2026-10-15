@@ -3,8 +3,8 @@ import type { Contexto, Partida } from '../marco';
 import { crearMesa, mmss } from './mesa';
 import { TEMAS, VALIDAS } from './palabras';
 
-// Palabra del Día: adivinar una palabra de cinco letras en seis intentos. La palabra sale de un tema, que se muestra
-// como pista. Si un intento no está en el diccionario se avisa, pero apretando Enter otra vez se usa igual
+// Palabra del Día: adivinar una palabra de cinco letras en seis intentos. La palabra sale de un tema, que se revela
+// recién al terminar (mostrarlo antes era una pista demasiado grande). Si un intento no está en el diccionario se avisa, pero apretando Enter otra vez se usa igual
 // (así una palabra de verdad que falte en la lista nunca deja a nadie sin poder jugar).
 const LETRAS = 5, INTENTOS = 6, FILAS = ['QWERTYUIOP', 'ASDFGHJKLÑ', 'ZXCVBNM'];
 type Pista = 'verde' | 'amarilla' | 'gris';
@@ -24,7 +24,6 @@ export async function crear(c: Contexto): Promise<Partida> {
   const m = crearMesa(c.caja, 'palabra', c.aspecto);
   const temas = Object.keys(TEMAS), tema = temas[Math.floor(azar(c.semilla, 'tema') * temas.length)], opciones = TEMAS[tema];
   const secreta = [...opciones[Math.floor(azar(c.semilla, 'palabra') * opciones.length)]];
-  m.el('div', 'palabra-tema', m.tablero, `Tema: ${tema}`);
   const grilla = m.el('div', 'letras', m.tablero);
   const celdas = Array.from({ length: INTENTOS }, () => Array.from({ length: LETRAS }, () => m.el('div', 'letra', grilla)));
   const teclado = m.el('div', 'teclado', m.tablero), teclas = new Map<string, HTMLButtonElement>(), mejor = new Map<string, Pista>();

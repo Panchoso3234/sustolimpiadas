@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Contexto, Partida } from '../marco';
-import { COLOR_EQUIPO, crearArena, detrasDe, lejos, limitar, type Ente, type Mundo, type Orden } from './motor';
+import { COLOR_EQUIPO, crearArena, detrasDe, lejos, limitar, type Ente, type Mundo, type Obstaculo, type Orden } from './motor';
+import { OBSTACULOS_GRANJA, acantilado, balon, estadio, granja, type Estadio, type Faro } from './escenarios';
 
 // Los cuatro juegos de arena. Se juegan contra rivales manejados por la máquina (y con compañeros de máquina en los de equipo).
 
@@ -79,15 +80,16 @@ export function sumo(c: Contexto): Promise<Partida> {
   });
 }
 
-/** Fútbol de Cocos: tres contra tres con un coco gigante. Tú atacas hacia la derecha. */
+/** Fuchibol: tres contra tres en un estadio con público. Tú atacas hacia la derecha. Desde la jornada 3, dos postes saltarines en la mitad. */
 export function futbol(c: Contexto): Promise<Partida> {
   const ANCHO = 26, FONDO = 15, ARCO = 2.7, DURA = 90, goles = [0, 0];
-  let pelota: Ente, propios = 0, quieta = 0, pases = 0;
+  let pelota: Ente, propios = 0, quieta = 0, pases = 0, cancha: Estadio;
+  const postes: Obstaculo[] = c.nivel >= 3 ? [{ x: 0, z: -4.6, r: 0.45, rebote: 1.5 }, { x: 0, z: 4.6, r: 0.45, rebote: 1.5 }] : [];
   const SITIOS: [number, number][] = [[-3, 0], [-7, -4], [-10, 3]];
   const salida = (i: number, equipo: number): [number, number] => { const [x, z] = SITIOS[i % 3]; return equipo === 0 ? [x, z] : [-x, -z]; };
   const puntaje = () => Math.max(0, goles[0] * 150 - goles[1] * 60 + propios * 100 + (goles[0] > goles[1] ? 250 : goles[0] === goles[1] ? 80 : 0));
   return crearArena(c, {
-    ancho: ANCHO, fondo: FONDO, suelo: '#5fb86a', cielo: '#2d6b3a', dura: DURA, equipos: EQUIPOS, salida,
+    ancho: ANCHO, fondo: FONDO, suelo: '#5fb86a', cielo: '#2d6b3a', dura: DURA, equipos: EQUIPOS, salida, sinSuelo: true, obstaculos: postes,
     segunda: {
       etiqueta: 'Pasar',
       // Pase: si estás junto a la pelota, sale hacia el compañero más adelantado (un poco por delante de él)
@@ -102,19 +104,12 @@ export function futbol(c: Contexto): Promise<Partida> {
         m.e.sonido.efecto('soltar', 0.5);
       },
     },
-    preparar(m) {
-      const coco = new THREE.Mesh(new THREE.IcosahedronGeometry(0.9, 1), mat('#7a4f2a'));
-      coco.position.y = 0.9;
-      pelota = m.cosa(0.9, 0.45, coco, 0, 0);
-      for (const lado of [-1, 1]) {
-        const arco = new THREE.Mesh(new THREE.BoxGeometry(0.5, 2.2, ARCO * 2), mat(COLOR_EQUIPO[lado < 0 ? 0 : 1], 0.25));
-        arco.position.set(lado * (ANCHO / 2 + 0.3), 1.1, 0);
-        m.e.escena.add(arco);
-      }
-      const linea = new THREE.Mesh(new THREE.PlaneGeometry(0.15, FONDO), new THREE.MeshBasicMaterial({ color: '#d8f5dc' }));
-      linea.rotation.x = -Math.PI / 2;
-      linea.position.y = 0.05;
-      m.e.escena.add(linea, Object.assign(disco(2.4, '#d8f5dc', 0.25), {}));
+    async preparar(m) {
+      const bola = balon(0.9);
+      bola.position.y = 0.9;
+      pelota = m.cosa(0.9, 0.45, bola, 0, 0);
+      cancha = await estadio(m, ARCO, [COLOR_EQUIPO[0], COLOR_EQUIPO[1]]);
+      for (const p of postes) { const g = new THREE.Mesh(new THREE.CylinderGeometry(p.r, p.r, 1.4, 12), mat('#ffb02e', 0.3)); g.position.set(p.x, 0.7, p.z); p.malla = g; m.e.escena.add(g); }
     },
     rival(m, x): Orden {
       const meta = { x: x.equipo === 0 ? ANCHO / 2 : -ANCHO / 2, z: 0 }, cerca = lejos(x, pelota);
@@ -144,7 +139,11 @@ export function futbol(c: Contexto): Promise<Partida> {
       const equipo = pelota.x > 0 ? 0 : 1;
       goles[equipo]++;
       if (equipo === 0 && pelota.tocadoPor === m.yo.id) { propios++; m.e.flotante('¡Gol tuyo! +100', pelota.x, 2, pelota.z, 'oro'); }
-      m.e.hud.aviso(equipo === 0 ? '¡Gol de tu equipo!' : 'Gol rival', equipo === 0 ? 'oro' : 'mal', 1.2);
+      m.e.hud.aviso(equipo === 0 ? '¡GOOOL de tu equipo!' : 'Gol rival', equipo === 0 ? 'oro' : 'mal', 1.4);
+      m.e.chispas(pelota.x, 1.5, pelota.z, [COLOR_EQUIPO[equipo], '#ffffff', '#ffd23c'], 60, 8);
+      m.e.temblar(0.5);
+      cancha.festejar(equipo);
+      cancha.marcador(goles[0], goles[1]);
       if (equipo === 0) m.e.sonido.bien(); else m.e.sonido.mal();
       // Saque del medio
       for (const x of [...m.entes, pelota]) { x.vx = x.vz = 0; x.aturdido = t + 0.6; }
@@ -164,7 +163,7 @@ export function futbol(c: Contexto): Promise<Partida> {
  *  La luz se achica con el tiempo y, a ratos, parpadea, se apaga y vuelve a aparecer en otro lado. */
 export function faro(c: Contexto): Promise<Partida> {
   const ANCHO = 22, FONDO = 14, DURA = 60, APAGON = 1.4;
-  let luz: THREE.Mesh, foco: THREE.PointLight, f1 = 0, f2 = 0, apagones: number[] = [], saltos = 0;
+  let faroLuz: Faro, f1 = 0, f2 = 0, apagones: number[] = [], saltos = 0;
   const ritmoLuz = 1 + (c.nivel - 1) * 0.08, radio = (t: number) => Math.max(1.6, 2.7 - t * 0.018 * (1 + (c.nivel - 1) * 0.15));
   // Cada apagón hace saltar la luz a otra parte de su recorrido
   const centro = (t: number) => { const salto = apagones.filter((a) => t >= a + APAGON).length * 2.1; return { x: 7.6 * Math.sin(0.33 * ritmoLuz * t + f1 + salto), z: 4.3 * Math.sin(0.47 * ritmoLuz * t + f2 + salto) }; };
@@ -175,16 +174,15 @@ export function faro(c: Contexto): Promise<Partida> {
   const lider = (m: Mundo) => tiempo(m.yo) > 0 && m.entes.every((x) => tiempo(x) <= tiempo(m.yo)); // con 0 s en la luz nadie es rey
   const puntaje = (m: Mundo, fin = false) => Math.round(tiempo(m.yo) * 25) + (fin && lider(m) ? 250 : 0);
   return crearArena(c, {
-    ancho: ANCHO, fondo: FONDO, suelo: '#22345a', cielo: '#070b18', dura: DURA, equipos: SOLOS,
+    ancho: ANCHO, fondo: FONDO, suelo: '#22345a', cielo: '#070b18', dura: DURA, equipos: SOLOS, sinSuelo: true,
     salida: (i) => [(i % 3 - 1) * 6, i < 3 ? -4 : 4],
-    preparar(m) {
+    async preparar(m) {
       f1 = m.r() * 6.28; f2 = m.r() * 6.28;
       apagones = [12, 24, 36, 48].map((s) => s + (m.r() - 0.5) * 4);
       m.e.escena.traverse((o) => { const l = o as THREE.Light; if (l.isLight) l.intensity *= 0.45; });
-      luz = disco(RADIO, '#ffe08a', 0.45);
-      foco = new THREE.PointLight('#ffe08a', 90, 11);
-      foco.position.y = 4;
-      m.e.escena.add(luz, foco);
+      faroLuz = await acantilado(m);
+      const p0 = centro(0);
+      faroLuz.luz(p0.x, p0.z, radio(0), 1);
       for (const x of m.entes) { x.dato.ox = (m.r() - 0.5) * 2.6; x.dato.oz = (m.r() - 0.5) * 2.6; }
     },
     rival(m, x, t): Orden {
@@ -194,11 +192,9 @@ export function faro(c: Contexto): Promise<Partida> {
     },
     paso(m, t, dt) {
       const p = centro(t), R = radio(t), oscuro = apagada(t), titila = parpadea(t) && Math.sin(t * 40) > 0;
-      luz.position.x = foco.position.x = p.x;
-      luz.position.z = foco.position.z = p.z;
-      luz.scale.setScalar(R / RADIO);
-      luz.visible = !oscuro && !titila;
-      foco.intensity = oscuro ? 0 : titila ? 30 : 90;
+      faroLuz.luz(p.x, p.z, R, oscuro ? 0 : titila ? 0.35 : 1);
+      const rey = m.entes.reduce((a, b) => (tiempo(b) > tiempo(a) ? b : a));
+      faroLuz.corona(rey.x, rey.z, tiempo(rey) > 0 && rey.vivo);
       if (oscuro && saltos < apagones.filter((a) => t >= a).length) { saltos++; m.e.hud.aviso('¡Se apagó el faro!', '', 1); }
       if (!oscuro) for (const x of m.entes) if (lejos(x, p) < R) x.dato.seg = tiempo(x) + dt;
     },
@@ -217,6 +213,7 @@ export function huevo(c: Contexto): Promise<Partida> {
   interface Huevo { x: number; z: number; estado: 'suelo' | 'lleva' | 'nido'; quien: Ente | null; nido: number; valor: number; malla: THREE.Mesh }
   const huevos: Huevo[] = [], nidoDe = (equipo: number) => ({ x: equipo === 0 ? -10 : 10, z: 0 });
   let entregas = 0, robos = 0, dorados = 0;
+  const obstaculos = OBSTACULOS_GRANJA();
   const geo = new THREE.IcosahedronGeometry(0.38, 1);
   const poner = (m: Mundo, x: number, z: number, valor: number) => {
     const malla = new THREE.Mesh(geo, valor > 1 ? mat('#ffc93c', 0.4) : mat('#fff8e6'));
@@ -229,10 +226,11 @@ export function huevo(c: Contexto): Promise<Partida> {
   const tomar = (h: Huevo, x: Ente) => { h.estado = 'lleva'; h.quien = x; h.nido = -1; };
   const puntaje = (fin = false) => puntos(0) * 70 + entregas * 60 + (fin ? (puntos(0) > puntos(1) ? 250 : puntos(0) === puntos(1) ? 80 : 0) : 0);
   return crearArena(c, {
-    ancho: ANCHO, fondo: FONDO, suelo: '#6cc070', cielo: '#2f7a45', dura: DURA, equipos: EQUIPOS,
+    ancho: ANCHO, fondo: FONDO, suelo: '#6cc070', cielo: '#2f7a45', dura: DURA, equipos: EQUIPOS, sinSuelo: true, obstaculos,
     salida: (i, equipo) => [(equipo === 0 ? -1 : 1) * 7.5, (i % 3 - 1) * 4],
-    preparar(m) {
-      for (const equipo of [0, 1]) { const n = disco(NIDO, COLOR_EQUIPO[equipo], 0.55); n.position.x = nidoDe(equipo).x; m.e.escena.add(n); }
+    async preparar(m) {
+      for (const equipo of [0, 1]) { const n = disco(NIDO, COLOR_EQUIPO[equipo], 0.45); n.position.x = nidoDe(equipo).x; m.e.escena.add(n); }
+      await granja(m, obstaculos, [COLOR_EQUIPO[0], COLOR_EQUIPO[1]], [nidoDe(0), nidoDe(1)]);
       for (let i = 0; i < 9; i++) { const a = m.r() * 6.28, d = 0.6 + m.r() * 2.2; poner(m, Math.sin(a) * d, Math.cos(a) * d, 1); }
     },
     // Roles de los de máquina: recolector (junta huevos), cazador (persigue a quien lleva uno) y guardián (cuida el nido)
@@ -273,6 +271,7 @@ export function huevo(c: Contexto): Promise<Partida> {
           h.x = nidoDe(x.equipo).x + (m.r() - 0.5) * 2.4; h.z = (m.r() - 0.5) * 2.4;
           x.dato.espera = t + 0.4;
           if (x === m.yo) { entregas++; m.e.sonido.bien(); m.e.flotante(`+${h.valor}`, x.x, 2.4, x.z, 'oro'); }
+          m.e.chispas(h.x, 0.6, h.z, h.valor > 1 ? ['#ffd23c', '#ffffff'] : [COLOR_EQUIPO[x.equipo], '#fff8e6'], h.valor > 1 ? 30 : 10, 4);
           continue;
         }
         if (!libre) continue;
@@ -284,7 +283,8 @@ export function huevo(c: Contexto): Promise<Partida> {
       }
       for (const h of huevos) {
         if (h.quien) { h.x = h.quien.x; h.z = h.quien.z; }
-        h.malla.position.set(h.x, h.quien ? 2.5 : 0.45, h.z);
+        h.malla.position.set(h.x, h.quien ? 2.5 : 0.45 + (h.estado === 'suelo' ? Math.abs(Math.sin(t * 3 + h.nido + h.x)) * 0.15 : 0), h.z);
+        h.malla.rotation.y = t * (h.valor > 1 ? 3 : 0.8);
       }
     },
     marcador: () => ({ extra: `Tu nido ${puntos(0)} · ${puntos(1)} Rival`, puntos: puntaje() }),

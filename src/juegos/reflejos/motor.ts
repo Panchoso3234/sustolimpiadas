@@ -57,6 +57,8 @@ export function crearEscenario(caja: HTMLElement, encuadre: Encuadre) {
   const medir = () => {
     const w = caja.clientWidth, h = caja.clientHeight;
     if (!w || !h) return;
+    // En pantallas grandes se dibuja a menos píxeles (unos 1,1 millones) y el navegador lo agranda: en una gráfica integrada se nota mucho más la fluidez que la nitidez
+    render.setPixelRatio(Math.min(window.devicePixelRatio, 1.5, Math.sqrt(1.1e6 / (w * h))));
     render.setSize(w, h);
     camara.aspect = w / h;
     const media = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
@@ -113,6 +115,30 @@ export function crearEscenario(caja: HTMLElement, encuadre: Encuadre) {
   const reloj = () => (corriendo ? (performance.now() - inicio) / 1000 + salto : fijo);
   const tareas: ((t: number, dt: number) => void)[] = [], animados: THREE.Object3D[] = [], limpiezas: (() => void)[] = [];
 
+  // Chispas y confeti: un solo grupo de cubitos (una instancia cada uno), así cien chispas cuestan un solo dibujo
+  const CHISPAS = 180;
+  let chispas: THREE.InstancedMesh | null = null, siguiente = 0, temblor = 0;
+  const vidaChispa = new Float32Array(CHISPAS), velChispa = new Float32Array(CHISPAS * 3), posChispa = new Float32Array(CHISPAS * 3);
+  const unaChispa = new THREE.Object3D(), colorChispa = new THREE.Color(), camaraQuieta = new THREE.Vector3();
+  const moverChispas = (dt: number) => {
+    if (!chispas) return;
+    let vivas = 0;
+    for (let i = 0; i < CHISPAS; i++) {
+      if (vidaChispa[i] <= 0) continue;
+      vivas++;
+      vidaChispa[i] -= dt;
+      velChispa[i * 3 + 1] -= 14 * dt;
+      for (let k = 0; k < 3; k++) posChispa[i * 3 + k] += velChispa[i * 3 + k] * dt;
+      unaChispa.position.fromArray(posChispa, i * 3);
+      unaChispa.rotation.set(vidaChispa[i] * 9, vidaChispa[i] * 7, 0);
+      unaChispa.scale.setScalar(Math.max(0, Math.min(1, vidaChispa[i] * 2)));
+      unaChispa.updateMatrix();
+      chispas.setMatrixAt(i, unaChispa.matrix);
+    }
+    chispas.visible = vivas > 0;
+    chispas.instanceMatrix.needsUpdate = true;
+  };
+
   const paso = () => {
     const ahora = performance.now(), dt = Math.min(0.1, (ahora - previo) / 1000);
     previo = ahora;
@@ -121,7 +147,16 @@ export function crearEscenario(caja: HTMLElement, encuadre: Encuadre) {
     espuma.position.z = -29.6 + Math.sin(ahora / 1300) * 0.5;
     for (const f of tareas) f(t, dt);
     for (const o of animados) o.userData.avanzar?.(dt);
-    render.render(escena, camara);
+    moverChispas(dt);
+    // La cámara tiembla solo mientras se dibuja este cuadro: cada juego la sigue moviendo a su manera
+    if (temblor > 0.01) {
+      camaraQuieta.copy(camara.position);
+      camara.position.x += (Math.random() - 0.5) * temblor;
+      camara.position.y += (Math.random() - 0.5) * temblor;
+      temblor *= Math.pow(0.002, dt);
+      render.render(escena, camara);
+      camara.position.copy(camaraQuieta);
+    } else render.render(escena, camara);
   };
   const cuadro = () => { if (!vivo) return; paso(); requestAnimationFrame(cuadro); };
   requestAnimationFrame(cuadro);
@@ -180,6 +215,41 @@ export function crearEscenario(caja: HTMLElement, encuadre: Encuadre) {
       escena.add(o);
       return o;
     },
+    /** Una pieza de un paquete apoyada en el suelo y centrada (los modelos de carreras traen su origen en una esquina).
+     *  `tam` es su alto, o su lado horizontal más largo con `por: 'largo'`. No se agrega a la escena. */
+    async objeto(paquete: Paquete, nombre: string, tam: number, por: 'alto' | 'largo' = 'alto'): Promise<THREE.Group> {
+      const base = await cargar(paquete, nombre), o = base.clone(), caja3 = new THREE.Box3().setFromObject(base), g = new THREE.Group();
+      const medida = caja3.getSize(new THREE.Vector3()), centro = caja3.getCenter(new THREE.Vector3());
+      const s = tam / Math.max(0.01, por === 'alto' ? medida.y : Math.max(medida.x, medida.z));
+      o.scale.setScalar(s);
+      o.position.set(-centro.x * s, -caja3.min.y * s, -centro.z * s);
+      g.add(o);
+      return g;
+    },
+    /** Estallido de chispas o confeti desde un punto. */
+    chispas(x: number, y: number, z: number, colores: string[], cuantas = 24, fuerza = 6) {
+      if (!chispas) {
+        chispas = new THREE.InstancedMesh(new THREE.BoxGeometry(0.16, 0.16, 0.05), new THREE.MeshBasicMaterial(), CHISPAS);
+        chispas.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        chispas.frustumCulled = false;
+        unaChispa.scale.setScalar(0);
+        unaChispa.updateMatrix();
+        for (let i = 0; i < CHISPAS; i++) { chispas.setMatrixAt(i, unaChispa.matrix); chispas.setColorAt(i, colorChispa.set('#ffffff')); }
+        escena.add(chispas);
+      }
+      for (let n = 0; n < cuantas; n++) {
+        const i = siguiente++ % CHISPAS, a = Math.random() * 6.28, sube = 0.5 + Math.random();
+        posChispa[i * 3] = x; posChispa[i * 3 + 1] = y; posChispa[i * 3 + 2] = z;
+        velChispa[i * 3] = Math.cos(a) * fuerza * (0.4 + Math.random() * 0.6);
+        velChispa[i * 3 + 1] = sube * fuerza;
+        velChispa[i * 3 + 2] = Math.sin(a) * fuerza * (0.4 + Math.random() * 0.6);
+        vidaChispa[i] = 0.8 + Math.random() * 0.7;
+        chispas.setColorAt(i, colorChispa.set(colores[n % colores.length]));
+      }
+      chispas.instanceColor!.needsUpdate = true;
+    },
+    /** Sacudón de cámara (0,3 es suave; 1, un choque fuerte). */
+    temblar(fuerza: number) { temblor = Math.max(temblor, fuerza); },
     /** Una pieza suelta de un paquete, centrada en su origen y con su lado más largo de tamaño `tam`. */
     async pieza(paquete: Paquete, nombre: string, tam: number): Promise<THREE.Group> {
       const base = await cargar(paquete, nombre), o = base.clone(), caja3 = new THREE.Box3().setFromObject(base), g = new THREE.Group();

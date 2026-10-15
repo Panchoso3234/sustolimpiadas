@@ -47,7 +47,12 @@ export interface Arena {
   resultado(m: Mundo, t: number): Resultado;
   /** Segunda acción del jugador (botón aparte, o Shift / C): por ejemplo, pasar la pelota. */
   segunda?: { etiqueta: string; accion(m: Mundo, t: number): void };
+  /** Obstáculos fijos y redondos (árboles, fardos, postes). Con `rebote` mayor que 1 devuelven con más fuerza (hongos saltarines). */
+  obstaculos?: Obstaculo[];
+  /** El juego dibuja su propio piso (el motor no pone el plano de color). */
+  sinSuelo?: boolean;
 }
+export interface Obstaculo { x: number; z: number; r: number; rebote?: number; malla?: THREE.Object3D; golpe?: number }
 
 // En modo daltónico, colores que se distinguen sin depender del rojo y el verde (paleta Okabe-Ito)
 export const COLOR_EQUIPO = esDaltonico() ? ['#3f8cff', '#e69f00', '#f0e442', '#56b4e9', '#d55e00', '#cc79a7'] : ['#3f8cff', '#ef5565', '#3fc79a', '#ffb02e', '#c79bff', '#ff7ab8'];
@@ -61,7 +66,7 @@ export async function crearArena(c: Contexto, a: Arena): Promise<Partida> {
   const mando = crearMando(e, c.caja, 'Embestir', a.segunda?.etiqueta), r = generador(c.semilla);
   let segundaAntes = false;
 
-  if (!a.radio) {
+  if (!a.radio && !a.sinSuelo) {
     const suelo = new THREE.Mesh(new THREE.PlaneGeometry(a.ancho, a.fondo), new THREE.MeshStandardMaterial({ color: a.suelo, roughness: 1 }));
     suelo.rotation.x = -Math.PI / 2;
     suelo.position.y = 0.03;
@@ -75,7 +80,7 @@ export async function crearArena(c: Contexto, a: Arena): Promise<Partida> {
     ({ id, x, z, vx: 0, vz: 0, r: radio, masa, equipo, humano: false, vivo: true, aturdido: 0, recarga: 0, tocadoPor: -1, tocadoEn: -9, dato: {} });
   const entes: Ente[] = a.equipos.map((equipo, i) => nuevo(i, equipo, 0.55, 1, ...a.salida(i, equipo)));
   entes[0].humano = true;
-  const cosas: Ente[] = [];
+  const cosas: Ente[] = [], obstaculos = a.obstaculos ?? [];
   const m: Mundo = {
     e, entes, cosas, yo: entes[0], r, ancho: a.ancho, fondo: a.fondo,
     cosa(radio, masa, malla, x, z) { const o = nuevo(100 + cosas.length, -1, radio, masa, x, z); o.malla = malla; e.escena.add(malla); cosas.push(o); return o; },
@@ -119,6 +124,17 @@ export async function crearArena(c: Contexto, a: Arena): Promise<Partida> {
       let dx = orden.x - x.x, dz = orden.z - x.z;
       const largo = Math.hypot(dx, dz);
       if (largo > 0.25) { dx /= largo; dz /= largo; } else dx = dz = 0;
+      // Los de máquina rodean los obstáculos que tienen por delante, en vez de quedarse pegados
+      if (!x.humano && (dx || dz)) for (const o of obstaculos) {
+        const ox = o.x - x.x, oz = o.z - x.z, frente = ox * dx + oz * dz;
+        if (frente <= 0 || frente > Math.min(3, largo)) continue;
+        const lado = ox * dz - oz * dx, holgura = o.r + x.r + 0.35;
+        if (Math.abs(lado) > holgura) continue;
+        const s = lado >= 0 ? -1 : 1, desvio = 1 - Math.abs(lado) / holgura;
+        const px = dz * s, pz = -dx * s; // perpendicular a la marcha, hacia el lado libre
+        dx += px * desvio * 1.6; dz += pz * desvio * 1.6;
+        const n = Math.hypot(dx, dz) || 1; dx /= n; dz /= n;
+      }
       if (t >= x.aturdido) {
         const fuerza = x.humano ? 1 : 0.86 + (c.nivel - 1) * 0.03; // los de máquina corren un poco menos que tú (menos diferencia en cada jornada)
         x.vx += dx * ACEL * fuerza * dt;
@@ -155,6 +171,21 @@ export async function crearArena(c: Contexto, a: Arena): Promise<Partida> {
     }
     // Choques entre círculos: se separan y se reparten el golpe según su masa
     const todos = [...entes, ...cosas].filter((x) => x.vivo);
+    for (const x of todos) for (const o of obstaculos) {
+      const dx = x.x - o.x, dz = x.z - o.z, d = Math.hypot(dx, dz), junto = o.r + x.r;
+      if (d >= junto || d === 0) continue;
+      const nx = dx / d, nz = dz / d, hacia = x.vx * nx + x.vz * nz;
+      x.x = o.x + nx * junto; x.z = o.z + nz * junto;
+      if (hacia >= 0) continue;
+      const rebote = o.rebote ?? 0.35;
+      x.vx -= (1 + rebote) * hacia * nx; x.vz -= (1 + rebote) * hacia * nz;
+      if (rebote > 1) {
+        // Hongo saltarín: siempre devuelve con un mínimo de fuerza, y se nota
+        x.vx += nx * 6; x.vz += nz * 6;
+        o.golpe = t;
+        if (-hacia > 2) { e.chispas(o.x + nx * o.r, 1, o.z + nz * o.r, ['#ffffff', '#ff5a4a'], 6, 3); if (x.humano || x.equipo < 0) e.sonido.tono(320, 0.16, { tipo: 'sine', vol: 0.2, hasta: 700 }); }
+      }
+    }
     for (let i = 0; i < todos.length; i++) for (let k = i + 1; k < todos.length; k++) {
       const p = todos[i], q = todos[k], dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz), junto = p.r + q.r;
       if (d >= junto || d === 0) continue;
@@ -203,6 +234,8 @@ export async function crearArena(c: Contexto, a: Arena): Promise<Partida> {
       if (rapidez > 0.8) g.rotation.y = Math.atan2(x.vx, x.vz);
       if (!terminado) x.k!.animar(t < x.aturdido ? 'emote-no' : rapidez > 1.2 ? 'sprint' : 'idle');
     }
+    // Los hongos saltarines se aplastan un instante al golpearlos
+    for (const o of obstaculos) if (o.malla && o.rebote && o.rebote > 1) { const s = t - (o.golpe ?? -9) < 0.3 ? 1 + Math.sin((t - o.golpe!) * 21) * 0.22 : 1; o.malla.scale.set(s, 2 - s, s); }
     for (const x of cosas) { x.malla!.visible = x.vivo; x.malla!.position.x = x.x; x.malla!.position.z = x.z; x.malla!.rotation.x += x.vz * dt * 0.8; x.malla!.rotation.z -= x.vx * dt * 0.8; }
   });
 

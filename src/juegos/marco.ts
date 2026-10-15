@@ -37,10 +37,11 @@ export type CrearJuego = (c: Contexto) => Promise<Partida>;
 
 /** Cada juego se descarga recién cuando alguien lo abre. */
 export const CARGADORES: Record<string, () => Promise<CrearJuego>> = {
-  puente: () => import('./carreras/pistas').then((m) => m.puente),
   rodillos: () => import('./carreras/pistas').then((m) => m.rodillos),
   puertas: () => import('./carreras/pistas').then((m) => m.puertas),
-  lava: () => import('./carreras/pistas').then((m) => m.lava),
+  karts: () => import('./arcade/karts').then((m) => m.crear),
+  tren: () => import('./arcade/tren').then((m) => m.crear),
+  tanques: () => import('./arcade/tanques').then((m) => m.crear),
   huevo: () => import('./arena/juegos').then((m) => m.huevo),
   sumo: () => import('./arena/juegos').then((m) => m.sumo),
   futbol: () => import('./arena/juegos').then((m) => m.futbol),
@@ -50,7 +51,6 @@ export const CARGADORES: Record<string, () => Promise<CrearJuego>> = {
   numeros: () => import('./tablero/mentales').then((m) => m.numeros),
   tinta: () => import('./tablero/mentales').then((m) => m.tinta),
   eco: () => import('./tablero/mentales').then((m) => m.eco),
-  calculo: () => import('./tablero/mentales').then((m) => m.calculo),
   parejas: () => import('./tablero/parejas').then((m) => m.crear),
   buscaconchas: () => import('./tablero/buscaconchas').then((m) => m.crear),
   luces: () => import('./tablero/luces').then((m) => m.crear),

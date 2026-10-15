@@ -1,4 +1,4 @@
-import RAPIER from '@dimforge/rapier3d-compat';
+import type RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import type { Escenario } from '../reflejos/motor';
 
@@ -6,8 +6,8 @@ import type { Escenario } from '../reflejos/motor';
 // y el puente entre el motor de física (Rapier) y lo que se dibuja.
 
 let cargado: Promise<typeof RAPIER> | null = null;
-/** El motor de física pesa: se descarga y se enciende recién cuando un juego lo pide. */
-export const rapier = () => (cargado ??= RAPIER.init().then(() => RAPIER));
+/** El motor de física pesa (más de 4 MB): se descarga y se enciende recién cuando un juego lo pide (Catapulta y Bolos). */
+export const rapier = () => (cargado ??= import('@dimforge/rapier3d-compat').then(async ({ default: R }) => { await R.init(); return R; }));
 
 export interface Cuerpo { cuerpo: RAPIER.RigidBody; malla: THREE.Object3D }
 
