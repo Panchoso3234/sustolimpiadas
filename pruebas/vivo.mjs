@@ -177,7 +177,7 @@ const grupos = {
     const p = await abrir(`${BASE}#/juegos/vivo`);
     try {
       await hasta(() => p.js('!!window.__vivo'));
-      const fallas = await p.js('[...window.__vivo.probarAsientos(), ...(window.__vivo.probarSala?.() ?? ["falta probarSala"])]');
+      const fallas = await p.js('[...window.__vivo.probarAsientos(), ...(window.__vivo.probarSala?.() ?? ["falta probarSala"]), ...(window.__vivo.probarTableros?.() ?? ["falta probarTableros"])]');
       for (const f of fallas ?? []) console.log('  ', f);
       return { 'reglas de asientos': Array.isArray(fallas) && fallas.length === 0 };
     } finally { p.cerrar(); }

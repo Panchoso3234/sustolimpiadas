@@ -3,6 +3,7 @@ import { useSesion } from '../nucleo/supabase';
 import { COLUMNAS, FILAS, LADO, filaLibre, jugarConchas, recibirDisparo, repartirFlota, type Balsa, type Resultado } from './reglas';
 import { nuevoCodigo, unirse, type Presente, type Sala } from './sala';
 import { anunciarSala } from './vestibulo';
+import { probarTableros } from './tableros';
 import { probarAsientos, repartir, rondaSiguiente } from './asientos';
 import * as V from '../juegos/duelos';
 
@@ -417,4 +418,4 @@ function SalaVivo({ codigo, mirar = false, oficial }: { codigo: string; mirar?: 
 }
 
 // Solo en pruebas: las reglas de asientos se pueden correr desde el banco de pruebas
-if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__vivo = { probarAsientos, probarSala };
+if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__vivo = { probarAsientos, probarSala, probarTableros };
