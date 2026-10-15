@@ -130,6 +130,36 @@ const grupos = {
     }
     return salida;
   },
+  // Mismo mundo (Sumo y Tanques): el anfitrión simula, el mando del otro llega, el espectador ve lo mismo y, si el anfitrión se va, el otro sigue
+  async mundo() {
+    const salida = {};
+    for (const juego of ['sumo', 'tanques']) {
+      const sala = `${juego}-W${Math.floor(Math.random() * 900 + 100)}`;
+      const a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`), b = await abrir(`${BASE}?invitado=b#/juegos/vivo/${sala}`), c = await abrir(`${BASE}?invitado=c#/juegos/mirar/${sala}`);
+      const cerradas = new Set();
+      try {
+        await hasta(async () => (await a.js('window.__sala?.presentes() ?? 0')) >= 3, 20000);
+        for (const p of [a, b]) await listoTablero(p);
+        salida[`${juego}: los tres arman el mismo mundo`] = await hasta(async () => (await a.js('window.__duelo?.fase()')) === 'jugando' && (await b.js('window.__duelo?.fase()')) === 'jugando' && (await c.js('window.__duelo?.fase()')) === 'jugando', 60000);
+        await hasta(async () => ((await a.js('window.__mundo.estado().t')) ?? 0) > 0.2, 20000);
+        const sim = (await a.js('window.__mundo.simulo()')) ? a : b, otro = sim === a ? b : a, i = (await otro.js('window.__duelo.lado()')) === 'a' ? 0 : 1;
+        const x = (p) => p.js(`(window.__mundo.estado().c ?? window.__mundo.estado().tq)[${i}].x`);
+        const x0 = await x(sim);
+        await otro.js(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }))`); await pausa(900); await otro.js(`window.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowLeft' }))`);
+        salida[`${juego}: el mando del otro llega al que simula`] = await hasta(async () => (await x(sim)) < x0 - 1, 5000);
+        salida[`${juego}: el espectador va al día`] = Math.abs((await sim.js('window.__mundo.estado().t')) - (await c.js('window.__mundo.estado().t'))) < 1;
+        if (juego === 'sumo') {
+          const texto = (p) => p.js('document.querySelector(".duelo-fin")?.textContent');
+          salida['sumo: termina igual para los tres'] = await hasta(async () => { const [u, v, w] = [await texto(a), await texto(b), await texto(c)]; return !!u && u === v && u === w; }, 100000);
+        } else {
+          const t0 = await otro.js('window.__mundo.estado().t');
+          sim.cerrar(); cerradas.add(sim);
+          salida['tanques: si el anfitrión se va, el otro sigue simulando'] = await hasta(async () => (await otro.js('window.__mundo.simulo()')) && (await otro.js('window.__mundo.estado().t')) > t0 + 3, 40000);
+        }
+      } finally { for (const p of [a, b, c]) if (!cerradas.has(p)) p.cerrar(); }
+    }
+    return salida;
+  },
   // El anfitrión se va a media partida: el otro sigue desde el mismo estado y con el reloj adelantado
   async relevo() {
     // Eco: a (el anfitrión) repite y se va; b sigue con su turno sin perderlo por el plazo mientras cambia el anfitrión

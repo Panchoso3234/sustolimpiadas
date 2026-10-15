@@ -2,7 +2,8 @@
 //  · dividida: los dos juegan a la vez su propia partida, con el mismo desafío; cada uno ve la pantalla del otro al lado.
 //  · turnos: "Es el turno de Pancho" (Vale y los espectadores miran) y después al revés. Gana el mejor puntaje.
 // Nunca un tablero común donde las cosas son de quien las toca primero.
-export type Formato = 'dividida' | 'turnos';
+//  · mundo: los dos en la misma arena, con bots que atacan a ambos (el anfitrión simula; ver mundo/red.ts).
+export type Formato = 'dividida' | 'turnos' | 'mundo';
 
 export const DUELOS: Record<string, Formato> = {
   numeros: 'dividida',
@@ -19,4 +20,6 @@ export const DUELOS: Record<string, Formato> = {
   bolos: 'turnos',
   minigolf: 'turnos',
   agujero: 'turnos',
+  sumo: 'mundo',
+  tanques: 'mundo',
 };

@@ -541,7 +541,7 @@ body.foto .tren-poderes { display: none; }
 .duelo-turno.mio { background: var(--luna); color: var(--noche); border-color: var(--luna); }
 .duelo-zona { display: grid; gap: 10px; }
 .duelo-zona.con-juego { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; }
-.duelo-zona.turnos.con-juego { grid-template-columns: minmax(0, 1fr); }
+.duelo-zona.turnos.con-juego, .duelo-zona.mundo.con-juego { grid-template-columns: minmax(0, 1fr); }
 .duelo-mio { height: min(70vh, 640px); border-radius: 14px; }
 .duelo-mio[hidden] { display: none; }
 .duelo-cargando { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--noche); }

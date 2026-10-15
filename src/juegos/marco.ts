@@ -14,14 +14,19 @@ export interface Resultado {
   vivo?: { a: number; b: number; ganador: 'a' | 'b' | 'empate' };
 }
 
-/** Lo que reciben los juegos que se juegan en vivo (desde la tanda 2). */
+/** Lo que reciben los juegos "mismo mundo" en vivo (Sumo y Tanques): el anfitrión simula y los demás dibujan. */
 export interface ContextoVivo {
   rol: 'a' | 'b' | 'espectador';
   nombres: { a: string; b: string };
+  /** El personaje de cada jugador. */
+  aspectos: { a: Aspecto; b: Aspecto };
+  /** Si esta pestaña lleva la simulación (cambia si el anfitrión se va). */
+  simulo(): boolean;
+  /** Si hay conexión directa: sin ella se manda menos seguido. */
+  directo(): boolean;
   enviar(tipo: string, datos: Record<string, unknown>): void;
-  alRecibir(f: (tipo: string, datos: Record<string, unknown>, de: string) => void): void;
-  /** Aviso grande que ven todos en la sala ("Es el turno de Vale"). */
-  avisar(texto: string): void;
+  /** `lado`: qué jugador lo mandó (null si no es un jugador sentado). */
+  alRecibir(f: (tipo: string, datos: Record<string, unknown>, lado: 'a' | 'b' | null, deAnfitrion: boolean) => void): void;
 }
 
 export interface Contexto {
