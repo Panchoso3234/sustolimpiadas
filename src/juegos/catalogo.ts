@@ -20,7 +20,7 @@ export interface Juego {
 export const TOPES: Record<string, number> = {
   rodillos: 2000, puertas: 2000, huevo: 3400, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, torre: 2400, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2800, parejas: 1000, buscaconchas: 1800, luces: 1800,
   cartero: 1000, cofre: 1300, palabra: 1000, totem: 1000, catapulta: 2800, bolos: 750, minigolf: 1000,
-  karts: 2300, tren: 9000, tanques: 7500,
+  karts: 2300, tren: 9000, tanques: 7500, bombas: 4200, agujero: 14000, serpientes: 5000,
 };
 
 export const MOTORES: Record<Motor, { nombre: string; color: string }> = {
@@ -92,6 +92,12 @@ export const JUEGOS: Juego[] = [
     'Corres solo. Cambia de vía con las flechas, A/D o deslizando a los lados. Salta con Espacio, la flecha arriba o deslizando hacia arriba; rueda con Shift, la flecha abajo o deslizando hacia abajo. Las vallas rojas se saltan y las barras naranjas se pasan rodando. Los trenes con rampa se suben y se recorren por el techo; los que tienen luz roja vienen de frente. Las burbujas dan poderes: 🧲 imán, 👟 súper salto, ×2 monedas y 🛡️ escudo. Si rozas un tren de costado, el inspector se acerca: dos veces seguidas y te atrapa.'),
   j(26, 'tanques', 'Tanques de Juguete', 'G', 'Cinco oleadas de tanques enemigos sobre una mesa de juegos: balas que rebotan, cajas que se rompen, minas y un jefe al final.', 'Puntería y estrategia',
     'Mueve tu tanque azul con WASD, las flechas o arrastrando el dedo. Con mouse, apuntas donde está el cursor y disparas con clic; en celular, el botón Disparar apunta solo al enemigo más cercano. Tus balas rebotan una vez y rompen cajas; si dos balas chocan, se anulan. Con Shift, C o el botón Mina dejas una mina que estalla a los 6 s o cuando un enemigo la pisa (¡aléjate!). Tienes 3 vidas y 4 minutos para las 5 oleadas.'),
+  j(27, 'bombas', 'Bombas', 'G', 'Tú contra tres rivales en el patio de un castillo: bombas en cruz, cajas que esconden mejoras y un patio que se cierra. Tres rondas.', 'Táctica y nervios',
+    'Muévete con las flechas, WASD o arrastrando el dedo. Pon una bomba con Espacio o el botón Bomba: estalla en cruz a los 2 segundos y rompe cajas. ¡Sal de la línea de fuego! Las cajas a veces sueltan mejoras: 💣 más bombas, 🔥 llama más larga, 👟 más velocidad y 🦶 patear bombas (camina contra una). Gana la ronda quien queda en pie; desde el segundo 90 el patio se cierra desde el borde. Son 3 rondas.'),
+  j(28, 'agujero', 'Agujero Negro', 'G', 'Eres un agujero en una ciudad: trágate conos, gente, autos y edificios enteros mientras creces. Dos agujeros rivales compiten contigo.', 'Ruta y ambición',
+    'Mueve tu agujero (borde amarillo) con las flechas, WASD o arrastrando el dedo. Todo lo que es más chico que tú cae adentro y te hace crecer: empieza por conos, gente y faroles, sigue con autos y termina con edificios. Si eres bastante más grande que un rival, te lo tragas (+300); si él es más grande, te traga a ti y vuelves a la mitad de tu tamaño. Con Espacio o el botón Turbo aceleras un momento (cada 5 s). Tienes 2 minutos.'),
+  j(29, 'serpientes', 'Serpientes', 'G', 'Un jardín de noche: come bolitas brillantes, crece y encierra a las otras ocho serpientes sin chocar con nadie.', 'Astucia y reflejos',
+    'Tu serpiente sigue al mouse; también puedes usar las flechas o arrastrar el dedo. Come las bolitas para crecer. Mantén Espacio, el clic o el botón Turbo para acelerar (cuesta un poco de largo). Si tu cabeza toca el cuerpo de otra serpiente o el borde, pierdes; si otra choca contra tu cuerpo, se deshace en comida (+200). Una sola vida y 3 minutos: cuentan tu largo máximo y las que elimines; sobrevivir suma 300.'),
 ];
 
 export const juegoPorId = (id: string) => JUEGOS.find((x) => x.id === id);
@@ -119,6 +125,9 @@ export const VERSUS: TipoVersus[] = [
   v('1v1', 'karts-duelo', 'Duelo de Karts', 'La misma pista y los mismos rivales: gana quien llega mejor.', 'karts'),
   v('1v1', 'tren-duelo', 'Fuga en Paralelo', 'Las mismas vías y los mismos trenes: gana quien llega más lejos.', 'tren'),
   v('1v1', 'tanques-duelo', 'Duelo de Tanques', 'Las mismas cinco oleadas: gana quien hace más puntos.', 'tanques'),
+  v('1v1', 'bombas-duelo', 'Duelo de Bombas', 'Los mismos patios y los mismos rivales: gana quien hace más puntos.', 'bombas'),
+  v('1v1', 'agujero-duelo', 'Duelo de Agujeros', 'La misma ciudad para los dos: gana quien traga más.', 'agujero'),
+  v('1v1', 'serpientes-duelo', 'Duelo de Serpientes', 'El mismo jardín y las mismas rivales: gana la serpiente con más puntos.', 'serpientes'),
   v('1v1', 'torre-duelo', 'Duelo de Torres', 'El mismo ritmo para los dos; gana la torre más alta.', 'torre'),
   v('3v3', 'cocos-equipo', 'Cosecha en Equipo', 'Cada integrante atrapa cocos; se suman los tres.', 'cocos'),
   v('3v3', 'eco-cadena', 'Eco en Cadena', 'La misma secuencia para los seis; suma hasta dónde llegó cada uno.', 'eco'),
@@ -138,6 +147,9 @@ export const VERSUS: TipoVersus[] = [
   v('3v3', 'karts-equipo', 'Escudería', 'Los tres corren el mismo Gran Premio; suma el equipo.', 'karts'),
   v('3v3', 'tren-equipo', 'Expreso en Equipo', 'Los tres corren las mismas vías; suma el equipo.', 'tren'),
   v('3v3', 'tanques-equipo', 'Batallón', 'Los tres enfrentan las mismas oleadas; suma el equipo.', 'tanques'),
+  v('3v3', 'bombas-equipo', 'Escuadrón Bombero', 'Los tres juegan los mismos patios; suma el equipo.', 'bombas'),
+  v('3v3', 'agujero-equipo', 'Apetito de Equipo', 'Los tres se tragan la misma ciudad; suma el equipo.', 'agujero'),
+  v('3v3', 'serpientes-equipo', 'Nido de Serpientes', 'Los tres juegan el mismo jardín; suma el equipo.', 'serpientes'),
   v('3v3', 'torre-equipo', 'Torres en Equipo', 'Cada integrante levanta su torre; suman los tres.', 'torre'),
   v('3v3', 'bandera', 'Captura la Bandera', 'Robar la bandera rival y traerla a la base.'),
 ];

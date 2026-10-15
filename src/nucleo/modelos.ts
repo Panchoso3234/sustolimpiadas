@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 // Modelos 3D de artistas (paquetes de Kenney, licencia CC0), servidos desde public/modelos.
 export type Paquete = 'pueblo' | 'naturaleza';
 /** Paquetes que usan los juegos además de los de la isla. */
-export type Origen = Paquete | 'pirata' | 'comida' | 'minigolf' | 'plataformas' | 'carreras' | 'juguetes' | 'trenes' | 'blaster';
+export type Origen = Paquete | 'pirata' | 'comida' | 'minigolf' | 'plataformas' | 'carreras' | 'juguetes' | 'trenes' | 'blaster' | 'ciudad';
 const RAIZ = `${import.meta.env.BASE_URL}modelos/`;
 const cargador = new GLTFLoader();
 const cargados = new Map<string, Promise<THREE.Group>>();
