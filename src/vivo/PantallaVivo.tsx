@@ -3,7 +3,8 @@ import { useSesion } from '../nucleo/supabase';
 import { COLUMNAS, FILAS, LADO, filaLibre, jugarConchas, recibirDisparo, repartirFlota, type Balsa, type Resultado } from './reglas';
 import { nuevoCodigo, unirse, type Presente, type Sala } from './sala';
 import { anunciarSala } from './vestibulo';
-import { probarAsientos, repartir } from './asientos';
+import { probarAsientos, repartir, rondaSiguiente } from './asientos';
+import * as V from '../juegos/duelos';
 
 // Juego en vivo por turnos: Cuatro Conchas en Línea y Batalla de Balsas. Partidas amistosas (no dan puntos).
 // Los dos primeros en llegar a la sala juegan; los demás miran. Si alguien se desconecta tiene 30 s para volver.
@@ -40,8 +41,28 @@ function identidad(usuarioId: string | null, nombre: string | undefined): { id: 
   } catch { return { id: `inv-${Math.random().toString(36).slice(2, 6)}`, nombre: 'Invitado' }; }
 }
 
+/** Datos de un enfrentamiento oficial que se juega en su sala `enf-<id>`. */
+interface Oficial { e: V.Enfrentamiento; personas: V.Persona[]; jugadas: number[] }
+
+/** Sala de un enfrentamiento oficial: primero carga quiénes juegan y qué rondas faltan. */
+function SalaOficial({ id, mirar }: { id: number; mirar: boolean }) {
+  const sesion = useSesion();
+  const [datos, setDatos] = useState<Oficial | null | 'no'>(null);
+  useEffect(() => {
+    if (sesion.cargando) return;
+    Promise.all([V.unEnfrentamiento(id), V.listarPersonas(), V.marcasDe([id])]).then(([e, personas, marcas]) => {
+      if (!e || !e.a_perfil || !e.b_perfil || !(e.juego in JUEGOS)) return setDatos('no');
+      setDatos({ e, personas, jugadas: marcas.filter((m) => m.perfil_id === sesion.usuarioId && m.terminado).map((m) => m.ronda) });
+    });
+  }, [id, sesion.cargando, sesion.usuarioId]);
+  if (datos === null) return <p class="tenue">Cargando el enfrentamiento…</p>;
+  if (datos === 'no') return <><h1>Enfrentamiento no encontrado</h1><p><a class="boton" href="#/juegos/1v1">Volver a Versus 1v1</a></p></>;
+  return <SalaVivo codigo={`enf-${id}`} mirar={mirar} oficial={datos} />;
+}
+
 export function Vivo({ codigo, mirar = false }: { codigo: string; mirar?: boolean }) {
   const [entrar, setEntrar] = useState('');
+  if (/^enf-\d+$/.test(codigo)) return <SalaOficial key={codigo} id={Number(codigo.slice(4))} mirar={mirar} />;
   if (codigo) return <SalaVivo key={codigo} codigo={codigo} mirar={mirar} />;
   const crear = (juego: IdJuego) => { location.hash = `#/juegos/vivo/${nuevoCodigo(juego)}`; };
   return (
@@ -69,12 +90,18 @@ export function Vivo({ codigo, mirar = false }: { codigo: string; mirar?: boolea
   );
 }
 
-function SalaVivo({ codigo, mirar = false }: { codigo: string; mirar?: boolean }) {
+function SalaVivo({ codigo, mirar = false, oficial }: { codigo: string; mirar?: boolean; oficial?: Oficial }) {
   const sesion = useSesion();
-  const juego = codigo.split('-')[0] as IdJuego, valido = !!JUEGOS[juego];
+  const juego = (oficial?.e.juego ?? codigo.split('-')[0]) as IdJuego, valido = !!JUEGOS[juego];
   const yo = identidad(sesion.usuarioId, sesion.perfil?.nombre);
+  // En una sala oficial juegan solo los dos del enfrentamiento (con su cuenta); el resto mira
+  const fijos = oficial ? [oficial.e.a_perfil!, oficial.e.b_perfil!] as [string, string] : null;
+  const quiere = mirar || (fijos && !fijos.includes(yo.id)) ? 'mirar' : 'jugar';
   const [presentes, setPresentes] = useState<Presente[]>([]);
-  const [estado, setEstado] = useState<Estado>(() => { try { return { ...inicial(), ...JSON.parse(localStorage.getItem(`susto.vivo.${codigo}`) ?? '{}') }; } catch { return inicial(); } });
+  // En un oficial se parte en la primera ronda que falta (por si el respaldo del navegador quedó atrás)
+  const primera = oficial ? rondaSiguiente(oficial.jugadas, oficial.e.rondas) ?? oficial.e.rondas : 1;
+  const [estado, setEstado] = useState<Estado>(() => { let e = inicial(); try { e = { ...e, ...JSON.parse(localStorage.getItem(`susto.vivo.${codigo}`) ?? '{}') }; } catch { /* sin respaldo */ } return e.partida < primera ? { ...inicial(), partida: primera } : e; });
+  const [aviso, setAviso] = useState('');
   const [flota, setFlota] = useState<Balsa[] | null>(() => { try { return JSON.parse(localStorage.getItem(`susto.vivo.flota.${codigo}`) ?? 'null'); } catch { return null; } });
   const [ausente, setAusente] = useState<number | null>(null);
   const [ahora, setAhora] = useState(Date.now());
@@ -91,7 +118,7 @@ function SalaVivo({ codigo, mirar = false }: { codigo: string; mirar?: boolean }
 
   useEffect(() => {
     if (sesion.cargando || !valido) return;
-    const s = unirse(codigo, yo, mirar ? 'mirar' : 'jugar', setPresentes, (evento, d) => {
+    const s = unirse(codigo, yo, quiere, setPresentes, (evento, d) => {
       const e = est.current;
       if (evento === 'pedir') { if (e.asientos) s.enviar('historia', { ...e }); return; }
       if (evento === 'historia') {
@@ -117,15 +144,15 @@ function SalaVivo({ codigo, mirar = false }: { codigo: string; mirar?: boolean }
         } else cambiar((x) => ({ ...x, pendiente: x.pendiente ?? { de: d.de as string, i: d.i as number } }));
       }
       if (evento === 'resultado') cambiar((x) => (x.disparos.some((k) => k.de === d.de && k.i === d.i) ? { ...x, pendiente: null } : { ...x, disparos: [...x.disparos, { de: d.de as string, i: d.i as number, res: d.res as Resultado, hundida: d.hundida as number[] | undefined }], pendiente: null }));
-    });
+    }, fijos);
     sala.current = s;
     const pedir = setTimeout(() => s.enviar('pedir', {}), 800);
     return () => { clearTimeout(pedir); s.salir(); };
   }, [codigo, sesion.cargando, yo.id, valido]);
 
   const { asientos } = estado;
-  const reparto = repartir(presentes, asientos, null), sentados = reparto.jugadores;
-  const nombre = (id: string) => presentes.find((p) => p.id === id)?.nombre ?? 'Jugador';
+  const reparto = repartir(presentes, asientos, fijos), sentados = reparto.jugadores;
+  const nombre = (id: string) => presentes.find((p) => p.id === id)?.nombre ?? oficial?.personas.find((p) => p.id === id)?.nombre ?? 'Jugador';
   const mio = sentados.indexOf(yo.id), soyJugador = mio >= 0, rivalId = mio === 0 ? sentados[1] : sentados[0];
 
   // Cómo va la partida
@@ -157,8 +184,24 @@ function SalaVivo({ codigo, mirar = false }: { codigo: string; mirar?: boolean }
   useEffect(() => {
     if (!valido) return;
     const soyAnfitrion = !!reparto.anfitrion && reparto.anfitrion === sala.current?.clave, fin = terminada || ganeAbandono;
-    anuncio.current.poner(soyAnfitrion ? { codigo, juego, a: sentados[0] ? nombre(sentados[0]) : '', b: sentados[1] ? nombre(sentados[1]) : '', estado: !asientos ? 'esperando' : fin ? 'terminada' : 'jugando', turno: asientos && !fin && turnoDe ? nombre(turnoDe) : '', espectadores: reparto.espectadores.length, oficial: false, desde: Date.now() } : null);
+    anuncio.current.poner(soyAnfitrion ? { codigo, juego, a: sentados[0] ? nombre(sentados[0]) : '', b: sentados[1] ? nombre(sentados[1]) : '', estado: !asientos ? 'esperando' : fin ? 'terminada' : 'jugando', turno: asientos && !fin && turnoDe ? nombre(turnoDe) : '', espectadores: reparto.espectadores.length, oficial: !!oficial, desde: Date.now() } : null);
   });
+
+  // Enfrentamiento oficial: cada jugador abre su ronda al empezar y guarda su resultado al terminar (una sola vez cada cosa)
+  const ronda = estado.partida, total = oficial?.e.rondas ?? 1, idOficial = oficial?.e.id;
+  const ganadorId = ganeAbandono ? yo.id : juego === 'conchas' ? (conchas.ganador ? sentados[conchas.ganador - 1] : null) : ganadorBalsas ?? null;
+  useEffect(() => {
+    if (!idOficial || !asientos || !soyJugador) return;
+    const marca = `susto.vivo.empezada.${codigo}.${ronda}`;
+    try { if (localStorage.getItem(marca)) return; localStorage.setItem(marca, '1'); } catch { /* sin almacenamiento: se intenta igual */ }
+    V.empezarRonda(idOficial, ronda).then((r) => { if (r.error) setAviso(r.error); });
+  }, [idOficial, !!asientos, soyJugador, ronda]);
+  useEffect(() => {
+    if (!idOficial || !soyJugador || !(terminada || ganeAbandono)) return;
+    const marca = `susto.vivo.guardada.${codigo}.${ronda}`;
+    try { if (localStorage.getItem(marca)) return; localStorage.setItem(marca, '1'); } catch { /* sin almacenamiento: se intenta igual */ }
+    V.terminarRonda(idOficial, ronda, ganadorId === yo.id ? 1 : 0, { vivo: true, contra: rivalId, abandono: ganeAbandono }).then((error) => { if (error) setAviso(`No se pudo guardar el resultado: ${error}`); });
+  }, [idOficial, soyJugador, terminada, ganeAbandono, ronda]);
 
   if (!valido) return <><h1>Sala no encontrada</h1><p><a class="boton" href="#/juegos/vivo">Volver al juego en vivo</a></p></>;
   if (sesion.cargando) return <p class="tenue">Cargando…</p>;
@@ -194,7 +237,8 @@ function SalaVivo({ codigo, mirar = false }: { codigo: string; mirar?: boolean }
 
   return (
     <div class="vivo">
-      <div class="sigla">En vivo · amistoso · sala {codigo}</div>
+      <div class="sigla">{oficial ? `En vivo · oficial · ronda ${ronda} de ${total}` : `En vivo · amistoso · sala ${codigo}`}</div>
+      {aviso && <p class="aviso atencion">{aviso}</p>}
       <h1>{JUEGOS[juego].nombre}</h1>
       <div class="fila vivo-cabecera">
         <span class="vivo-ojo" title="Personas mirando">👁 {reparto.espectadores.length}</span>
@@ -267,7 +311,9 @@ function SalaVivo({ codigo, mirar = false }: { codigo: string; mirar?: boolean }
         </>
       )}
 
-      {resultado && soyJugador && <div class="fila"><button class="boton principal" onClick={revancha}>Revancha</button></div>}
+      {resultado && (oficial && ronda >= total
+        ? <div class="fila"><a class="boton principal" href={`#/juegos/duelo/${oficial.e.id}`}>Enfrentamiento terminado: ver resultado</a></div>
+        : soyJugador && <div class="fila"><button class="boton principal" onClick={revancha}>{oficial ? 'Siguiente ronda' : 'Revancha'}</button></div>)}
     </div>
   );
 }

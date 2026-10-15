@@ -10,6 +10,18 @@ export interface Resultado {
   lineas: [string, string][];
   /** Resumen de la partida que se guarda junto a la marca, para revisar puntajes dudosos. */
   detalle: Record<string, unknown>;
+  /** En vivo: el puntaje de los dos lados y quién ganó. */
+  vivo?: { a: number; b: number; ganador: 'a' | 'b' | 'empate' };
+}
+
+/** Lo que reciben los juegos que se juegan en vivo (desde la tanda 2). */
+export interface ContextoVivo {
+  rol: 'a' | 'b' | 'espectador';
+  nombres: { a: string; b: string };
+  enviar(tipo: string, datos: Record<string, unknown>): void;
+  alRecibir(f: (tipo: string, datos: Record<string, unknown>, de: string) => void): void;
+  /** Aviso grande que ven todos en la sala ("Es el turno de Vale"). */
+  avisar(texto: string): void;
 }
 
 export interface Contexto {
@@ -20,6 +32,8 @@ export interface Contexto {
   /** Dificultad de 1 a 4: sube con cada jornada del torneo. En un enfrentamiento es la de su jornada, igual para ambos lados. */
   nivel: number;
   alTerminar(r: Resultado): void;
+  /** Solo cuando la partida se juega en vivo. */
+  vivo?: ContextoVivo;
 }
 
 /** Lo que la sala le avisa a los motores para la partida que parte (shortcut: un valor compartido; basta porque hay una sola partida a la vez). */

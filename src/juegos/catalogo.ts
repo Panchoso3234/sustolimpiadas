@@ -103,9 +103,9 @@ export const JUEGOS: Juego[] = [
 export const juegoPorId = (id: string) => JUEGOS.find((x) => x.id === id);
 
 /** Tipos de enfrentamiento. Con `base`, se juega en diferido sobre ese juego individual; sin `base`, necesita juego en vivo. */
-export interface TipoVersus { id: string; modo: '1v1' | '3v3'; nombre: string; idea: string; base?: string }
+export interface TipoVersus { id: string; modo: '1v1' | '3v3'; nombre: string; idea: string; base?: string; /** Se juega solo en vivo (sala `enf-<id>`). */ vivo?: boolean }
 
-const v = (modo: '1v1' | '3v3', id: string, nombre: string, idea: string, base?: string): TipoVersus => ({ id, modo, nombre, idea, base });
+const v = (modo: '1v1' | '3v3', id: string, nombre: string, idea: string, base?: string, vivo = false): TipoVersus => ({ id, modo, nombre, idea, base, vivo });
 
 export const VERSUS: TipoVersus[] = [
   v('1v1', 'duelo-tinta', 'Duelo de Tinta', 'Las mismas palabras tramposas para los dos: gana quien acierta más sin caer.', 'tinta'),
@@ -119,8 +119,8 @@ export const VERSUS: TipoVersus[] = [
   v('1v1', 'cofre-duelo', 'El Cofre o la Ola en duelo', 'Las mismas olas escondidas: gana quien se planta mejor.', 'cofre'),
   v('1v1', 'cartero-duelo', 'Carteros rivales', 'El mismo pueblo; gana la ruta más corta.', 'cartero'),
   v('1v1', 'golf-duelo', 'Minigolf mano a mano', 'Los mismos seis hoyos; gana quien usa menos golpes.', 'minigolf'),
-  v('1v1', 'conchas-linea', 'Cuatro Conchas en Línea', 'Por turnos, el primero en alinear cuatro.'),
-  v('1v1', 'balsas', 'Batalla de Balsas', 'Batalla naval: esconde tus balsas y hunde las del rival.'),
+  v('1v1', 'conchas-linea', 'Cuatro Conchas en Línea', 'Por turnos, el primero en alinear cuatro.', 'conchas', true),
+  v('1v1', 'balsas', 'Batalla de Balsas', 'Batalla naval: esconde tus balsas y hunde las del rival.', 'balsas', true),
   v('1v1', 'sumo-1v1', 'Sumo de Balsas 1v1', 'Los mismos cinco rivales de máquina para cada uno; gana quien aguanta y bota más.', 'sumo'),
   v('1v1', 'karts-duelo', 'Duelo de Karts', 'La misma pista y los mismos rivales: gana quien llega mejor.', 'karts'),
   v('1v1', 'tren-duelo', 'Fuga en Paralelo', 'Las mismas vías y los mismos trenes: gana quien llega más lejos.', 'tren'),

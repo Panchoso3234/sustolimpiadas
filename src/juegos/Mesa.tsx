@@ -141,7 +141,7 @@ export function Enfrentamientos() {
   };
   useEffect(() => { cargar(); }, []);
 
-  const tipos = VERSUS.filter((t) => t.modo === modo && t.base && juegoPorId(t.base)?.listo);
+  const tipos = VERSUS.filter((t) => t.modo === modo && t.base && (t.vivo || juegoPorId(t.base)?.listo));
   useEffect(() => { setJuego(tipos[0]?.base ?? ''); setA(''); setB(''); }, [modo]);
 
   const lados = modo === '1v1' ? personas.map((p) => ({ id: p.id, nombre: p.nombre })) : equipos.map((q) => ({ id: String(q.id), nombre: `${q.nombre} (${q.miembros.length})` }));

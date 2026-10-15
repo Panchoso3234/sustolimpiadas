@@ -19,7 +19,7 @@ export interface Enlace {
 }
 
 export function crearEnlace(canal: RealtimeChannel, yo: string, opciones: { sinDirecto?: boolean } = {}): Enlace {
-  const pares = new Map<string, Par>(), vistos = new Set<string>(), oyentes: ((tipo: string, datos: Datos, de: string) => void)[] = [];
+  const pares = new Map<string, Par>(), intentos = new Map<string, number>(), vistos = new Set<string>(), oyentes: ((tipo: string, datos: Datos, de: string) => void)[] = [];
   let anfitrion: string | null = null, contador = 0;
   const senal = (para: string, datos: Datos) => canal.send({ type: 'broadcast', event: 'senal', payload: { de: yo, para, ...datos } });
   const abierto = (clave: string) => pares.get(clave)?.dc?.readyState === 'open';
@@ -45,10 +45,14 @@ export function crearEnlace(canal: RealtimeChannel, yo: string, opciones: { sinD
   const crearPar = (clave: string, inicio: boolean): Par => {
     const pc = new RTCPeerConnection({ iceServers: ICE }), par: Par = { pc, dc: null, pendientes: [] };
     pc.onicecandidate = (ev) => { if (ev.candidate) senal(clave, { ice: ev.candidate.toJSON() }); };
-    const preparar = (dc: RTCDataChannel) => { par.dc = dc; dc.onmessage = (ev) => { try { entregar(JSON.parse(ev.data), true); } catch { /* mensaje roto */ } }; };
+    const preparar = (dc: RTCDataChannel) => { par.dc = dc; dc.onopen = () => intentos.delete(clave); dc.onmessage = (ev) => { try { entregar(JSON.parse(ev.data), true); } catch { /* mensaje roto */ } }; };
     if (inicio) {
       preparar(pc.createDataChannel('juego'));
       pc.createOffer().then((o) => pc.setLocalDescription(o)).then(() => senal(clave, { sdp: pc.localDescription!.toJSON() })).catch(() => undefined);
+      // Si la oferta se perdió (la otra pestaña aún no escuchaba el canal), se vuelve a ofrecer unas veces
+      const intento = (intentos.get(clave) ?? 0) + 1;
+      intentos.set(clave, intento);
+      if (intento <= 3) setTimeout(() => { if (pares.get(clave) === par && !abierto(clave)) { cerrarPar(clave); crearPar(clave, true); } }, 6000);
     } else pc.ondatachannel = (ev) => preparar(ev.channel);
     pares.set(clave, par);
     return par;

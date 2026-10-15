@@ -24,6 +24,12 @@ export function repartir(presentes: Presente[], asientos: [string, string] | nul
   return { jugadores, espectadores, anfitrion: primero?.clave ?? null };
 }
 
+/** Primera ronda que falta por jugar (de 1 a `total`), o null si ya se jugaron todas. */
+export function rondaSiguiente(jugadas: number[], total: number): number | null {
+  for (let r = 1; r <= total; r++) if (!jugadas.includes(r)) return r;
+  return null;
+}
+
 /** Pruebas de las reglas: devuelve la lista de fallas. */
 export function probarAsientos(): string[] {
   const p = (id: string, desde: number, quiere: Quiere = 'jugar', clave = `${id}:${desde}`): Presente => ({ clave, id, nombre: id, desde, listo: false, quiere });
@@ -48,5 +54,9 @@ export function probarAsientos(): string[] {
   igual('pestañas: un solo espectador', r.espectadores.length, 1);
   // 5. Sala vacía
   igual('vacía: sin anfitrión', repartir([], null, null).anfitrion, null);
+  // 6. Rondas de un enfrentamiento oficial
+  igual('rondas: primera', rondaSiguiente([], 3), 1);
+  igual('rondas: salta las jugadas', rondaSiguiente([1, 2], 3), 3);
+  igual('rondas: no quedan', rondaSiguiente([1, 2, 3], 3), null);
   return fallas;
 }

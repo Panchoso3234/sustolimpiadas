@@ -17,7 +17,9 @@ async function cargar(modo: '1v1' | '3v3'): Promise<Datos> {
 }
 
 /** Tipos de versus que ya se pueden jugar en diferido en un modo. */
-const jugables = (modo: '1v1' | '3v3') => VERSUS.filter((t) => t.modo === modo && t.base && juegoPorId(t.base)?.listo);
+const jugables = (modo: '1v1' | '3v3') => VERSUS.filter((t) => t.modo === modo && t.base && (t.vivo || juegoPorId(t.base)?.listo));
+/** Si un enfrentamiento se juega solo en vivo (su sala es `enf-<id>`). */
+const esVivo = (e: { modo: string; juego: string }) => !!VERSUS.find((t) => t.modo === e.modo && t.base === e.juego)?.vivo;
 
 /** Cuánto ha jugado cada integrante del equipo hoy y en la jornada (las jornadas parten los viernes desde el 16 de octubre). */
 function EstadoEquipo({ equipo, personas }: { equipo: V.Equipo; personas: V.Persona[] }) {
@@ -106,7 +108,9 @@ export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; pres
                   return (
                     <li key={e.id}>
                       <span class="quienes"><b>{nombreVersus(e.modo, e.juego)}</b><span>contra {nombre(e, otro(lado))} · {e.oficial ? `jornada ${e.jornada}` : 'amistoso'} · {V.fechaCorta(e.plazo) === 'sin plazo' ? 'sin plazo' : `hasta el ${V.fechaCorta(e.plazo)}`}</span></span>
-                      {hechas < total
+                      {hechas < total && esVivo(e)
+                        ? <a class="boton principal" href={`#/juegos/vivo/enf-${e.id}`}>Jugar en vivo</a>
+                        : hechas < total
                         ? <a class="boton principal" href={`#/juegos/duelo/${e.id}`}>{total > 1 ? `Jugar ronda ${hechas + 1} de ${total}` : 'Jugar mi turno'}</a>
                         : <span class="tenue chico">Ya jugaste. Falta {e.modo === '1v1' ? 'tu rival' : 'el resto'}.</span>}
                     </li>
@@ -143,7 +147,7 @@ export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; pres
           {tipos.map((t) => {
             const base = t.base ? juegoPorId(t.base) : undefined, abierto = !!base?.listo, puede = abierto && modo === '1v1' && !!yo && !!datos?.disponible;
             // Los que ya se juegan en vivo llevan a la pestaña En vivo
-            if (t.id === 'conchas-linea' || t.id === 'balsas') return <a key={t.id} class="tarjeta activa" href="#/juegos/vivo" style="--tono:#ffe08a"><h3>{t.nombre}</h3><p>{t.idea}</p><span class="pie"><span class="premia">Juego en vivo</span><span class="estado">Jugar en vivo</span></span></a>;
+            if (t.vivo) return <a key={t.id} class="tarjeta activa" href="#/juegos/vivo" style="--tono:#ffe08a"><img class="foto" src={`${import.meta.env.BASE_URL}juegos/${t.base}.png`} alt="" loading="lazy" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} /><h3>{t.nombre}</h3><p>{t.idea}</p><span class="pie"><span class="premia">Juego en vivo</span><span class="estado">Jugar en vivo</span></span></a>;
             return (
               <div key={t.id} onClick={puede ? () => { setElegido(t.base!); irARetar(); } : undefined} class={`tarjeta${abierto ? '' : ' cerrada'}${puede ? ' activa' : ''}`} style={base ? `--tono:${MOTORES[base.motor].color}` : undefined}>
                 <h3>{t.nombre}</h3>
@@ -217,7 +221,9 @@ export function Duelo({ id }: { id: number }) {
   const mensaje = (texto: string) => <div class="pagina"><div class="sigla">Enfrentamiento</div><h1>{texto}</h1><p><a class="boton" href="#/juegos/1v1">Volver a los enfrentamientos</a></p></div>;
   if (!estado || sesion.cargando) return <div class="pagina"><p>Cargando…</p></div>;
   const { e } = estado, juego = e ? JUEGOS.find((x) => x.id === e.juego) : undefined;
-  if (!e || !juego?.listo) return mensaje('Este enfrentamiento no existe');
+  // Los que se juegan solo en vivo tienen su propia sala
+  if (e && esVivo(e) && e.estado === 'pendiente') { location.hash = `#/juegos/vivo/enf-${e.id}`; return null; }
+  if (!e || (!juego?.listo && !esVivo(e))) return mensaje('Este enfrentamiento no existe');
   const lado = V.ladoDe(e, sesion.usuarioId, estado.equipos), volver = `#/juegos/${e.modo}`;
   if (e.estado === 'cerrado') return <ResultadoDuelo e={e} lado={lado} marcas={estado.marcas} personas={estado.personas} equipos={estado.equipos} />;
   if (!lado) return mensaje(sesion.usuarioId ? 'No eres parte de este enfrentamiento' : 'Entra con Discord para jugar');
@@ -246,6 +252,7 @@ export function Duelo({ id }: { id: number }) {
     nivel: e.jornada,
     latido: (puntaje) => V.latidoRonda(e.id, ronda, puntaje),
   };
+  if (!juego) return mensaje('Este enfrentamiento se juega en vivo');
   return <Sala key={`${e.id}-${ronda}`} juego={juego} reto={reto} />;
 }
 
