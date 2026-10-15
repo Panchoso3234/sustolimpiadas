@@ -26,6 +26,8 @@ export interface Pista {
   cielo: string;
   /** Color de lo que hay debajo de la pista. */
   abismo: string;
+  /** Lo que se avisa al caer ("¡A la lava!"). */
+  caida: string;
   limite: number;
   /** Segundos en que el fantasma de ritmo llega a la meta (el ritmo de una buena marca). */
   ritmo: number;
@@ -97,7 +99,7 @@ export async function crearCarrera(c: Contexto, pista: Pista): Promise<Partida> 
     v.set(0, 0, 0);
     for (const x of piezas) if (x.b.tipo === 'cae') { x.pisado = -1; x.fuera = false; x.malla.position.y = x.b.y - x.b.h / 2; x.malla.visible = true; }
     e.sonido.mal();
-    e.hud.aviso('¡Al agua!', 'mal', 0.7);
+    e.hud.aviso(pista.caida, 'mal', 0.7);
   };
 
   const paso = (t: number, dt: number) => {

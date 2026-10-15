@@ -19,7 +19,7 @@ export function rodillos(c: Contexto): Promise<Partida> {
   }
   const fin = -TRAMOS * (TRAMO + 2.2);
   bloques.push({ x: 0, y: 0, z: fin - 1, w: 8, h: 1, d: 5, color: '#ffd23c', tipo: 'meta' });
-  return crearCarrera(c, { bloques, barras, inicio: [0, 0.1, 0.6], cielo: '#3a2530', abismo: '#ff6a1e', limite: 90, ritmo: 30, progreso: (_x, _y, z) => z / fin });
+  return crearCarrera(c, { bloques, barras, inicio: [0, 0.1, 0.6], cielo: '#3a2530', abismo: '#ff6a1e', caida: '¡A la lava!', limite: 90, ritmo: 30, progreso: (_x, _y, z) => z / fin });
 }
 
 /** Puertas Falsas: seis muros de cuatro puertas. Solo una o dos se abren; las demás son pared. Memoria y arrojo. */
@@ -38,6 +38,6 @@ export function puertas(c: Contexto): Promise<Partida> {
   }
   const fin = -largo + 5;
   bloques.push({ x: 0, y: 0.03, z: fin, w: ANCHO, h: 1, d: 3, color: '#ffd23c', tipo: 'meta' });
-  return crearCarrera(c, { bloques, inicio: [0, 0.1, 1.2], cielo: '#1a1230', abismo: '#0b0718', limite: 75 - (c.nivel - 1) * 5, ritmo: 30, progreso: (_x, _y, z) => z / fin });
+  return crearCarrera(c, { bloques, inicio: [0, 0.1, 1.2], cielo: '#1a1230', abismo: '#0b0718', caida: '¡Al vacío!', limite: 75 - (c.nivel - 1) * 5, ritmo: 30, progreso: (_x, _y, z) => z / fin });
 }
 
