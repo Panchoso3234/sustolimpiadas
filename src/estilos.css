@@ -469,6 +469,13 @@ body.daltonico { --alga: #56b4e9; --sangre: #e69f00; }
 body.foto .bolos-efecto { display: none; }
 
 /* Carreras: botón de agacharse y cámara */
+/* Defensa de la Torre: elegir torre */
+.defensa-barra { position: absolute; left: 10px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 6px; flex-wrap: wrap; max-width: calc(100% - 150px); z-index: 2; }
+.defensa-barra .boton { padding: 8px 12px; font-size: .9rem; background: rgba(20, 32, 58, .85); touch-action: manipulation; }
+.defensa-barra .boton.activo { background: #ffb02e; color: var(--noche); border-color: #ffb02e; }
+.defensa-barra .boton.caro small { color: #ff8a8a; }
+.defensa-barra b { opacity: .7; margin-right: 2px; }
+body.foto .defensa-barra { display: none; }
 .mando-accion.segunda { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); background: rgba(255, 176, 46, .85); padding: 12px 18px; font-size: .95rem; }
 .camara-boton { position: absolute; right: 12px; top: 56px; padding: 5px 12px; font-size: .86rem; background: rgba(28, 44, 77, .88); z-index: 5; }
 body.foto .camara-boton, body.foto .mando-accion { display: none; }
