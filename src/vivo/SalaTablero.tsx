@@ -9,6 +9,7 @@ import { unirse, type Presente, type Sala } from './sala';
 import { ladoDe, type Lado, type Marcador } from './tablero';
 import { TABLEROS } from './tableros';
 import { anunciarSala } from './vestibulo';
+import { PuntosDuelo } from './PuntosDuelo';
 
 // La sala de los juegos de mesa en vivo. El anfitrión aplica las acciones, avanza el reloj y reparte el estado;
 // los demás lo dibujan. Asientos, ojo, Partidas en línea, abandono y guardado oficial funcionan igual que en Conchas.
@@ -125,7 +126,9 @@ export function SalaTablero({ codigo, mirar = false, oficial }: { codigo: string
       if (x.e == null) return;
       // Terminada: se sigue repartiendo cada 2 s, por si a alguien no le llegó el final
       if (x.fin || x.abandono) { if (performance.now() - ultimoEnvio >= 2000) { mandar(x); ultimoEnvio = performance.now(); } return; }
-      const t = tAhora(), e = reglas.tic?.(x.e as never, t) ?? x.e, m: Marcador = reglas.marcador(e as never, t);
+      // Con un jugador desconectado los plazos se detienen (decide la espera de abandono, no el reloj del juego)
+      const todos = !!x.asientos?.every((id) => sala.current?.presentes().some((y) => y.id === id));
+      const t = tAhora(), e = (todos ? reglas.tic?.(x.e as never, t) : null) ?? x.e, m: Marcador = reglas.marcador(e as never, t);
       const cambio = e !== x.e || m.fin;
       if (!cambio && performance.now() - ultimoEnvio < 2000) return;
       const y = { ...x, e, t, v: x.v + (cambio ? 1 : 0), fin: m.fin ? { a: m.a, b: m.b } : null };
@@ -217,6 +220,7 @@ export function SalaTablero({ codigo, mirar = false, oficial }: { codigo: string
       {asientos && t < 0 && !resultado && <div class="tablero-cuenta">{Math.ceil(-t)}</div>}
       <div ref={caja} class="tablero-caja" />
       {textoFin && <p class="aviso ok vivo-fin tablero-fin">{textoFin}</p>}
+      {oficial && resultado && !siguiente && <PuntosDuelo id={oficial.e.id} />}
       {resultado && (oficial && !siguiente
         ? <div class="fila"><a class="boton principal" href={`#/juegos/duelo/${oficial.e.id}`}>Enfrentamiento terminado: ver resultado</a></div>
         : soyJugador && <div class="fila"><button class="boton principal" onClick={revancha}>{oficial ? 'Siguiente ronda' : 'Revancha'}</button></div>)}

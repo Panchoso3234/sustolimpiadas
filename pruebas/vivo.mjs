@@ -41,8 +41,6 @@ const pausa = (ms) => new Promise((r) => setTimeout(r, ms));
 const ESTRATEGIA = {
   parejas: `if (e.turno !== yo || e.tapa) return; const libre = (i) => e.cartas[i] !== 'medusa' && !e.duenas[i];
     const i = e.abiertas.length ? e.cartas.findIndex((f, j) => j !== e.abiertas[0] && f === e.cartas[e.abiertas[0]] && libre(j)) : e.cartas.findIndex((_, j) => libre(j)); a = { i };`,
-  numeros: `if (yo === 'a') a = { n: e.sigue };`,
-  tinta: `if (yo !== 'a' || e.pausa) return; const r = (await import('/src/vivo/tableros/tinta.ts')).rondaTinta(e.semilla, e.k); a = { i: r.alReves ? r.texto : r.color };`,
   eco: `const m = await import('/src/vivo/tableros/eco.ts'); if (e.turno !== yo || e.perdio || t < m.finMuestra(e)) return; const s = m.secuenciaEco(e.semilla)[e.paso];
     a = { i: yo === 'b' && e.largo === 2 ? (s + 1) % 6 : s };`,
   cofre: `if (!e.activo[yo] || e.elige[yo] || e.revela) return; a = { elige: e.mano[yo] > 0 ? 'plantar' : 'sacar' };`,
@@ -78,10 +76,10 @@ const grupos = {
       return { 'termina con el mismo resultado para todos': fin, 'el que entró tarde ve el tablero': espectadorVioTablero };
     } finally { a.cerrar(); b.cerrar(); c?.cerrar(); }
   },
-  // Los cinco juegos de mesa de punta a punta, con un espectador: los tres ven el mismo resultado
+  // Los juegos de mesa de punta a punta, con un espectador: los tres ven el mismo resultado
   async tableros() {
     const salida = {};
-    for (const juego of ['parejas', 'numeros', 'tinta', 'eco', 'cofre']) {
+    for (const juego of ['parejas', 'eco', 'cofre']) {
       const sala = `${juego}-T${Math.floor(Math.random() * 900 + 100)}`;
       const a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`), b = await abrir(`${BASE}?invitado=b#/juegos/vivo/${sala}`), c = await abrir(`${BASE}?invitado=c#/juegos/mirar/${sala}`);
       try {
@@ -94,7 +92,7 @@ const grupos = {
         }
         const texto = (p) => p.js('document.querySelector(".tablero-fin")?.textContent');
         salida[`${juego}: termina igual para los tres`] = await hasta(async () => { const [x, y, z] = [await texto(a), await texto(b), await texto(c)]; return !!x && x === y && x === z; }, 20000);
-        if (juego === 'numeros') {
+        if (juego === 'eco') {
           await a.js(`[...document.querySelectorAll('button')].find((y) => y.textContent === 'Revancha')?.click()`);
           salida['revancha: los dos vuelven a marcar Listo'] = await hasta(async () => (await b.js(`[...document.querySelectorAll('button')].some((y) => y.textContent === '¡Listo!') && !document.querySelector('.tablero-fin')`)), 15000);
         }
@@ -102,39 +100,71 @@ const grupos = {
     }
     return salida;
   },
+  async duelos() {
+    const salida = {};
+    for (const [juego, formato] of [['numeros', 'dividida'], ['totem', 'turnos']]) {
+      const sala = `${juego}-D${Math.floor(Math.random() * 900 + 100)}`;
+      const a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`), b = await abrir(`${BASE}?invitado=b#/juegos/vivo/${sala}`), c = await abrir(`${BASE}?invitado=c#/juegos/mirar/${sala}`);
+      try {
+        await hasta(async () => (await a.js('window.__sala?.presentes() ?? 0')) >= 3, 20000);
+        for (const p of [a, b]) await listoTablero(p);
+        await hasta(async () => (await a.js('window.__duelo?.lado()')) != null && (await b.js('window.__duelo?.lado()')) != null, 20000);
+        const [pa, pb] = (await a.js('window.__duelo.lado()')) === 'a' ? [a, b] : [b, a];
+        const fase = (p) => p.js('window.__duelo.fase()');
+        if (formato === 'dividida') {
+          salida[`${juego}: los dos juegan a la vez`] = await hasta(async () => (await fase(pa)) === 'jugando' && (await fase(pb)) === 'jugando', 40000);
+          salida[`${juego}: el espectador ve las dos pantallas`] = await hasta(() => c.js('window.__duelo.foto("a") && window.__duelo.foto("b")'), 20000);
+          salida[`${juego}: cada uno ve la pantalla del otro`] = await hasta(async () => (await pa.js('window.__duelo.foto("b")')) && (await pb.js('window.__duelo.foto("a")')), 20000);
+          await pa.js('window.__duelo.terminar(120)'); await pb.js('window.__duelo.terminar(80)');
+        } else {
+          salida[`${juego}: primero juega uno y el otro mira`] = await hasta(async () => (await fase(pa)) === 'jugando' && (await fase(pb)) === 'nada', 40000);
+          salida[`${juego}: se anuncia el turno`] = await hasta(async () => /Es el turno de/.test((await c.js('document.querySelector(".duelo-turno")?.textContent')) ?? ''), 10000);
+          salida[`${juego}: el espectador ve al que juega`] = await hasta(() => c.js('window.__duelo.foto("a")'), 20000);
+          await pa.js('window.__duelo.terminar(50)');
+          salida[`${juego}: después le toca al otro`] = await hasta(async () => (await fase(pb)) === 'jugando', 40000);
+          await pb.js('window.__duelo.terminar(70)');
+        }
+        const texto = (p) => p.js('document.querySelector(".duelo-fin")?.textContent');
+        salida[`${juego}: termina igual para los tres`] = await hasta(async () => { const [x, y, z] = [await texto(a), await texto(b), await texto(c)]; return !!x && x === y && x === z; }, 20000);
+      } finally { a.cerrar(); b.cerrar(); c.cerrar(); }
+    }
+    return salida;
+  },
   // El anfitrión se va a media partida: el otro sigue desde el mismo estado y con el reloj adelantado
   async relevo() {
-    const sala = `numeros-R${Math.floor(Math.random() * 900 + 100)}`;
+    // Eco: a (el anfitrión) repite y se va; b sigue con su turno sin perderlo por el plazo mientras cambia el anfitrión
+    const sala = `eco-R${Math.floor(Math.random() * 900 + 100)}`;
     const a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`), b = await abrir(`${BASE}?invitado=b#/juegos/vivo/${sala}`);
+    // La jugada correcta se calcula dentro de la página (por eso la función async)
+    const primera = `(async () => window.__tablero.enviar({ i: (await import('/src/vivo/tableros/eco.ts')).secuenciaEco(window.__tablero.estado().semilla)[0] }))()`;
     try {
       await hasta(async () => (await a.js('window.__sala?.presentes() ?? 0')) >= 2, 20000);
       for (const p of [a, b]) await listoTablero(p);
       await hasta(async () => (await b.js('window.__tablero?.estado() != null')) && ((await b.js('window.__tablero?.t()')) ?? -9) > 2, 20000);
-      await b.js('window.__tablero.enviar({ n: 1 })');
-      await hasta(async () => (await a.js('window.__tablero.estado()?.sigue')) === 2);
+      if ((await a.js('window.__tablero.lado()')) !== 'a' || !(await a.js('window.__sala.esAnfitrion()'))) return { 'a es el anfitrión y parte': false };
+      await a.js(primera);
+      await hasta(async () => (await b.js('window.__tablero.estado()?.turno')) === 'b');
       const tAntes = await b.js('window.__tablero.t()');
       a.cerrar();
-      await pausa(4000);
-      // Si Supabase tarda en notar que `a` se fue, el primer toque se pierde: como una persona, b vuelve a tocar (repetir el 2 no castiga)
-      const sigue = await hasta(async () => { await b.js('window.__tablero.enviar({ n: 2 })'); return (await b.js('window.__tablero.estado()?.sigue')) === 3; }, 30000);
-      const anfitrion = await b.js('window.__sala.depurar?.()');
+      await pausa(8000); // más que el plazo del turno: con a desconectado no corre
+      const sigue = await hasta(async () => { await b.js(primera); return (await b.js('window.__tablero.estado()?.largo')) === 2; }, 30000);
       const reloj = (await b.js('window.__tablero.t()')) > tAntes + 3;
-      if (!sigue) console.log('relevo', JSON.stringify(anfitrion));
-      return { 'el otro jugador toma el mando': sigue, 'el reloj no vuelve a cero': reloj };
+      if (!sigue) console.log(JSON.stringify({ e: await b.js('window.__tablero.estado()'), t: await b.js('window.__tablero.t()'), tAntes, sala: await b.js('window.__sala.depurar()'), fin: await b.js('document.querySelector(".tablero-fin")?.textContent') }));
+      return { 'el otro jugador toma el mando': sigue, 'el reloj no vuelve a cero': reloj, 'nadie pierde por el plazo mientras el otro está desconectado': (await b.js('window.__tablero.estado()?.perdio')) === null };
     } finally { b.cerrar(); }
   },
   // Un espectador manda acciones y un estado falso: no cambian el tablero
   async intrusoTablero() {
-    const sala = `numeros-I${Math.floor(Math.random() * 900 + 100)}`;
+    const sala = `eco-I${Math.floor(Math.random() * 900 + 100)}`;
     const a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`), b = await abrir(`${BASE}?invitado=b#/juegos/vivo/${sala}`), c = await abrir(`${BASE}?invitado=c#/juegos/mirar/${sala}`);
     try {
       await hasta(async () => (await a.js('window.__sala?.presentes() ?? 0')) >= 3, 20000);
       for (const p of [a, b]) await listoTablero(p);
       await hasta(async () => (await a.js('window.__tablero?.estado() != null')) && ((await a.js('window.__tablero?.t()')) ?? -9) > 1, 20000);
-      await c.js(`window.__sala.enviarCrudo('accion', { partida: 1, a: { n: 1 } })`);
-      await c.js(`window.__sala.enviarCrudo('estado', { partida: 1, asientos: ['inv-a', 'inv-b'], v: 999, e: { semilla: 'x', orden: Array.from({ length: 25 }, (_, i) => i + 1), sigue: 26, duenos: Array(25).fill('b'), errores: { a: 0, b: 0 }, mezclas: 0 }, t: 50, fin: { a: 0, b: 250 } })`);
+      await c.js(`window.__sala.enviarCrudo('accion', { partida: 1, a: { i: 0 } })`);
+      await c.js(`window.__sala.enviarCrudo('estado', { partida: 1, asientos: ['inv-a', 'inv-b'], v: 999, e: { semilla: 'x', largo: 1, turno: 'a', paso: 0, muestra: 0, perdio: 'a', aciertos: { a: 0, b: 0 } }, t: 50, fin: { a: 0, b: 250 } })`);
       await pausa(2500);
-      return { 'el espectador no cambia nada': (await a.js('window.__tablero.estado()?.sigue')) === 1 && !(await a.js('document.querySelector(".tablero-fin")')) };
+      return { 'el espectador no cambia nada': (await a.js('window.__tablero.estado()?.perdio')) === null && !(await a.js('document.querySelector(".tablero-fin")')) };
     } finally { a.cerrar(); b.cerrar(); c.cerrar(); }
   },
   // Un espectador manda mensajes falsos: los jugadores no deben cambiar su partida
@@ -278,7 +308,7 @@ const grupos = {
     const p = await abrir(`${BASE}#/juegos/vivo`);
     try {
       await hasta(() => p.js('!!window.__vivo'));
-      const fallas = await p.js('[...window.__vivo.probarAsientos(), ...(window.__vivo.probarSala?.() ?? ["falta probarSala"]), ...(window.__vivo.probarTableros?.() ?? ["falta probarTableros"])]');
+      const fallas = await p.js('[...window.__vivo.probarAsientos(), ...(window.__vivo.probarSala?.() ?? ["falta probarSala"]), ...(window.__vivo.probarTableros?.() ?? ["falta probarTableros"]), ...(window.__vivo.probarEspejo?.() ?? ["falta probarEspejo"])]');
       for (const f of fallas ?? []) console.log('  ', f);
       return { 'reglas de asientos': Array.isArray(fallas) && fallas.length === 0 };
     } finally { p.cerrar(); }

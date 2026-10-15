@@ -29,9 +29,9 @@ export interface Reto {
 }
 
 /** Los puntos que muestra el marcador del juego ("120 pts"); los juegos que muestran avance ("3 / 10") cuentan 0. */
-const puntajeEnPantalla = (caja: HTMLElement | null) => Number(caja?.querySelector('.juego-hud .dato:last-child')?.textContent?.match(/(\d+)\s*pts/)?.[1] ?? 0);
+export const puntajeEnPantalla = (caja: HTMLElement | null) => Number(caja?.querySelector('.juego-hud .dato:last-child')?.textContent?.match(/(\d+)\s*pts/)?.[1] ?? 0);
 
-async function aspectoDe(usuarioId: string | null): Promise<Aspecto> {
+export async function aspectoDe(usuarioId: string | null): Promise<Aspecto> {
   if (usuarioId) {
     const { data } = await supabase.from('personajes').select('apariencia').eq('perfil_id', usuarioId).maybeSingle();
     if (data) return normalizarAspecto(data.apariencia);
@@ -105,6 +105,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
       const semilla = reto ? await reto.empezar() : `${juego.id}|${fecha}|${Math.random().toString(36).slice(2, 10)}`;
       if (mio !== turno.current || !caja.current) return;
       ajustesPartida.pausable = !reto; // en un enfrentamiento el reloj no se detiene al cambiar de pestaña
+      ajustesPartida.vivo = false;
       const nueva = await crear({
         caja: caja.current, semilla, aspecto, nivel: reto?.nivel ?? jornadaDe(fecha),
         alTerminar(r) {

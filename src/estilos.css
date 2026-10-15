@@ -536,3 +536,27 @@ body.foto .tren-poderes { display: none; }
 .vivo-mesa .cartas.bloqueada, .vivo-mesa .eco.bloqueada { pointer-events: none; opacity: .85; }
 .sub-modos { margin-top: 10px; }
 .sub-modos a { padding: 6px 26px; }
+/* Duelo en vivo: pantalla dividida o por turnos */
+.duelo-turno { font-family: var(--display); font-size: clamp(1.4rem, 4vw, 2rem); text-align: center; padding: 6px 12px; border-radius: 14px; background: var(--noche-2); border: 2px solid var(--linea); }
+.duelo-turno.mio { background: var(--luna); color: var(--noche); border-color: var(--luna); }
+.duelo-zona { display: grid; gap: 10px; }
+.duelo-zona.con-juego { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; }
+.duelo-zona.turnos.con-juego { grid-template-columns: minmax(0, 1fr); }
+.duelo-mio { height: min(70vh, 640px); border-radius: 14px; }
+.duelo-mio[hidden] { display: none; }
+.duelo-cargando { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--noche); }
+.duelo-otros { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.duelo-pantalla { display: flex; flex-direction: column; gap: 4px; border: 3px solid var(--color); border-radius: 14px; padding: 6px; background: var(--noche-2); }
+.duelo-nombre { display: flex; justify-content: space-between; gap: 8px; font-size: .9rem; }
+.duelo-nombre span { color: var(--tenue); }
+.duelo-espejo { position: relative; aspect-ratio: 16 / 10; overflow: hidden; border-radius: 10px; background: #0c1324; pointer-events: none; }
+.duelo-pantalla.grande .duelo-espejo { aspect-ratio: 16 / 9; }
+.duelo-espejo > img { width: 100%; height: 100%; object-fit: contain; display: block; }
+/* La mesa del rival se dibuja al doble de tamaño y se achica a la mitad: cabe entera */
+.duelo-espejo .espejo-mesa { position: absolute; left: 0; top: 0; width: 200%; height: 200%; transform: scale(.5); transform-origin: 0 0; }
+.duelo-espejo .espejo-mesa .mesa { overflow: hidden; }
+.duelo-listo { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 160px; border-radius: 14px; background: var(--noche-2); border: 2px solid var(--linea); }
+.duelo-listo b { font-family: var(--display); font-size: 3rem; color: var(--luna); }
+.duelo-puntos { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; font-weight: 800; }
+.duelo-puntos li { background: var(--noche-2); border-left: 4px solid var(--luna); border-radius: 8px; padding: 8px 12px; }
+@media (max-width: 760px) { .duelo-zona.con-juego { grid-template-columns: minmax(0, 1fr); } .duelo-mio { height: 62vh; } }

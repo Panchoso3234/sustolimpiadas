@@ -19,7 +19,8 @@ export type Escenario = ReturnType<typeof crearEscenario>;
 const ARENA = '#f2deae', MAR = '#58c0ea', CIELO = '#a6e0ff';
 
 export function crearEscenario(caja: HTMLElement, encuadre: Encuadre) {
-  const render = new THREE.WebGLRenderer({ antialias: true });
+  // En vivo se conserva la imagen del lienzo para poder sacarle fotos (el espejo del rival)
+  const render = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: ajustesPartida.vivo });
   render.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   const lienzo = render.domElement;
   lienzo.style.touchAction = 'none';

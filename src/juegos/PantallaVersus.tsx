@@ -6,6 +6,8 @@ import { PUNTOS_BASE, leerPuntos, puntosVersus, type Puntos } from './puntos';
 import { Sala, type Reto } from './Sala';
 import * as V from './duelos';
 import { TABLEROS } from '../vivo/tableros';
+import { DUELOS } from '../vivo/formatos';
+import { PuntosDuelo } from '../vivo/PuntosDuelo';
 
 // Versus en diferido: cada lado juega el mismo desafío a su hora, con un solo intento, y el servidor compara.
 
@@ -22,7 +24,7 @@ const jugables = (modo: '1v1' | '3v3') => VERSUS.filter((t) => t.modo === modo &
 /** Si un enfrentamiento se juega solo en vivo (su sala es `enf-<id>`). */
 const esVivo = (e: { modo: string; juego: string }) => !!VERSUS.find((t) => t.modo === e.modo && t.base === e.juego)?.vivo;
 /** Si un enfrentamiento se puede jugar en vivo (solo en vivo, o un juego de mesa que también tiene diferido). */
-export const seJuegaEnVivo = (e: { modo: string; juego: string }) => esVivo(e) || (e.modo === '1v1' && e.juego in TABLEROS);
+export const seJuegaEnVivo = (e: { modo: string; juego: string }) => esVivo(e) || (e.modo === '1v1' && (e.juego in TABLEROS || e.juego in DUELOS));
 
 /** Mis enfrentamientos 1v1 pendientes que se juegan en vivo: van en la pestaña En vivo. */
 export function MisEnVivo() {
@@ -328,7 +330,7 @@ function ResultadoDuelo({ e, lado, marcas, personas, equipos }: { e: V.Enfrentam
       <h1>{lado ? (como === 'gana' ? '¡Ganaste!' : como === 'empata' ? 'Empate' : 'Perdiste') : e.ganador === 'empate' ? 'Empate' : `Ganó ${n(e.ganador as V.Lado)}`}</h1>
       <p class="marcador-duelo"><b>{n(yo)}</b> {yo === 'a' ? e.puntos_a : e.puntos_b} <span class="tenue">a</span> {yo === 'a' ? e.puntos_b : e.puntos_a} <b>{n(el)}</b>
         <span class="tenue chico"> · {e.modo === '1v1' ? 'rondas ganadas' : 'puntos sumados'}</span></p>
-      {lado && <p>{e.oficial ? `Para el torneo: +${puntosVersus(puntos, como, e.jornada)} puntos (jornada ${e.jornada}).` : 'Amistoso: no da puntos del torneo.'}</p>}
+      {e.oficial && e.modo === '1v1' ? <PuntosDuelo id={e.id} /> : lado && <p>{e.oficial ? `Para el torneo: +${puntosVersus(puntos, como, e.jornada)} puntos (jornada ${e.jornada}).` : 'Amistoso: no da puntos del torneo.'}</p>}
       {marcas.length > 0 && <div class="tabla-caja">
         <table class="tabla duelo-detalle">
           <thead><tr><th>{e.modo === '1v1' ? 'Ronda' : 'Integrantes'}</th><th>{n(yo)}</th><th>{n(el)}</th></tr></thead>

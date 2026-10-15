@@ -5,6 +5,11 @@ import { nuevoCodigo, unirse, type Presente, type Sala } from './sala';
 import { anunciarSala } from './vestibulo';
 import { TABLEROS, probarTableros } from './tableros';
 import { SalaTablero } from './SalaTablero';
+import { SalaDuelo } from './SalaDuelo';
+import { DUELOS } from './formatos';
+import { probarEspejo } from './espejo';
+import { PuntosDuelo } from './PuntosDuelo';
+import { JUEGOS as CATALOGO } from '../juegos/catalogo';
 import { probarAsientos, repartir, rondaSiguiente } from './asientos';
 import * as V from '../juegos/duelos';
 import { MisEnVivo } from '../juegos/PantallaVersus';
@@ -95,21 +100,23 @@ function SalaOficial({ id, mirar }: { id: number; mirar: boolean }) {
   useEffect(() => {
     if (sesion.cargando) return;
     Promise.all([V.unEnfrentamiento(id), V.listarPersonas(), V.marcasDe([id])]).then(([e, personas, marcas]) => {
-      if (!e || !e.a_perfil || !e.b_perfil || !(e.juego in JUEGOS || e.juego in TABLEROS)) return setDatos('no');
+      if (!e || !e.a_perfil || !e.b_perfil || !(e.juego in JUEGOS || e.juego in TABLEROS || e.juego in DUELOS)) return setDatos('no');
       const mias = marcas.filter((m) => m.perfil_id === sesion.usuarioId);
       setDatos({ e, personas, empezadas: mias.map((m) => m.ronda), jugadas: mias.filter((m) => m.terminado).map((m) => m.ronda) });
     });
   }, [id, sesion.cargando, sesion.usuarioId]);
   if (datos === null) return <p class="tenue">Cargando el enfrentamiento…</p>;
   if (datos === 'no') return <><h1>Enfrentamiento no encontrado</h1><p><a class="boton" href="#/juegos/1v1">Volver a Versus 1v1</a></p></>;
+  if (datos.e.juego in DUELOS) return <SalaDuelo codigo={`enf-${id}`} mirar={mirar} oficial={datos} />;
   return datos.e.juego in TABLEROS ? <SalaTablero codigo={`enf-${id}`} mirar={mirar} oficial={datos} /> : <SalaVivo codigo={`enf-${id}`} mirar={mirar} oficial={datos} />;
 }
 
-const SALA_VALIDA = new RegExp(`^(${[...Object.keys(JUEGOS), ...Object.keys(TABLEROS)].join('|')})-[A-Z0-9]{4}$`, 'i');
+const SALA_VALIDA = new RegExp(`^(${[...Object.keys(JUEGOS), ...Object.keys(TABLEROS), ...Object.keys(DUELOS)].join('|')})-[A-Z0-9]{4}$`, 'i');
 
 export function Vivo({ codigo, mirar = false }: { codigo: string; mirar?: boolean }) {
   const [entrar, setEntrar] = useState('');
   if (/^enf-\d+$/.test(codigo)) return <SalaOficial key={codigo} id={Number(codigo.slice(4))} mirar={mirar} />;
+  if (codigo && codigo.split('-')[0] in DUELOS) return <SalaDuelo key={codigo} codigo={codigo} mirar={mirar} />;
   if (codigo && codigo.split('-')[0] in TABLEROS) return <SalaTablero key={codigo} codigo={codigo} mirar={mirar} />;
   if (codigo) return <SalaVivo key={codigo} codigo={codigo} mirar={mirar} />;
   const crear = (juego: string) => { location.hash = `#/juegos/vivo/${nuevoCodigo(juego)}`; };
@@ -126,6 +133,14 @@ export function Vivo({ codigo, mirar = false }: { codigo: string; mirar?: boolea
             <span class="pie"><span class="premia">En vivo</span><button class="boton principal" onClick={() => crear(j)}>Crear sala</button></span>
           </div>
         ))}
+        {Object.entries(DUELOS).map(([id, formato]) => { const j = CATALOGO.find((x) => x.id === id); return j && (
+          <div key={id} class="tarjeta" style="--tono:#ffe08a">
+            <img class="foto" src={`${import.meta.env.BASE_URL}juegos/${id}.png`} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            <h3>{j.nombre}</h3>
+            <p>{j.idea}</p>
+            <span class="pie"><span class="premia">{formato === 'dividida' ? 'Pantalla dividida' : 'Por turnos'}</span><button class="boton principal" onClick={() => crear(id)}>Crear sala</button></span>
+          </div>
+        ); })}
         {Object.values(TABLEROS).map((r) => (
           <div key={r.id} class="tarjeta" style="--tono:#ffe08a">
             <img class="foto" src={`${import.meta.env.BASE_URL}juegos/${r.id}.png`} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
@@ -424,6 +439,7 @@ function SalaVivo({ codigo, mirar = false, oficial }: { codigo: string; mirar?: 
         </>
       )}
 
+      {oficial && resultado && ronda >= total && <PuntosDuelo id={oficial.e.id} />}
       {resultado && (oficial && ronda >= total
         ? <div class="fila"><a class="boton principal" href={`#/juegos/duelo/${oficial.e.id}`}>Enfrentamiento terminado: ver resultado</a></div>
         : soyJugador && <div class="fila"><button class="boton principal" onClick={revancha}>{oficial ? 'Siguiente ronda' : 'Revancha'}</button></div>)}
@@ -432,4 +448,4 @@ function SalaVivo({ codigo, mirar = false, oficial }: { codigo: string; mirar?: 
 }
 
 // Solo en pruebas: las reglas de asientos se pueden correr desde el banco de pruebas
-if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__vivo = { probarAsientos, probarSala, probarTableros };
+if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__vivo = { probarAsientos, probarSala, probarTableros, probarEspejo };
