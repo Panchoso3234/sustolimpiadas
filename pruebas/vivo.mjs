@@ -72,15 +72,17 @@ const grupos = {
     try {
       await hasta(async () => (await a.js('window.__sala?.presentes() ?? 0')) >= 2, 20000);
       for (const p of [a, b]) await listoTablero(p);
-      await hasta(async () => ((await b.js('window.__tablero?.t()')) ?? -9) > 2, 20000);
+      await hasta(async () => (await b.js('window.__tablero?.estado() != null')) && ((await b.js('window.__tablero?.t()')) ?? -9) > 2, 20000);
       await b.js('window.__tablero.enviar({ n: 1 })');
       await hasta(async () => (await a.js('window.__tablero.estado()?.sigue')) === 2);
       const tAntes = await b.js('window.__tablero.t()');
       a.cerrar();
       await pausa(4000);
-      await b.js('window.__tablero.enviar({ n: 2 })');
-      const sigue = await hasta(async () => (await b.js('window.__tablero.estado()?.sigue')) === 3, 15000);
+      // Si Supabase tarda en notar que `a` se fue, el primer toque se pierde: como una persona, b vuelve a tocar (repetir el 2 no castiga)
+      const sigue = await hasta(async () => { await b.js('window.__tablero.enviar({ n: 2 })'); return (await b.js('window.__tablero.estado()?.sigue')) === 3; }, 30000);
+      const anfitrion = await b.js('window.__sala.depurar?.()');
       const reloj = (await b.js('window.__tablero.t()')) > tAntes + 3;
+      if (!sigue) console.log('relevo', JSON.stringify(anfitrion));
       return { 'el otro jugador toma el mando': sigue, 'el reloj no vuelve a cero': reloj };
     } finally { b.cerrar(); }
   },
@@ -91,7 +93,7 @@ const grupos = {
     try {
       await hasta(async () => (await a.js('window.__sala?.presentes() ?? 0')) >= 3, 20000);
       for (const p of [a, b]) await listoTablero(p);
-      await hasta(async () => ((await a.js('window.__tablero?.t()')) ?? -9) > 1, 20000);
+      await hasta(async () => (await a.js('window.__tablero?.estado() != null')) && ((await a.js('window.__tablero?.t()')) ?? -9) > 1, 20000);
       await c.js(`window.__sala.enviarCrudo('accion', { partida: 1, a: { n: 1 } })`);
       await c.js(`window.__sala.enviarCrudo('estado', { partida: 1, asientos: ['inv-a', 'inv-b'], v: 999, e: { semilla: 'x', orden: Array.from({ length: 25 }, (_, i) => i + 1), sigue: 26, duenos: Array(25).fill('b'), errores: { a: 0, b: 0 }, mezclas: 0 }, t: 50, fin: { a: 0, b: 250 } })`);
       await pausa(2500);

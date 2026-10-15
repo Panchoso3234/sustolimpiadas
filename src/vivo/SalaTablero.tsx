@@ -30,7 +30,8 @@ export function SalaTablero({ codigo, mirar = false, oficial }: { codigo: string
   // `t` vale en el momento en que llegó (o se calculó) el estado: el reloj local lo adelanta
   const fijar = (y: Partida) => { est.current = y; recibido.current = performance.now(); setP(y); };
   const mandar = (y: Partida) => sala.current?.enviar('estado', y as unknown as Record<string, unknown>);
-  const tAhora = () => est.current.t + (est.current.fin || est.current.abandono ? 0 : (performance.now() - recibido.current) / 1000);
+  // Sin partida armada (o ya terminada) el reloj no corre
+  const tAhora = () => est.current.t + (!est.current.asientos || est.current.fin || est.current.abandono ? 0 : (performance.now() - recibido.current) / 1000);
 
   useEffect(() => { try { localStorage.setItem(`susto.vivo.${codigo}`, JSON.stringify(p)); } catch { /* sin almacenamiento */ } }, [p]);
   useEffect(() => { const r = setInterval(() => setAhora(Date.now()), 250); return () => clearInterval(r); }, []);
