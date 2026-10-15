@@ -21,6 +21,17 @@ async function probarMensajes(extraMirar) {
 }
 
 const grupos = {
+  async ojo() {
+    const sala = `balsas-O${Math.floor(Math.random() * 900 + 100)}`;
+    const a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`), c = await abrir(`${BASE}?invitado=c#/juegos/mirar/${sala}`);
+    try {
+      const uno = await hasta(async () => (await a.js(`document.querySelector('.vivo-ojo')?.textContent`)) === '👁 1', 20000);
+      const ofrece = await hasta(() => c.js(`!!document.querySelector('.vivo-quiero')`));
+      await c.clic('.vivo-quiero');
+      const cero = await hasta(async () => (await a.js(`document.querySelector('.vivo-ojo')?.textContent`)) === '👁 0');
+      return { 'el ojo cuenta al espectador': uno, 'puede pedir asiento libre': ofrece, 'al sentarse deja de contar': cero };
+    } finally { a.cerrar(); c.cerrar(); }
+  },
   // Tres pestañas en la misma sala: dos juegan y una mira. Los mensajes llegan a todos, sin duplicados.
   async enlace() { return probarMensajes(''); },
   // Igual, pero la pestaña que mira no puede conectarse directo: sus mensajes van por Supabase

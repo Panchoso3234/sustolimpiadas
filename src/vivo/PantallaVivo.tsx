@@ -49,6 +49,7 @@ export function Vivo({ codigo, mirar = false }: { codigo: string; mirar?: boolea
       <div class="rejilla-juegos">
         {(Object.keys(JUEGOS) as IdJuego[]).map((j) => (
           <div key={j} class="tarjeta" style="--tono:#ffe08a">
+            <img class="foto" src={`${import.meta.env.BASE_URL}juegos/${j}.png`} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             <h3>{JUEGOS[j].nombre}</h3>
             <p>{JUEGOS[j].idea}</p>
             <span class="pie"><span class="premia">En vivo</span><button class="boton principal" onClick={() => crear(j)}>Crear sala</button></span>
@@ -184,6 +185,10 @@ function SalaVivo({ codigo, mirar = false }: { codigo: string; mirar?: boolean }
     <div class="vivo">
       <div class="sigla">En vivo · amistoso · sala {codigo}</div>
       <h1>{JUEGOS[juego].nombre}</h1>
+      <div class="fila vivo-cabecera">
+        <span class="vivo-ojo" title="Personas mirando">👁 {reparto.espectadores.length}</span>
+        {!asientos && !soyJugador && sentados.length < 2 && <button class="boton principal vivo-quiero" onClick={() => sala.current?.quiero('jugar')}>Quiero jugar</button>}
+      </div>
       <p class="tenue">{JUEGOS[juego].idea}</p>
       <div class="fila"><button class="boton" onClick={copiar}>Copiar enlace de la sala</button><a class="boton" href="#/juegos/vivo">Salir</a></div>
 
