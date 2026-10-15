@@ -8,6 +8,8 @@ export interface EstadoEco { semilla: string; largo: number; turno: Lado; paso: 
 export const secuenciaEco = (semilla: string) => { const r = generador(`${semilla}|eco-vivo`); return Array.from({ length: MAXIMO }, () => Math.floor(r() * PIEDRAS)); };
 const ritmo = (largo: number) => Math.max(0.3, 0.55 - largo * 0.015);
 export const finMuestra = (e: EstadoEco) => e.muestra + 0.7 + e.largo * ritmo(e.largo);
+/** Hasta cuándo puede repetir quien tiene el turno: 4 s más 1 s por piedra. */
+export const plazoEco = (e: EstadoEco) => finMuestra(e) + 4 + e.largo;
 
 export const eco: Reglas<EstadoEco> = {
   id: 'eco', nombre: 'Eco del Templo', idea: '"Simón dice" de a dos: la misma secuencia para los dos, y crece. Pierde quien se equivoca primero.',
@@ -23,6 +25,8 @@ export const eco: Reglas<EstadoEco> = {
     if (e.largo >= MAXIMO) return { ...e, aciertos, largo: e.largo + 1 };
     return { ...e, aciertos, turno: 'a', paso: 0, largo: e.largo + 1, muestra: t + 0.6 };
   },
+  // Quien no termina de repetir a tiempo pierde: así nadie puede congelar la partida
+  tic(e, t) { return !e.perdio && e.largo <= MAXIMO && t >= plazoEco(e) ? { ...e, perdio: e.turno } : null; },
   marcador(e) { return { a: e.aciertos.a * 10 + (e.perdio === 'b' ? 100 : 0), b: e.aciertos.b * 10 + (e.perdio === 'a' ? 100 : 0), fin: !!e.perdio || e.largo > MAXIMO }; },
   valido(x): x is EstadoEco { const e = x as EstadoEco; return !!e && typeof e.semilla === 'string' && entero(e.largo, 1, MAXIMO + 2) && esLado(e.turno) && entero(e.paso, 0, MAXIMO) && typeof e.muestra === 'number' && (e.perdio === null || esLado(e.perdio)) && !!e.aciertos; },
   dibujar(m, enviar, yo) {
@@ -37,7 +41,8 @@ export const eco: Reglas<EstadoEco> = {
       if (mostrando && k >= 0 && k < e.largo && marca !== sonado) { sonado = marca; m.sonido.tono(TONOS[sec[k]], paso * 0.7); }
       grilla.classList.toggle('bloqueada', yo !== e.turno || mostrando || !!e.perdio);
       m.hud.tiempo(`Secuencia de ${Math.min(e.largo, MAXIMO)}`);
-      m.hud.extra(e.perdio ? '' : mostrando ? 'Miren…' : yo === e.turno ? '¡Tu turno! Repítela' : `Repite ${nombres[e.turno]}`);
+      const quedan = Math.max(0, Math.ceil(plazoEco(e) - t));
+      m.hud.extra(e.perdio ? '' : mostrando ? 'Miren…' : yo === e.turno ? `¡Tu turno! Repítela (${quedan} s)` : `Repite ${nombres[e.turno]} (${quedan} s)`);
       m.hud.puntos(`${nombres.a} ${e.aciertos.a} · ${e.aciertos.b} ${nombres.b}`);
     };
   },

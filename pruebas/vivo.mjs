@@ -94,6 +94,10 @@ const grupos = {
         }
         const texto = (p) => p.js('document.querySelector(".tablero-fin")?.textContent');
         salida[`${juego}: termina igual para los tres`] = await hasta(async () => { const [x, y, z] = [await texto(a), await texto(b), await texto(c)]; return !!x && x === y && x === z; }, 20000);
+        if (juego === 'numeros') {
+          await a.js(`[...document.querySelectorAll('button')].find((y) => y.textContent === 'Revancha')?.click()`);
+          salida['revancha: los dos vuelven a marcar Listo'] = await hasta(async () => (await b.js(`[...document.querySelectorAll('button')].some((y) => y.textContent === '¡Listo!') && !document.querySelector('.tablero-fin')`)), 15000);
+        }
       } finally { a.cerrar(); b.cerrar(); c.cerrar(); }
     }
     return salida;

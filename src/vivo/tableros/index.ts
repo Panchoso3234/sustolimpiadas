@@ -2,7 +2,7 @@ import type { Reglas } from '../tablero';
 import { parejas } from './parejas';
 import { numeros } from './numeros';
 import { rondaTinta, tinta } from './tinta';
-import { eco, finMuestra, secuenciaEco } from './eco';
+import { eco, finMuestra, plazoEco, secuenciaEco } from './eco';
 import { cofre, cofresVivo } from './cofre';
 
 // Los juegos de mesa que se juegan en vivo. La clave es el id del juego (el mismo de su foto y de su versus).
@@ -67,5 +67,8 @@ export function probarTableros(): string[] {
   igual('cofre: se revela y suman los dos (o se los lleva la ola)', [co.mano.a > 0 || ola0, co.revela > 0], [true, true]);
   igual('cofre: cambiar de elección en la pausa no vale', cofre.accion(co, { elige: 'sacar' }, 'a', 1.3), null);
   igual('cofre: quien no elige a tiempo, sin monedas, saca', cofre.tic!(cofre.inicial('prueba', 1), 13)!.revela > 0, true);
+  igual('tinta: si nadie responde, la ronda queda sin dueño', tinta.tic!(tinta.inicial('x', 1), 8.5)?.ganadas, [null]);
+  igual('eco: quien no repite a tiempo pierde', eco.tic!(eco.inicial('x', 1), plazoEco(eco.inicial('x', 1)) + 0.1)?.perdio, 'a');
+  igual('cofre: un cofre fuera de rango no vale', cofre.valido({ ...cofre.inicial('x', 1), cofre: -2 }), false);
   return fallas;
 }

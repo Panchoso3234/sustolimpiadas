@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useSesion } from '../nucleo/supabase';
 import * as V from '../juegos/duelos';
+import { ajustesPartida } from '../juegos/marco';
 import { crearMesa, type Mesa } from '../juegos/tablero/mesa';
 import { repartir, rondasDistintas, rondaSiguiente } from './asientos';
 import { asientosValidos, debeReiniciar, identidadVivo, type Oficial } from './PantallaVivo';
@@ -33,7 +34,10 @@ export function SalaTablero({ codigo, mirar = false, oficial }: { codigo: string
   // Sin partida armada (o ya terminada) el reloj no corre
   const tAhora = () => est.current.t + (!est.current.asientos || est.current.fin || est.current.abandono ? 0 : (performance.now() - recibido.current) / 1000);
 
-  useEffect(() => { try { localStorage.setItem(`susto.vivo.${codigo}`, JSON.stringify(p)); } catch { /* sin almacenamiento */ } }, [p]);
+  const guardar = (y: Partida) => { try { localStorage.setItem(`susto.vivo.${codigo}`, JSON.stringify(y)); } catch { /* sin almacenamiento */ } };
+  useEffect(() => guardar(p), [p]);
+  // Al cerrar o recargar se guarda con el reloj al día (el anfitrión no lo copia a `p` cada 2 s)
+  useEffect(() => { const f = () => guardar({ ...est.current, t: tAhora() }); addEventListener('pagehide', f); return () => removeEventListener('pagehide', f); }, []);
   useEffect(() => { const r = setInterval(() => setAhora(Date.now()), 250); return () => clearInterval(r); }, []);
 
   /** El anfitrión aplica una acción y reparte el estado nuevo. */
@@ -62,12 +66,13 @@ export function SalaTablero({ codigo, mirar = false, oficial }: { codigo: string
           if (d.partida === x.partida && d.v === x.v) { est.current = { ...x, t: d.t as number }; recibido.current = performance.now(); }
           return;
         }
-        const fin = d.fin && typeof d.fin === 'object' ? d.fin as Partida['fin'] : null;
+        // El final se calcula aquí con las reglas: no se cree el que viene en el mensaje
+        const m = reglas.marcador(d.e as never, d.t as number), fin = m.fin ? { a: m.a, b: m.b } : null;
         fijar({ partida: d.partida as number, asientos: d.asientos as [string, string], v: d.v as number, e: d.e, t: d.t as number, fin, abandono: typeof d.abandono === 'string' && (d.asientos as string[]).includes(d.abandono) ? d.abandono : null });
         return;
       }
       if (!sentado) return;
-      if (evento === 'revancha') { if (d.partida === x.partida + 1) { fijar(nueva(x.partida + 1)); s.marcarListo(0); } return; }
+      if (evento === 'revancha') { if (Number.isInteger(d.partida) && (d.partida as number) > x.partida && rondaLibre(d.partida as number)) { fijar(nueva(d.partida as number)); s.marcarListo(0); } return; }
       if (evento === 'abandono') { if (d.partida === x.partida && typeof d.ganador === 'string' && x.asientos?.includes(d.ganador) && !x.abandono) fijar({ ...x, abandono: d.ganador, v: x.v + 1, t: tAhora() }); return; }
       if (evento === 'accion' && s.clave === anfitrionRef.current) {
         if (d.partida !== x.partida) { if ((d.partida as number) > x.partida) pedir(); return; }
@@ -92,6 +97,9 @@ export function SalaTablero({ codigo, mirar = false, oficial }: { codigo: string
 
   // Abrir la ronda (oficial) y armar el estado inicial: lo hace el anfitrión cuando los dos están listos
   const abiertas = useRef(new Set(oficial?.empezadas ?? [])), guardadas = useRef(new Set(oficial?.jugadas ?? []));
+  // Siguiente ronda: la primera que yo no haya jugado (en diferido o en vivo); en un amistoso, la que sigue
+  const rondaLibre = (n: number) => !oficial || (n <= oficial.e.rondas && !guardadas.current.has(n));
+  const siguiente = oficial ? rondaSiguiente([...guardadas.current, p.partida], oficial.e.rondas) : p.partida + 1;
   useEffect(() => {
     if (!reglas || asientos || !listos || !soyAnfitrion) return;
     const a = (p.partida % 2 ? [...sentados] : [...sentados].reverse()) as [string, string];
@@ -105,16 +113,18 @@ export function SalaTablero({ codigo, mirar = false, oficial }: { codigo: string
   useEffect(() => {
     if (!oficial || !asientos || !soyJugador || abiertas.current.has(p.partida)) return;
     abiertas.current.add(p.partida);
-    V.empezarRonda(oficial.e.id, p.partida).then((r) => { if (r.error && !/ya jugaste/i.test(r.error)) setAviso(r.error); });
+    V.empezarRonda(oficial.e.id, p.partida).then((r) => { if (r.error) setAviso(/ya jugaste/i.test(r.error) ? 'Esta ronda ya la jugaste a tu hora: lo que pase aquí no cuenta.' : r.error); });
   }, [!!asientos, soyJugador, p.partida]);
 
   // Reloj del anfitrión: avanza el juego, revisa el final y reparte el estado (cada 2 s aunque no cambie)
   useEffect(() => {
-    if (!reglas || !soyAnfitrion || !asientos || p.fin || p.abandono) return;
+    if (!reglas || !soyAnfitrion || !asientos) return;
     let ultimoEnvio = 0;
     const r = setInterval(() => {
       const x = est.current;
-      if (x.e == null || x.fin || x.abandono) return;
+      if (x.e == null) return;
+      // Terminada: se sigue repartiendo cada 2 s, por si a alguien no le llegó el final
+      if (x.fin || x.abandono) { if (performance.now() - ultimoEnvio >= 2000) { mandar(x); ultimoEnvio = performance.now(); } return; }
       const t = tAhora(), e = reglas.tic?.(x.e as never, t) ?? x.e, m: Marcador = reglas.marcador(e as never, t);
       const cambio = e !== x.e || m.fin;
       if (!cambio && performance.now() - ultimoEnvio < 2000) return;
@@ -124,7 +134,7 @@ export function SalaTablero({ codigo, mirar = false, oficial }: { codigo: string
       ultimoEnvio = performance.now();
     }, 100);
     return () => clearInterval(r);
-  }, [soyAnfitrion, !!asientos, !!p.fin, !!p.abandono, p.partida]);
+  }, [soyAnfitrion, !!asientos, p.partida]);
 
   // Abandono firme (igual que en Conchas)
   const rivalPresente = presentes.some((x) => x.id === rivalId), corre = !!asientos && soyJugador && !p.fin && !p.abandono && !rivalPresente && presentes.length > 0;
@@ -166,6 +176,7 @@ export function SalaTablero({ codigo, mirar = false, oficial }: { codigo: string
     if (!reglas || !caja.current || !asientos || p.e == null) return;
     if (mesa.current?.partida !== p.partida) {
       mesa.current?.m.destruir();
+      ajustesPartida.pausable = false; // en vivo el reloj es del anfitrión: cambiar de pestaña no pausa ni tapa el tablero
       const m = crearMesa(caja.current, `${juego} vivo-mesa`);
       m.empezar();
       mesa.current = { m, pintar: reglas.dibujar(m, (a) => enviarRef.current(a), miLado), partida: p.partida };
@@ -183,7 +194,7 @@ export function SalaTablero({ codigo, mirar = false, oficial }: { codigo: string
   const t = tAhora();
   const textoFin = !resultado ? '' : p.abandono ? (p.abandono === yo.id ? '¡Ganaste por abandono!' : `${nombre(p.abandono)} ganó por abandono.`)
     : resultado.gano === 'empate' ? `Empate ${p.fin!.a} a ${p.fin!.b}` : `Ganó ${nombre(resultado.gano)} · ${p.fin!.a} a ${p.fin!.b}`;
-  const revancha = () => { sala.current?.enviar('revancha', { partida: p.partida + 1 }); fijar(nueva(p.partida + 1)); sala.current?.marcarListo(0); };
+  const revancha = () => { if (!siguiente) return; sala.current?.enviar('revancha', { partida: siguiente }); fijar(nueva(siguiente)); sala.current?.marcarListo(0); };
 
   return (
     <div class="vivo">
@@ -206,7 +217,7 @@ export function SalaTablero({ codigo, mirar = false, oficial }: { codigo: string
       {asientos && t < 0 && !resultado && <div class="tablero-cuenta">{Math.ceil(-t)}</div>}
       <div ref={caja} class="tablero-caja" />
       {textoFin && <p class="aviso ok vivo-fin tablero-fin">{textoFin}</p>}
-      {resultado && (oficial && p.partida >= oficial.e.rondas
+      {resultado && (oficial && !siguiente
         ? <div class="fila"><a class="boton principal" href={`#/juegos/duelo/${oficial.e.id}`}>Enfrentamiento terminado: ver resultado</a></div>
         : soyJugador && <div class="fila"><button class="boton principal" onClick={revancha}>{oficial ? 'Siguiente ronda' : 'Revancha'}</button></div>)}
     </div>

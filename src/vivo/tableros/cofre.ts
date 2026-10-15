@@ -1,5 +1,5 @@
 import { generador } from '../../nucleo/azar';
-import { type Lado, type Reglas } from '../tablero';
+import { entero, type Lado, type Reglas } from '../tablero';
 
 // El Cofre o la Ola en vivo, como concurso: los mismos cofres y la misma ola para los dos. En cada sacada los dos
 // eligen en secreto "Sacar" o "Plantarme" y se revela a la vez. Quien se planta guarda; a quien saca le puede
@@ -57,7 +57,7 @@ export const cofre: Reglas<EstadoCofre> = {
     return t >= e.plazo ? revelar(e, t) : null;
   },
   marcador(e) { return { a: e.total.a, b: e.total.b, fin: e.cofre >= COFRES }; },
-  valido(x): x is EstadoCofre { const e = x as EstadoCofre; return !!e && typeof e.semilla === 'string' && Number.isInteger(e.cofre) && Number.isInteger(e.paso) && numeros(e.mano) && numeros(e.total) && !!e.activo && !!e.elige && typeof e.plazo === 'number' && typeof e.revela === 'number' && !!e.ola; },
+  valido(x): x is EstadoCofre { const e = x as EstadoCofre; return !!e && typeof e.semilla === 'string' && entero(e.cofre, 0, COFRES + 1) && entero(e.paso, 0, PASOS + 1) && numeros(e.mano) && numeros(e.total) && !!e.activo && !!e.elige && typeof e.plazo === 'number' && typeof e.revela === 'number' && !!e.ola; },
   dibujar(m, enviar, yo) {
     const titulo = m.el('div', 'sigla', m.tablero), cielo = m.el('div', 'cofre-mar', m.tablero), dibujo = m.el('div', 'cofre-dibujo', m.tablero);
     const foto = m.el('img', '', dibujo);
