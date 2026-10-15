@@ -115,7 +115,7 @@ export function Vivo({ codigo, mirar = false }: { codigo: string; mirar?: boolea
   return (
     <>
       <h1>Juego en vivo</h1>
-      <p>Partidas con otra persona conectada al mismo tiempo. Crea una sala y comparte el enlace; los dos primeros en entrar juegan y el resto puede mirar. Por ahora son amistosas: no dan puntos del torneo.</p>
+      <p>Partidas con otra persona conectada al mismo tiempo. Crea una sala y comparte el enlace; los dos primeros en entrar juegan y el resto puede mirar. Las salas que creas aquí son amistosas; los enfrentamientos oficiales (que dan puntos) se juegan desde tu lista de enfrentamientos con "Jugar en vivo".</p>
       <div class="rejilla-juegos">
         {(Object.keys(JUEGOS) as IdJuego[]).map((j) => (
           <div key={j} class="tarjeta" style="--tono:#ffe08a">

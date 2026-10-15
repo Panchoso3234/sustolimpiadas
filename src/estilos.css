@@ -534,3 +534,5 @@ body.foto .tren-poderes { display: none; }
 .tablero-caja .mesa-avatar { display: none; }
 .tablero-cuenta { font: 400 4rem var(--display); text-align: center; color: var(--luna); }
 .vivo-mesa .cartas.bloqueada, .vivo-mesa .eco.bloqueada { pointer-events: none; opacity: .85; }
+.sub-modos { margin-top: 10px; }
+.sub-modos a { padding: 6px 26px; }

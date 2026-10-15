@@ -75,8 +75,8 @@ export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; pres
     <>
       <h1>{modo === '1v1' ? 'Uno contra uno' : 'Equipo contra equipo'}</h1>
       <p>{modo === '1v1'
-        ? 'Tú y tu rival juegan el mismo desafío, cada uno a su hora y con un solo intento por ronda. Cuando ambos jugaron, se compara y hay ganador.'
-        : 'Cada integrante del equipo juega una vez el mismo desafío, a su hora y con un solo intento. Se suman los tres y gana el equipo con más.'}
+        ? 'Lo ideal es jugar en vivo: si tu enfrentamiento lo permite, aprieta "Jugar en vivo" y juéguenlo conectados a la vez. El diferido es solo para cuando no pueden a la misma hora: cada uno juega el mismo desafío a su hora, con un solo intento por ronda, y al final se compara.'
+        : 'Muy pronto el 3v3 se jugará en vivo. Mientras tanto, cada integrante del equipo juega una vez el mismo desafío, a su hora y con un solo intento. Se suman los tres y gana el equipo con más.'}
         {' '}Ganar da {puntos.victoria} puntos, empatar {puntos.empate} y perder {puntos.derrota}, por el multiplicador de la jornada.</p>
       {sesion.usuarioId && (
         <div class="fila">
@@ -151,6 +151,7 @@ export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; pres
             if (t.vivo) return <a key={t.id} class="tarjeta activa" href="#/juegos/vivo" style="--tono:#ffe08a"><img class="foto" src={`${import.meta.env.BASE_URL}juegos/${t.base}.png`} alt="" loading="lazy" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} /><h3>{t.nombre}</h3><p>{t.idea}</p><span class="pie"><span class="premia">Juego en vivo</span><span class="estado">Jugar en vivo</span></span></a>;
             return (
               <div key={t.id} onClick={puede ? () => { setElegido(t.base!); irARetar(); } : undefined} class={`tarjeta${abierto ? '' : ' cerrada'}${puede ? ' activa' : ''}`} style={base ? `--tono:${MOTORES[base.motor].color}` : undefined}>
+                {t.base && <img class="foto" src={`${import.meta.env.BASE_URL}juegos/${t.base}.png`} alt="" loading="lazy" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />}
                 <h3>{t.nombre}</h3>
                 <p>{t.idea}</p>
                 <span class="pie"><span class="premia">{base ? `Sobre ${base.nombre}` : 'Juego en vivo'}</span><span class="estado">{puede ? 'Retar' : abierto ? 'Disponible' : base ? 'Pronto' : 'Pronto, en vivo'}</span></span>

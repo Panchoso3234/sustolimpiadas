@@ -11,12 +11,12 @@ import { Sala } from './Sala';
 import { Vivo } from '../vivo/PantallaVivo';
 import { PartidasEnLinea } from '../vivo/PartidasEnLinea';
 
-// Portal de juegos: tres modos (individual, versus 1v1 y versus 3v3) y la tabla del torneo. Cada juego se abre en su "sala".
+// Portal de juegos: individual, versus en diferido, en vivo (1v1 y 3v3), partidas en línea y la tabla del torneo.
+// La meta es que todo enfrentamiento sea en vivo; el diferido queda para cuando los dos no pueden a la misma hora.
 const MODOS = [
   { ruta: '', titulo: 'Individual', bajada: 'Marcas del día' },
-  { ruta: '1v1', titulo: 'Versus 1v1', bajada: 'Uno contra uno' },
-  { ruta: '3v3', titulo: 'Versus 3v3', bajada: 'Equipo contra equipo' },
-  { ruta: 'vivo', titulo: 'En vivo', bajada: 'Conectados a la vez' },
+  { ruta: '1v1', titulo: 'Versus 1v1 (Diferido)', bajada: 'Si no pueden a la vez' },
+  { ruta: 'vivo', titulo: 'En vivo', bajada: '1v1 y 3v3, conectados' },
   { ruta: 'en-linea', titulo: 'Partidas en línea', bajada: 'Mirar en directo' },
   { ruta: 'posiciones', titulo: 'Posiciones', bajada: 'Tabla del torneo' },
 ];
@@ -49,17 +49,25 @@ export function Portal({ sub, extra }: { sub: string; extra: string }) {
   if (sub === 'mirar') return <div class="pagina portal"><Vivo codigo={extra} mirar /></div>;
   const juego = juegoPorId(sub);
   if (juego?.listo) return <Sala key={juego.id} juego={juego} />;
-  const modo = MODOS.some((m) => m.ruta === sub) ? sub : '';
+  const modo = sub === '3v3' || MODOS.some((m) => m.ruta === sub) ? sub : '';
+  // El 3v3 vive dentro de la pestaña En vivo
+  const pestana = modo === '3v3' ? 'vivo' : modo, cuenta = (r: string) => (r === 'vivo' ? pendientes['3v3'] : pendientes[r]);
   return (
     <div class="pagina portal">
       <div class="sigla">Portal de juegos</div>
       <nav class="modos" aria-label="Modos de juego">
         {MODOS.map((m) => (
-          <a key={m.ruta} href={`#/juegos${m.ruta ? `/${m.ruta}` : ''}`} class={modo === m.ruta ? 'activa' : ''} aria-current={modo === m.ruta ? 'page' : undefined}>
-            <b>{m.titulo}{pendientes[m.ruta] ? <i class="globo" aria-label={`${pendientes[m.ruta]} por jugar`}>{pendientes[m.ruta]}</i> : null}</b><span>{m.bajada}</span>
+          <a key={m.ruta} href={`#/juegos${m.ruta ? `/${m.ruta}` : ''}`} class={pestana === m.ruta ? 'activa' : ''} aria-current={pestana === m.ruta ? 'page' : undefined}>
+            <b>{m.titulo}{cuenta(m.ruta) ? <i class="globo" aria-label={`${cuenta(m.ruta)} por jugar`}>{cuenta(m.ruta)}</i> : null}</b><span>{m.bajada}</span>
           </a>
         ))}
       </nav>
+      {pestana === 'vivo' && !extra && (
+        <nav class="modos sub-modos" aria-label="En vivo">
+          <a href="#/juegos/vivo" class={modo === 'vivo' ? 'activa' : ''} aria-current={modo === 'vivo' ? 'page' : undefined}><b>1v1</b></a>
+          <a href="#/juegos/3v3" class={modo === '3v3' ? 'activa' : ''} aria-current={modo === '3v3' ? 'page' : undefined}><b>3v3</b></a>
+        </nav>
+      )}
       {modo === '' ? <Grilla /> : modo === 'posiciones' ? <Posiciones /> : modo === 'vivo' ? <Vivo codigo={extra} /> : modo === 'en-linea' ? <PartidasEnLinea /> : <PestanaVersus key={modo} modo={modo as '1v1' | '3v3'} preset={extra} />}
     </div>
   );
