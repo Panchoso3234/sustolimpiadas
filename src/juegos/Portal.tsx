@@ -44,6 +44,7 @@ function usePendientes(usuarioId: string | null): Record<string, number> {
 export function Portal({ sub, extra }: { sub: string; extra: string }) {
   const sesion = useSesion(), pendientes = usePendientes(sesion.usuarioId);
   if (sub === 'duelo') return <Duelo key={extra} id={Number(extra)} />;
+  if (sub === 'mirar') return <div class="pagina portal"><Vivo codigo={extra} mirar /></div>;
   const juego = juegoPorId(sub);
   if (juego?.listo) return <Sala key={juego.id} juego={juego} />;
   const modo = MODOS.some((m) => m.ruta === sub) ? sub : '';

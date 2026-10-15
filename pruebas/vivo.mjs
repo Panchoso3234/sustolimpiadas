@@ -2,7 +2,41 @@
 import { abrir, hasta } from './navegador.mjs';
 
 const BASE = 'http://localhost:5173/';
+async function probarMensajes(extraMirar) {
+  const sala = `conchas-T${Math.floor(Math.random() * 900 + 100)}`;
+  const a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`), b = await abrir(`${BASE}?invitado=b#/juegos/vivo/${sala}`), c = await abrir(`${BASE}?invitado=c${extraMirar}#/juegos/mirar/${sala}`);
+  try {
+    const listo = await hasta(async () => (await a.js('window.__sala?.directos() ?? 0')) >= (extraMirar ? 1 : 2), 20000);
+    // Las tres pestañas tienen que estar dentro de la sala (presencia de 3) antes de mandar nada
+    await hasta(async () => (await a.js('window.__sala?.presentes() ?? 0')) >= 3 && (await c.js('window.__sala?.presentes() ?? 0')) >= 3, 20000);
+    await b.js(`window.__sala.enviarPrueba('hola-b')`);
+    await c.js(`window.__sala.enviarPrueba('hola-c')`);
+    const llegan = await hasta(async () => {
+      const ra = await a.js('window.__sala.recibidos'), rb = await b.js('window.__sala.recibidos'), rc = await c.js('window.__sala.recibidos');
+      return ra.includes('hola-b') && ra.includes('hola-c') && rc.includes('hola-b') && rb.includes('hola-c');
+    }, 15000);
+    const sinDuplicados = ((await c.js('window.__sala?.recibidos')) ?? []).filter((x) => x === 'hola-b').length === 1;
+    return { 'el anfitrión conecta directo': listo, 'los mensajes llegan a todos': llegan, 'sin duplicados': sinDuplicados };
+  } finally { a.cerrar(); b.cerrar(); c.cerrar(); }
+}
+
 const grupos = {
+  // Tres pestañas en la misma sala: dos juegan y una mira. Los mensajes llegan a todos, sin duplicados.
+  async enlace() { return probarMensajes(''); },
+  // Igual, pero la pestaña que mira no puede conectarse directo: sus mensajes van por Supabase
+  async respaldo() { return probarMensajes('&sinDirecto=1'); },
+  async recarga() {
+    const sala = `conchas-R${Math.floor(Math.random() * 900 + 100)}`;
+    const a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`), b = await abrir(`${BASE}?invitado=b#/juegos/vivo/${sala}`);
+    try {
+      await hasta(async () => (await a.js('window.__sala?.directos() ?? 0')) >= 1, 20000);
+      await a.js('location.reload()');
+      const vuelve = await hasta(async () => (await a.js('window.__sala?.directos() ?? 0')) >= 1, 25000);
+      await b.js(`window.__sala.enviarPrueba('tras-recarga')`);
+      const llega = await hasta(async () => ((await a.js('window.__sala?.recibidos')) ?? []).includes('tras-recarga'));
+      return { 'el anfitrión se reconecta': vuelve, 'los mensajes siguen llegando': llega };
+    } finally { a.cerrar(); b.cerrar(); }
+  },
   async asientos() {
     const p = await abrir(`${BASE}#/juegos/vivo`);
     try {

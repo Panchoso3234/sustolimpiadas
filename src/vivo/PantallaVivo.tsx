@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { useSesion } from '../nucleo/supabase';
 import { COLUMNAS, FILAS, LADO, filaLibre, jugarConchas, recibirDisparo, repartirFlota, type Balsa, type Resultado } from './reglas';
 import { nuevoCodigo, unirse, type Presente, type Sala } from './sala';
-import { probarAsientos } from './asientos';
+import { probarAsientos, repartir } from './asientos';
 
 // Juego en vivo por turnos: Cuatro Conchas en Línea y Batalla de Balsas. Partidas amistosas (no dan puntos).
 // Los dos primeros en llegar a la sala juegan; los demás miran. Si alguien se desconecta tiene 30 s para volver.
@@ -38,9 +38,9 @@ function identidad(usuarioId: string | null, nombre: string | undefined): { id: 
   } catch { return { id: `inv-${Math.random().toString(36).slice(2, 6)}`, nombre: 'Invitado' }; }
 }
 
-export function Vivo({ codigo }: { codigo: string }) {
+export function Vivo({ codigo, mirar = false }: { codigo: string; mirar?: boolean }) {
   const [entrar, setEntrar] = useState('');
-  if (codigo) return <SalaVivo key={codigo} codigo={codigo} />;
+  if (codigo) return <SalaVivo key={codigo} codigo={codigo} mirar={mirar} />;
   const crear = (juego: IdJuego) => { location.hash = `#/juegos/vivo/${nuevoCodigo(juego)}`; };
   return (
     <>
@@ -66,7 +66,7 @@ export function Vivo({ codigo }: { codigo: string }) {
   );
 }
 
-function SalaVivo({ codigo }: { codigo: string }) {
+function SalaVivo({ codigo, mirar = false }: { codigo: string; mirar?: boolean }) {
   const sesion = useSesion();
   const juego = codigo.split('-')[0] as IdJuego, valido = !!JUEGOS[juego];
   const yo = identidad(sesion.usuarioId, sesion.perfil?.nombre);
@@ -88,7 +88,7 @@ function SalaVivo({ codigo }: { codigo: string }) {
 
   useEffect(() => {
     if (sesion.cargando || !valido) return;
-    const s = unirse(codigo, yo, setPresentes, (evento, d) => {
+    const s = unirse(codigo, yo, mirar ? 'mirar' : 'jugar', setPresentes, (evento, d) => {
       const e = est.current;
       if (evento === 'pedir') { if (e.asientos) s.enviar('historia', { ...e }); return; }
       if (evento === 'historia') {
@@ -121,7 +121,7 @@ function SalaVivo({ codigo }: { codigo: string }) {
   }, [codigo, sesion.cargando, yo.id, valido]);
 
   const { asientos } = estado;
-  const sentados = (asientos ?? presentes.slice(0, 2).map((p) => p.id)) as string[];
+  const reparto = repartir(presentes, asientos, null), sentados = reparto.jugadores;
   const nombre = (id: string) => presentes.find((p) => p.id === id)?.nombre ?? 'Jugador';
   const mio = sentados.indexOf(yo.id), soyJugador = mio >= 0, rivalId = mio === 0 ? sentados[1] : sentados[0];
 
@@ -139,11 +139,11 @@ function SalaVivo({ codigo }: { codigo: string }) {
   const quedan = ausente ? Math.max(0, ESPERA_ABANDONO - Math.floor((ahora - ausente) / 1000)) : null;
   const ganeAbandono = quedan === 0;
 
-  // Antes de empezar: los dos primeros marcan Listo y el primero da la partida
-  const listos = presentes.length >= 2 && presentes.slice(0, 2).every((p) => p.listo);
+  // Antes de empezar: los dos jugadores marcan Listo y el anfitrión da la partida
+  const listos = sentados.length === 2 && sentados.every((id) => presentes.find((p) => p.id === id)?.listo);
   useEffect(() => {
-    if (asientos || !listos || presentes[0]?.id !== yo.id) return;
-    const a: [string, string] = [presentes[0].id, presentes[1].id];
+    if (asientos || !listos || reparto.anfitrion !== sala.current?.clave) return;
+    const a = [...sentados] as [string, string];
     sala.current?.enviar('empieza', { partida: estado.partida, asientos: a });
     cambiar((x) => ({ ...x, asientos: a }));
   }, [listos, !!asientos]);
@@ -188,8 +188,8 @@ function SalaVivo({ codigo }: { codigo: string }) {
       <div class="fila"><button class="boton" onClick={copiar}>Copiar enlace de la sala</button><a class="boton" href="#/juegos/vivo">Salir</a></div>
 
       <ul class="vivo-gente">
-        {presentes.map((p, i) => (
-          <li key={p.clave} class={sentados.includes(p.id) || (!asientos && i < 2) ? 'juega' : ''}>
+        {presentes.map((p) => (
+          <li key={p.clave} class={sentados.includes(p.id) ? 'juega' : ''}>
             <b>{p.nombre}{p.id === yo.id ? ' (tú)' : ''}</b>
             <span class="tenue chico">{sentados.includes(p.id) ? `Jugador ${sentados.indexOf(p.id) + 1}${!asientos ? (p.listo ? ' · listo' : ' · esperando') : ''}` : 'Mirando'}</span>
           </li>
@@ -198,7 +198,7 @@ function SalaVivo({ codigo }: { codigo: string }) {
       </ul>
 
       {!asientos && (
-        presentes.length < 2 ? <p class="aviso atencion">Esperando a otra persona. Comparte el enlace de la sala.</p>
+        sentados.length < 2 ? <p class="aviso atencion">Esperando a otra persona. Comparte el enlace de la sala.</p>
           : soyJugador ? <button class="boton principal grande" onClick={() => sala.current?.marcarListo(!yoListo)}>{yoListo ? 'Ya no estoy listo' : '¡Listo!'}</button>
           : <p class="tenue">La partida parte cuando los dos jugadores marquen Listo. Tú miras.</p>
       )}
