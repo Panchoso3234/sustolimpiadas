@@ -1,7 +1,8 @@
 // Quién juega, quién mira y quién hace de anfitrión en una sala en vivo. Sin nada de red: se puede probar sola.
 
 export type Quiere = 'jugar' | 'mirar';
-export interface Presente { clave: string; id: string; nombre: string; desde: number; listo: boolean; quiere: Quiere }
+/** `listo` es la partida para la que marcó Listo (0 si no marcó): así un Listo viejo no hace partir la revancha. */
+export interface Presente { clave: string; id: string; nombre: string; desde: number; listo: number; quiere: Quiere }
 export interface Reparto { jugadores: string[]; espectadores: Presente[]; anfitrion: string | null }
 
 /** Una persona con varias pestañas cuenta una vez: la que llegó primero. */
@@ -32,7 +33,7 @@ export function rondaSiguiente(jugadas: number[], total: number): number | null 
 
 /** Pruebas de las reglas: devuelve la lista de fallas. */
 export function probarAsientos(): string[] {
-  const p = (id: string, desde: number, quiere: Quiere = 'jugar', clave = `${id}:${desde}`): Presente => ({ clave, id, nombre: id, desde, listo: false, quiere });
+  const p = (id: string, desde: number, quiere: Quiere = 'jugar', clave = `${id}:${desde}`): Presente => ({ clave, id, nombre: id, desde, listo: 0, quiere });
   const fallas: string[] = [], igual = (que: string, a: unknown, b: unknown) => { if (JSON.stringify(a) !== JSON.stringify(b)) fallas.push(`${que}: ${JSON.stringify(a)} ≠ ${JSON.stringify(b)}`); };
   // 1. Los dos primeros que quieren jugar se sientan; quien entró a mirar no quita asiento
   let r = repartir([p('ana', 1), p('espia', 2, 'mirar'), p('beto', 3)], null, null);

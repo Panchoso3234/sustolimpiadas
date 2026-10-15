@@ -16,11 +16,79 @@ async function probarMensajes(extraMirar) {
       return ra.includes('hola-b') && ra.includes('hola-c') && rc.includes('hola-b') && rb.includes('hola-c');
     }, 15000);
     const sinDuplicados = ((await c.js('window.__sala?.recibidos')) ?? []).filter((x) => x === 'hola-b').length === 1;
-    return { 'el anfitrión conecta directo': listo, 'los mensajes llegan a todos': llegan, 'sin duplicados': sinDuplicados };
+    const senales = Math.max(await a.js('window.__sala?.senales?.() ?? 99'), await b.js('window.__sala?.senales?.() ?? 99'));
+    return { 'el anfitrión conecta directo': listo, 'los mensajes llegan a todos': llegan, 'sin duplicados': sinDuplicados, 'pocas señales por Supabase (≤ 3 por conexión)': extraMirar ? true : senales <= 6 };
   } finally { a.cerrar(); b.cerrar(); c.cerrar(); }
 }
 
+// Arma una sala de Cuatro Conchas con dos jugadores listos y un espectador; devuelve las pestañas y quién parte
+async function armarConchas(letra) {
+  const sala = `conchas-${letra}${Math.floor(Math.random() * 900 + 100)}`;
+  const a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`), b = await abrir(`${BASE}?invitado=b#/juegos/vivo/${sala}`), c = await abrir(`${BASE}?invitado=c#/juegos/mirar/${sala}`);
+  const listo = (p) => hasta(() => p.js(`(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent === '¡Listo!'); if (b) b.click(); return !!b; })()`), 20000);
+  await hasta(async () => (await a.js('window.__sala?.presentes() ?? 0')) >= 3, 20000);
+  await listo(a); await listo(b);
+  await hasta(() => a.js(`!!document.querySelector('.conchas')`), 20000);
+  const parte = (await a.js(`!document.querySelector('.conchas-col')?.disabled`)) ? [a, b] : [b, a];
+  return { sala, a, b, c, parte, listo };
+}
+const columna = (p, i) => hasta(() => p.js(`(() => { const c = document.querySelectorAll('.conchas-col')[${i}]; if (!c || c.disabled) return false; c.click(); return true; })()`));
+const jugadas = async (p, sala) => JSON.parse((await p.js(`localStorage.getItem('susto.vivo.${sala}')`)) ?? '{}');
+
 const grupos = {
+  // Un espectador manda mensajes falsos: los jugadores no deben cambiar su partida
+  async intruso() {
+    const { sala, a, b, c } = await armarConchas('I');
+    try {
+      await c.js(`window.__sala.enviarCrudo('jugada', { partida: 1, n: 0, col: 3 })`);
+      await c.js(`window.__sala.enviarCrudo('revancha', { partida: 2, asientos: ['inv-c', 'inv-a'] })`);
+      await c.js(`window.__sala.enviarCrudo('historia', { partida: 1, asientos: ['inv-a', 'inv-b'], jugadas: [0, 1, 0, 1, 0, 1, 0], disparos: [], flotasListas: [], pendiente: null, abandono: null })`);
+      await c.js(`window.__sala.enviarCrudo('historia', { partida: 9, jugadas: 'x' })`);
+      await new Promise((r) => setTimeout(r, 3000));
+      const ea = await jugadas(a, sala), eb = await jugadas(b, sala);
+      const vivas = (await a.js(`!!document.querySelector('.conchas')`)) && (await b.js(`!!document.querySelector('.conchas')`));
+      return { 'las jugadas falsas no entran': (ea.jugadas ?? []).length === 0 && (eb.jugadas ?? []).length === 0, 'la revancha falsa no entra': ea.partida === 1 && eb.partida === 1, 'la página sigue funcionando': vivas };
+    } finally { a.cerrar(); b.cerrar(); c.cerrar(); }
+  },
+  // Tras ganar, la revancha pide Listo otra vez a los dos y parte el otro jugador
+  async revancha() {
+    const { a, b, c, parte, listo } = await armarConchas('V');
+    try {
+      for (let k = 0; k < 4; k++) { await columna(parte[0], 0); if (k < 3) await columna(parte[1], 1); }
+      await hasta(() => a.js(`document.querySelector('.vivo-fin')?.textContent?.includes('Ganó') ?? false`));
+      await hasta(() => a.js(`(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent === 'Revancha'); if (b) b.click(); return !!b; })()`));
+      const pideListo = (await listo(a)) && (await listo(b));
+      await hasta(() => a.js(`!!document.querySelector('.conchas')`), 20000);
+      const parteOtro = await hasta(async () => (await parte[1].js(`!document.querySelector('.conchas-col')?.disabled`)) && (await parte[0].js(`!!document.querySelector('.conchas-col')?.disabled`)), 10000);
+      return { 'la revancha pide Listo a los dos': pideListo, 'en la revancha parte el otro': parteOtro };
+    } finally { a.cerrar(); b.cerrar(); c.cerrar(); }
+  },
+  // Un jugador se va: a los 30 s el otro gana, y al volver el resultado sigue firme
+  async abandono() {
+    const { sala, a, b, c } = await armarConchas('A');
+    try {
+      b.cerrar();
+      const gana = await hasta(() => a.js(`document.querySelector('.vivo-fin')?.textContent?.includes('abandono') ?? false`), 45000);
+      const b2 = await abrir(`${BASE}?invitado=b#/juegos/vivo/${sala}`);
+      try {
+        const veFin = await hasta(() => b2.js(`document.querySelector('.vivo-fin')?.textContent?.includes('abandono') ?? false`), 20000);
+        await new Promise((r) => setTimeout(r, 4000));
+        const sigue = await a.js(`document.querySelector('.vivo-fin')?.textContent?.includes('abandono') ?? false`);
+        return { 'gana por abandono': gana, 'quien vuelve ve el resultado': veFin, 'el resultado no se borra al volver': sigue };
+      } finally { b2.cerrar(); }
+    } finally { a.cerrar(); c.cerrar(); }
+  },
+  // Si la conexión directa se corta, el anfitrión la vuelve a armar
+  async cortar() {
+    const { a, b, c } = await armarConchas('C');
+    try {
+      await hasta(async () => (await a.js('window.__sala?.directos() ?? 0')) >= 2, 20000);
+      const anfitrion = (await a.js('window.__sala.esAnfitrion()')) ? a : b;
+      await anfitrion.js('window.__sala.cortar()');
+      const vuelve = await hasta(async () => (await anfitrion.js('window.__sala?.directos() ?? 0')) >= 2, 20000);
+      return { 'la conexión directa se rearma': vuelve };
+    } finally { a.cerrar(); b.cerrar(); c.cerrar(); }
+  },
   async fotos() {
     const clic = (p, texto) => hasta(() => p.js(`(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent === ${JSON.stringify(texto)} && !x.disabled); if (b) b.click(); return !!b; })()`), 20000);
     const casilla = (p, mar, i) => hasta(() => p.js(`(() => { const c = [...document.querySelectorAll('.mar-caja')].find((k) => k.querySelector('.sigla')?.textContent.startsWith('Mar de'))?.querySelectorAll('.agua-c')[${i}]; if (!c || c.disabled) return false; c.click(); return true; })()`));
@@ -97,8 +165,9 @@ const grupos = {
     const a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`), b = await abrir(`${BASE}?invitado=b#/juegos/vivo/${sala}`);
     try {
       await hasta(async () => (await a.js('window.__sala?.directos() ?? 0')) >= 1, 20000);
-      await a.js('location.reload()');
-      const vuelve = await hasta(async () => (await a.js('window.__sala?.directos() ?? 0')) >= 1, 25000);
+      // Se marca la página vieja: hasta que no cargue la nueva, la vieja todavía responde "conectada"
+      await a.js('window.__vieja = true; location.reload()');
+      const vuelve = await hasta(async () => !(await a.js('window.__vieja ?? false')) && (await a.js('window.__sala?.directos() ?? 0')) >= 1, 25000);
       await b.js(`window.__sala.enviarPrueba('tras-recarga')`);
       const llega = await hasta(async () => ((await a.js('window.__sala?.recibidos')) ?? []).includes('tras-recarga'));
       return { 'el anfitrión se reconecta': vuelve, 'los mensajes siguen llegando': llega };
@@ -108,7 +177,7 @@ const grupos = {
     const p = await abrir(`${BASE}#/juegos/vivo`);
     try {
       await hasta(() => p.js('!!window.__vivo'));
-      const fallas = await p.js('window.__vivo.probarAsientos()');
+      const fallas = await p.js('[...window.__vivo.probarAsientos(), ...(window.__vivo.probarSala?.() ?? ["falta probarSala"])]');
       for (const f of fallas ?? []) console.log('  ', f);
       return { 'reglas de asientos': Array.isArray(fallas) && fallas.length === 0 };
     } finally { p.cerrar(); }

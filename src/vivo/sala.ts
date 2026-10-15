@@ -11,7 +11,8 @@ export interface Sala {
   clave: string;
   presentes(): Presente[];
   enviar(evento: string, datos: Record<string, unknown>): void;
-  marcarListo(si: boolean): void;
+  /** Listo para esa partida (0 = ya no estoy listo). */
+  marcarListo(partida: number): void;
   quiero(q: Quiere): void;
   directo(clave: string): boolean;
   salir(): void;
@@ -26,7 +27,7 @@ export function unirse(codigo: string, yo: { id: string; nombre: string }, quier
   const memoria = `susto.vivo.desde.${codigo}.${yo.id}`;
   let desde = Date.now();
   try { desde = Number(localStorage.getItem(memoria)) || desde; localStorage.setItem(memoria, String(desde)); } catch { /* sin almacenamiento */ }
-  let listo = false, lista: Presente[] = [];
+  let listo = 0, lista: Presente[] = [];
   const canal: RealtimeChannel = supabase.channel(`vivo:${codigo}`, { config: { presence: { key: clave }, broadcast: { self: false } } });
   const sinDirecto = import.meta.env.DEV && new URLSearchParams(location.search).has('sinDirecto');
   const enlace = crearEnlace(canal, clave, { sinDirecto });
@@ -34,18 +35,18 @@ export function unirse(codigo: string, yo: { id: string; nombre: string }, quier
 
   const anunciar = () => canal.track({ id: yo.id, nombre: yo.nombre, desde, listo, quiere });
   canal.on('presence', { event: 'sync' }, () => {
-    const estado = canal.presenceState<{ id: string; nombre: string; desde: number; listo: boolean; quiere: Quiere }>();
-    lista = Object.entries(estado).flatMap(([k, metas]) => metas.map((m) => ({ clave: k, id: m.id, nombre: m.nombre, desde: m.desde, listo: m.listo, quiere: m.quiere ?? 'jugar' })));
+    const estado = canal.presenceState<{ id: string; nombre: string; desde: number; listo: number; quiere: Quiere }>();
+    lista = Object.entries(estado).flatMap(([k, metas]) => metas.map((m) => ({ clave: k, id: m.id, nombre: m.nombre, desde: m.desde, listo: Number(m.listo) || 0, quiere: m.quiere ?? 'jugar' })));
     enlace.actualizar(lista.map((p) => p.clave), repartir(lista, null, fijos).anfitrion);
     alCambio(lista);
   });
-  canal.subscribe((estado) => { if (estado === 'SUBSCRIBED') anunciar(); });
+  canal.subscribe((estado) => { if (estado === 'SUBSCRIBED') { anunciar(); enlace.saludar(); } });
 
   const sala: Sala = {
     clave,
     presentes: () => lista,
     enviar(evento, datos) { enlace.enviar(evento, datos); },
-    marcarListo(si) { listo = si; anunciar(); },
+    marcarListo(partida) { listo = partida; anunciar(); },
     quiero(q) { quiere = q; anunciar(); },
     directo: enlace.directo,
     salir() { enlace.cerrar(); canal.untrack(); supabase.removeChannel(canal); },
@@ -54,7 +55,7 @@ export function unirse(codigo: string, yo: { id: string; nombre: string }, quier
   if (import.meta.env.DEV) {
     const recibidos: string[] = [];
     enlace.alRecibir((tipo, datos) => { if (tipo === 'prueba') recibidos.push(String(datos.texto)); });
-    (window as unknown as Record<string, unknown>).__sala = { directos: () => lista.filter((p) => enlace.directo(p.clave)).length, presentes: () => lista.length, recibidos, enviarPrueba: (texto: string) => enlace.enviar('prueba', { texto }) };
+    (window as unknown as Record<string, unknown>).__sala = { directos: () => lista.filter((p) => enlace.directo(p.clave)).length, presentes: () => lista.length, recibidos, enviarPrueba: (texto: string) => enlace.enviar('prueba', { texto }), enviarCrudo: (tipo: string, datos: Record<string, unknown>) => enlace.enviar(tipo, datos), senales: () => enlace.senales(), cortar: () => enlace.cortar(), esAnfitrion: () => repartir(lista, null, fijos).anfitrion === clave, depurar: () => ({ yo: clave, ...enlace.depurar(), presentes: lista.map((p) => p.clave) }) };
   }
   return sala;
 }
