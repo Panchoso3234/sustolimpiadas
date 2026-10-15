@@ -10,7 +10,8 @@ export type { Presente } from './asientos';
 export interface Sala {
   clave: string;
   presentes(): Presente[];
-  enviar(evento: string, datos: Record<string, unknown>): void;
+  /** `para`: la clave de una sola pestaña (si no, a todos). */
+  enviar(evento: string, datos: Record<string, unknown>, para?: string): void;
   /** Listo para esa partida (0 = ya no estoy listo). */
   marcarListo(partida: number): void;
   quiero(q: Quiere): void;
@@ -45,7 +46,7 @@ export function unirse(codigo: string, yo: { id: string; nombre: string }, quier
   const sala: Sala = {
     clave,
     presentes: () => lista,
-    enviar(evento, datos) { enlace.enviar(evento, datos); },
+    enviar(evento, datos, para) { enlace.enviar(evento, datos, para); },
     marcarListo(partida) { listo = partida; anunciar(); },
     quiero(q) { quiere = q; anunciar(); },
     directo: enlace.directo,

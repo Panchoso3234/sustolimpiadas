@@ -6,7 +6,7 @@ import { COLOR_EQUIPO } from '../../juegos/arena/motor';
 import { crearMando } from '../../juegos/mando';
 import type { Contexto, Partida } from '../../juegos/marco';
 import { crearEscenario, mmss } from '../../juegos/reflejos/motor';
-import { crearMundo, suave, type JuegoMundo, type Lado } from './red';
+import { crearMundo, entre, num, suave, type JuegoMundo, type Lado } from './red';
 
 // Sumo de Balsas en vivo, en el mismo mundo: los dos jugadores y cuatro de máquina sobre la misma balsa que se achica.
 // Los de máquina empujan a cualquiera. Puntos: 150 por cada uno que botes, 6 por segundo en pie y 400 si quedas en pie
@@ -21,7 +21,6 @@ const radio = (e: EstadoSumo) => Math.max(3.6, R0 - 0.078 * (1 + (e.nivel - 1) *
 const LADOS: Lado[] = ['a', 'b'];
 const indice = (l: Lado) => (l === 'a' ? 0 : 1);
 const vivos = (e: EstadoSumo) => e.c.filter((x) => x.vivo).length;
-const num = (x: unknown) => typeof x === 'number' && Number.isFinite(x);
 
 export const sumoMundo: JuegoMundo<EstadoSumo, EntradaSumo> = {
   inicial(semilla, nivel) {
@@ -29,6 +28,7 @@ export const sumoMundo: JuegoMundo<EstadoSumo, EntradaSumo> = {
     return { semilla, nivel, t: 0, n: 0, c, coco: null, proximo: 8, golpes: { a: 0, b: 0 } };
   },
   quieto: () => ({ x: 0, z: 0, golpe: 0, carga: 0 }),
+  tiempo: (e) => e.t,
   paso(e, ent, dt) {
     const azarito = () => azar(e.semilla, 'sumo', e.n++);
     e.t += dt;
@@ -113,8 +113,10 @@ export const sumoMundo: JuegoMundo<EstadoSumo, EntradaSumo> = {
   },
   valido(x): x is EstadoSumo {
     const e = x as EstadoSumo;
-    return !!e && typeof e.semilla === 'string' && num(e.t) && num(e.n) && num(e.nivel) && Array.isArray(e.c) && e.c.length === CUERPOS && e.c.every((o) => o && num(o.x) && num(o.z) && num(o.vx) && num(o.vz) && typeof o.vivo === 'boolean' && num(o.botados))
-      && (e.coco === null || (num(e.coco?.x) && num(e.coco?.z))) && !!e.golpes && num(e.golpes.a) && num(e.golpes.b);
+    // Viene de otra persona: se revisa todo lo que lee la simulación (un dato roto la detendría para todos)
+    return !!e && typeof e.semilla === 'string' && e.semilla.length < 200 && num(e.t) && entre(e.n, 0, 1e9) && entre(e.nivel, 1, 4) && num(e.proximo) && Array.isArray(e.c) && e.c.length === CUERPOS
+      && e.c.every((o) => !!o && [o.x, o.z, o.vx, o.vz, o.aturdido, o.recarga, o.embiste, o.cargaGolpe, o.fuerte, o.tocadoEn].every(num) && typeof o.vivo === 'boolean' && entre(o.tocadoPor, -1, CUERPOS - 1) && entre(o.botados, 0, 99) && (o.cayo === null || num(o.cayo)))
+      && (e.coco === null || (!!e.coco && num(e.coco.x) && num(e.coco.z))) && !!e.golpes && entre(e.golpes.a, 0, 1e9) && entre(e.golpes.b, 0, 1e9);
   },
   entradaValida(x): x is EntradaSumo { const i = x as EntradaSumo; return !!i && num(i.x) && num(i.z) && Math.abs(i.x) <= 1.5 && Math.abs(i.z) <= 1.5 && Number.isInteger(i.golpe) && num(i.carga); },
 
@@ -151,6 +153,8 @@ export const sumoMundo: JuegoMundo<EstadoSumo, EntradaSumo> = {
         return { x: mando.x, z: mando.z, golpe, carga: cargaSalida };
       },
       dibujar(es, dt) {
+        // Si recargué, mis golpes siguen contando desde donde quedaron
+        if (yo) golpe = Math.max(golpe, es.golpes[yo]);
         const R = radio(es);
         balsa.scale.set(R, 1, R);
         coco.visible = !!es.coco;

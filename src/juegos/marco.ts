@@ -24,7 +24,8 @@ export interface ContextoVivo {
   simulo(): boolean;
   /** Si hay conexión directa: sin ella se manda menos seguido. */
   directo(): boolean;
-  enviar(tipo: string, datos: Record<string, unknown>): void;
+  /** Con `alAnfitrion`, solo le llega a quien simula (el mando, por ejemplo). */
+  enviar(tipo: string, datos: Record<string, unknown>, alAnfitrion?: boolean): void;
   /** `lado`: qué jugador lo mandó (null si no es un jugador sentado). */
   alRecibir(f: (tipo: string, datos: Record<string, unknown>, lado: 'a' | 'b' | null, deAnfitrion: boolean) => void): void;
 }
@@ -42,7 +43,7 @@ export interface Contexto {
 }
 
 /** Lo que la sala le avisa a los motores para la partida que parte (shortcut: un valor compartido; basta porque hay una sola partida a la vez). */
-export const ajustesPartida = { pausable: true, /** En vivo el lienzo guarda su imagen para mandarle fotos al rival. */ vivo: false };
+export const ajustesPartida = { pausable: true, /** En vivo: resolución más baja, para que ande liviano. */ vivo: false, /** El lienzo guarda su imagen para mandarle fotos al rival (espejo). */ foto: false };
 
 /** Jornada del torneo (1 a 4) de una fecha "AAAA-MM-DD": parten los viernes desde el 16 de octubre; antes cuenta como la 1. */
 export const jornadaDe = (fecha: string) => Math.min(4, Math.max(1, Math.floor((Date.parse(fecha) - Date.parse('2026-10-16')) / (7 * 864e5)) + 1));

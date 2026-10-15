@@ -105,7 +105,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
       const semilla = reto ? await reto.empezar() : `${juego.id}|${fecha}|${Math.random().toString(36).slice(2, 10)}`;
       if (mio !== turno.current || !caja.current) return;
       ajustesPartida.pausable = !reto; // en un enfrentamiento el reloj no se detiene al cambiar de pestaña
-      ajustesPartida.vivo = false;
+      ajustesPartida.vivo = ajustesPartida.foto = false;
       const nueva = await crear({
         caja: caja.current, semilla, aspecto, nivel: reto?.nivel ?? jornadaDe(fecha),
         alTerminar(r) {

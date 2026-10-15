@@ -152,6 +152,10 @@ const grupos = {
           const texto = (p) => p.js('document.querySelector(".duelo-fin")?.textContent');
           salida['sumo: termina igual para los tres'] = await hasta(async () => { const [u, v, w] = [await texto(a), await texto(b), await texto(c)]; return !!u && u === v && u === w; }, 100000);
         } else {
+          // El anfitrión recarga: vuelve con un mundo nuevo y atrasado; los demás no retroceden y él sigue desde el de ellos
+          const t1 = await otro.js('window.__mundo.estado().t');
+          await sim.js('location.reload()');
+          salida['tanques: si el anfitrión recarga, el mundo sigue donde iba'] = await hasta(async () => (await otro.js('window.__mundo.estado().t')) > t1 + 3 && ((await sim.js('window.__mundo?.estado()?.t')) ?? 0) > t1, 60000);
           const t0 = await otro.js('window.__mundo.estado().t');
           sim.cerrar(); cerradas.add(sim);
           salida['tanques: si el anfitrión se va, el otro sigue simulando'] = await hasta(async () => (await otro.js('window.__mundo.simulo()')) && (await otro.js('window.__mundo.estado().t')) > t0 + 3, 40000);

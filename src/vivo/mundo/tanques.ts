@@ -4,7 +4,7 @@ import { AN, CLASES, COLS, FILAS, FO, R_TANQUE, TABLEROS, celda, centro, crearBl
 import { crearMando } from '../../juegos/mando';
 import type { Contexto, Partida } from '../../juegos/marco';
 import { crearEscenario, limitar, mmss } from '../../juegos/reflejos/motor';
-import { crearMundo, suave, suaveAngulo, type JuegoMundo, type Lado } from './red';
+import { crearMundo, entre, num, suave, suaveAngulo, type JuegoMundo, type Lado } from './red';
 
 // Tanques de Juguete en vivo, en el mismo mundo: los dos jugadores y dos tanques de máquina (que atacan a ambos)
 // en el tablero de la tercera oleada. Tres vidas cada uno y tres minutos. Puntos: 1000 por vida que te quede,
@@ -14,15 +14,14 @@ const DURA = 180, VIDAS = 3, VEL = 4.2, BALA = 10, RECARGA = 0.28, MAX_BALAS = 5
 type Quien = 'a' | 'b' | 'gris' | 'verde';
 interface Tq { quien: Quien; x: number; z: number; ang: number; mira: number; vivo: boolean; vidas: number; recarga: number; inv: number; vuelve: number; bajas: number; derribos: number; dest: { x: number; z: number } | null }
 interface Bala { x: number; z: number; vx: number; vz: number; rebotes: number; de: number }
-interface Mina { x: number; z: number; cuando: number; de: number }
-export interface EstadoTanques { semilla: string; nivel: number; t: number; n: number; tq: Tq[]; balas: Bala[]; minas: Mina[]; grilla: string[]; disparos: Record<Lado, number>; puestas: Record<Lado, number> }
+interface Mina { id: number; x: number; z: number; cuando: number; de: number }
+export interface EstadoTanques { semilla: string; nivel: number; t: number; n: number; tq: Tq[]; balas: Bala[]; minas: Mina[]; grilla: string[]; disparos: Record<Lado, number>; puestas: Record<Lado, number>; sig: number }
 export interface EntradaTanques { x: number; z: number; mira: number | null; disparo: number; mina: number }
 
 const SALIDAS = [centro(1, 6), centro(COLS - 2, 5), centro(10, 0), centro(9, FILAS - 1)];
 const ANGULO_SALIDA = [Math.PI / 2, -Math.PI / 2, Math.PI, 0];
 const QUIENES: Quien[] = ['a', 'b', 'gris', 'verde'];
 const indice = (l: Lado) => (l === 'a' ? 0 : 1);
-const num = (x: unknown) => typeof x === 'number' && Number.isFinite(x);
 const solido = (e: EstadoTanques, cx: number, cz: number) => cx < 0 || cz < 0 || cx >= COLS || cz >= FILAS || e.grilla[cz][cx] !== '.';
 const girarHacia = (desde: number, hacia: number, max: number) => { let d = hacia - desde; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return desde + limitar(d, -max, max); };
 const aLaVista = (e: EstadoTanques, a: { x: number; z: number }, b: { x: number; z: number }) => {
@@ -41,9 +40,10 @@ export const puntaje = (e: EstadoTanques, l: Lado) => { const x = e.tq[indice(l)
 export const tanquesMundo: JuegoMundo<EstadoTanques, EntradaTanques> = {
   inicial(semilla, nivel) {
     const tq = QUIENES.map((quien, i): Tq => ({ quien, x: SALIDAS[i].x, z: SALIDAS[i].z, ang: ANGULO_SALIDA[i], mira: ANGULO_SALIDA[i], vivo: true, vidas: i < 2 ? VIDAS : 1, recarga: i < 2 ? 0 : 2 + azar(semilla, 'tq', i) * 2, inv: 0, vuelve: 0, bajas: 0, derribos: 0, dest: null }));
-    return { semilla, nivel, t: 0, n: 0, tq, balas: [], minas: [], grilla: [...TABLEROS[2]], disparos: { a: 0, b: 0 }, puestas: { a: 0, b: 0 } };
+    return { semilla, nivel, t: 0, n: 0, tq, balas: [], minas: [], grilla: [...TABLEROS[2]], disparos: { a: 0, b: 0 }, puestas: { a: 0, b: 0 }, sig: 0 };
   },
   quieto: () => ({ x: 0, z: 0, mira: null, disparo: 0, mina: 0 }),
+  tiempo: (e) => e.t,
   paso(e, ent, dt) {
     const azarito = () => azar(e.semilla, 'tanques', e.n++);
     e.t += dt;
@@ -93,7 +93,7 @@ export const tanquesMundo: JuegoMundo<EstadoTanques, EntradaTanques> = {
       const blanco = blancoDe(e, i);
       q.mira = d.mira ?? (blanco ? Math.atan2(blanco.x - q.x, blanco.z - q.z) : q.ang);
       if (d.disparo > e.disparos[l]) { e.disparos[l] = d.disparo; if (t > q.recarga) disparar(i); }
-      if (d.mina > e.puestas[l]) { e.puestas[l] = d.mina; if (e.minas.filter((m) => m.de === i).length < 2) e.minas.push({ x: q.x, z: q.z, cuando: t + 6, de: i }); }
+      if (d.mina > e.puestas[l]) { e.puestas[l] = d.mina; if (e.minas.filter((m) => m.de === i).length < 2) e.minas.push({ id: e.sig++, x: q.x, z: q.z, cuando: t + 6, de: i }); }
     });
     // De máquina: se mueven (el gris), giran la torreta hacia el jugador más cercano y disparan si lo ven
     for (let i = 2; i < 4; i++) {
@@ -169,9 +169,13 @@ export const tanquesMundo: JuegoMundo<EstadoTanques, EntradaTanques> = {
   },
   valido(x): x is EstadoTanques {
     const e = x as EstadoTanques;
-    return !!e && typeof e.semilla === 'string' && num(e.t) && num(e.n) && num(e.nivel) && Array.isArray(e.tq) && e.tq.length === 4 && e.tq.every((q) => q && num(q.x) && num(q.z) && num(q.ang) && num(q.mira) && typeof q.vivo === 'boolean' && num(q.vidas) && num(q.inv))
-      && Array.isArray(e.balas) && e.balas.length < 60 && e.balas.every((b) => b && num(b.x) && num(b.z) && num(b.vx) && num(b.vz)) && Array.isArray(e.minas) && e.minas.length <= 4 && e.minas.every((m) => m && num(m.x) && num(m.z) && num(m.cuando))
-      && Array.isArray(e.grilla) && e.grilla.length === FILAS && e.grilla.every((f) => typeof f === 'string' && f.length === COLS) && !!e.disparos && !!e.puestas;
+    // Viene de otra persona: se revisa todo lo que lee la simulación (un dato roto la detendría para todos)
+    return !!e && typeof e.semilla === 'string' && e.semilla.length < 200 && num(e.t) && entre(e.n, 0, 1e9) && entre(e.nivel, 1, 4) && entre(e.sig, 0, 1e9) && Array.isArray(e.tq) && e.tq.length === 4
+      && e.tq.every((q, i) => !!q && q.quien === QUIENES[i] && [q.x, q.z, q.ang, q.mira, q.recarga, q.inv, q.vuelve].every(num) && typeof q.vivo === 'boolean' && entre(q.vidas, 0, VIDAS) && entre(q.bajas, 0, 999) && entre(q.derribos, 0, 999) && (q.dest === null || (!!q.dest && num(q.dest.x) && num(q.dest.z))))
+      && Array.isArray(e.balas) && e.balas.length < 60 && e.balas.every((b) => !!b && [b.x, b.z, b.vx, b.vz].every(num) && entre(b.rebotes, -1, 3) && entre(b.de, 0, 3))
+      && Array.isArray(e.minas) && e.minas.length <= 4 && e.minas.every((m) => !!m && entre(m.id, 0, 1e9) && [m.x, m.z, m.cuando].every(num) && entre(m.de, 0, 3))
+      && Array.isArray(e.grilla) && e.grilla.length === FILAS && e.grilla.every((f) => typeof f === 'string' && /^[.#c]{20}$/.test(f))
+      && !!e.disparos && !!e.puestas && [e.disparos.a, e.disparos.b, e.puestas.a, e.puestas.b].every((n) => entre(n, 0, 1e9));
   },
   entradaValida(x): x is EntradaTanques { const i = x as EntradaTanques; return !!i && num(i.x) && num(i.z) && Math.abs(i.x) <= 1.5 && Math.abs(i.z) <= 1.5 && (i.mira === null || num(i.mira)) && Number.isInteger(i.disparo) && Number.isInteger(i.mina); },
 
@@ -184,7 +188,7 @@ export const tanquesMundo: JuegoMundo<EstadoTanques, EntradaTanques> = {
     tablero.armar(grilla.map((f) => f.split('')));
     const COLORES = ['#3f8cff', '#ef5565', CLASES.gris.color, CLASES.verde.color];
     const tanques = e0.tq.map((q, i) => ({ ...mallaTanque(e, COLORES[i], { franja: yo !== null && i === indice(yo) }), x: q.x, z: q.z, ang: q.ang, mira: q.mira, vivo: true }));
-    const balas: THREE.Object3D[] = [], minas: THREE.Group[] = [];
+    const balas: THREE.Object3D[] = [], minas = new Map<number, THREE.Group>();
     let ultimo: EstadoTanques | null = null, llego = performance.now();
     const explotar = (x: number, z: number, grande = false) => { e.chispas(x, 0.6, z, ['#ff9a2e', '#ffd23c', '#3a3a44', '#ffffff'], grande ? 46 : 28, grande ? 7 : 5); e.temblar(grande ? 0.7 : 0.4); e.sonido.ruido(0.35, 0.25); };
 
@@ -206,6 +210,8 @@ export const tanquesMundo: JuegoMundo<EstadoTanques, EntradaTanques> = {
         return { x: mando.x, z: mando.z, mira: apunta ? Math.atan2(apunta.x - yoT.x, apunta.z - yoT.z) : null, disparo: disparos, mina: puestas };
       },
       dibujar(es, dt) {
+        // Si recargué, mis disparos y minas siguen contando desde donde quedaron
+        if (yo) { disparos = Math.max(disparos, es.disparos[yo]); puestas = Math.max(puestas, es.puestas[yo]); }
         if (es !== ultimo) { ultimo = es; llego = performance.now(); }
         const desde = (performance.now() - llego) / 1000; // lo que pasó desde el último estado: las balas se adelantan
         // Cajas rotas
@@ -225,8 +231,8 @@ export const tanquesMundo: JuegoMundo<EstadoTanques, EntradaTanques> = {
         });
         while (balas.length < es.balas.length) { const g = new THREE.Group(); g.add(dardo0.clone()); e.escena.add(g); balas.push(g); }
         balas.forEach((g, i) => { const b = es.balas[i]; g.visible = !!b; if (b) { g.position.set(b.x + b.vx * Math.min(desde, 0.2), 0.66, b.z + b.vz * Math.min(desde, 0.2)); g.rotation.y = Math.atan2(b.vx, b.vz); } });
-        while (minas.length < es.minas.length) { const m = mallaMina(); e.escena.add(m); minas.push(m); }
-        minas.forEach((g, i) => { const m = es.minas[i]; if (g.visible && !m && g.userData.estaba) explotar(g.position.x, g.position.z, true); g.visible = !!m; g.userData.estaba = !!m; if (m) { g.position.set(m.x, 0, m.z); (g.children[1] as THREE.Mesh).visible = Math.sin(es.t * (m.cuando - es.t < 2 ? 25 : 8)) > 0; } });
+        for (const m of es.minas) { let g = minas.get(m.id); if (!g) { g = mallaMina(); e.escena.add(g); minas.set(m.id, g); } g.position.set(m.x, 0, m.z); (g.children[1] as THREE.Mesh).visible = Math.sin(es.t * (m.cuando - es.t < 2 ? 25 : 8)) > 0; }
+        for (const [id, g] of minas) if (!es.minas.some((m) => m.id === id)) { explotar(g.position.x, g.position.z, true); e.escena.remove(g); minas.delete(id); }
         e.hud.tiempo(mmss(DURA - es.t));
         const vidas = (l: Lado) => '♥'.repeat(es.tq[indice(l)].vidas);
         e.hud.extra(`${v.nombres.a} ${vidas('a')} ${puntaje(es, 'a')} · ${puntaje(es, 'b')} ${vidas('b')} ${v.nombres.b}`);

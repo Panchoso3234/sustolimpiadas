@@ -99,7 +99,7 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
         fijar({ partida: d.partida as number, asientos, v: d.v as number, puntos, abandono: typeof d.abandono === 'string' && asientos?.includes(d.abandono) ? d.abandono : null });
         return;
       }
-      if ((evento === 'mundo' || evento === 'entrada') && d.partida === x.partida && (sentado || deAnfitrion)) { oyenteMundo.current?.(evento, d, x.asientos ? ladoDe(x.asientos, quien) : null, deAnfitrion); return; }
+      if ((evento === 'mundo' || evento === 'entrada' || evento === 'rescate') && d.partida === x.partida && (sentado || deAnfitrion)) { oyenteMundo.current?.(evento, d, x.asientos ? ladoDe(x.asientos, quien) : null, deAnfitrion); return; }
       if (!sentado) return;
       const lado = x.asientos ? ladoDe(x.asientos, quien) : null;
       if (evento === 'resultado') { if (lado && d.partida === x.partida && puntajeValido(d.puntaje)) anotar(lado, d.puntaje); return; }
@@ -152,7 +152,7 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
   // Mi partida: corre en mi navegador cuando me toca
   const miCaja = useRef<HTMLDivElement>(null), partidaJuego = useRef<Juego | null>(null), corrida = useRef(0), vuelta = useRef(0);
   const cerrarJuego = () => { vuelta.current++; partidaJuego.current?.destruir(); partidaJuego.current = null; };
-  useEffect(() => () => { cerrarJuego(); ajustesPartida.vivo = false; }, []);
+  useEffect(() => () => { cerrarJuego(); ajustesPartida.vivo = ajustesPartida.foto = false; }, []);
   /** Mi puntaje final: se avisa a todos y, en un oficial, se guarda como en el diferido. */
   const publicar = (puntaje: number, detalle: Record<string, unknown> = {}, guardar = true) => {
     const x = est.current, lado = x.asientos ? ladoDe(x.asientos, yo.id) : null;
@@ -186,12 +186,13 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
       }
       if (mio !== vuelta.current || !miCaja.current) return;
       ajustesPartida.pausable = false; // en vivo el reloj no se detiene al cambiar de pestaña
-      ajustesPartida.vivo = !mundo; // las fotos del espejo solo hacen falta cuando cada uno ve un juego distinto
+      ajustesPartida.vivo = true;
+      ajustesPartida.foto = !mundo; // las fotos del espejo solo hacen falta cuando cada uno ve un juego distinto
       const vivo: ContextoVivo | undefined = mundo && aspectos && x.asientos ? {
         rol: lado ?? 'espectador', nombres: { a: nombre(x.asientos[0]), b: nombre(x.asientos[1]) }, aspectos: { a: aspectos[0], b: aspectos[1] },
         simulo: () => !!anfitrionRef.current && anfitrionRef.current === sala.current?.clave,
         directo: () => { const s = sala.current; return !!s && (s.clave === anfitrionRef.current ? s.presentes().filter((y) => y.clave !== s.clave).every((y) => s.directo(y.clave)) : !!anfitrionRef.current && s.directo(anfitrionRef.current)); },
-        enviar: (tipo, datos) => sala.current?.enviar(tipo, { ...datos, partida: x.partida }),
+        enviar: (tipo, datos, alAnfitrion) => sala.current?.enviar(tipo, { ...datos, partida: x.partida }, alAnfitrion ? anfitrionRef.current ?? undefined : undefined),
         alRecibir: (f) => { oyenteMundo.current = f; },
       } : undefined;
       const j = await crear({
