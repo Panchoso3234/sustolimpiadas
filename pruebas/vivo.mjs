@@ -3,6 +3,15 @@ import { abrir, hasta } from './navegador.mjs';
 
 const BASE = 'http://localhost:5173/';
 const grupos = {
+  async asientos() {
+    const p = await abrir(`${BASE}#/juegos/vivo`);
+    try {
+      await hasta(() => p.js('!!window.__vivo'));
+      const fallas = await p.js('window.__vivo.probarAsientos()');
+      for (const f of fallas ?? []) console.log('  ', f);
+      return { 'reglas de asientos': Array.isArray(fallas) && fallas.length === 0 };
+    } finally { p.cerrar(); }
+  },
   async humo() {
     const p = await abrir(`${BASE}#/juegos/vivo`);
     try { return { 'la pestaña En vivo carga': await hasta(() => p.js(`!!document.querySelector('.vivo-lista, .rejilla-juegos')`)) }; } finally { p.cerrar(); }

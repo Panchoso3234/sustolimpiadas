@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { useSesion } from '../nucleo/supabase';
 import { COLUMNAS, FILAS, LADO, filaLibre, jugarConchas, recibirDisparo, repartirFlota, type Balsa, type Resultado } from './reglas';
 import { nuevoCodigo, unirse, type Presente, type Sala } from './sala';
+import { probarAsientos } from './asientos';
 
 // Juego en vivo por turnos: Cuatro Conchas en Línea y Batalla de Balsas. Partidas amistosas (no dan puntos).
 // Los dos primeros en llegar a la sala juegan; los demás miran. Si alguien se desconecta tiene 30 s para volver.
@@ -254,3 +255,6 @@ function SalaVivo({ codigo }: { codigo: string }) {
     </div>
   );
 }
+
+// Solo en pruebas: las reglas de asientos se pueden correr desde el banco de pruebas
+if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__vivo = { probarAsientos };
