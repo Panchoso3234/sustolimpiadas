@@ -3,7 +3,8 @@ import { useSesion } from '../nucleo/supabase';
 import { COLUMNAS, FILAS, LADO, filaLibre, jugarConchas, recibirDisparo, repartirFlota, type Balsa, type Resultado } from './reglas';
 import { nuevoCodigo, unirse, type Presente, type Sala } from './sala';
 import { anunciarSala } from './vestibulo';
-import { probarTableros } from './tableros';
+import { TABLEROS, probarTableros } from './tableros';
+import { SalaTablero } from './SalaTablero';
 import { probarAsientos, repartir, rondaSiguiente } from './asientos';
 import * as V from '../juegos/duelos';
 
@@ -71,7 +72,7 @@ export function probarSala(): string[] {
 }
 
 /** Quién soy: la cuenta de Discord, o un invitado con nombre al azar (las partidas en vivo son amistosas). */
-function identidad(usuarioId: string | null, nombre: string | undefined): { id: string; nombre: string } {
+export function identidadVivo(usuarioId: string | null, nombre: string | undefined): { id: string; nombre: string } {
   if (usuarioId) return { id: usuarioId, nombre: nombre ?? 'Participante' };
   // Solo en pruebas: "?invitado=b" da otra identidad, para jugar contra uno mismo en dos pestañas
   const prueba = import.meta.env.DEV ? new URLSearchParams(location.search).get('invitado') : null;
@@ -93,19 +94,20 @@ function SalaOficial({ id, mirar }: { id: number; mirar: boolean }) {
   useEffect(() => {
     if (sesion.cargando) return;
     Promise.all([V.unEnfrentamiento(id), V.listarPersonas(), V.marcasDe([id])]).then(([e, personas, marcas]) => {
-      if (!e || !e.a_perfil || !e.b_perfil || !(e.juego in JUEGOS)) return setDatos('no');
+      if (!e || !e.a_perfil || !e.b_perfil || !(e.juego in JUEGOS || e.juego in TABLEROS)) return setDatos('no');
       const mias = marcas.filter((m) => m.perfil_id === sesion.usuarioId);
       setDatos({ e, personas, empezadas: mias.map((m) => m.ronda), jugadas: mias.filter((m) => m.terminado).map((m) => m.ronda) });
     });
   }, [id, sesion.cargando, sesion.usuarioId]);
   if (datos === null) return <p class="tenue">Cargando el enfrentamiento…</p>;
   if (datos === 'no') return <><h1>Enfrentamiento no encontrado</h1><p><a class="boton" href="#/juegos/1v1">Volver a Versus 1v1</a></p></>;
-  return <SalaVivo codigo={`enf-${id}`} mirar={mirar} oficial={datos} />;
+  return datos.e.juego in TABLEROS ? <SalaTablero codigo={`enf-${id}`} mirar={mirar} oficial={datos} /> : <SalaVivo codigo={`enf-${id}`} mirar={mirar} oficial={datos} />;
 }
 
 export function Vivo({ codigo, mirar = false }: { codigo: string; mirar?: boolean }) {
   const [entrar, setEntrar] = useState('');
   if (/^enf-\d+$/.test(codigo)) return <SalaOficial key={codigo} id={Number(codigo.slice(4))} mirar={mirar} />;
+  if (codigo && codigo.split('-')[0] in TABLEROS) return <SalaTablero key={codigo} codigo={codigo} mirar={mirar} />;
   if (codigo) return <SalaVivo key={codigo} codigo={codigo} mirar={mirar} />;
   const crear = (juego: IdJuego) => { location.hash = `#/juegos/vivo/${nuevoCodigo(juego)}`; };
   return (
@@ -136,7 +138,7 @@ export function Vivo({ codigo, mirar = false }: { codigo: string; mirar?: boolea
 function SalaVivo({ codigo, mirar = false, oficial }: { codigo: string; mirar?: boolean; oficial?: Oficial }) {
   const sesion = useSesion();
   const juego = (oficial?.e.juego ?? codigo.split('-')[0]) as IdJuego, valido = !!JUEGOS[juego];
-  const yo = identidad(sesion.usuarioId, sesion.perfil?.nombre);
+  const yo = identidadVivo(sesion.usuarioId, sesion.perfil?.nombre);
   // En una sala oficial juegan solo los dos del enfrentamiento (con su cuenta); el resto mira
   const fijos = oficial ? [oficial.e.a_perfil!, oficial.e.b_perfil!] as [string, string] : null;
   const quiere = mirar || (fijos && !fijos.includes(yo.id)) ? 'mirar' : 'jugar';

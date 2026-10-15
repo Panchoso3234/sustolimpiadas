@@ -35,7 +35,69 @@ async function armarConchas(letra) {
 const columna = (p, i) => hasta(() => p.js(`(() => { const c = document.querySelectorAll('.conchas-col')[${i}]; if (!c || c.disabled) return false; c.click(); return true; })()`));
 const jugadas = async (p, sala) => JSON.parse((await p.js(`localStorage.getItem('susto.vivo.${sala}')`)) ?? '{}');
 
+const listoTablero = (p) => hasta(() => p.js(`(() => { const x = [...document.querySelectorAll('button')].find((y) => y.textContent === '¡Listo!'); if (x) x.click(); return !!x; })()`), 20000);
+const pausa = (ms) => new Promise((r) => setTimeout(r, ms));
+
 const grupos = {
+  // Parejas completa entre dos, con un espectador que entra tarde: todos terminan con el mismo marcador
+  async parejas() {
+    const sala = `parejas-P${Math.floor(Math.random() * 900 + 100)}`;
+    const a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`), b = await abrir(`${BASE}?invitado=b#/juegos/vivo/${sala}`);
+    let c;
+    try {
+      await hasta(async () => (await a.js('window.__sala?.presentes() ?? 0')) >= 2, 20000);
+      for (const p of [a, b]) await listoTablero(p);
+      await hasta(() => a.js('window.__tablero?.estado() != null'), 20000);
+      c = await abrir(`${BASE}?invitado=c#/juegos/mirar/${sala}`);
+      // Juega quien tiene el turno: busca una pareja libre que sabe dónde está (lo hace el banco de pruebas, no el juego)
+      for (let k = 0; k < 80; k++) {
+        if (await a.js('document.querySelector(".tablero-fin") != null')) break;
+        const e = await a.js('window.__tablero.estado()'), t = await a.js('window.__tablero.t()');
+        if (!e || t < 0 || e.tapa || e.abiertas.length) { await pausa(400); continue; }
+        const quien = e.turno === (await a.js('window.__tablero.lado()')) ? a : b;
+        const libre = e.cartas.findIndex((f, i) => f !== 'medusa' && !e.duenas[i]), par = e.cartas.findIndex((f, i) => i !== libre && f === e.cartas[libre] && !e.duenas[i]);
+        if (libre < 0) break;
+        await quien.js(`window.__tablero.enviar({ i: ${libre} })`); await pausa(250);
+        await quien.js(`window.__tablero.enviar({ i: ${par} })`); await pausa(350);
+      }
+      const fin = await hasta(async () => { const fa = await a.js('document.querySelector(".tablero-fin")?.textContent'), fc = await c.js('document.querySelector(".tablero-fin")?.textContent'); return !!fa && fa === fc; }, 20000);
+      const espectadorVioTablero = (await c.js('document.querySelectorAll(".carta.lista").length')) > 0;
+      return { 'termina con el mismo resultado para todos': fin, 'el que entró tarde ve el tablero': espectadorVioTablero };
+    } finally { a.cerrar(); b.cerrar(); c?.cerrar(); }
+  },
+  // El anfitrión se va a media partida: el otro sigue desde el mismo estado y con el reloj adelantado
+  async relevo() {
+    const sala = `numeros-R${Math.floor(Math.random() * 900 + 100)}`;
+    const a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`), b = await abrir(`${BASE}?invitado=b#/juegos/vivo/${sala}`);
+    try {
+      await hasta(async () => (await a.js('window.__sala?.presentes() ?? 0')) >= 2, 20000);
+      for (const p of [a, b]) await listoTablero(p);
+      await hasta(async () => ((await b.js('window.__tablero?.t()')) ?? -9) > 2, 20000);
+      await b.js('window.__tablero.enviar({ n: 1 })');
+      await hasta(async () => (await a.js('window.__tablero.estado()?.sigue')) === 2);
+      const tAntes = await b.js('window.__tablero.t()');
+      a.cerrar();
+      await pausa(4000);
+      await b.js('window.__tablero.enviar({ n: 2 })');
+      const sigue = await hasta(async () => (await b.js('window.__tablero.estado()?.sigue')) === 3, 15000);
+      const reloj = (await b.js('window.__tablero.t()')) > tAntes + 3;
+      return { 'el otro jugador toma el mando': sigue, 'el reloj no vuelve a cero': reloj };
+    } finally { b.cerrar(); }
+  },
+  // Un espectador manda acciones y un estado falso: no cambian el tablero
+  async intrusoTablero() {
+    const sala = `numeros-I${Math.floor(Math.random() * 900 + 100)}`;
+    const a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`), b = await abrir(`${BASE}?invitado=b#/juegos/vivo/${sala}`), c = await abrir(`${BASE}?invitado=c#/juegos/mirar/${sala}`);
+    try {
+      await hasta(async () => (await a.js('window.__sala?.presentes() ?? 0')) >= 3, 20000);
+      for (const p of [a, b]) await listoTablero(p);
+      await hasta(async () => ((await a.js('window.__tablero?.t()')) ?? -9) > 1, 20000);
+      await c.js(`window.__sala.enviarCrudo('accion', { partida: 1, a: { n: 1 } })`);
+      await c.js(`window.__sala.enviarCrudo('estado', { partida: 1, asientos: ['inv-a', 'inv-b'], v: 999, e: { semilla: 'x', orden: Array.from({ length: 25 }, (_, i) => i + 1), sigue: 26, duenos: Array(25).fill('b'), errores: { a: 0, b: 0 }, mezclas: 0 }, t: 50, fin: { a: 0, b: 250 } })`);
+      await pausa(2500);
+      return { 'el espectador no cambia nada': (await a.js('window.__tablero.estado()?.sigue')) === 1 && !(await a.js('document.querySelector(".tablero-fin")')) };
+    } finally { a.cerrar(); b.cerrar(); c.cerrar(); }
+  },
   // Un espectador manda mensajes falsos: los jugadores no deben cambiar su partida
   async intruso() {
     const { sala, a, b, c } = await armarConchas('I');

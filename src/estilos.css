@@ -529,3 +529,8 @@ body.foto .kart-objeto, body.foto .kart-mapa { display: none; }
 body.foto .tren-poderes { display: none; }
 .vivo-ojo { font: 800 1.05rem var(--cuerpo); background: var(--noche-2); border: 1px solid var(--linea); border-radius: 99px; padding: 4px 12px; }
 .partida-ojo { position: absolute; top: 10px; right: 10px; z-index: 2; }
+.tablero-caja { position: relative; min-height: 0; border-radius: 16px; overflow: hidden; }
+.tablero-caja:has(.mesa) { min-height: 460px; }
+.tablero-caja .mesa-avatar { display: none; }
+.tablero-cuenta { font: 400 4rem var(--display); text-align: center; color: var(--luna); }
+.vivo-mesa .cartas.bloqueada, .vivo-mesa .eco.bloqueada { pointer-events: none; opacity: .85; }
