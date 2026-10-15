@@ -51,7 +51,8 @@ export function crearEnlace(canal: RealtimeChannel, yo: string, opciones: { sinD
     // Sin destinos directos (sala recién armada, o sin conexión directa) todo va por el respaldo
     let faltan = destinos.length === 0 && !excepto;
     for (const k of destinos) { if (abierto(k)) pares.get(k)!.dc!.send(texto); else faltan = true; }
-    if (faltan) canal.send({ type: 'broadcast', event: 'msg', payload: m });
+    // shortcut: las fotos que reenvía el anfitrión no van por el respaldo (pesan); quien no tiene conexión directa ve solo el puntaje del rival
+    if (faltan && !(excepto && m.tipo === 'foto')) canal.send({ type: 'broadcast', event: 'msg', payload: m });
   };
 
   const crearPar = (clave: string, inicio: boolean): Par => {

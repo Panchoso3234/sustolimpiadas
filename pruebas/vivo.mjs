@@ -1,5 +1,5 @@
 // Uso: node pruebas/vivo.mjs <grupo>   (con `npm run dev` corriendo en el puerto 5173)
-import { abrir, hasta } from './navegador.mjs';
+import { abrir, hasta, limpiarPerfiles } from './navegador.mjs';
 
 const BASE = 'http://localhost:5173/';
 async function probarMensajes(extraMirar) {
@@ -323,4 +323,5 @@ const grupo = process.argv[2] ?? 'humo';
 const resultados = await grupos[grupo]();
 let malas = 0;
 for (const [nombre, ok] of Object.entries(resultados)) { console.log(`${ok ? 'OK  ' : 'FALLA'} ${nombre}`); if (!ok) malas++; }
+await limpiarPerfiles();
 process.exit(malas ? 1 : 0);

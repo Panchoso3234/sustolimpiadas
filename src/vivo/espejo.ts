@@ -38,7 +38,8 @@ export function limpiar(html: string): HTMLElement | null {
     for (const a of [...el.attributes]) {
       const v = a.value;
       const malo = !ATRIBUTOS.has(a.name.toLowerCase())
-        || /url\s*\(|expression|@import|javascript:/i.test(v)
+        // Sin direcciones externas: ni url(), ni image-set(), ni escapes de CSS (\75 rl) que las disfracen
+        || /url\s*\(|image-set|image\s*\(|expression|@import|javascript:|\\/i.test(v)
         || (a.name === 'src' && (el.tagName !== 'IMG' || !/^\/(?!\/)[\w\-./%]*$/.test(v)));
       if (malo) el.removeAttribute(a.name);
     }
@@ -54,6 +55,7 @@ export function probarEspejo(): string[] {
   igual('espejo: sin eventos ni scripts', x?.outerHTML, '<div class="mesa numeros"><button class="numero">3</button><img src="/figuras/a.png"><img><span>y</span></div>');
   const svg = limpiar('<div><svg viewBox="0 0 10 10"><line x1="0" y1="0" x2="5" y2="5" stroke="red"></line><use href="#x"></use><circle r="2" fill="url(https://malo.com)" onclick="x()"></circle></svg></div>');
   igual('espejo: svg sencillo sí, enlaces no', svg?.outerHTML, '<div><svg viewBox="0 0 10 10"><line x1="0" y1="0" x2="5" y2="5" stroke="red"></line><circle r="2"></circle></svg></div>');
+  igual('espejo: estilos con escapes no pasan', limpiar('<div><span style="background:\\75 rl(https://malo.com)">z</span><span style="background:image-set(\'https://malo.com\')">w</span></div>')?.outerHTML, '<div><span>z</span><span>w</span></div>');
   igual('espejo: la raíz debe ser un div', limpiar('<img src=x onerror=alert(1)>'), null);
   return fallas;
 }

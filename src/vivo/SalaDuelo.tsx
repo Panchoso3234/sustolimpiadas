@@ -77,9 +77,11 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
         const pts = d.puntos as Record<string, unknown> | undefined;
         if (!(deAnfitrion || sentado) || !Number.isInteger(d.partida) || !Number.isInteger(d.v) || !pts || !LADOS.every((l) => pts[l] === null || puntajeValido(pts[l]))) return;
         if (d.asientos !== null && !asientosValidos(d.asientos, fijos)) return;
-        if ((d.partida as number) < x.partida || ((d.partida as number) === x.partida && (d.v as number) <= x.v)) return;
+        // Los puntajes se escriben una sola vez: si el mensaje trae uno que me falta, lo anoto aunque la versión no sea mayor
+        if (d.partida === x.partida && x.asientos) for (const l of LADOS) if (x.puntos[l] === null && pts[l] !== null) anotar(l, pts[l] as number);
+        if ((d.partida as number) < x.partida || ((d.partida as number) === x.partida && (d.v as number) <= est.current.v)) return;
         // Si ya sé el puntaje de alguien que el otro aún no anotó, no lo pierdo
-        const misma = d.partida === x.partida, puntos = { a: (pts.a as number | null) ?? (misma ? x.puntos.a : null), b: (pts.b as number | null) ?? (misma ? x.puntos.b : null) };
+        const misma = d.partida === x.partida, puntos = { a: (pts.a as number | null) ?? (misma ? est.current.puntos.a : null), b: (pts.b as number | null) ?? (misma ? est.current.puntos.b : null) };
         const asientos = d.asientos as [string, string] | null;
         fijar({ partida: d.partida as number, asientos, v: d.v as number, puntos, abandono: typeof d.abandono === 'string' && asientos?.includes(d.abandono) ? d.abandono : null });
         return;
@@ -88,7 +90,7 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
       const lado = x.asientos ? ladoDe(x.asientos, quien) : null;
       if (evento === 'resultado') { if (lado && d.partida === x.partida && puntajeValido(d.puntaje)) anotar(lado, d.puntaje); return; }
       if (evento === 'marcador') { if (lado && d.partida === x.partida && puntajeValido(d.puntaje)) setLlevan((v) => ({ ...v, [lado]: d.puntaje as number })); return; }
-      if (evento === 'foto') { if (lado && d.partida === x.partida) { fotos.current[lado] = { img: d.img as string | undefined, html: d.html as string | undefined }; pintarEspejo(lado); } return; }
+      if (evento === 'foto') { if (lado && d.partida === x.partida && String(d.img ?? '').length < 150000 && String(d.html ?? '').length < 90000) { fotos.current[lado] = { img: d.img as string | undefined, html: d.html as string | undefined }; pintarEspejo(lado); } return; }
       if (evento === 'revancha') { if (Number.isInteger(d.partida) && (d.partida as number) > x.partida && rondaLibre(d.partida as number)) { fijar(nueva(d.partida as number)); s.marcarListo(0); } return; }
       if (evento === 'abandono') { if (d.partida === x.partida && typeof d.ganador === 'string' && x.asientos?.includes(d.ganador) && !x.abandono) fijar({ ...x, abandono: d.ganador, v: x.v + 1 }); return; }
     }, fijos);
@@ -161,7 +163,7 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
         if (!r.semilla) {
           const m = (await V.marcasDe([oficial.e.id])).find((k) => k.perfil_id === yo.id && k.ronda === x.partida);
           setFase('listo');
-          if (m) { setAviso('Tu partida de esta ronda ya había empezado: vale lo que llevabas.'); publicar(m.puntaje, {}, false); } else setAviso(r.error ?? 'No se pudo abrir la ronda.');
+          if (m) { setAviso('Tu partida de esta ronda ya había empezado: vale lo que llevabas.'); publicar(m.puntaje, {}, false); } else { setFase('nada'); setAviso(r.error ?? 'No se pudo abrir la ronda.'); }
           return;
         }
         semilla = r.semilla;
@@ -186,7 +188,7 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
       setFase('jugando');
       j.empezar();
     } catch {
-      if (mio === vuelta.current) { setFase('nada'); corrida.current = 0; setAviso('No se pudo cargar el juego. Revisa tu conexión.'); }
+      if (mio === vuelta.current) { setFase('nada'); setAviso('No se pudo cargar el juego. Revisa tu conexión.'); }
     }
   };
   const mia = miLado ? leToca(miLado) : false;
@@ -203,7 +205,7 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
       if (!s || !caja) return;
       n++;
       const directo = soyAnfitrion ? s.presentes().filter((y) => y.clave !== s.clave).every((y) => s.directo(y.clave)) : !!anfitrionRef.current && s.directo(anfitrionRef.current);
-      const cada = directo ? 1 : 6; // sin conexión directa todo pasa por Supabase: menos fotos
+      const cada = !directo ? 6 : formato === 'dividida' ? 2 : 1; // sin conexión directa todo pasa por Supabase: menos fotos
       if (n % 2 === 0) {
         const lleva = puntajeEnPantalla(caja);
         s.enviar('marcador', { partida: x.partida, puntaje: lleva });
@@ -214,6 +216,14 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
     }, 250);
     return () => clearInterval(r);
   }, [fase, miLado, soyAnfitrion]);
+
+  // Mi resultado se repite cada 3 s hasta que el duelo termine: si un mensaje se perdió, el duelo no se queda pegado
+  const miPuntaje = miLado ? puntos[miLado] : null;
+  useEffect(() => {
+    if (miPuntaje === null || fin || p.abandono) return;
+    const r = setInterval(() => sala.current?.enviar('resultado', { partida: est.current.partida, puntaje: miPuntaje }), 3000);
+    return () => clearInterval(r);
+  }, [miPuntaje, fin, !!p.abandono, p.partida]);
 
   // Abandono en un amistoso: si el rival se va y no vuelve en 30 s, gana quien se quedó. En un oficial
   // no hace falta: lo que cada uno alcanzó a jugar queda guardado y el que se fue puede jugar su ronda en diferido.
@@ -273,6 +283,7 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
         : <p class="tenue">La partida parte cuando los dos jugadores marquen Listo. Tú miras.</p>)}
       {quedan !== null && quedan > 0 && <p class="aviso atencion">{nombre(rivalId)} se desconectó. Si no vuelve en {quedan} s, ganas por abandono.</p>}
       {oficial && asientos && !fin && soyJugador && !rivalPresente && <p class="aviso atencion">{nombre(rivalId)} se desconectó. Tu resultado se guarda igual; tu rival puede jugar su ronda a su hora.</p>}
+      {mia && fase === 'nada' && corrida.current === p.partida && <div class="fila"><button class="boton principal grande" onClick={() => { setAviso(''); correr(); }}>Reintentar mi partida</button></div>}
       {turno && <p class={`duelo-turno${turno === miLado ? ' mio' : ''}`}>{turno === miLado ? '¡Es tu turno!' : `Es el turno de ${nombres[turno]}`}</p>}
       {asientos && !ganador && (
         <div class={`duelo-zona ${formato}${jugandoYo || fase === 'listo' ? ' con-juego' : ''}`}>

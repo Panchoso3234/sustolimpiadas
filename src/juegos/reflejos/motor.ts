@@ -59,7 +59,7 @@ export function crearEscenario(caja: HTMLElement, encuadre: Encuadre) {
     const w = caja.clientWidth, h = caja.clientHeight;
     if (!w || !h) return;
     // En pantallas grandes se dibuja a menos píxeles (unos 1,1 millones) y el navegador lo agranda: en una gráfica integrada se nota mucho más la fluidez que la nitidez
-    render.setPixelRatio(Math.min(window.devicePixelRatio, 1.5, Math.sqrt(1.1e6 / (w * h))));
+    render.setPixelRatio(Math.min(window.devicePixelRatio, ajustesPartida.vivo ? 1 : 1.5, Math.sqrt(1.1e6 / (w * h))));
     render.setSize(w, h);
     camara.aspect = w / h;
     const media = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
