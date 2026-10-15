@@ -7,6 +7,7 @@ import { TABLEROS, probarTableros } from './tableros';
 import { SalaTablero } from './SalaTablero';
 import { probarAsientos, repartir, rondaSiguiente } from './asientos';
 import * as V from '../juegos/duelos';
+import { MisEnVivo } from '../juegos/PantallaVersus';
 
 // Juego en vivo por turnos: Cuatro Conchas en Línea y Batalla de Balsas. Partidas amistosas (no dan puntos).
 // Los dos primeros en llegar a la sala juegan; los demás miran. Si alguien se desconecta tiene 30 s para volver.
@@ -115,7 +116,7 @@ export function Vivo({ codigo, mirar = false }: { codigo: string; mirar?: boolea
   return (
     <>
       <h1>Juego en vivo</h1>
-      <p>Partidas con otra persona conectada al mismo tiempo. Crea una sala y comparte el enlace; los dos primeros en entrar juegan y el resto puede mirar. Las salas que creas aquí son amistosas; los enfrentamientos oficiales (que dan puntos) se juegan desde tu lista de enfrentamientos con "Jugar en vivo".</p>
+      <p>Partidas con otra persona conectada al mismo tiempo. Crea una sala y comparte el enlace; los dos primeros en entrar juegan y el resto puede mirar. Las salas que creas aquí son amistosas; tus enfrentamientos (los que dan puntos) están en la lista de abajo.</p>
       <div class="rejilla-juegos">
         {(Object.keys(JUEGOS) as IdJuego[]).map((j) => (
           <div key={j} class="tarjeta" style="--tono:#ffe08a">
@@ -134,6 +135,7 @@ export function Vivo({ codigo, mirar = false }: { codigo: string; mirar?: boolea
           </div>
         ))}
       </div>
+      <MisEnVivo />
       <section class="bloque">
         <h2>Entrar a una sala</h2>
         <div class="formulario">

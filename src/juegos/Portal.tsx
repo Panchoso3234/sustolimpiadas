@@ -5,7 +5,7 @@ import { JUEGOS, MOTORES, ORDEN_MOTORES, juegoPorId, type Juego } from './catalo
 import * as V from './duelos';
 import { marcaLocal } from './marcas';
 import { alternarFavorito, favoritos } from '../nucleo/preferencias';
-import { Duelo, PestanaVersus } from './PantallaVersus';
+import { Duelo, PestanaVersus, seJuegaEnVivo } from './PantallaVersus';
 import { Posiciones } from './Posiciones';
 import { Sala } from './Sala';
 import { Vivo } from '../vivo/PantallaVivo';
@@ -34,7 +34,9 @@ function usePendientes(usuarioId: string | null): Record<string, number> {
       const nueva: Record<string, number> = {};
       for (const e of mios) {
         const hechas = marcas.filter((m) => m.enfrentamiento_id === e.id && m.perfil_id === usuarioId && m.terminado).length;
-        if (hechas < (e.modo === '1v1' ? e.rondas : 1)) nueva[e.modo] = (nueva[e.modo] ?? 0) + 1;
+        // Los que se juegan en vivo se avisan en la pestaña En vivo
+        const pestana = seJuegaEnVivo(e) ? 'vivo' : e.modo;
+        if (hechas < (e.modo === '1v1' ? e.rondas : 1)) nueva[pestana] = (nueva[pestana] ?? 0) + 1;
       }
       if (vigente) setCuenta(nueva);
     })();
@@ -51,7 +53,7 @@ export function Portal({ sub, extra }: { sub: string; extra: string }) {
   if (juego?.listo) return <Sala key={juego.id} juego={juego} />;
   const modo = sub === '3v3' || MODOS.some((m) => m.ruta === sub) ? sub : '';
   // El 3v3 vive dentro de la pestaña En vivo
-  const pestana = modo === '3v3' ? 'vivo' : modo, cuenta = (r: string) => (r === 'vivo' ? pendientes['3v3'] : pendientes[r]);
+  const pestana = modo === '3v3' ? 'vivo' : modo, cuenta = (r: string) => (r === 'vivo' ? (pendientes.vivo ?? 0) + (pendientes['3v3'] ?? 0) : pendientes[r]);
   return (
     <div class="pagina portal">
       <div class="sigla">Portal de juegos</div>

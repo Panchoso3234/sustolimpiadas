@@ -21,6 +21,35 @@ async function cargar(modo: '1v1' | '3v3'): Promise<Datos> {
 const jugables = (modo: '1v1' | '3v3') => VERSUS.filter((t) => t.modo === modo && t.base && (t.vivo || juegoPorId(t.base)?.listo));
 /** Si un enfrentamiento se juega solo en vivo (su sala es `enf-<id>`). */
 const esVivo = (e: { modo: string; juego: string }) => !!VERSUS.find((t) => t.modo === e.modo && t.base === e.juego)?.vivo;
+/** Si un enfrentamiento se puede jugar en vivo (solo en vivo, o un juego de mesa que también tiene diferido). */
+export const seJuegaEnVivo = (e: { modo: string; juego: string }) => esVivo(e) || (e.modo === '1v1' && e.juego in TABLEROS);
+
+/** Mis enfrentamientos 1v1 pendientes que se juegan en vivo: van en la pestaña En vivo. */
+export function MisEnVivo() {
+  const sesion = useSesion(), yo = sesion.usuarioId;
+  const [datos, setDatos] = useState<Datos | null>(null);
+  useEffect(() => { if (yo) cargar('1v1').then(setDatos); }, [yo]);
+  if (!yo) return <section class="bloque"><h2>Mis enfrentamientos</h2><p class="aviso atencion">Entra con Discord para ver tus enfrentamientos.</p></section>;
+  if (!datos?.disponible) return null;
+  const mios = datos.lista.filter((e) => e.estado === 'pendiente' && seJuegaEnVivo(e)).map((e) => ({ e, lado: V.ladoDe(e, yo, datos.equipos) })).filter((x): x is { e: V.Enfrentamiento; lado: V.Lado } => x.lado !== null);
+  return (
+    <section class="bloque">
+      <h2>Mis enfrentamientos</h2>
+      {!mios.length && <p class="tenue">No tienes enfrentamientos en vivo pendientes. Para retar a alguien, ve a Versus 1v1.</p>}
+      <ul class="duelos">
+        {mios.map(({ e, lado }) => {
+          const hechas = datos.marcas.filter((m) => m.enfrentamiento_id === e.id && m.perfil_id === yo && m.terminado).length;
+          return (
+            <li key={e.id}>
+              <span class="quienes"><b>{nombreVersus(e.modo, e.juego)}</b><span>contra {V.nombreLado(e, lado === 'a' ? 'b' : 'a', datos.personas, datos.equipos)} · {e.oficial ? `jornada ${e.jornada}` : 'amistoso'} · {e.rondas > 1 ? `ronda ${Math.min(hechas + 1, e.rondas)} de ${e.rondas} · ` : ''}{V.fechaCorta(e.plazo) === 'sin plazo' ? 'sin plazo' : `hasta el ${V.fechaCorta(e.plazo)}`}{!esVivo(e) ? ' · si no pueden a la vez, en Versus 1v1 (Diferido)' : ''}</span></span>
+              {hechas < e.rondas ? <a class="boton principal" href={`#/juegos/vivo/enf-${e.id}`}>Jugar en vivo</a> : <span class="tenue chico">Ya jugaste. Falta tu rival.</span>}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
 
 /** Cuánto ha jugado cada integrante del equipo hoy y en la jornada (las jornadas parten los viernes desde el 16 de octubre). */
 function EstadoEquipo({ equipo, personas }: { equipo: V.Equipo; personas: V.Persona[] }) {
@@ -67,7 +96,8 @@ export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; pres
   const yo = sesion.usuarioId, tipos = VERSUS.filter((t) => t.modo === modo);
   const miEquipo = datos?.equipos.find((q) => yo && q.miembros.includes(yo));
   const mios = (datos?.lista ?? []).map((e) => ({ e, lado: V.ladoDe(e, yo, datos!.equipos) })).filter((x): x is { e: V.Enfrentamiento; lado: V.Lado } => x.lado !== null);
-  const pendientes = mios.filter((x) => x.e.estado === 'pendiente'), cerrados = mios.filter((x) => x.e.estado === 'cerrado');
+  // En el diferido no van los que se juegan solo en vivo (están en En vivo → 1v1)
+  const pendientes = mios.filter((x) => x.e.estado === 'pendiente' && !esVivo(x.e)), cerrados = mios.filter((x) => x.e.estado === 'cerrado');
   const nombre = (e: V.Enfrentamiento, lado: V.Lado) => V.nombreLado(e, lado, datos!.personas, datos!.equipos);
   const otro = (lado: V.Lado): V.Lado => (lado === 'a' ? 'b' : 'a');
 
@@ -102,6 +132,7 @@ export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; pres
 
             <section class="bloque">
               <h2>Mis enfrentamientos</h2>
+              {modo === '1v1' && <p class="tenue chico">Para jugarlos en vivo, ve a <a href="#/juegos/vivo">En vivo → 1v1</a>. Aquí se juegan a tu hora.</p>}
               {!pendientes.length && <p class="tenue">No tienes enfrentamientos pendientes.</p>}
               <ul class="duelos">
                 {pendientes.map(({ e, lado }) => {
@@ -109,10 +140,8 @@ export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; pres
                   return (
                     <li key={e.id}>
                       <span class="quienes"><b>{nombreVersus(e.modo, e.juego)}</b><span>contra {nombre(e, otro(lado))} · {e.oficial ? `jornada ${e.jornada}` : 'amistoso'} · {V.fechaCorta(e.plazo) === 'sin plazo' ? 'sin plazo' : `hasta el ${V.fechaCorta(e.plazo)}`}</span></span>
-                      {hechas < total && esVivo(e)
-                        ? <a class="boton principal" href={`#/juegos/vivo/enf-${e.id}`}>Jugar en vivo</a>
-                        : hechas < total
-                        ? <span class="fila"><a class="boton principal" href={`#/juegos/duelo/${e.id}`}>{total > 1 ? `Jugar ronda ${hechas + 1} de ${total}` : 'Jugar mi turno'}</a>{e.modo === '1v1' && e.juego in TABLEROS && <a class="boton" href={`#/juegos/vivo/enf-${e.id}`}>Jugar en vivo</a>}</span>
+                      {hechas < total
+                        ? <a class="boton principal" href={`#/juegos/duelo/${e.id}`}>{total > 1 ? `Jugar ronda ${hechas + 1} de ${total}` : 'Jugar mi turno'}</a>
                         : <span class="tenue chico">Ya jugaste. Falta {e.modo === '1v1' ? 'tu rival' : 'el resto'}.</span>}
                     </li>
                   );
