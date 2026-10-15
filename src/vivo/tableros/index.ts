@@ -1,9 +1,10 @@
 import type { Reglas } from '../tablero';
 import { parejas } from './parejas';
+import { numeros } from './numeros';
 
 // Los juegos de mesa que se juegan en vivo. La clave es el id del juego (el mismo de su foto y de su versus).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const TABLEROS: Record<string, Reglas<any>> = { parejas };
+export const TABLEROS: Record<string, Reglas<any>> = { parejas, numeros };
 
 /** Pruebas de las reglas de los tableros: devuelve la lista de fallas. */
 export function probarTableros(): string[] {
@@ -25,5 +26,14 @@ export function probarTableros(): string[] {
   p = parejas.accion(p, { i: m }, 'b', 4)!;
   igual('parejas: la medusa resta y pasa el turno', [p.puntos.b, p.turno], [-1, 'a']);
   igual('parejas: estado roto no vale', parejas.valido({ cartas: 'x' }), false);
+  // Cazanúmeros
+  let n = numeros.inicial('prueba', 1);
+  n = numeros.accion(n, { n: 1 }, 'a', 1)!;
+  igual('números: el que sigue es tuyo', [n.duenos[0], n.sigue], ['a', 2]);
+  igual('números: tocar uno ya tomado no castiga', numeros.accion(n, { n: 1 }, 'b', 1.1), null);
+  n = numeros.accion(n, { n: 5 }, 'b', 1.2)!;
+  igual('números: tocar uno adelantado resta', n.errores.b, 1);
+  igual('números: antes de partir no vale', numeros.accion(numeros.inicial('x', 1), { n: 1 }, 'a', -1), null);
+  igual('números: marcador', numeros.marcador(n, 2), { a: 10, b: -3, fin: false });
   return fallas;
 }
