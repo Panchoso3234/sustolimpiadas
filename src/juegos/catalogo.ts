@@ -20,7 +20,7 @@ export interface Juego {
 export const TOPES: Record<string, number> = {
   rodillos: 2000, puertas: 2000, huevo: 3400, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, torre: 2400, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2800, parejas: 1000, buscaconchas: 1800, luces: 1800,
   cartero: 1000, cofre: 1300, palabra: 1000, totem: 1000, catapulta: 2800, bolos: 750, minigolf: 1000,
-  karts: 2300, tren: 9000, tanques: 7500, bombas: 4200, agujero: 14000, serpientes: 5000, defensa: 6500, museo: 5000,
+  karts: 2300, tren: 9000, tanques: 7500, bombas: 4200, agujero: 14000, serpientes: 5000, defensa: 6500, museo: 5000, tiro: 9000,
 };
 
 export const MOTORES: Record<Motor, { nombre: string; color: string }> = {
@@ -102,6 +102,8 @@ export const JUEGOS: Juego[] = [
     'Elige una torre abajo (o con las teclas 1, 2 y 3) y toca el pasto para ponerla: la Ballesta dispara rápido, el Hielo congela y el Mortero golpea en área. Toca una torre tuya para mejorarla (hasta nivel 3). Las babosas sueltan monedas. Entre oleadas puedes apretar Espacio o ¡Oleada! para adelantar la siguiente y ganar monedas extra. Si llegan 20 babosas al castillo, pierdes.'),
   j(31, 'museo', 'Ladrón del Museo', 'G', 'Tres pisos de un museo de noche: junta el botín, roba el tesoro de cada piso y escapa sin que te vean los guardias, las cámaras ni los láseres.', 'Sigilo y paciencia',
     'Muévete con las flechas, WASD o arrastrando el dedo. Las gemas se toman al pasar; el tesoro abre la puerta verde de escape. Mantén Espacio o el botón Puntillas para caminar sin ruido: si corres cerca de un guardia, viene a mirar. Si un guardia o una cámara te ve, el ojo se llena; si se llena, te atrapan y vuelves al inicio del piso. Los láseres rojos se prenden y se apagan: cruza cuando estén apagados. Escapar de un piso sin que te vean da bono de Fantasma.'),
+  j(32, 'tiro', 'Galería de Tiro', 'G', 'Un puesto de feria de noche: patos, dianas y botellas pasan por tres rieles. Seis tiros por carga, multiplicador por racha y bombas que no hay que tocar.', 'Puntería y sangre fría',
+    'Apunta con el mouse y dispara con el clic (en celular, toca el blanco). El rifle tiene 6 tiros: recarga con Espacio, R, el clic derecho o el botón Recargar. Patos 10, dianas 15, botellas 20 y el pato dorado 100. Tres aciertos seguidos suben el multiplicador (hasta x5); fallar lo corta. Las bombas restan 50 y el reloj suma 3 segundos. Desde la ronda 2 asoman dianas detrás del mostrador. Al final, bono por puntería.'),
 ];
 
 export const juegoPorId = (id: string) => JUEGOS.find((x) => x.id === id);
@@ -133,6 +135,7 @@ export const VERSUS: TipoVersus[] = [
   v('1v1', 'agujero-duelo', 'Duelo de Agujeros', 'La misma ciudad para los dos: gana quien traga más.', 'agujero'),
   v('1v1', 'defensa-duelo', 'Duelo de Castillos', 'Las mismas oleadas para los dos: gana quien defienda mejor.', 'defensa'),
   v('1v1', 'museo-duelo', 'Ladrones Rivales', 'El mismo museo y los mismos guardias: gana el mejor botín.', 'museo'),
+  v('1v1', 'tiro-duelo', 'Duelo de Pistoleros', 'Los mismos blancos para los dos: gana la mejor puntería.', 'tiro'),
   v('1v1', 'serpientes-duelo', 'Duelo de Serpientes', 'El mismo jardín y las mismas rivales: gana la serpiente con más puntos.', 'serpientes'),
   v('1v1', 'torre-duelo', 'Duelo de Torres', 'El mismo ritmo para los dos; gana la torre más alta.', 'torre'),
   v('3v3', 'cocos-equipo', 'Cosecha en Equipo', 'Cada integrante atrapa cocos; se suman los tres.', 'cocos'),
@@ -157,6 +160,7 @@ export const VERSUS: TipoVersus[] = [
   v('3v3', 'agujero-equipo', 'Apetito de Equipo', 'Los tres se tragan la misma ciudad; suma el equipo.', 'agujero'),
   v('3v3', 'defensa-equipo', 'Murallas en Equipo', 'Los tres defienden las mismas oleadas; suma el equipo.', 'defensa'),
   v('3v3', 'museo-equipo', 'Banda de Ladrones', 'Los tres asaltan el mismo museo; suma el equipo.', 'museo'),
+  v('3v3', 'tiro-equipo', 'Feria en Equipo', 'Los tres disparan en el mismo puesto; suma el equipo.', 'tiro'),
   v('3v3', 'serpientes-equipo', 'Nido de Serpientes', 'Los tres juegan el mismo jardín; suma el equipo.', 'serpientes'),
   v('3v3', 'torre-equipo', 'Torres en Equipo', 'Cada integrante levanta su torre; suman los tres.', 'torre'),
   v('3v3', 'bandera', 'Captura la Bandera', 'Robar la bandera rival y traerla a la base.'),

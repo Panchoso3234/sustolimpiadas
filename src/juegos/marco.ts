@@ -65,6 +65,7 @@ export const CARGADORES: Record<string, () => Promise<CrearJuego>> = {
   bombas: () => import('./arcade/bombas').then((m) => m.crear),
   defensa: () => import('./arcade/defensa').then((m) => m.crear),
   museo: () => import('./arcade/museo').then((m) => m.crear),
+  tiro: () => import('./arcade/tiro').then((m) => m.crear),
   agujero: () => import('./arcade/agujero').then((m) => m.crear),
   serpientes: () => import('./arcade/serpientes').then((m) => m.crear),
   huevo: () => import('./arena/juegos').then((m) => m.huevo),

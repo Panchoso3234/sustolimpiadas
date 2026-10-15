@@ -18,8 +18,10 @@ const centro = (cx: number, cz: number) => ({ x: -AN / 2 + (cx + 0.5) * CELDA, z
 const celda = (x: number, z: number): [number, number] => [Math.floor((x + AN / 2) / CELDA), Math.floor((z + FO / 2) / CELDA)];
 const girar = (desde: number, hacia: number, max: number) => { let d = hacia - desde; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return desde + limitar(d, -max, max); };
 
-interface Guardia { k: Kenney; cono: THREE.Group; ronda: { x: number; z: number }[]; i: number; paso: number; x: number; z: number; ang: number; espera: number; ruta: { x: number; z: number }[]; modo: 'ronda' | 'investiga' | 'vuelve'; ve: boolean }
-interface Camara { x: number; z: number; ang: number; base: number; barre: number; cono: THREE.Group }
+/** Abanico de visión que se corta en los muros. */
+interface Cono { malla: THREE.Mesh; radio: number; mover(x: number, z: number, ang: number): void }
+interface Guardia { k: Kenney; cono: Cono; ronda: { x: number; z: number }[]; i: number; paso: number; x: number; z: number; ang: number; espera: number; ruta: { x: number; z: number }[]; modo: 'ronda' | 'investiga' | 'vuelve'; ve: boolean }
+interface Camara { x: number; z: number; ang: number; base: number; barre: number; cono: Cono }
 interface Laser { celdas: [number, number][]; prendido: number; apagado: number; desfase: number; mallas: THREE.Mesh[] }
 
 export async function crear(c: Contexto): Promise<Partida> {
@@ -64,10 +66,27 @@ export async function crear(c: Contexto): Promise<Partida> {
     for (let k = `${bx},${bz}`; previo.has(k) && previo.get(k) !== ''; k = previo.get(k)!) { const [x, z] = k.split(',').map(Number); ruta.unshift(centro(x, z)); }
     return ruta;
   };
-  const cono = (radio: number, color: string) => {
-    const g = new THREE.Group(), m = new THREE.Mesh(new THREE.CircleGeometry(radio, 20, -Math.PI / 2 - MEDIO, MEDIO * 2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.28, depthWrite: false }));
-    m.rotation.x = -Math.PI / 2; m.position.y = 0.05; g.add(m);
-    return g;
+  const RAYOS = 18;
+  const cono = (radio: number, color: string): Cono => {
+    const pos = new Float32Array((RAYOS + 2) * 3), indices: number[] = [];
+    for (let k = 0; k < RAYOS; k++) indices.push(0, k + 2, k + 1);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(indices);
+    const malla = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide }));
+    malla.frustumCulled = false;
+    return {
+      malla, radio,
+      mover(x, z, ang) {
+        pos[0] = x; pos[1] = 0.05; pos[2] = z;
+        for (let k = 0; k <= RAYOS; k++) {
+          const a = ang - MEDIO + (2 * MEDIO * k) / RAYOS, dx = Math.sin(a), dz = Math.cos(a);
+          let d = 0.15;
+          while (d < radio && !solido(...celda(x + dx * d, z + dz * d))) d += 0.15;
+          pos[(k + 1) * 3] = x + dx * d; pos[(k + 1) * 3 + 1] = 0.05; pos[(k + 1) * 3 + 2] = z + dz * d;
+        }
+        geo.attributes.position.needsUpdate = true;
+      },
+    };
   };
   const gema = (color: string, tam: number) => new THREE.Mesh(new THREE.OctahedronGeometry(tam), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.5, flatShading: true, roughness: 0.3 }));
 
@@ -111,13 +130,13 @@ export async function crear(c: Contexto): Promise<Partida> {
       const kk = await e.personaje({ ...aspectoAleatorio(generador(`${c.semilla}|guardia${n}|${k}`)) }, 1.3), puntos = ronda.map(([x, z]) => centro(x, z));
       // La gorra va dentro del personaje (que está escalado): se compensa para que mida lo mismo en el mundo
       const gorra = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.19, 0.1, 12), mat('#1f3a8a')), s = kk.grupo.scale.y; gorra.scale.setScalar(1 / s); gorra.position.y = 1.3 / s; kk.grupo.add(gorra);
-      const c2 = cono(VISTA, '#fff3a0'); piezas.add(c2);
+      const c2 = cono(VISTA, '#fff3a0'); piezas.add(c2.malla);
       return { k: kk, cono: c2, ronda: puntos, i: 1 % puntos.length, paso: 1, x: puntos[0].x, z: puntos[0].z, ang: 0, espera: 0, ruta: [], modo: 'ronda' as const, ve: false };
     }));
     camaras = datos.camaras.map((cm) => {
       const p = centro(cm.x, cm.z), caja = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.22, 0.4), mat('#2a2a33')), luz = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 5), new THREE.MeshBasicMaterial({ color: '#ff3b2e' }));
       caja.position.set(p.x, 1.0, p.z); luz.position.set(p.x, 1.14, p.z); piezas.add(caja, luz);
-      const c2 = cono(VISTA * 1.05, '#ff9a9a'); c2.position.set(p.x, 0, p.z); piezas.add(c2);
+      const c2 = cono(VISTA * 1.05, '#ff9a9a'); piezas.add(c2.malla);
       return { x: p.x, z: p.z, ang: cm.ang, base: cm.ang, barre: cm.barre, cono: c2 };
     });
     laseres = datos.laseres.map((l) => ({ ...l, mallas: l.celdas.map(([cx, cz]) => {
@@ -234,15 +253,15 @@ export async function crear(c: Contexto): Promise<Partida> {
         visto ||= gd.ve; cerca ||= gd.ve && d < 2 * CELDA;
         gd.k.grupo.position.set(gd.x, 0, gd.z); gd.k.grupo.rotation.y = gd.ang;
         gd.k.animar(meta ? (gd.modo === 'investiga' ? 'sprint' : 'walk') : 'idle');
-        gd.cono.position.set(gd.x, 0, gd.z); gd.cono.rotation.y = gd.ang;
-        ((gd.cono.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial).color.set(gd.ve ? '#ff5a5a' : '#fff3a0');
+        gd.cono.mover(gd.x, gd.z, gd.ang);
+        (gd.cono.malla.material as THREE.MeshBasicMaterial).color.set(gd.ve ? '#ff5a5a' : '#fff3a0');
       }
       for (const cm of camaras) {
         cm.ang = cm.base + Math.sin(t * 0.7 * dificultad) * cm.barre;
-        cm.cono.rotation.y = cm.ang;
+        cm.cono.mover(cm.x, cm.z, cm.ang);
         const d = Math.hypot(px - cm.x, pz - cm.z), ve = t > quieto && d < VISTA * 1.05 && Math.abs(girar(cm.ang, Math.atan2(px - cm.x, pz - cm.z), 9) - cm.ang) < MEDIO && aLaVista(cm, { x: px, z: pz });
         visto ||= ve;
-        ((cm.cono.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial).color.set(ve ? '#ff3a3a' : '#ff9a9a');
+        (cm.cono.malla.material as THREE.MeshBasicMaterial).color.set(ve ? '#ff3a3a' : '#ff9a9a');
       }
       // El ojo se llena mientras te ven (de cerca, muy rápido) y baja de a poco cuando te escondes
       ojo = visto ? Math.min(1, ojo + paso * (cerca ? 3.5 : 1.6) * dificultad) : Math.max(0, ojo - paso * 0.6);
