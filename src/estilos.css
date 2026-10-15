@@ -528,3 +528,4 @@ body.foto .kart-objeto, body.foto .kart-mapa { display: none; }
 .tren-poderes span { font: 800 1.1rem var(--cuerpo); color: var(--hueso); background: rgba(20, 32, 58, .8); border-radius: 12px; padding: 4px 10px; }
 body.foto .tren-poderes { display: none; }
 .vivo-ojo { font: 800 1.05rem var(--cuerpo); background: var(--noche-2); border: 1px solid var(--linea); border-radius: 99px; padding: 4px 12px; }
+.partida-ojo { position: absolute; top: 10px; right: 10px; z-index: 2; }

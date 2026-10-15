@@ -21,6 +21,17 @@ async function probarMensajes(extraMirar) {
 }
 
 const grupos = {
+  async vestibulo() {
+    const sala = `conchas-V${Math.floor(Math.random() * 900 + 100)}`;
+    const mira = await abrir(`${BASE}?invitado=z#/juegos/en-linea`), a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`);
+    try {
+      const aparece = await hasta(() => mira.js(`[...document.querySelectorAll('.partida-en-linea')].some((e) => e.dataset.codigo === ${JSON.stringify(sala)})`), 20000);
+      const conFoto = await mira.js(`!!document.querySelector('.partida-en-linea[data-codigo="${sala}"] img.foto')`);
+      a.cerrar();
+      const desaparece = await hasta(() => mira.js(`![...document.querySelectorAll('.partida-en-linea')].some((e) => e.dataset.codigo === ${JSON.stringify(sala)})`), 20000);
+      return { 'la sala aparece en Partidas en línea': aparece, 'la tarjeta tiene foto': conFoto, 'desaparece al cerrarse': desaparece };
+    } finally { mira.cerrar(); }
+  },
   async ojo() {
     const sala = `balsas-O${Math.floor(Math.random() * 900 + 100)}`;
     const a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`), c = await abrir(`${BASE}?invitado=c#/juegos/mirar/${sala}`);

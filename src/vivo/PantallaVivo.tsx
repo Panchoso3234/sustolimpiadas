@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { useSesion } from '../nucleo/supabase';
 import { COLUMNAS, FILAS, LADO, filaLibre, jugarConchas, recibirDisparo, repartirFlota, type Balsa, type Resultado } from './reglas';
 import { nuevoCodigo, unirse, type Presente, type Sala } from './sala';
+import { anunciarSala } from './vestibulo';
 import { probarAsientos, repartir } from './asientos';
 
 // Juego en vivo por turnos: Cuatro Conchas en Línea y Batalla de Balsas. Partidas amistosas (no dan puntos).
@@ -12,6 +13,7 @@ const JUEGOS = {
   balsas: { nombre: 'Batalla de Balsas', idea: 'Esconde tus cuatro balsas y dispara por turnos al mar del rival. Gana quien hunde todas las del otro.' },
 } as const;
 type IdJuego = keyof typeof JUEGOS;
+export const NOMBRES_VIVO: Record<string, string> = Object.fromEntries(Object.entries(JUEGOS).map(([k, v]) => [k, v.nombre]));
 const ESPERA_ABANDONO = 30, CASILLAS_FLOTA = 12;
 
 interface Disparo { de: string; i: number; res: Resultado; hundida?: number[] }
@@ -148,6 +150,15 @@ function SalaVivo({ codigo, mirar = false }: { codigo: string; mirar?: boolean }
     sala.current?.enviar('empieza', { partida: estado.partida, asientos: a });
     cambiar((x) => ({ ...x, asientos: a }));
   }, [listos, !!asientos]);
+
+  // El anfitrión anuncia la sala en Partidas en línea (y la retira al salir)
+  const anuncio = useRef(anunciarSala());
+  useEffect(() => () => anuncio.current.cerrar(), []);
+  useEffect(() => {
+    if (!valido) return;
+    const soyAnfitrion = !!reparto.anfitrion && reparto.anfitrion === sala.current?.clave, fin = terminada || ganeAbandono;
+    anuncio.current.poner(soyAnfitrion ? { codigo, juego, a: sentados[0] ? nombre(sentados[0]) : '', b: sentados[1] ? nombre(sentados[1]) : '', estado: !asientos ? 'esperando' : fin ? 'terminada' : 'jugando', turno: asientos && !fin && turnoDe ? nombre(turnoDe) : '', espectadores: reparto.espectadores.length, oficial: false, desde: Date.now() } : null);
+  });
 
   if (!valido) return <><h1>Sala no encontrada</h1><p><a class="boton" href="#/juegos/vivo">Volver al juego en vivo</a></p></>;
   if (sesion.cargando) return <p class="tenue">Cargando…</p>;

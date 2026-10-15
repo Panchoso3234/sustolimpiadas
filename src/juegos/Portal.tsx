@@ -9,6 +9,7 @@ import { Duelo, PestanaVersus } from './PantallaVersus';
 import { Posiciones } from './Posiciones';
 import { Sala } from './Sala';
 import { Vivo } from '../vivo/PantallaVivo';
+import { PartidasEnLinea } from '../vivo/PartidasEnLinea';
 
 // Portal de juegos: tres modos (individual, versus 1v1 y versus 3v3) y la tabla del torneo. Cada juego se abre en su "sala".
 const MODOS = [
@@ -16,6 +17,7 @@ const MODOS = [
   { ruta: '1v1', titulo: 'Versus 1v1', bajada: 'Uno contra uno' },
   { ruta: '3v3', titulo: 'Versus 3v3', bajada: 'Equipo contra equipo' },
   { ruta: 'vivo', titulo: 'En vivo', bajada: 'Conectados a la vez' },
+  { ruta: 'en-linea', titulo: 'Partidas en línea', bajada: 'Mirar en directo' },
   { ruta: 'posiciones', titulo: 'Posiciones', bajada: 'Tabla del torneo' },
 ];
 
@@ -58,7 +60,7 @@ export function Portal({ sub, extra }: { sub: string; extra: string }) {
           </a>
         ))}
       </nav>
-      {modo === '' ? <Grilla /> : modo === 'posiciones' ? <Posiciones /> : modo === 'vivo' ? <Vivo codigo={extra} /> : <PestanaVersus key={modo} modo={modo as '1v1' | '3v3'} preset={extra} />}
+      {modo === '' ? <Grilla /> : modo === 'posiciones' ? <Posiciones /> : modo === 'vivo' ? <Vivo codigo={extra} /> : modo === 'en-linea' ? <PartidasEnLinea /> : <PestanaVersus key={modo} modo={modo as '1v1' | '3v3'} preset={extra} />}
     </div>
   );
 }
