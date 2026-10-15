@@ -31,6 +31,9 @@ export function rondaSiguiente(jugadas: number[], total: number): number | null 
   return null;
 }
 
+/** Si los dos marcaron Listo, pero para rondas distintas (uno ya jugó una ronda a su hora). */
+export const rondasDistintas = (mio: number, rival: number) => mio > 0 && rival > 0 && mio !== rival;
+
 /** Pruebas de las reglas: devuelve la lista de fallas. */
 export function probarAsientos(): string[] {
   const p = (id: string, desde: number, quiere: Quiere = 'jugar', clave = `${id}:${desde}`): Presente => ({ clave, id, nombre: id, desde, listo: 0, quiere });
@@ -58,6 +61,8 @@ export function probarAsientos(): string[] {
   // 6. Rondas de un enfrentamiento oficial
   igual('rondas: primera', rondaSiguiente([], 3), 1);
   igual('rondas: salta las jugadas', rondaSiguiente([1, 2], 3), 3);
+  igual('rondas: listos en rondas distintas', rondasDistintas(2, 1), true);
+  igual('rondas: sin listo del rival no cuenta', rondasDistintas(2, 0), false);
   igual('rondas: no quedan', rondaSiguiente([1, 2, 3], 3), null);
   return fallas;
 }

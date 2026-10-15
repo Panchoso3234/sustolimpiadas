@@ -104,16 +104,18 @@ function SalaOficial({ id, mirar }: { id: number; mirar: boolean }) {
   return datos.e.juego in TABLEROS ? <SalaTablero codigo={`enf-${id}`} mirar={mirar} oficial={datos} /> : <SalaVivo codigo={`enf-${id}`} mirar={mirar} oficial={datos} />;
 }
 
+const SALA_VALIDA = new RegExp(`^(${[...Object.keys(JUEGOS), ...Object.keys(TABLEROS)].join('|')})-[A-Z0-9]{4}$`, 'i');
+
 export function Vivo({ codigo, mirar = false }: { codigo: string; mirar?: boolean }) {
   const [entrar, setEntrar] = useState('');
   if (/^enf-\d+$/.test(codigo)) return <SalaOficial key={codigo} id={Number(codigo.slice(4))} mirar={mirar} />;
   if (codigo && codigo.split('-')[0] in TABLEROS) return <SalaTablero key={codigo} codigo={codigo} mirar={mirar} />;
   if (codigo) return <SalaVivo key={codigo} codigo={codigo} mirar={mirar} />;
-  const crear = (juego: IdJuego) => { location.hash = `#/juegos/vivo/${nuevoCodigo(juego)}`; };
+  const crear = (juego: string) => { location.hash = `#/juegos/vivo/${nuevoCodigo(juego)}`; };
   return (
     <>
       <h1>Juego en vivo</h1>
-      <p>Partidas por turnos con otra persona conectada al mismo tiempo. Crea una sala y comparte el enlace; los dos primeros en entrar juegan y el resto puede mirar. Por ahora son amistosas: no dan puntos del torneo.</p>
+      <p>Partidas con otra persona conectada al mismo tiempo. Crea una sala y comparte el enlace; los dos primeros en entrar juegan y el resto puede mirar. Por ahora son amistosas: no dan puntos del torneo.</p>
       <div class="rejilla-juegos">
         {(Object.keys(JUEGOS) as IdJuego[]).map((j) => (
           <div key={j} class="tarjeta" style="--tono:#ffe08a">
@@ -123,12 +125,20 @@ export function Vivo({ codigo, mirar = false }: { codigo: string; mirar?: boolea
             <span class="pie"><span class="premia">En vivo</span><button class="boton principal" onClick={() => crear(j)}>Crear sala</button></span>
           </div>
         ))}
+        {Object.values(TABLEROS).map((r) => (
+          <div key={r.id} class="tarjeta" style="--tono:#ffe08a">
+            <img class="foto" src={`${import.meta.env.BASE_URL}juegos/${r.id}.png`} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            <h3>{r.nombre}</h3>
+            <p>{r.idea}</p>
+            <span class="pie"><span class="premia">En vivo</span><button class="boton principal" onClick={() => crear(r.id)}>Crear sala</button></span>
+          </div>
+        ))}
       </div>
       <section class="bloque">
         <h2>Entrar a una sala</h2>
         <div class="formulario">
           <label>Código de la sala<input class="texto" value={entrar} placeholder="por ejemplo conchas-K7QF" onInput={(e) => setEntrar(e.currentTarget.value.trim())} /></label>
-          <button class="boton principal" disabled={!/^(conchas|balsas)-[A-Z0-9]{4}$/i.test(entrar)} onClick={() => { const [j, c] = entrar.split('-'); location.hash = `#/juegos/vivo/${j.toLowerCase()}-${c.toUpperCase()}`; }}>Entrar</button>
+          <button class="boton principal" disabled={!SALA_VALIDA.test(entrar)} onClick={() => { const [j, c] = entrar.split('-'); location.hash = `#/juegos/vivo/${j.toLowerCase()}-${c.toUpperCase()}`; }}>Entrar</button>
         </div>
       </section>
     </>

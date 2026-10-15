@@ -1,5 +1,4 @@
 import { generador } from '../../nucleo/azar';
-import { fotoModelo } from '../../nucleo/modelos';
 import { type Lado, type Reglas } from '../tablero';
 
 // El Cofre o la Ola en vivo, como concurso: los mismos cofres y la misma ola para los dos. En cada sacada los dos
@@ -63,7 +62,8 @@ export const cofre: Reglas<EstadoCofre> = {
     const titulo = m.el('div', 'sigla', m.tablero), cielo = m.el('div', 'cofre-mar', m.tablero), dibujo = m.el('div', 'cofre-dibujo', m.tablero);
     const foto = m.el('img', '', dibujo);
     foto.alt = 'Cofre';
-    fotoModelo('pirata', 'chest', 256).then((src) => { foto.src = src; }).catch(() => {});
+    // Import diferido: así la lista de tableros no arrastra Three.js a otras pantallas
+    import('../../nucleo/modelos').then((x) => x.fotoModelo('pirata', 'chest', 256)).then((src) => { foto.src = src; }).catch(() => {});
     const manos = m.el('div', 'cofre-pozo', m.tablero), barra = m.el('div', 'fila centro', m.tablero);
     const sacar = m.el('button', 'boton principal grande', barra, 'Sacar más'), plantar = m.el('button', 'boton grande', barra, 'Plantarme');
     sacar.addEventListener('click', () => enviar({ elige: 'sacar' }));

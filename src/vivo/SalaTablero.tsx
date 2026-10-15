@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { useSesion } from '../nucleo/supabase';
 import * as V from '../juegos/duelos';
 import { crearMesa, type Mesa } from '../juegos/tablero/mesa';
-import { repartir, rondaSiguiente } from './asientos';
+import { repartir, rondasDistintas, rondaSiguiente } from './asientos';
 import { asientosValidos, debeReiniciar, identidadVivo, type Oficial } from './PantallaVivo';
 import { unirse, type Presente, type Sala } from './sala';
 import { ladoDe, type Lado, type Marcador } from './tablero';
@@ -88,7 +88,7 @@ export function SalaTablero({ codigo, mirar = false, oficial }: { codigo: string
   const miLado = asientos ? ladoDe(asientos, yo.id) : null, soyJugador = sentados.includes(yo.id), rivalId = sentados.find((id) => id !== yo.id) ?? '';
   const listos = sentados.length === 2 && sentados.every((id) => presentes.some((x) => x.id === id && x.listo === p.partida));
   const yoListo = presentes.some((x) => x.id === yo.id && x.listo === p.partida);
-  const rivalEnOtraRonda = !!oficial && presentes.some((x) => x.id === rivalId && x.listo > 0 && x.listo !== p.partida);
+  const rivalEnOtraRonda = !!oficial && presentes.some((x) => x.id === rivalId && rondasDistintas(p.partida, x.listo));
 
   // Abrir la ronda (oficial) y armar el estado inicial: lo hace el anfitrión cuando los dos están listos
   const abiertas = useRef(new Set(oficial?.empezadas ?? [])), guardadas = useRef(new Set(oficial?.jugadas ?? []));

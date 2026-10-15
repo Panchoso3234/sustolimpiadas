@@ -5,6 +5,7 @@ import { JUEGOS, MOTORES, VERSUS, juegoPorId, nombreVersus } from './catalogo';
 import { PUNTOS_BASE, leerPuntos, puntosVersus, type Puntos } from './puntos';
 import { Sala, type Reto } from './Sala';
 import * as V from './duelos';
+import { TABLEROS } from '../vivo/tableros';
 
 // Versus en diferido: cada lado juega el mismo desafío a su hora, con un solo intento, y el servidor compara.
 
@@ -111,7 +112,7 @@ export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; pres
                       {hechas < total && esVivo(e)
                         ? <a class="boton principal" href={`#/juegos/vivo/enf-${e.id}`}>Jugar en vivo</a>
                         : hechas < total
-                        ? <a class="boton principal" href={`#/juegos/duelo/${e.id}`}>{total > 1 ? `Jugar ronda ${hechas + 1} de ${total}` : 'Jugar mi turno'}</a>
+                        ? <span class="fila"><a class="boton principal" href={`#/juegos/duelo/${e.id}`}>{total > 1 ? `Jugar ronda ${hechas + 1} de ${total}` : 'Jugar mi turno'}</a>{e.modo === '1v1' && e.juego in TABLEROS && <a class="boton" href={`#/juegos/vivo/enf-${e.id}`}>Jugar en vivo</a>}</span>
                         : <span class="tenue chico">Ya jugaste. Falta {e.modo === '1v1' ? 'tu rival' : 'el resto'}.</span>}
                     </li>
                   );

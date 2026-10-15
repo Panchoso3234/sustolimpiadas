@@ -37,6 +37,19 @@ const jugadas = async (p, sala) => JSON.parse((await p.js(`localStorage.getItem(
 
 const listoTablero = (p) => hasta(() => p.js(`(() => { const x = [...document.querySelectorAll('button')].find((y) => y.textContent === '¡Listo!'); if (x) x.click(); return !!x; })()`), 20000);
 const pausa = (ms) => new Promise((r) => setTimeout(r, ms));
+// Estrategia de prueba de cada tablero, corre dentro de la página de cada jugador. No repite una jugada sobre el mismo estado.
+const ESTRATEGIA = {
+  parejas: `if (e.turno !== yo || e.tapa) return; const libre = (i) => e.cartas[i] !== 'medusa' && !e.duenas[i];
+    const i = e.abiertas.length ? e.cartas.findIndex((f, j) => j !== e.abiertas[0] && f === e.cartas[e.abiertas[0]] && libre(j)) : e.cartas.findIndex((_, j) => libre(j)); a = { i };`,
+  numeros: `if (yo === 'a') a = { n: e.sigue };`,
+  tinta: `if (yo !== 'a' || e.pausa) return; const r = (await import('/src/vivo/tableros/tinta.ts')).rondaTinta(e.semilla, e.k); a = { i: r.alReves ? r.texto : r.color };`,
+  eco: `const m = await import('/src/vivo/tableros/eco.ts'); if (e.turno !== yo || e.perdio || t < m.finMuestra(e)) return; const s = m.secuenciaEco(e.semilla)[e.paso];
+    a = { i: yo === 'b' && e.largo === 2 ? (s + 1) % 6 : s };`,
+  cofre: `if (!e.activo[yo] || e.elige[yo] || e.revela) return; a = { elige: e.mano[yo] > 0 ? 'plantar' : 'sacar' };`,
+};
+const jugada = (juego) => `(async () => { const T = window.__tablero; const e = T?.estado(), yo = T?.lado(), t = T?.t() ?? -1; let a = null;
+  if (!e || !yo || t < 0.3) return; ${ESTRATEGIA[juego]}
+  const firma = JSON.stringify(e); if (!a || window.__firma === firma) return; window.__firma = firma; T.enviar(a); })()`;
 
 const grupos = {
   // Parejas completa entre dos, con un espectador que entra tarde: todos terminan con el mismo marcador
@@ -64,6 +77,26 @@ const grupos = {
       const espectadorVioTablero = (await c.js('document.querySelectorAll(".carta.lista").length')) > 0;
       return { 'termina con el mismo resultado para todos': fin, 'el que entró tarde ve el tablero': espectadorVioTablero };
     } finally { a.cerrar(); b.cerrar(); c?.cerrar(); }
+  },
+  // Los cinco juegos de mesa de punta a punta, con un espectador: los tres ven el mismo resultado
+  async tableros() {
+    const salida = {};
+    for (const juego of ['parejas', 'numeros', 'tinta', 'eco', 'cofre']) {
+      const sala = `${juego}-T${Math.floor(Math.random() * 900 + 100)}`;
+      const a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`), b = await abrir(`${BASE}?invitado=b#/juegos/vivo/${sala}`), c = await abrir(`${BASE}?invitado=c#/juegos/mirar/${sala}`);
+      try {
+        await hasta(async () => (await a.js('window.__sala?.presentes() ?? 0')) >= 3, 20000);
+        for (const p of [a, b]) await listoTablero(p);
+        const fin = Date.now() + 90000;
+        while (Date.now() < fin && !(await a.js('document.querySelector(".tablero-fin") != null'))) {
+          for (const p of [a, b]) await p.js(jugada(juego));
+          await pausa(300);
+        }
+        const texto = (p) => p.js('document.querySelector(".tablero-fin")?.textContent');
+        salida[`${juego}: termina igual para los tres`] = await hasta(async () => { const [x, y, z] = [await texto(a), await texto(b), await texto(c)]; return !!x && x === y && x === z; }, 20000);
+      } finally { a.cerrar(); b.cerrar(); c.cerrar(); }
+    }
+    return salida;
   },
   // El anfitrión se va a media partida: el otro sigue desde el mismo estado y con el reloj adelantado
   async relevo() {
