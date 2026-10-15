@@ -35,7 +35,8 @@ export async function abrir(url, { ancho = 1280, alto = 720, escala = 1 } = {}) 
     async js(expr) { const r = await cdp('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }); return r.result?.result?.value; },
     async clic(selector) { return this.js(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (!e) return false; e.click(); return true; })()`); },
     async foto(ruta) { const r = await cdp('Page.captureScreenshot', { format: 'png' }); writeFileSync(ruta, Buffer.from(r.result.data, 'base64')); },
-    cerrar() { ws.close(); edge.kill(); },
+    // En Windows matar el proceso no siempre cierra la página: se pide a Edge que se cierre entero
+    cerrar() { try { ws.send(JSON.stringify({ id: ++id, method: 'Browser.close' })); } catch {} setTimeout(() => { ws.close(); edge.kill(); }, 300); },
   };
 }
 
