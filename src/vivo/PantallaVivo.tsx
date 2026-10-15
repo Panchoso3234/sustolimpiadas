@@ -40,7 +40,7 @@ export function ganadorDe(juego: IdJuego, e: Estado): string | null {
 
 const entero = (x: unknown, max: number) => Number.isInteger(x) && (x as number) >= 0 && (x as number) < max;
 /** Asientos válidos: dos personas distintas y, en un oficial, justo las dos del enfrentamiento. */
-const asientosValidos = (a: unknown, fijos: [string, string] | null): a is [string, string] =>
+export const asientosValidos = (a: unknown, fijos: [string, string] | null): a is [string, string] =>
   Array.isArray(a) && a.length === 2 && a.every((x) => typeof x === 'string') && a[0] !== a[1] && (!fijos || (fijos.includes(a[0]) && fijos.includes(a[1])));
 /** Si una historia recibida tiene forma válida: protege de mensajes rotos o malintencionados. */
 export function esEstado(x: unknown, fijos: [string, string] | null): x is Estado {
@@ -83,7 +83,7 @@ function identidad(usuarioId: string | null, nombre: string | undefined): { id: 
 }
 
 /** Datos de un enfrentamiento oficial que se juega en su sala `enf-<id>`. */
-interface Oficial { e: V.Enfrentamiento; personas: V.Persona[]; /** Rondas que ya abrí y que ya guardé, según el servidor. */ empezadas: number[]; jugadas: number[] }
+export interface Oficial { e: V.Enfrentamiento; personas: V.Persona[]; /** Rondas que ya abrí y que ya guardé, según el servidor. */ empezadas: number[]; jugadas: number[] }
 
 /** Sala de un enfrentamiento oficial: primero carga quiénes juegan y qué rondas faltan. */
 function SalaOficial({ id, mirar }: { id: number; mirar: boolean }) {
