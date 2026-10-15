@@ -129,7 +129,10 @@ function SalaVivo({ codigo, mirar = false, oficial }: { codigo: string; mirar?: 
         return;
       }
       if (evento === 'revancha') { cambiar(() => ({ ...inicial(), partida: d.partida as number, asientos: d.asientos as [string, string] })); setFlota(null); return; }
-      if (d.partida !== e.partida) return; // mensaje de otra partida de esta sala
+      // Si llega algo que no calza con lo que tengo (me perdí el inicio o una jugada), pido la historia completa
+      if (d.partida !== e.partida) { if ((d.partida as number) > e.partida) s.enviar('pedir', {}); return; } // mensaje de otra partida de esta sala
+      const deJuego = ['jugada', 'flota-lista', 'disparo', 'resultado'].includes(evento);
+      if ((deJuego && !e.asientos) || (evento === 'jugada' && (d.n as number) > e.jugadas.length)) s.enviar('pedir', {});
       if (evento === 'empieza') cambiar((x) => (x.asientos ? x : { ...x, asientos: d.asientos as [string, string] }));
       if (evento === 'jugada') cambiar((x) => (d.n === x.jugadas.length ? { ...x, jugadas: [...x.jugadas, d.col as number] } : x));
       if (evento === 'flota-lista') cambiar((x) => (x.flotasListas.includes(d.de as string) ? x : { ...x, flotasListas: [...x.flotasListas, d.de as string] }));
@@ -168,6 +171,9 @@ function SalaVivo({ codigo, mirar = false, oficial }: { codigo: string; mirar?: 
   useEffect(() => { setAusente((a) => (corre ? a ?? Date.now() : null)); }, [corre]);
   const quedan = ausente ? Math.max(0, ESPERA_ABANDONO - Math.floor((ahora - ausente) / 1000)) : null;
   const ganeAbandono = quedan === 0;
+
+  // Quien llega con la partida empezada recibe la historia del anfitrión sin tener que pedirla
+  useEffect(() => { if (asientos && reparto.anfitrion === sala.current?.clave) sala.current?.enviar('historia', { ...est.current }); }, [presentes.length]);
 
   // Antes de empezar: los dos jugadores marcan Listo y el anfitrión da la partida
   const listos = sentados.length === 2 && sentados.every((id) => presentes.find((p) => p.id === id)?.listo);

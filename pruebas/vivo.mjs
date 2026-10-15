@@ -21,6 +21,51 @@ async function probarMensajes(extraMirar) {
 }
 
 const grupos = {
+  async fotos() {
+    const clic = (p, texto) => hasta(() => p.js(`(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent === ${JSON.stringify(texto)} && !x.disabled); if (b) b.click(); return !!b; })()`), 20000);
+    const casilla = (p, mar, i) => hasta(() => p.js(`(() => { const c = [...document.querySelectorAll('.mar-caja')].find((k) => k.querySelector('.sigla')?.textContent.startsWith('Mar de'))?.querySelectorAll('.agua-c')[${i}]; if (!c || c.disabled) return false; c.click(); return true; })()`));
+    const columna = (p, i) => hasta(() => p.js(`(() => { const c = document.querySelectorAll('.conchas-col')[${i}]; if (!c || c.disabled) return false; c.click(); return true; })()`));
+    // Para la foto: una copia del tablero, grande y centrada sobre un fondo, con un letrero de En vivo
+    const encuadrar = (p, sel, titulo, zoom) => p.js(`(() => { const original = document.querySelector(${JSON.stringify(sel)}), capa = document.createElement('div'), copia = original.cloneNode(true), letrero = document.createElement('div'); capa.style.cssText = 'position:fixed;inset:0;z-index:99;display:grid;place-items:center;background:radial-gradient(circle at 50% 40%, #2a5a96, #0d1830)'; copia.style.width = getComputedStyle(original).width; copia.style.transform = 'scale(${zoom})'; letrero.textContent = ${JSON.stringify('🔴 EN VIVO · ')} + ${JSON.stringify(titulo)}; letrero.style.cssText = 'position:absolute;top:22px;left:26px;font:800 30px Nunito,sans-serif;color:#fff;background:#ef5565;padding:6px 16px;border-radius:99px'; capa.append(copia, letrero); document.body.append(capa); return true; })()`);
+    const tam = { ancho: 1280, alto: 720, escala: 0.5 }, n = () => Math.floor(Math.random() * 900 + 100);
+    // Cuatro Conchas: una partida a medio camino
+    let sala = `conchas-F${n()}`, a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`, tam), b = await abrir(`${BASE}?invitado=b#/juegos/vivo/${sala}`, tam);
+    try {
+      await clic(a, '¡Listo!'); await clic(b, '¡Listo!');
+      await hasta(() => a.js(`!!document.querySelector('.conchas')`), 20000);
+      const parte = (await a.js(`!document.querySelector('.conchas-col')?.disabled`)) ? [a, b] : [b, a];
+      for (const [x, y] of [[3, 3], [2, 4], [4, 2], [3, 5], [1, 3]]) { await columna(parte[0], x); await columna(parte[1], y); }
+      await encuadrar(a, '.conchas', 'Cuatro Conchas', 1.25); await a.foto('public/juegos/conchas.png');
+    } finally { a.cerrar(); b.cerrar(); }
+    // Batalla de Balsas: flotas puestas y algunos disparos
+    sala = `balsas-F${n()}`; a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`, tam); b = await abrir(`${BASE}?invitado=b#/juegos/vivo/${sala}`, tam);
+    try {
+      await clic(a, '¡Listo!'); await clic(b, '¡Listo!');
+      for (const p of [a, b]) { await clic(p, 'Repartir mis balsas'); await clic(p, 'Flota lista'); }
+      const parte = (await a.js(`[...document.querySelectorAll('.mar-caja')[1]?.querySelectorAll('.agua-c') ?? []].some((c) => !c.disabled)`)) ? [a, b] : [b, a];
+      let tiros = 0;
+      for (const [x, y] of [[0, 5], [9, 14], [18, 23], [27, 32], [36, 41]]) { tiros += (await casilla(parte[0], 1, x)) ? 1 : 0; tiros += (await casilla(parte[1], 1, y)) ? 1 : 0; }
+      const anchos = await a.js(`[...document.querySelectorAll('.mar')].map((m) => Math.round(m.getBoundingClientRect().width))`);
+      await encuadrar(a, '.mares', 'Batalla de Balsas', 1.15); await a.foto('public/juegos/balsas.png');
+      return { 'fotos de Conchas y Balsas': true, 'los dos mares tienen el mismo ancho': anchos.length === 2 && anchos[0] === anchos[1] && anchos[0] > 200, 'se alternan los disparos': tiros === 10 };
+    } finally { a.cerrar(); b.cerrar(); }
+  },
+  async partida() {
+    const sala = `conchas-P${Math.floor(Math.random() * 900 + 100)}`;
+    const a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`), b = await abrir(`${BASE}?invitado=b#/juegos/vivo/${sala}`), c = await abrir(`${BASE}?invitado=c#/juegos/mirar/${sala}`);
+    const listo = (p) => hasta(() => p.js(`(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent === '¡Listo!'); if (b) b.click(); return !!b; })()`), 20000);
+    const columna = (p, i) => hasta(() => p.js(`(() => { const c = document.querySelectorAll('.conchas-col')[${i}]; if (!c || c.disabled) return false; c.click(); return true; })()`));
+    try {
+      await listo(a); await listo(b);
+      const empieza = await hasta(() => a.js(`!!document.querySelector('.conchas')`), 20000);
+      // Quien parte juega en la columna 1 y el otro en la 2, cuatro veces: gana el que parte
+      const parte = (await a.js(`!document.querySelector('.conchas-col')?.disabled`)) ? [a, b] : [b, a];
+      for (let k = 0; k < 4; k++) { await columna(parte[0], 0); if (k < 3) await columna(parte[1], 1); }
+      const gana = await hasta(() => c.js(`document.querySelector('.vivo-fin')?.textContent?.includes('Ganó') ?? false`));
+      const ojo = await a.js(`document.querySelector('.vivo-ojo')?.textContent`);
+      return { 'la partida empieza para los dos': empieza, 'el espectador ve el final': gana, 'el ojo cuenta 1': ojo === '👁 1' };
+    } finally { a.cerrar(); b.cerrar(); c.cerrar(); }
+  },
   async vestibulo() {
     const sala = `conchas-V${Math.floor(Math.random() * 900 + 100)}`;
     const mira = await abrir(`${BASE}?invitado=z#/juegos/en-linea`), a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`);

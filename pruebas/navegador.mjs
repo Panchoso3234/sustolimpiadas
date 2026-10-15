@@ -7,11 +7,15 @@ import { join } from 'node:path';
 const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 export const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export async function abrir(url, { ancho = 1280, alto = 720 } = {}) {
-  const puerto = 9400 + Math.floor(Math.random() * 500), perfil = mkdtempSync(join(tmpdir(), 'edge-'));
-  const edge = spawn(EDGE, ['--headless=new', `--remote-debugging-port=${puerto}`, `--user-data-dir=${perfil}`, `--window-size=${ancho},${alto}`, '--use-angle=d3d11', 'about:blank'], { stdio: 'ignore' });
-  let lista;
-  for (let i = 0; i < 60; i++) { try { lista = await (await fetch(`http://127.0.0.1:${puerto}/json`)).json(); if (lista.some((p) => p.type === 'page')) break; } catch {} await esperar(250); }
+export async function abrir(url, { ancho = 1280, alto = 720, escala = 1 } = {}) {
+  // Si Edge no arranca (por ejemplo, el puerto estaba ocupado), se intenta de nuevo con otro puerto
+  let edge, lista;
+  for (let intento = 0; intento < 3 && !lista?.some((p) => p.type === 'page'); intento++) {
+    edge?.kill();
+    const puerto = 9400 + Math.floor(Math.random() * 500), perfil = mkdtempSync(join(tmpdir(), 'edge-'));
+    edge = spawn(EDGE, ['--headless=new', `--remote-debugging-port=${puerto}`, `--user-data-dir=${perfil}`, `--window-size=${ancho},${alto}`, '--use-angle=d3d11', 'about:blank'], { stdio: 'ignore' });
+    for (let i = 0; i < 60; i++) { try { lista = await (await fetch(`http://127.0.0.1:${puerto}/json`)).json(); if (lista.some((p) => p.type === 'page')) break; } catch {} await esperar(250); }
+  }
   const ws = new WebSocket(lista.find((p) => p.type === 'page').webSocketDebuggerUrl);
   await new Promise((r) => ws.addEventListener('open', r));
   let id = 0; const pendientes = new Map(), errores = [];
@@ -22,7 +26,9 @@ export async function abrir(url, { ancho = 1280, alto = 720 } = {}) {
   });
   const cdp = (method, params = {}) => new Promise((r) => { const n = ++id; pendientes.set(n, r); ws.send(JSON.stringify({ id: n, method, params })); });
   await cdp('Runtime.enable'); await cdp('Page.enable');
-  await cdp('Emulation.setDeviceMetricsOverride', { width: ancho, height: alto, deviceScaleFactor: 1, mobile: false });
+  await cdp('Emulation.setDeviceMetricsOverride', { width: ancho, height: alto, deviceScaleFactor: escala, mobile: false });
+  // Sin el recorrido de bienvenida: tapa la página en las pruebas
+  await cdp('Page.addScriptToEvaluateOnNewDocument', { source: "try { localStorage.setItem('susto.recorrido', 'true') } catch {}" });
   await cdp('Page.navigate', { url });
   return {
     errores,
