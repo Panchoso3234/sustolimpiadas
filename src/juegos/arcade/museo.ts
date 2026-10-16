@@ -34,6 +34,8 @@ export async function crear(c: Contexto): Promise<Partida> {
   const cv = document.createElement('canvas'); cv.width = cv.height = 64;
   const g2 = cv.getContext('2d')!;
   for (let i = 0; i < 4; i++) { g2.fillStyle = i % 3 ? '#d9d2c4' : '#b9b0a0'; g2.fillRect((i % 2) * 32, Math.floor(i / 2) * 32, 32, 32); }
+  g2.strokeStyle = 'rgba(120,110,100,0.35)'; g2.lineWidth = 1;
+  for (let i = 0; i < 6; i++) { g2.beginPath(); g2.moveTo(Math.random() * 64, 0); g2.bezierCurveTo(Math.random() * 64, 20, Math.random() * 64, 44, Math.random() * 64, 64); g2.stroke(); }
   const tex = new THREE.CanvasTexture(cv); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(COLS / 2, FILAS / 2); tex.colorSpace = THREE.SRGBColorSpace;
   const piso = new THREE.Mesh(new THREE.PlaneGeometry(AN, FO), new THREE.MeshLambertMaterial({ map: tex }));
   piso.rotation.x = -Math.PI / 2;
@@ -114,15 +116,39 @@ export async function crear(c: Contexto): Promise<Partida> {
     }));
     muros.count = techo.count = i;
     piezas.add(muros, techo);
-    // Cuadros en algunos muros, para que se vea como museo
+    // Cuadros en algunos muros (pintados por código), cada uno con su lámpara y un charco de luz en el piso
     const cuadros = ['#e07a5f', '#3d85c6', '#81b29a', '#f2cc8f', '#9b5de5'];
+    const obra = (semilla: number) => {
+      const cv2 = document.createElement('canvas'); cv2.width = 64; cv2.height = 44;
+      const gg = cv2.getContext('2d')!;
+      gg.fillStyle = cuadros[semilla % 5]; gg.fillRect(0, 0, 64, 44);
+      for (let i = 0; i < 5; i++) { gg.fillStyle = cuadros[(semilla + i + 1) % 5]; const tipo = (semilla + i) % 3, x = (semilla * 13 + i * 17) % 52, y = (semilla * 7 + i * 11) % 34; if (tipo === 0) { gg.beginPath(); gg.arc(x + 6, y + 6, 6 + (i % 3) * 2, 0, Math.PI * 2); gg.fill(); } else if (tipo === 1) gg.fillRect(x, y, 10 + i * 2, 6 + i); else { gg.beginPath(); gg.moveTo(x, y + 12); gg.lineTo(x + 8, y); gg.lineTo(x + 16, y + 12); gg.fill(); } }
+      const tx = new THREE.CanvasTexture(cv2); tx.colorSpace = THREE.SRGBColorSpace; return tx;
+    };
+    const resplandor = (() => { const c3 = document.createElement('canvas'); c3.width = c3.height = 64; const g3 = c3.getContext('2d')!, gr = g3.createRadialGradient(32, 32, 2, 32, 32, 32); gr.addColorStop(0, 'rgba(255,230,160,0.45)'); gr.addColorStop(1, 'rgba(255,230,160,0)'); g3.fillStyle = gr; g3.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c3); })();
+    // Jarrones y bustos sobre algunos muros interiores (como vitrinas)
     grilla.forEach((fila, cz) => [...fila].forEach((t, cx) => {
-      if (t !== '#' || cz === 0 || (cx * 7 + cz * 3) % 5) return;
+      if (t !== '#' || cx === 0 || cz === 0 || cx === COLS - 1 || cz === FILAS - 1 || (cx * 5 + cz * 11) % 4) return;
+      const p = centro(cx, cz), jarron = new THREE.Mesh(new THREE.LatheGeometry([[0, 0], [0.14, 0], [0.2, 0.12], [0.12, 0.3], [0.09, 0.38], [0.13, 0.44], [0, 0.44]].map(([x, y]) => new THREE.Vector2(x, y)), 10), mat(['#3d85c6', '#e07a5f', '#f2cc8f', '#81b29a'][(cx + cz) % 4]));
+      jarron.position.set(p.x, 1.16, p.z); piezas.add(jarron);
+    }));
+    // Cordón de terciopelo alrededor del tesoro
+    grilla.forEach((fila, cz) => { const cx = fila.indexOf('T'); if (cx < 0) return; const p = centro(cx, cz); for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const poste = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.6, 6), new THREE.MeshStandardMaterial({ color: '#d9b84a', metalness: 0.7, roughness: 0.3 })); poste.position.set(p.x + dx * 0.48, 0.3, p.z + dz * 0.48); piezas.add(poste); } for (const [w, d, dx, dz] of [[0.96, 0.04, 0, -0.48], [0.96, 0.04, 0, 0.48], [0.04, 0.96, -0.48, 0], [0.04, 0.96, 0.48, 0]]) { const cordon = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, d), mat('#a01a2a')); cordon.position.set(p.x + dx, 0.5, p.z + dz); piezas.add(cordon); } });
+    // Cartel verde de SALIDA sobre la puerta de escape
+    const cartel = document.createElement('canvas'); cartel.width = 128; cartel.height = 40;
+    const gc = cartel.getContext('2d')!; gc.fillStyle = '#1f8a4c'; gc.fillRect(0, 0, 128, 40); gc.fillStyle = '#ffffff'; gc.font = 'bold 26px sans-serif'; gc.textAlign = 'center'; gc.textBaseline = 'middle'; gc.fillText('SALIDA', 64, 21);
+    const texCartel = new THREE.CanvasTexture(cartel); texCartel.colorSpace = THREE.SRGBColorSpace;
+    const salidaCartel = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.34), new THREE.MeshBasicMaterial({ map: texCartel }));
+    salidaCartel.position.set(salida.x, 1.45, salida.z); salidaCartel.rotation.x = -0.6; piezas.add(salidaCartel);
+    grilla.forEach((fila, cz) => [...fila].forEach((t, cx) => {
+      if (t !== '#' || cz === 0 || (cx * 7 + cz * 3) % 3) return;
       const abajo = grilla[cz + 1]?.[cx];
       if (abajo !== '.' && abajo !== 'o') return;
-      const p = centro(cx, cz), marco = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.05), mat('#c9a227')), lienzo = new THREE.Mesh(new THREE.PlaneGeometry(0.58, 0.38), new THREE.MeshBasicMaterial({ color: cuadros[(cx + cz) % cuadros.length] }));
-      marco.position.set(p.x, 0.62, p.z + CELDA / 2 + 0.03); lienzo.position.set(p.x, 0.62, p.z + CELDA / 2 + 0.06);
-      piezas.add(marco, lienzo);
+      const p = centro(cx, cz), marco = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.62, 0.05), mat('#c9a227')), lienzo = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.5), new THREE.MeshBasicMaterial({ map: obra(cx * 3 + cz + n) }));
+      marco.position.set(p.x, 0.6, p.z + CELDA / 2 + 0.03); lienzo.position.set(p.x, 0.6, p.z + CELDA / 2 + 0.06);
+      const lampara = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.06, 0.12), new THREE.MeshBasicMaterial({ color: '#ffe9a0' })); lampara.position.set(p.x, 1.0, p.z + CELDA / 2 + 0.08);
+      const charco = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.2), new THREE.MeshBasicMaterial({ map: resplandor, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); charco.rotation.x = -Math.PI / 2; charco.position.set(p.x, 0.02, p.z + CELDA * 0.95);
+      piezas.add(marco, lienzo, lampara, charco);
     }));
     // Guardias: un personaje con gorra azul y su linterna
     const datos = NIVELES[n];
@@ -143,6 +169,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       const p = centro(cx, cz), cruzaX = solido(cx - 1, cz) && solido(cx + 1, cz);
       const m = new THREE.Mesh(new THREE.BoxGeometry(cruzaX ? CELDA : 0.05, 0.05, cruzaX ? 0.05 : CELDA), new THREE.MeshBasicMaterial({ color: '#ff2a2a' }));
       m.position.set(p.x, 0.45, p.z); piezas.add(m);
+      for (const lado of [-1, 1]) { const emisor = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.7, 0.14), mat('#2a2a33')); emisor.position.set(p.x + (cruzaX ? lado * CELDA / 2 : 0), 0.35, p.z + (cruzaX ? 0 : lado * CELDA / 2)); const foco = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 4), new THREE.MeshBasicMaterial({ color: '#ff2a2a' })); foco.position.copy(emisor.position).setY(0.45); piezas.add(emisor, foco); }
       return m;
     }) }));
     ang = Math.PI / 2;
