@@ -476,6 +476,14 @@ body.foto .bolos-efecto { display: none; }
 .defensa-barra .boton.caro small { color: #ff8a8a; }
 .defensa-barra b { opacity: .7; margin-right: 2px; }
 body.foto .defensa-barra { display: none; }
+/* Cocina Caótica: pedidos arriba */
+.cocina-pedidos { position: absolute; top: 52px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; pointer-events: none; z-index: 2; max-width: calc(100% - 20px); }
+.cocina-pedido { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; min-width: 76px; padding: 4px 8px 8px; border-radius: 10px; background: rgba(255, 248, 230, .95); color: #2a1d10; font-size: .72rem; line-height: 1.15; text-align: center; }
+.cocina-pedido b { font-size: 1.5rem; }
+.cocina-pedido small { font-size: .95rem; }
+.cocina-pedido i { position: absolute; left: 0; bottom: 0; height: 5px; background: #3fae6a; }
+.cocina-pedido.apuro i { background: #e8423a; }
+.cocina-pedido.apuro { animation: avatar-triste .4s infinite; }
 .mando-accion.segunda { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); background: rgba(255, 176, 46, .85); padding: 12px 18px; font-size: .95rem; }
 .camara-boton { position: absolute; right: 12px; top: 56px; padding: 5px 12px; font-size: .86rem; background: rgba(28, 44, 77, .88); z-index: 5; }
 body.foto .camara-boton, body.foto .mando-accion { display: none; }
