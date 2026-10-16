@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Guía completa · Las Sustolimpiadas</title>
+  <meta name="description" content="Todo lo que hay que saber de Las Sustolimpiadas: cómo empezar, la isla, tu personaje, los 35 juegos, los duelos, los puntos, el calendario y lo que viene." />
+  <meta name="theme-color" content="#1c2c4d" />
+  <link rel="icon" href="icono.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icono-180.png" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Las Sustolimpiadas" />
+  <meta property="og:title" content="Guía completa de Las Sustolimpiadas" />
+  <meta property="og:description" content="Cómo empezar, la isla, tu personaje, los 35 juegos, duelos, puntos, calendario y lo que viene. ¡Léela antes de jugar!" />
+  <meta property="og:url" content="https://panchoso3234.github.io/sustolimpiadas/guia.html" />
+  <meta property="og:image" content="https://panchoso3234.github.io/sustolimpiadas/portada.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Graduate&family=Nunito:wght@400;600;800&display=swap" />
+  <style>
+    :root {
+      color-scheme: dark;
+      --noche: #14203a; --noche-2: #1c2c4d; --tabla: #233760; --linea: #34497a;
+      --hueso: #f3ecdc; --tenue: #a9b6d6; --calabaza: #ff9a2e; --luna: #ffe08a; --sangre: #ef5565; --alga: #6fd6b4; --cielo: #7fb4ff; --lila: #c79bff;
+      --display: "Alfa Slab One", "Rockwell", Georgia, serif;
+      --cuerpo: "Nunito", "Segoe UI", system-ui, sans-serif;
+      --letras: "Graduate", "Rockwell", "Courier New", serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+    body { margin: 0; background: var(--noche); color: var(--hueso); font: 17px/1.6 var(--cuerpo); }
+    a { color: var(--luna); }
+    img { max-width: 100%; display: block; }
+    h1, h2, h3 { font-family: var(--display); font-weight: 400; line-height: 1.15; margin: 0; }
+    h2 { font-size: clamp(1.7rem, 4vw, 2.3rem); color: var(--hueso); }
+    h3 { font-size: 1.25rem; color: var(--luna); margin-top: 6px; }
+    p { margin: 0; }
+    .sigla { font-family: var(--letras); letter-spacing: .14em; text-transform: uppercase; font-size: .78rem; color: var(--calabaza); }
+    .tenue { color: var(--tenue); }
+    .chico { font-size: .9rem; }
+
+    /* Portada */
+    .portada { position: relative; min-height: min(78vh, 640px); display: flex; align-items: flex-end; background: #0c1324 url('guia-fondo.jpg') center 35% / cover no-repeat; }
+    .portada::after { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(20, 32, 58, .1), rgba(20, 32, 58, .55) 45%, var(--noche)); }
+    .portada-texto { position: relative; z-index: 1; width: 100%; max-width: 1180px; margin: 0 auto; padding: 0 20px 36px; display: flex; flex-direction: column; gap: 14px; }
+    .portada h1 { font-size: clamp(2.4rem, 8vw, 4.6rem); color: var(--calabaza); text-shadow: 0 4px 0 #2a1408; }
+    .portada .bajada { font-size: clamp(1.05rem, 2.6vw, 1.35rem); font-weight: 800; max-width: 760px; text-shadow: 0 2px 6px rgba(0, 0, 0, .7); }
+    .botones { display: flex; flex-wrap: wrap; gap: 10px; }
+    .boton { display: inline-flex; align-items: center; gap: 6px; padding: 11px 20px; border-radius: 12px; border: 2px solid var(--linea); background: var(--noche-2); color: var(--hueso); font-weight: 800; text-decoration: none; }
+    .boton.principal { background: var(--calabaza); border-color: var(--calabaza); color: var(--noche); }
+    .boton:hover { filter: brightness(1.1); }
+
+    /* Diseño con índice */
+    .marco { max-width: 1180px; margin: 0 auto; padding: 0 20px 80px; display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 40px; }
+    .indice { position: sticky; top: 16px; align-self: start; max-height: calc(100vh - 32px); overflow-y: auto; padding: 16px 0; }
+    .indice b { display: block; font-family: var(--letras); font-size: .78rem; letter-spacing: .14em; color: var(--calabaza); margin-bottom: 8px; }
+    .indice ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; counter-reset: n; }
+    .indice a { display: block; padding: 5px 10px; border-radius: 8px; color: var(--tenue); text-decoration: none; font-weight: 600; font-size: .92rem; }
+    .indice a:hover, .indice a.aqui { background: var(--tabla); color: var(--hueso); }
+    .indice-movil { display: none; }
+    main { display: flex; flex-direction: column; gap: 56px; padding-top: 24px; min-width: 0; }
+    section { display: flex; flex-direction: column; gap: 14px; scroll-margin-top: 16px; }
+    section > p, section li { max-width: 72ch; }
+    ul.lista { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; }
+    ul.lista li::marker { color: var(--calabaza); }
+
+    /* Piezas */
+    .caja { background: var(--noche-2); border: 2px solid var(--linea); border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+    .caja.destacada { border-color: var(--calabaza); background: linear-gradient(135deg, #2b2a4a, var(--noche-2)); }
+    .caja.aviso { border-color: var(--luna); }
+    .caja.pronto { border-color: var(--lila); background: linear-gradient(135deg, #2e2350, var(--noche-2)); }
+    .rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+    .ficha { background: var(--noche-2); border: 2px solid var(--linea); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+    .ficha .icono { font-size: 1.7rem; line-height: 1; }
+    .ficha b { font-size: 1.05rem; }
+    .ficha p { color: var(--tenue); font-size: .94rem; }
+    .pasos { counter-reset: paso; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+    .paso { position: relative; background: var(--noche-2); border: 2px solid var(--linea); border-radius: 16px; padding: 46px 18px 18px; }
+    .paso::before { counter-increment: paso; content: counter(paso); position: absolute; top: 12px; left: 18px; font-family: var(--display); font-size: 1.6rem; color: var(--calabaza); }
+    .paso b { display: block; font-size: 1.1rem; margin-bottom: 4px; }
+    .paso p { color: var(--tenue); font-size: .95rem; }
+    .tabla { width: 100%; border-collapse: collapse; font-size: .95rem; }
+    .tabla th, .tabla td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--linea); vertical-align: top; }
+    .tabla th { font-family: var(--letras); font-size: .74rem; letter-spacing: .1em; color: var(--calabaza); font-weight: 400; }
+    .tabla-caja { overflow-x: auto; background: var(--noche-2); border: 2px solid var(--linea); border-radius: 14px; padding: 4px 8px; }
+    .etiqueta { display: inline-block; padding: 1px 9px; border-radius: 99px; font-size: .76rem; font-weight: 800; background: var(--tabla); color: var(--hueso); white-space: nowrap; }
+    .etiqueta.vivo { background: #4a2533; color: #ffb3c0; }
+    .etiqueta.diferido { background: #233d52; color: #a9dcff; }
+    .etiqueta.ya { background: #1f4a3c; color: var(--alga); }
+    .etiqueta.no { background: #4a2533; color: #ffb3c0; }
+    kbd { font: 800 .85em var(--cuerpo); padding: 1px 7px; border-radius: 6px; border: 2px solid var(--linea); border-bottom-width: 3px; background: var(--tabla); }
+
+    /* Juegos */
+    .categoria { display: flex; flex-direction: column; gap: 12px; }
+    .categoria h3 { display: flex; align-items: center; gap: 10px; color: var(--tono); }
+    .categoria h3::after { content: ''; flex: 1; height: 2px; background: var(--tono); opacity: .4; }
+    .juegos { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+    .juego { background: var(--noche-2); border: 2px solid var(--linea); border-top: 5px solid var(--tono); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; text-decoration: none; color: var(--hueso); }
+    .juego:hover { border-color: var(--tono); }
+    .juego img { aspect-ratio: 16 / 9; object-fit: cover; width: 100%; background: #0c1324; }
+    .juego div { padding: 10px 14px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+    .juego .num { font-family: var(--letras); font-size: .75rem; color: var(--tono); }
+    .juego b { font-size: 1.05rem; }
+    .juego p { color: var(--tenue); font-size: .9rem; flex: 1; }
+    .juego .marcas { display: flex; flex-wrap: wrap; gap: 4px; }
+
+    .galeria { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; }
+    .galeria figure { margin: 0; text-align: center; font-size: .78rem; color: var(--tenue); }
+    .galeria img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 50%; background: #2a1f4e; border: 2px solid var(--linea); margin-bottom: 4px; }
+    .calendario { display: flex; flex-direction: column; gap: 0; border-left: 3px solid var(--linea); margin-left: 8px; }
+    .calendario li { list-style: none; position: relative; padding: 0 0 18px 22px; }
+    .calendario li::before { content: ''; position: absolute; left: -10px; top: 5px; width: 15px; height: 15px; border-radius: 50%; background: var(--noche); border: 3px solid var(--calabaza); }
+    .calendario li.final::before { background: var(--calabaza); }
+    .calendario .fecha { font-family: var(--letras); font-size: .8rem; color: var(--calabaza); letter-spacing: .08em; }
+    .calendario b { display: block; font-size: 1.05rem; }
+    .calendario span.tenue { font-size: .93rem; }
+    .pie { border-top: 2px solid var(--linea); padding: 26px 20px 40px; text-align: center; color: var(--tenue); font-size: .9rem; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+
+    @media (max-width: 900px) {
+      .marco { grid-template-columns: 1fr; gap: 0; }
+      .indice { display: none; }
+      .indice-movil { display: block; margin-top: 18px; }
+      .indice-movil summary { cursor: pointer; font-weight: 800; padding: 12px 16px; background: var(--noche-2); border: 2px solid var(--linea); border-radius: 12px; }
+      .indice-movil ol { margin: 8px 0 0; padding: 8px 8px 8px 30px; background: var(--noche-2); border-radius: 12px; columns: 2; column-gap: 20px; }
+      .indice-movil li { padding: 3px 0; break-inside: avoid; }
+      .indice-movil a { color: var(--hueso); text-decoration: none; font-weight: 600; font-size: .95rem; }
+      main { gap: 46px; }
+    }
+    @media (max-width: 480px) { body { font-size: 16px; } .indice-movil ol { columns: 1; } .portada { min-height: 70vh; } }
+  </style>
+</head>
+<body>
+
+<header class="portada">
+  <div class="portada-texto">
+    <div class="sigla">Guía oficial · del 13 de octubre al 13 de noviembre</div>
+    <h1>Las Sustolimpiadas</h1>
+    <p class="bajada">Todo, absolutamente todo lo que hay en el sitio: cómo empezar, la isla, tu personaje, los 35 juegos, los duelos, cómo se ganan los puntos, el calendario, los detalles que hacen la vida más fácil y lo que todavía viene.</p>
+    <div class="botones">
+      <a class="boton principal" href="./">🎃 Ir al sitio</a>
+      <a class="boton" href="#empezar">Empezar en 3 pasos</a>
+      <a class="boton" href="#juegos">Ver los 35 juegos</a>
+    </div>
+  </div>
+</header>
+
+<div class="marco">
+  <nav class="indice" aria-label="Índice de la guía">
+    <b>ÍNDICE</b>
+    <ol id="indice"></ol>
+  </nav>
+
+  <main>
+    <details class="indice-movil">
+      <summary>📖 Índice de la guía</summary>
+      <ol id="indice-movil"></ol>
+    </details>
+
+    <!-- 1 -->
+    <section id="que-es" data-titulo="¿Qué es esto?">
+      <div class="sigla">Bienvenida</div>
+      <h2>¿Qué son Las Sustolimpiadas?</h2>
+      <p>Es el torneo del servidor, y se juega en <b>un sitio web hecho solo para él</b>. No hay que instalar nada: se abre desde el navegador del computador o del celular. Durante un mes compites en minijuegos, sumas puntos para tu equipo y paseas tu propio personaje por una isla en 3D donde viven todos los participantes.</p>
+      <div class="rejilla">
+        <div class="ficha"><span class="icono">🏝️</span><b>Una isla viva</b><p>Tu personaje vive en la Isla ValRigo junto al de todos los demás: camina, conversa, se sienta en la plaza y hasta duerme de madrugada.</p></div>
+        <div class="ficha"><span class="icono">🎮</span><b>35 minijuegos</b><p>De reflejos, memoria, puntería, decisión, carreras, física y arcade. Cada partida trae un desafío nuevo.</p></div>
+        <div class="ficha"><span class="icono">⚔️</span><b>Duelos</b><p>Uno contra uno a la hora que puedas (diferido) o conectados al mismo tiempo (en vivo).</p></div>
+        <div class="ficha"><span class="icono">🏆</span><b>7 premios</b><p>6 bendiciones lunares (para el gacha que quieras) y 1 comisión de arte de Rigo, donados por Vale y Rigo.</p></div>
+      </div>
+      <div class="caja destacada">
+        <h3>Dos fases</h3>
+        <p><b>Fase 1 · Las jornadas (16 de octubre al 12 de noviembre).</b> Equipos de tres sorteados al azar compiten durante cuatro semanas. Cada semana vale más que la anterior.</p>
+        <p><b>Fase 2 · La Arena (viernes 13 de noviembre).</b> El portón del volcán se abre una sola noche. Entran 12: los tres mejores equipos completos y tres cupos especiales. Ahí, todos contra todos, se definen los siete premios.</p>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section id="empezar" data-titulo="Empezar en 3 pasos">
+      <div class="sigla">Lo primero</div>
+      <h2>Empezar en 3 pasos</h2>
+      <div class="pasos">
+        <div class="paso"><b>Entra con Discord</b><p>Botón naranjo arriba a la derecha. Usa tu misma cuenta del servidor: así tus marcas cuentan para el torneo y tu personaje aparece en la isla. No te pide ni guarda contraseñas.</p></div>
+        <div class="paso"><b>Crea tu personaje</b><p>En "Mi personaje" elige un avatar anime de la galería, gira el gachapón o ármalo pieza por pieza. Ponle nombre, frase y personalidad, y aprieta "Guardar personaje".</p></div>
+        <div class="paso"><b>¡A jugar!</b><p>En "Juegos" elige cualquiera de los 35. Juega las veces que quieras: vale tu mejor marca del día. Y revisa tus duelos pendientes.</p></div>
+      </div>
+      <div class="caja aviso">
+        <p>💡 <b>¿Sin cuenta todavía?</b> Puedes recorrer todo y jugar igual, pero tus marcas solo quedan en tu navegador y no suman para el torneo. Entra con Discord para que valgan.</p>
+        <p>💡 <b>La primera vez</b> el sitio te muestra un recorrido de bienvenida en cinco pasos. Si lo saltaste, puedes volver a verlo en Ajustes (⚙).</p>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="calendario" data-titulo="Calendario">
+      <div class="sigla">Fechas</div>
+      <h2>Calendario y noches en vivo</h2>
+      <p>Cada viernes hay una noche en vivo por Discord que cierra la jornada de la semana. Y ojo con los <b>multiplicadores</b>: los puntos de cada semana valen más que los de la anterior, así que nadie queda fuera hasta el final.</p>
+      <ol class="calendario">
+        <li><span class="fecha">MAR 13 OCT</span><b>Apertura de inscripciones</b><span class="tenue">Crear personaje, conocer la isla y probar los juegos sin puntos.</span></li>
+        <li><span class="fecha">VIE 16 OCT</span><b>La Llegada y el sorteo de equipos</b><span class="tenue">Noche en vivo: inicio oficial y sorteo de los equipos de tres. Parte la Jornada 1.</span></li>
+        <li><span class="fecha">VIE 23 OCT</span><b>Noche de Trivia</b><span class="tenue">Cierre de la Jornada 1 · puntos ×1.</span></li>
+        <li><span class="fecha">VIE 30 OCT</span><b>Noche de Brujas</b><span class="tenue">Cierre de la Jornada 2 · puntos ×1,25. La isla se pone embrujada. 👻</span></li>
+        <li><span class="fecha">VIE 6 NOV</span><b>La Gran Feria</b><span class="tenue">Cierre de la Jornada 3 · puntos ×1,5.</span></li>
+        <li><span class="fecha">JUE 12 NOV</span><b>Cierre de la Jornada 4</b><span class="tenue">Última oportunidad de clasificar · puntos ×2.</span></li>
+        <li class="final"><span class="fecha">VIE 13 NOV</span><b>El Gran Final: la Arena</b><span class="tenue">La final en una sola noche. Se definen los 7 premios.</span></li>
+      </ol>
+      <p class="tenue chico">Todas las horas y los cambios de día del sitio usan la hora de Chile.</p>
+    </section>
+
+    <!-- 4 -->
+    <section id="puntos" data-titulo="Equipos y puntos">
+      <div class="sigla">Cómo se gana</div>
+      <h2>Equipos y puntos</h2>
+      <p>En la Fase 1 compites <b>en equipo de tres</b>, sorteado al azar en La Llegada. Todo lo que tú y tus compañeros hacen suma en la tabla del torneo (pestaña "Posiciones" del portal).</p>
+      <div class="rejilla">
+        <div class="ficha"><span class="icono">🎯</span><b>Juegos individuales</b><p>En cada jornada y en cada juego vale <b>la mejor marca del equipo</b> (la de cualquiera de los tres). Los equipos se ordenan por esa marca: el primero se lleva 10 puntos y el último 2, repartidos parejo.</p></div>
+        <div class="ficha"><span class="icono">⚔️</span><b>Duelos oficiales</b><p>Ganar da 10 puntos, empatar 6 y perder 3. Sí, perder también suma: siempre conviene jugar. En los 1v1 los puntos van al equipo de cada jugador.</p></div>
+        <div class="ficha"><span class="icono">✖️</span><b>Multiplicador semanal</b><p>Todo se multiplica por la jornada: ×1 en la primera, ×1,25 en la segunda, ×1,5 en la tercera y ×2 en la cuarta.</p></div>
+      </div>
+      <div class="caja">
+        <h3>Lo que conviene saber</h3>
+        <ul class="lista">
+          <li><b>Juega todo lo que quieras:</b> en los individuales los intentos son libres y solo vale tu mejor marca del día. Un mal intento no te baja nada.</li>
+          <li><b>No sirve memorizar:</b> cada partida trae un desafío distinto (otro orden, otras posiciones, otro viento). Gana la habilidad.</li>
+          <li><b>Repártanse los juegos:</b> como cuenta la mejor marca del equipo, sirve que cada integrante se especialice en los juegos donde le va mejor.</li>
+          <li><b>Staff:</b> Vale, Rigo, Pancho, Astrea, Never, Baal, Leona y Tsuki juegan toda la Fase 1 con sus equipos, pero no pasan a la Arena ni ganan premios. Si su equipo clasifica, pasan solo sus compañeros.</li>
+          <li><b>Juego limpio:</b> son juegos de habilidad directa, sin nada que inventar, dibujar ni votar. El organizador revisa las marcas del día.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section id="isla" data-titulo="La isla">
+      <div class="sigla">Inicio</div>
+      <h2>La Isla ValRigo</h2>
+      <p>Es lo primero que ves al entrar, y es mucho más que un fondo bonito. Es una isla en 3D <b>con vida propia</b>, donde vive el personaje de cada participante.</p>
+      <div class="rejilla">
+        <div class="ficha"><span class="icono">🕰️</span><b>Día y noche de verdad</b><p>Sigue la hora de Chile: amanece, atardece y de noche se encienden los faroles. El clima se sortea cada día (despejado, nublado o lluvia).</p></div>
+        <div class="ficha"><span class="icono">🚶</span><b>Personajes que viven</b><p>Cada cinco minutos cada personaje elige adónde ir según su personalidad: camina por los caminos, conversa con otros, se sienta y duerme de madrugada.</p></div>
+        <div class="ficha"><span class="icono">🏘️</span><b>Mucho que explorar</b><p>Plaza con fuente, tablón de posiciones y de eventos, kiosco, ruleta, escenario, alcaldía con reloj, cafetería, mercado y cancha. Afuera: el volcán con nieve, el portón de la Arena, un río con cascada y puentes, faro, molino, granja, lago, ruinas, cementerio con fantasmas, caleta, playa, fogata, campamento y muelle.</p></div>
+        <div class="ficha"><span class="icono">🏠</span><b>Siete casas club</b><p>Repartidas por la isla: junto a la granja, en el risco del faro, frente a la playa, a orillas del lago, entre las ruinas, en la ladera y en la caleta.</p></div>
+      </div>
+      <div class="caja">
+        <h3>Cómo se usa</h3>
+        <ul class="lista">
+          <li><b>Mover la cámara:</b> arrastra para girar; rueda del mouse o pellizco para acercar.</li>
+          <li><b>Toca a un personaje</b> para ver su ficha (nombre, frase, qué está haciendo) y la cámara lo sigue. <b>Toca una casa, un edificio o un tablón</b> para abrir su panel.</li>
+          <li><b>Habitantes:</b> la lista de todos, con lo que está haciendo cada uno en ese momento.</li>
+          <li><b>Mi personaje:</b> te lleva directo al tuyo.</li>
+          <li><b>Foto:</b> saca una captura de la isla para compartir.</li>
+          <li><b>Música:</b> un tema tranquilo con olas suaves de fondo (su volumen se ajusta aparte en Ajustes).</li>
+          <li><b>Calidad:</b> automática, baja, media, alta o ultra. En automática el sitio la baja solo si tu equipo no alcanza y la sube si le sobra.</li>
+          <li><b>En el celular</b> todos estos botones se juntan en el menú <b>☰</b> de arriba a la derecha, para no tapar la isla.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section id="personaje" data-titulo="Tu personaje">
+      <div class="sigla">Mi personaje</div>
+      <h2>Tu personaje</h2>
+      <p>Hay dos caminos, y puedes cambiar de uno a otro cuando quieras.</p>
+      <div class="caja destacada">
+        <h3>✨ Avatar anime: 53 chibis estilo gachapón</h3>
+        <p>Personajes en 3D, animados y listos para usar, en cuatro grupos:</p>
+        <ul class="lista">
+          <li><b>Halloween (16):</b> Calabacín, Lobito, Diablita, Espíritu del bosque, Muñeco embrujado, Gato negro, Bruja verde, Reina fantasma, Conejito maldito, Vampira, Murciélago, Bruja morada, Espantapájaros, Demonio, Dulce o truco y Pijama de fantasmas.</li>
+          <li><b>Más disfraces (16):</b> Momia, Osito zombi, Fantasmita, Wendigo, Rey calabaza, Hechicero, Araña, Hada oscura, Segador, Fantasma pirata, Vampiro, Catrina, Hombre lobo, Frankenstein, Bruja caramelo y Esqueleto.</li>
+          <li><b>Monstruos (5):</b> Ojo Burlón, Gelatina Mímica, Esktix, Segador y Wendigo.</li>
+          <li><b>Navidad (16):</b> los chibis originales, por si eres de los que ya quieren diciembre.</li>
+        </ul>
+        <p>Los disfraces vienen con detalles propios: sombreros de bruja y de mago, calabazas talladas, alas de murciélago que aletean, alas de hada, capas de vampiro, patas de araña que se mueven, una sábana de fantasma, guadaña, coronas, una cola que se menea y un fantasmita que flota a tu lado.</p>
+        <p>🎰 <b>Gachapón:</b> gira la máquina y te sale un chibi al azar entre los 53. ¿No te convence? Gira otra vez.</p>
+        <div class="galeria" id="galeria"></div>
+      </div>
+      <div class="caja">
+        <h3>🧱 Crear el mío, pieza por pieza</h3>
+        <p>12 cabezas y 12 cuerpos combinables (144 combinaciones), colores editables por parte, 16 sombreros, lentes y mascarilla, un objeto en la mano, un accesorio de espalda, altura y contextura. Las miniaturas te muestran cómo quedaría cada opción antes de elegirla, y el botón "Al azar" arma uno sorpresa.</p>
+      </div>
+      <div class="caja">
+        <h3>🗣️ Personalidad, frase y voz</h3>
+        <p>Dale un <b>nombre</b>, una <b>frase</b> y una <b>personalidad</b>: no es decorativa, porque decide adónde va tu personaje en la isla y cómo se comporta. También tiene <b>voz</b>, con un tono que eliges tú. Los nombres y frases pasan por un filtro para que todo se mantenga apropiado.</p>
+        <p>Pruébalo en el visor con las poses <b>Quieto, Caminar, Sentarse, Saludar y Saltar</b>. Arrastra para girarlo, y con <b>"Tarjeta para compartir"</b> sacas una imagen lista para mandar por Discord.</p>
+        <p class="tenue chico">Recuerda apretar <b>"Guardar personaje"</b> (con la sesión iniciada) para que sea el tuyo y aparezca en la isla y en los juegos.</p>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section id="portal" data-titulo="El portal de juegos">
+      <div class="sigla">Juegos</div>
+      <h2>El portal de juegos</h2>
+      <p>Arriba hay cinco pestañas:</p>
+      <div class="rejilla">
+        <div class="ficha"><span class="icono">🎯</span><b>Individual</b><p>Los 35 juegos. Vale tu mejor marca del día.</p></div>
+        <div class="ficha"><span class="icono">⏳</span><b>Versus 1v1 (diferido)</b><p>Duelos donde cada uno juega a su hora el mismo desafío.</p></div>
+        <div class="ficha"><span class="icono">📡</span><b>En vivo</b><p>Duelos conectados al mismo tiempo, con salas y espectadores.</p></div>
+        <div class="ficha"><span class="icono">👀</span><b>Partidas en línea</b><p>Mira en directo las partidas en vivo que se están jugando.</p></div>
+        <div class="ficha"><span class="icono">📊</span><b>Posiciones</b><p>La tabla del torneo por equipos, con el detalle por jornada.</p></div>
+      </div>
+      <div class="caja">
+        <h3>Cómo funciona una partida individual</h3>
+        <ul class="lista">
+          <li><b>Pantalla previa:</b> explica el juego y cómo se juega, te muestra tu mejor marca de hoy, los <b>récords históricos</b> y la <b>tabla de hoy</b>.</li>
+          <li><b>Jugar</b> o <b>Práctica (no guarda)</b>: la práctica es idéntica, pero la marca no se anota en ninguna parte. Ideal para calentar.</li>
+          <li><b>Cuenta regresiva</b> con un recordatorio de los controles, y a jugar. Los controles se recuerdan unos segundos al empezar.</li>
+          <li><b>Resultado</b> con el desglose (aciertos, rachas, tiempos…), si es tu mejor marca del día, y botones para jugar otra vez o pasar al siguiente juego.</li>
+          <li><b>Récords históricos:</b> el top 3 de siempre de cada juego, con 🥇🥈🥉, la cara del personaje y el nombre de quien lo hizo. Las marcas <b>nunca se borran</b>: quedan para la historia.</li>
+          <li><b>Tabla de hoy:</b> la mejor marca de cada persona en el día, que es la que da puntos del torneo. Te dice cuánto te falta para subir al puesto de arriba y te deja <b>retar</b> a cualquiera de la tabla a un duelo amistoso.</li>
+        </ul>
+      </div>
+      <div class="caja">
+        <h3>Para encontrar tu juego</h3>
+        <ul class="lista">
+          <li><b>Buscador</b> por nombre o descripción.</li>
+          <li><b>Filtros:</b> Todos, Favoritos (marca la estrella ☆ de cada juego), Sin jugar hoy y Jugados hoy.</li>
+          <li>Cada tarjeta muestra si ya jugaste hoy (<b>✓ Jugado hoy</b>, con tu marca) y el top 3 histórico del juego.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 8 -->
+    <section id="juegos" data-titulo="Los 35 juegos">
+      <div class="sigla">Catálogo</div>
+      <h2>Los 35 juegos</h2>
+      <p>Agrupados por tipo. Debajo de cada uno ves en qué duelos aparece: <span class="etiqueta vivo">En vivo</span> (con su formato) y <span class="etiqueta diferido">1v1 diferido</span>. Toca cualquiera para ir a jugarlo.</p>
+      <div id="catalogo"></div>
+    </section>
+
+    <!-- 9 -->
+    <section id="diferido" data-titulo="Duelos 1v1 diferidos">
+      <div class="sigla">Versus</div>
+      <h2>Duelos 1v1 en diferido</h2>
+      <p>Para cuando tú y tu rival no pueden conectarse a la misma hora. <b>Los dos juegan exactamente el mismo desafío</b>, cada uno cuando pueda, y el sitio compara al final.</p>
+      <ul class="lista">
+        <li><b>Oficiales:</b> los arma el organizador y dan puntos del torneo (10 / 6 / 3, por la jornada). Tienen plazo: la campana te avisa cuando vence hoy o mañana.</li>
+        <li><b>Amistosos:</b> retas a quien quieras desde la pestaña Versus o desde la tabla de hoy de un juego. No dan puntos, pero sí el orgullo.</li>
+        <li><b>Un solo intento por ronda,</b> a 1, 3 o 5 rondas. Antes puedes practicar el mismo juego sin gastar el intento.</li>
+        <li><b>Sin mirar al otro:</b> la marca de tu rival se ve recién cuando el duelo cierra, y el desafío se entrega solo al momento de empezar.</li>
+        <li><b>En un duelo el reloj no se detiene</b> (no hay pausa) y el sitio te avisa si intentas cerrar la pestaña a mitad de partida.</li>
+      </ul>
+    </section>
+
+    <!-- 10 -->
+    <section id="vivo" data-titulo="Duelos en vivo">
+      <div class="sigla">En vivo</div>
+      <h2>Duelos 1v1 en vivo</h2>
+      <p>Los dos conectados al mismo tiempo. Creas una sala, compartes el enlace (por Discord, por ejemplo) y <b>los dos primeros en entrar juegan</b>; los demás miran como espectadores.</p>
+      <div class="rejilla">
+        <div class="ficha"><span class="icono">🪟</span><b>Pantalla dividida</b><p>Los dos juegan a la vez su propia partida con el mismo desafío, y cada uno ve la pantalla del otro al lado. 15 juegos.</p></div>
+        <div class="ficha"><span class="icono">🔁</span><b>Por turnos</b><p>"Es el turno de…": uno juega mientras el otro y el público miran, después al revés. Gana el mejor puntaje. 5 juegos.</p></div>
+        <div class="ficha"><span class="icono">🌐</span><b>Mismo mundo</b><p>Los dos en la misma arena, con rivales de máquina que atacan a ambos: Sumo de Balsas y Tanques de Juguete.</p></div>
+        <div class="ficha"><span class="icono">♟️</span><b>Juegos de mesa en vivo</b><p>Cuatro Conchas en Línea (alinea cuatro) y Batalla de Balsas (hunde las balsas del rival), por turnos.</p></div>
+      </div>
+      <ul class="lista">
+        <li><b>Listos para partir:</b> cada jugador marca que está listo antes de empezar.</li>
+        <li><b>Si se te corta</b> tienes 30 segundos para volver a la sala sin perder la partida.</li>
+        <li>Las salas que creas tú son <b>amistosas</b>. Tus enfrentamientos oficiales en vivo (los que dan puntos) aparecen en la lista "Mis enfrentamientos" de la misma pestaña.</li>
+        <li>Nunca hay un tablero compartido donde las cosas son de quien las toca primero: los formatos están pensados para que gane la habilidad, no la conexión más rápida.</li>
+      </ul>
+    </section>
+
+    <!-- 11 -->
+    <section id="perfil" data-titulo="Perfil, insignias y avisos">
+      <div class="sigla">Tu progreso</div>
+      <h2>Perfil, insignias y la campana</h2>
+      <p>Toca tu nombre arriba a la derecha para ver tu <b>perfil</b>: estadísticas, resumen de la semana, tus mejores marcas por juego, tus duelos y el historial. También puedes ver el perfil de cualquier participante tocando su nombre en una tabla.</p>
+      <div class="caja">
+        <h3>🏅 Las 10 insignias</h3>
+        <div class="tabla-caja"><table class="tabla">
+          <thead><tr><th>Insignia</th><th>Cómo se gana</th></tr></thead>
+          <tbody>
+            <tr><td><b>Primer paso</b></td><td>Juega tu primera partida.</td></tr>
+            <tr><td><b>Constante</b></td><td>Juega en 5 días distintos.</td></tr>
+            <tr><td><b>Explorador</b></td><td>Prueba 10 juegos distintos.</td></tr>
+            <tr><td><b>Todoterreno</b></td><td>Juega al menos un juego de cada tipo.</td></tr>
+            <tr><td><b>Coleccionista</b></td><td>Juega todos los juegos abiertos.</td></tr>
+            <tr><td><b>Maratón</b></td><td>Juega 20 partidas en un mismo día.</td></tr>
+            <tr><td><b>Duelista</b></td><td>Gana un enfrentamiento.</td></tr>
+            <tr><td><b>Campeón de duelos</b></td><td>Gana 5 enfrentamientos.</td></tr>
+            <tr><td><b>Madrugador</b></td><td>Juega antes de las 8 de la mañana.</td></tr>
+            <tr><td><b>Noctámbulo</b></td><td>Juega pasada la medianoche.</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div class="caja">
+        <h3>🔔 La campana de avisos</h3>
+        <p>Junto a tu nombre. Te avisa cuando te retan, cuando un duelo está por vencer, cuando se cierra uno (ganaste, empataste o perdiste), si alguien te superó hoy en un juego que jugaste, y te deja un resumen de la semana. Las pestañas del portal muestran además un globito con cuántos duelos tienes pendientes.</p>
+      </div>
+    </section>
+
+    <!-- 12 -->
+    <section id="vida" data-titulo="Calidad de vida">
+      <div class="sigla">Detalles que se agradecen</div>
+      <h2>Mejoras de calidad de vida</h2>
+      <p>Pequeños detalles pensados para que jugar sea cómodo, sobre todo si entras seguido.</p>
+      <div class="rejilla">
+        <div class="ficha"><span class="icono">⏭️</span><b>Siguiente juego</b><p>Al terminar una partida, un botón te lleva al próximo juego que todavía no juegas hoy. La ronda diaria sin volver al portal.</p></div>
+        <div class="ficha"><span class="icono">⌨️</span><b>Atajos de teclado</b><p><kbd>Enter</kbd> juega o juega otra vez, <kbd>P</kbd> pausa y <kbd>Esc</kbd> sale de la partida.</p></div>
+        <div class="ficha"><span class="icono">⏸️</span><b>Pausa</b><p>Botón de pausa en los juegos individuales, y si cambias de pestaña el reloj se congela solo. En los duelos no hay pausa.</p></div>
+        <div class="ficha"><span class="icono">⛶</span><b>Pantalla completa</b><p>Un botón durante la partida (en iPhone el navegador no lo permite).</p></div>
+        <div class="ficha"><span class="icono">⚡</span><b>Carga rápida</b><p>El juego empieza a descargarse apenas apuntas su tarjeta, y una barra te muestra el avance de la carga.</p></div>
+        <div class="ficha"><span class="icono">📍</span><b>El portal te recuerda</b><p>Al volver de un juego quedas en el mismo lugar del portal, con el mismo filtro y la misma búsqueda.</p></div>
+        <div class="ficha"><span class="icono">📈</span><b>¿Cuánto me falta?</b><p>La tabla de hoy te dice cuántos puntos te faltan para subir al puesto de arriba.</p></div>
+        <div class="ficha"><span class="icono">🥇</span><b>Récords históricos</b><p>Top 3 de siempre en cada juego, con la cara del personaje y el nombre.</p></div>
+        <div class="ficha"><span class="icono">🧪</span><b>Modo práctica</b><p>Juega sin que la marca se guarde. En los duelos, practica sin gastar tu intento.</p></div>
+        <div class="ficha"><span class="icono">⭐</span><b>Favoritos y filtros</b><p>Marca tus juegos con la estrella y filtra por favoritos, sin jugar hoy o jugados hoy.</p></div>
+        <div class="ficha"><span class="icono">📱</span><b>Hecho para el celular</b><p>Barra de arriba compacta, menú ☰ en la isla y controles táctiles en los juegos (arrastrar, tocar y botones en pantalla).</p></div>
+        <div class="ficha"><span class="icono">📲</span><b>Instálalo como app</b><p>Queda con su ícono en la pantalla de inicio. En Ajustes está el botón y cómo hacerlo en iPhone y Android.</p></div>
+        <div class="ficha"><span class="icono">🔊</span><b>Sonido a tu gusto</b><p>Volumen de los efectos y de la música por separado, y un botón para silenciar todo.</p></div>
+        <div class="ficha"><span class="icono">🎨</span><b>Modo daltónico</b><p>Cambia verde y rojo por azul y naranjo, en la página y en los equipos.</p></div>
+        <div class="ficha"><span class="icono">🃏</span><b>Link con vista previa</b><p>Al pegar el link del sitio en Discord se ve con su tarjeta e imagen.</p></div>
+        <div class="ficha"><span class="icono">🎰</span><b>Partes con un chibi</b><p>La primera vez que entras a "Mi personaje" ya tienes un avatar anime al azar, listo para guardar o cambiar.</p></div>
+      </div>
+    </section>
+
+    <!-- 13 -->
+    <section id="ajustes" data-titulo="Ajustes">
+      <div class="sigla">⚙</div>
+      <h2>Ajustes</h2>
+      <p>El engranaje ⚙ arriba a la derecha. Todo se guarda en tu navegador:</p>
+      <ul class="lista">
+        <li>Volumen de los <b>efectos de los juegos</b> y de la <b>música de la isla</b>, por separado.</li>
+        <li><b>Silenciar todo</b> (también hay un botón de sonido durante cada partida).</li>
+        <li><b>Modo daltónico.</b></li>
+        <li><b>Ver de nuevo el recorrido</b> de bienvenida.</li>
+        <li><b>Tener el torneo como app</b> en tu celular o computador.</li>
+      </ul>
+      <p class="tenue chico">La calidad gráfica de la isla se elige en la misma isla.</p>
+    </section>
+
+    <!-- 14 -->
+    <section id="consejos" data-titulo="Consejos">
+      <div class="sigla">Para ganar</div>
+      <h2>Consejos</h2>
+      <ul class="lista">
+        <li><b>Calienta con la práctica</b> antes de tu intento "en serio" y antes de los duelos.</li>
+        <li><b>Usa "Sin jugar hoy"</b> y el botón "Siguiente" para no dejar juegos sin marca: cada juego da puntos al equipo.</li>
+        <li><b>Coordínate con tu equipo:</b> cuenta la mejor marca de los tres, así que repártanse los juegos según lo que mejor le salga a cada uno.</li>
+        <li><b>Las jornadas finales valen más</b> (×1,5 y ×2): nadie está fuera hasta el último día.</li>
+        <li><b>No dejes vencer tus duelos:</b> aun perdiendo, un duelo jugado suma 3 puntos por la jornada.</li>
+        <li><b>Lee el "Cómo se juega"</b> de cada juego: muchos tienen trucos (viento, efecto, objetos de oro, multiplicadores por racha).</li>
+      </ul>
+    </section>
+
+    <!-- 15 -->
+    <section id="falta" data-titulo="Lo que falta">
+      <div class="sigla">Transparencia</div>
+      <h2>Lo que todavía no está</h2>
+      <div class="caja aviso">
+        <h3>🚧 Duelos 3v3: todavía no están habilitados</h3>
+        <p>Los enfrentamientos de equipo contra equipo (tres contra tres) <b>aún no están abiertos</b>. Ya hay mucho preparado, como la Caza del Huevo, el Fuchibol, el Rey del Faro, el Sumo por equipos, la Carrera de Relevos y la Captura la Bandera, pero los vamos a habilitar cuando estén a la altura. Avisaremos por Discord cuando abran.</p>
+      </div>
+      <div class="caja">
+        <h3>🌋 La Arena</h3>
+        <p>Sigue sellada hasta el viernes 13 de noviembre. Cada punto que ganes en las jornadas mejora lo que recibirás al entrar.</p>
+      </div>
+    </section>
+
+    <!-- 16 -->
+    <section id="viene" data-titulo="Lo que viene">
+      <div class="sigla">Spoiler</div>
+      <h2>Lo que viene: muchos, muchos más juegos</h2>
+      <div class="caja pronto">
+        <p>Los 35 juegos de hoy son solo el comienzo. <b>Vienen muchos más</b> durante el torneo: nuevos individuales, más duelos en vivo y los modos por equipos. También seguirán llegando mejoras para la isla y para el sitio.</p>
+        <p>¿Tienes una idea de juego o encontraste algo raro? Cuéntalo en el Discord: lo que propone la comunidad se lee y muchas cosas del sitio nacieron así.</p>
+      </div>
+    </section>
+
+    <!-- 17 -->
+    <section id="preguntas" data-titulo="Preguntas frecuentes">
+      <div class="sigla">Dudas</div>
+      <h2>Preguntas frecuentes</h2>
+      <div class="caja"><h3>¿Necesito Discord?</h3><p>Para que tus marcas cuenten en el torneo y tu personaje aparezca en la isla, sí: se entra con la misma cuenta del servidor. Sin entrar puedes mirar y jugar, pero nada suma.</p></div>
+      <div class="caja"><h3>¿Se borran mis marcas cada día?</h3><p>No. Todas las marcas quedan guardadas para siempre, y los récords históricos muestran el top 3 de todos los tiempos. Lo único que es diario es la "tabla de hoy", porque de ella salen los puntos de cada día.</p></div>
+      <div class="caja"><h3>¿Puedo jugar desde el celular?</h3><p>Sí. Todo el sitio funciona en el celular, con controles táctiles en los juegos. Para algunos juegos de acción el computador es más cómodo, pero se puede jugar en ambos.</p></div>
+      <div class="caja"><h3>¿Cuántas veces puedo jugar?</h3><p>En los individuales, todas las que quieras: vale tu mejor marca del día. En los duelos hay un solo intento por ronda.</p></div>
+      <div class="caja"><h3>¿Qué pasa si se me corta internet?</h3><p>En los individuales, vuelve a jugar. En un duelo en vivo tienes 30 segundos para volver a la sala. En un duelo diferido, avisa al organizador.</p></div>
+      <div class="caja"><h3>Se me ve lento</h3><p>Baja la calidad de la isla (o déjala en automática) y cierra otras pestañas. Los juegos están pensados para andar bien incluso en computadores sencillos.</p></div>
+    </section>
+
+    <!-- 18 -->
+    <section id="creditos" data-titulo="Créditos">
+      <div class="sigla">Gracias</div>
+      <h2>Créditos</h2>
+      <p>Torneo organizado por <b>Pancho</b>, con premios donados por <b>Vale</b> y <b>Rigo</b>. El sitio usa contenido libre (CC0) de gente generosa: modelos 3D de <b>Kenney</b>, avatares "Xmas Chibis" y "Halloween Rising" de <b>Polygonal Mind</b>, animaciones de <b>Quaternius</b> y la música "Calm Loop" de <b>wipics</b>. Los disfraces de Halloween de los chibis se hicieron especialmente para el torneo.</p>
+    </section>
+  </main>
+</div>
+
+<footer class="pie">
+  <a class="boton principal" href="./">🎃 Ir a Las Sustolimpiadas</a>
+  <p>Guía de Las Sustolimpiadas · octubre de 2026</p>
+</footer>
+
+<script>
+  // Los juegos: número, id, nombre, tipo e idea (los mismos textos del portal)
+  const TIPOS = {
+    G: ['Arcade y acción', '#4fd1ff'], D: ['Reflejos y ritmo', '#ff9a2e'], E: ['Tablero y memoria', '#6fd6b4'], F: ['Decisión', '#ffe08a'],
+    C: ['Puntería y lanzamiento', '#7fb4ff'], A: ['Carreras de obstáculos', '#ef5565'], B: ['Arena con física', '#c79bff'],
+  };
+  const JUEGOS = [
+    [1, 'rodillos', 'Rodillos del Volcán', 'A', 'Una pasarela sobre la lava con barras que giran: unas se saltan y otras se pasan agachado.'],
+    [2, 'puertas', 'Puertas Falsas', 'A', 'Seis muros de cuatro puertas: una o dos se abren, las demás son pared.'],
+    [3, 'huevo', 'Caza del Huevo', 'B', 'Lleva huevos del centro a tu nido, roba del nido rival y bota al que lleve uno.'],
+    [4, 'sumo', 'Sumo de Balsas', 'B', 'Seis sobre una balsa que se achica. Empuja a los demás al agua y no caigas.'],
+    [5, 'futbol', 'Fuchibol', 'B', 'Tres contra tres con un coco gigante. Tu equipo ataca hacia la derecha.'],
+    [6, 'faro', 'Rey del Faro', 'B', 'De noche, la luz del faro recorre la cancha: suma quien se mantiene dentro.'],
+    [7, 'totem', 'Tiro al Tótem', 'C', 'Diez flechas a la diana, con un viento que cambia en cada tiro.'],
+    [8, 'catapulta', 'Catapulta de Sandías', 'C', 'Cuatro sandías para botar las torres; si las botas todas, viene un segundo nivel con una plataforma que se mueve.'],
+    [9, 'bolos', 'Bolos de Coco', 'C', 'Cinco turnos de bolos en una pista larga, con la arena inclinada, rocas y efecto.'],
+    [10, 'minigolf', 'Minigolf del Volcán', 'C', 'Seis hoyos al pie de un volcán: muros, lava, hongos que rebotan, portales y un gólem que se cruza. El recorrido cambia en cada partida.'],
+    [11, 'cocos', 'Cocos al Vuelo', 'D', 'Atrapa los cocos que caen de las palmeras y esquiva los cangrejos.'],
+    [12, 'cangrejos', 'Mata-Cangrejos', 'D', 'Pégale a los cangrejos que asoman, no a las tortugas.'],
+    [13, 'numeros', 'Cazanúmeros', 'D', 'Veinticinco números revueltos: tócalos del 1 al 25 lo más rápido que puedas.'],
+    [14, 'tinta', 'Tinta Tramposa', 'D', 'La palabra dice un color, pero está pintada de otro. Responde el color de la tinta.'],
+    [15, 'parejas', 'Parejas del Arrecife', 'E', 'Tres tableros de 6, 8 y 10 parejas, con medusas tramposas y cartas que cambian de lugar.'],
+    [16, 'buscaconchas', 'Erizos Ocultos', 'E', 'Bajo la arena hay ×1, ×2, ×3 y erizos. Las pistas de cada fila y columna te dicen dónde cavar.'],
+    [17, 'luces', 'Luces del Faro', 'E', 'Cinco tableros: apaga todas las luces. Cada toque cambia también las vecinas.'],
+    [18, 'cartero', 'Ruta del Cartero', 'E', 'Reparte en las nueve casas y vuelve al correo por el camino más corto. Las urgentes van primero.'],
+    [19, 'cofre', 'El Cofre o la Ola', 'F', 'Diez cofres: sigue sacando tesoro o plántate antes de que llegue la ola.'],
+    [20, 'bajo', 'El Más Bajo', 'F', 'Seis jugadores eligen un número en secreto; gana el más bajo que nadie repitió.'],
+    [21, 'torre', 'Torre Tambaleante', 'D', 'Un bloque va y viene sobre la torre: suéltalo justo encima. Lo que sobresale, se corta.'],
+    [22, 'palabra', 'Palabra del Día', 'F', 'Adivina la palabra de 5 letras en 6 intentos.'],
+    [23, 'eco', 'Eco del Templo', 'E', 'Seis piedras se encienden en secuencia. Repítela; cada ronda suma una más, y algunas van al revés.'],
+    [24, 'karts', 'Gran Premio', 'G', 'Tres vueltas en karts contra cinco rivales: derrapes con turbo, cajas de objetos, plátanos y monedas.'],
+    [25, 'tren', 'Fuga del Tren', 'G', 'Corre por tres vías esquivando trenes, saltando vallas y rodando bajo barras. Súbete a los techos por las rampas.'],
+    [26, 'tanques', 'Tanques de Juguete', 'G', 'Cinco oleadas de tanques sobre una mesa de juegos: balas que rebotan, cajas, minas y un jefe al final.'],
+    [27, 'bombas', 'Bombas', 'G', 'Tú contra tres rivales en el patio de un castillo: bombas en cruz, mejoras escondidas y un patio que se cierra.'],
+    [28, 'agujero', 'Agujero Negro', 'G', 'Eres un agujero en una ciudad: trágate conos, gente, autos y edificios enteros mientras creces.'],
+    [29, 'serpientes', 'Serpientes', 'G', 'Un jardín de noche: come bolitas brillantes, crece y encierra a las otras ocho serpientes sin chocar.'],
+    [30, 'defensa', 'Defensa de la Torre', 'G', 'Babosas de colores bajan hacia tu castillo: pon torres, mejóralas y aguanta diez oleadas, con el Rey Babosa al final.'],
+    [31, 'museo', 'Ladrón del Museo', 'G', 'Tres pisos de un museo de noche: roba el tesoro y escapa sin que te vean los guardias, las cámaras ni los láseres.'],
+    [32, 'tiro', 'Galería de Tiro', 'G', 'Patos, dianas y botellas en tres rieles. Seis tiros por carga, multiplicador por racha y bombas que no hay que tocar.'],
+    [33, 'cocina', 'Cocina Caótica', 'G', 'Pedidos con tiempo límite: pica, cocina sin quemar, arma el plato y entrégalo. Cada vez más rápido.'],
+    [34, 'billar', 'Billar', 'G', 'Seis desafíos en una mesa de pool con tiros contados: en orden, entre postes, la negra al final y bolas de oro.'],
+    [35, 'triples', 'Triples', 'G', 'Cinco estaciones con cinco balones, el último vale doble. Balones de oro y, en la final, un aro que se mueve.'],
+  ];
+  // En qué duelos aparece cada juego
+  const VIVO = { numeros: 'Pantalla dividida', tinta: 'Pantalla dividida', cangrejos: 'Pantalla dividida', cocos: 'Pantalla dividida', torre: 'Pantalla dividida', cartero: 'Pantalla dividida', tren: 'Pantalla dividida', bombas: 'Pantalla dividida', serpientes: 'Pantalla dividida', karts: 'Pantalla dividida', defensa: 'Pantalla dividida', museo: 'Pantalla dividida', tiro: 'Pantalla dividida', cocina: 'Pantalla dividida', triples: 'Pantalla dividida', totem: 'Por turnos', bolos: 'Por turnos', minigolf: 'Por turnos', agujero: 'Por turnos', billar: 'Por turnos', sumo: 'Mismo mundo', tanques: 'Mismo mundo' };
+  const DIFERIDO = new Set(['tinta', 'cangrejos', 'numeros', 'eco', 'cocos', 'parejas', 'bolos', 'totem', 'cofre', 'cartero', 'minigolf', 'sumo', 'karts', 'tren', 'tanques', 'bombas', 'agujero', 'defensa', 'museo', 'tiro', 'cocina', 'billar', 'triples', 'serpientes', 'torre']);
+  const catalogo = document.getElementById('catalogo');
+  for (const [tipo, [nombre, color]] of Object.entries(TIPOS)) {
+    const lista = JUEGOS.filter((j) => j[3] === tipo);
+    const caja = document.createElement('div');
+    caja.className = 'categoria'; caja.style.setProperty('--tono', color);
+    caja.innerHTML = `<h3>${nombre} · ${lista.length}</h3><div class="juegos">${lista.map(([n, id, titulo, , idea]) => `
+      <a class="juego" href="./#/juegos/${id}">
+        <img src="juegos/${id}.png" alt="" loading="lazy" width="640" height="360">
+        <div><span class="num">JUEGO ${String(n).padStart(2, '0')}</span><b>${titulo}</b><p>${idea}</p>
+        <span class="marcas">${VIVO[id] ? `<span class="etiqueta vivo">En vivo · ${VIVO[id]}</span>` : ''}${DIFERIDO.has(id) ? '<span class="etiqueta diferido">1v1 diferido</span>' : ''}</span></div>
+      </a>`).join('')}</div>`;
+    catalogo.append(caja);
+  }
+  // Muestra de la galería de avatares
+  const galeria = document.getElementById('galeria');
+  const muestra = [['halloween/chibi-12-h', 'Bruja morada'], ['halloween/chibi-01-h', 'Calabacín'], ['halloween/chibi-10-h', 'Vampira'], ['halloween/chibi-06-h', 'Gato negro'], ['halloween/chibi-03-h', 'Diablita'], ['halloween/chibi-12-h2', 'Catrina'], ['halloween/chibi-03-h2', 'Fantasmita'], ['halloween/chibi-14-h2', 'Frankenstein'], ['halloween/chibi-01-h2', 'Momia'], ['halloween/chibi-07-h2', 'Araña'], ['monstruos/monstruo-01', 'Ojo Burlón'], ['monstruos/monstruo-02', 'Gelatina Mímica'], ['chibis/chibi-12', 'Piney (Navidad)'], ['chibis/chibi-08', 'Crystal (Navidad)']];
+  galeria.innerHTML = muestra.map(([ruta, n]) => `<figure><img src="avatares/${ruta}.jpg" alt="" loading="lazy">${n}</figure>`).join('');
+  // Índice (lateral en computador, desplegable en celular) y sección actual resaltada
+  const secciones = [...document.querySelectorAll('main section[id]')];
+  const enlaces = secciones.map((s) => `<li><a href="#${s.id}">${s.dataset.titulo}</a></li>`).join('');
+  document.getElementById('indice').innerHTML = enlaces;
+  document.getElementById('indice-movil').innerHTML = enlaces;
+  document.querySelectorAll('#indice-movil a').forEach((a) => a.addEventListener('click', () => a.closest('details').open = false));
+  const lateral = [...document.querySelectorAll('#indice a')];
+  if ('IntersectionObserver' in window) {
+    const observador = new IntersectionObserver((vistas) => {
+      for (const v of vistas) if (v.isIntersecting) lateral.forEach((a) => a.classList.toggle('aqui', a.getAttribute('href') === '#' + v.target.id));
+    }, { rootMargin: '-30% 0px -60% 0px' });
+    secciones.forEach((s) => observador.observe(s));
+  }
+</script>
+</body>
+</html>

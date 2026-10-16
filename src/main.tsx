@@ -40,6 +40,7 @@ function App() {
         <a class="marca" href="#/isla">Las Sustolimpiadas</a>
         <nav>
           {enlaces.map((e) => <a key={e.ruta} href={`#/${e.ruta}`} class={seccion === e.ruta ? 'activa' : ''} aria-current={seccion === e.ruta ? 'page' : undefined}>{e.titulo}</a>)}
+          <a href="guia.html" title="Todo lo que hay que saber del torneo">Guía</a>
         </nav>
         <div class="cuenta">
           {sesion.cargando ? null : sesion.usuarioId
