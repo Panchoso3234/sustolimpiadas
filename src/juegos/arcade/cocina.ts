@@ -22,7 +22,7 @@ interface Pedido { receta: Receta; desde: number; dura: number; tarjeta: HTMLEle
 
 export async function crear(c: Contexto): Promise<Partida> {
   const e = crearEscenario(c.caja, { ancho: AN + 1, alto: FO * Math.sin(1.08) + 3.2, centro: [0, 0, 0.4], inclinacion: 1.08, sinPlaya: true });
-  e.escena.background = new THREE.Color('#3a2a3e');
+  e.escena.background = new THREE.Color('#4a3550');
   const mando = crearMando(e, c.caja, 'Tomar / Dejar');
   const r = generador(`${c.semilla}|cocina`), apuro = 1 + (c.nivel - 1) * 0.08;
 
@@ -48,6 +48,16 @@ export async function crear(c: Contexto): Promise<Partida> {
   mesones.count = cubiertas.count = n;
   e.escena.add(mesones, cubiertas);
 
+  // Pared del fondo con azulejos, una ventana y ollas colgadas; paredes bajas a los lados
+  const azulejo = document.createElement('canvas'); azulejo.width = azulejo.height = 64;
+  const ga = azulejo.getContext('2d')!; ga.fillStyle = '#c9c2b4'; ga.fillRect(0, 0, 64, 64);
+  for (let i = 0; i < 4; i++) for (let k2 = 0; k2 < 4; k2++) { ga.fillStyle = (i + k2) % 5 ? '#f4f1ea' : '#9fd8e8'; ga.fillRect(i * 16 + 1, k2 * 16 + 1, 14, 14); }
+  const texAzulejo = new THREE.CanvasTexture(azulejo); texAzulejo.wrapS = texAzulejo.wrapT = THREE.RepeatWrapping; texAzulejo.repeat.set(AN / 1.2, 2.5); texAzulejo.colorSpace = THREE.SRGBColorSpace;
+  const fondo = new THREE.Mesh(new THREE.BoxGeometry(AN + 1.2, 3, 0.3), new THREE.MeshLambertMaterial({ map: texAzulejo })); fondo.position.set(0, 1.5, -FO / 2 - 0.15); e.escena.add(fondo);
+  const ventana = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.1), new THREE.MeshBasicMaterial({ color: '#9fe0ff' })); ventana.position.set(-AN / 4, 2.2, -FO / 2 + 0.04); const marcoV = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.3, 0.05), mat('#8a5a38')); marcoV.position.set(-AN / 4, 2.2, -FO / 2 - 0.01); e.escena.add(marcoV, ventana);
+  for (let i = 0; i < 4; i++) { const olla = new THREE.Mesh(new THREE.CylinderGeometry(0.28 - i * 0.03, 0.28 - i * 0.03, 0.06, 16), new THREE.MeshStandardMaterial({ color: i % 2 ? '#c9ccd6' : '#b87333', metalness: 0.6, roughness: 0.35 })); olla.rotation.x = Math.PI / 2; olla.position.set(AN / 8 + i * 0.75, 2.1 - i * 0.04, -FO / 2 + 0.05); const mango = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.4, 0.04), mat('#2a2a33')); mango.position.set(AN / 8 + i * 0.75, 2.5 - i * 0.04, -FO / 2 + 0.05); e.escena.add(olla, mango); }
+  for (const lado of [-1, 1]) { const muro = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.4, FO + 0.6), new THREE.MeshLambertMaterial({ map: texAzulejo })); muro.position.set(lado * (AN / 2 + 0.15), 0.7, 0); e.escena.add(muro); }
+
   // ── Ingredientes: enteros y picados (en trocitos), y sus colores al cocinarse ──
   const colorDe = (k: Cosa) => (k.estado === 'quemado' ? '#2a2a2a' : k.ing === 'carne' ? (k.estado === 'cocido' ? '#7a4a2a' : '#d9706a') : { lechuga: '#6cc04a', tomate: '#e8423a', pan: '#e0a85a', queso: '#f5cf4a' }[k.ing]);
   const malla = (k: Cosa): THREE.Group => {
@@ -67,13 +77,24 @@ export async function crear(c: Contexto): Promise<Partida> {
     cosas.forEach((k, i) => { const m = malla(k); m.scale.setScalar(0.75); m.position.set(Math.cos(i * 2.1) * 0.12, 0.06 + i * 0.06, Math.sin(i * 2.1) * 0.12); g.add(m); });
     return g;
   };
-  const flechas: THREE.Mesh[] = [];
+  const flechas: THREE.Mesh[] = [], hornallas = new Map<Estacion, THREE.Mesh>();
   // Lo fijo de cada estación: el ingrediente sobre su cajón, la pila de platos, el tacho y la ventanilla
   for (const est of estaciones) {
     const ing = CAJONES[est.tipo];
-    if (ing) { const m = malla({ ing, estado: 'crudo', avance: 0 }); m.scale.setScalar(1.3); m.position.set(est.x, 0.98, est.z); e.escena.add(m); }
+    if (ing) {
+      // Cajón de madera con listones, lleno de su ingrediente
+      for (const lado of [-1, 1]) { const liston = new THREE.Mesh(new THREE.BoxGeometry(CELDA * 0.9, 0.22, 0.06), mat('#8a5a38')); liston.position.set(est.x, 1.06, est.z + lado * CELDA * 0.42); e.escena.add(liston); }
+      for (const [dx, dz, s2] of [[-0.2, -0.12, 1], [0.2, -0.1, 0.95], [0, 0.16, 1.05], [-0.22, 0.2, 0.85], [0.24, 0.22, 0.9]]) { const m = malla({ ing, estado: 'crudo', avance: 0 }); m.scale.setScalar(s2 * 0.9); m.position.set(est.x + dx, 0.98, est.z + dz); m.rotation.y = dx * 9; e.escena.add(m); }
+    }
+    if (est.tipo === 'F') {
+      // Hornalla: aro negro que se pone rojo mientras cocina
+      const hornalla = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.06, 6, 20), new THREE.MeshStandardMaterial({ color: '#222228', emissive: '#ff3a1a', emissiveIntensity: 0 }));
+      hornalla.rotation.x = Math.PI / 2; hornalla.position.set(est.x, 0.99, est.z); e.escena.add(hornalla); hornallas.set(est, hornalla);
+    }
+    if (est.tipo === 'K') { const tabla = new THREE.Mesh(new THREE.BoxGeometry(CELDA * 0.8, 0.06, CELDA * 0.6), mat('#d9a35a')); tabla.position.set(est.x, 0.99, est.z); const cuchillo = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.02, 0.07), mat('#c9ccd6')); cuchillo.position.set(est.x + 0.25, 1.03, est.z - 0.28); cuchillo.rotation.y = 0.5; e.escena.add(tabla, cuchillo); }
+    if (est.tipo === 'E') { const campana = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#d9b84a', metalness: 0.6, roughness: 0.3 })); campana.position.set(est.x - 0.3, 0.98, est.z + 0.3); e.escena.add(campana); }
     if (est.tipo === 'D') for (let i = 0; i < 4; i++) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.28, 0.05, 18), mat('#ffffff')); p.position.set(est.x, 1.0 + i * 0.06, est.z); e.escena.add(p); }
-    if (est.tipo === 'X') { const tacho = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.34, 0.3, 14, 1, true), mat('#2a2a33')); tacho.position.set(est.x, 1.1, est.z); e.escena.add(tacho); }
+    if (est.tipo === 'X') { const tacho = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.34, 0.3, 14, 1, true), mat('#2a2a33')); tacho.position.set(est.x, 1.1, est.z); const tapa = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.04, 14), mat('#3fae6a')); tapa.position.set(est.x + 0.35, 1.3, est.z); tapa.rotation.z = 1.1; e.escena.add(tacho, tapa); }
     if (est.tipo === 'E') { const flecha = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.4, 4), new THREE.MeshBasicMaterial({ color: '#ffffff' })); flecha.position.set(est.x, 1.6, est.z); flecha.rotation.z = Math.PI; e.escena.add(flecha); flechas.push(flecha); }
     if (est.tipo === 'K' || est.tipo === 'F') { const barra = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.12), new THREE.MeshBasicMaterial({ color: '#3fe07a' })); barra.position.set(est.x, 1.9, est.z); barra.visible = false; e.escena.add(barra); est.barra = barra; }
   }
@@ -86,6 +107,11 @@ export async function crear(c: Contexto): Promise<Partida> {
 
   // ── El cocinero ──
   const yo = await e.personaje(c.aspecto, 1.35), sombraYo = sombra(0.4);
+  // Gorro de chef (dentro del personaje escalado: se compensa la escala)
+  const gorro = new THREE.Group(), escalaYo = yo.grupo.scale.y;
+  const banda = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.14, 14), mat('#ffffff')), copa = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 8), mat('#ffffff'));
+  copa.position.y = 0.2; copa.scale.y = 0.8; gorro.add(banda, copa);
+  gorro.scale.setScalar(1 / escalaYo); gorro.position.y = 1.36 / escalaYo; yo.grupo.add(gorro);
   e.escena.add(sombraYo);
   const inicio = centro(6, 6);
   let px = inicio.x, pz = inicio.z, ang = Math.PI;
@@ -193,6 +219,8 @@ export async function crear(c: Contexto): Promise<Partida> {
     // Tablas y planchas: su barra de avance; la carne se cocina sola y se quema si te olvidas
     for (const est of estaciones) {
       const k = est.encima.cosa;
+      const hornalla = hornallas.get(est);
+      if (hornalla) (hornalla.material as THREE.MeshStandardMaterial).emissiveIntensity = k?.ing === 'carne' && k.estado !== 'crudo' ? 0.6 + Math.sin(t * 8) * 0.25 : 0;
       if (est.tipo === 'F' && k?.ing === 'carne' && k.estado !== 'quemado') {
         k.avance += paso;
         const antes = k.estado;
