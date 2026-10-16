@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Contexto, Partida } from '../marco';
 import { COLOR_EQUIPO, crearArena, detrasDe, lejos, limitar, type Ente, type Mundo, type Obstaculo, type Orden } from './motor';
+import { crearBalsa } from './balsa';
 import { OBSTACULOS_GRANJA, acantilado, balon, estadio, granja, type Estadio, type Faro } from './escenarios';
 
 // Los cuatro juegos de arena. Se juegan contra rivales manejados por la máquina (y con compañeros de máquina en los de equipo).
@@ -22,7 +23,7 @@ const SOLOS = [0, 1, 2, 3, 4, 5], EQUIPOS = [0, 0, 0, 1, 1, 1];
 /** Sumo de Balsas: seis sobre una balsa redonda que se achica. Empuja a los demás al agua y no caigas tú. */
 export function sumo(c: Contexto): Promise<Partida> {
   const R0 = 9, DURA = 70, radio = (t: number) => Math.max(3.6, R0 - 0.078 * (1 + (c.nivel - 1) * 0.1) * t);
-  let balsa: THREE.Mesh, fuerza: { x: number; z: number; malla: THREE.Mesh } | null = null, proximo = 8;
+  let balsa: ReturnType<typeof crearBalsa>, fuerza: { x: number; z: number; malla: THREE.Mesh } | null = null, proximo = 8;
   const vivos = (m: Mundo) => m.entes.filter((x) => x.vivo).length;
   const sobrevive = (m: Mundo, t: number) => m.yo.dato.cayo ?? t;
   const puntaje = (m: Mundo, t: number) => (m.yo.dato.botados ?? 0) * 150 + Math.round(sobrevive(m, t)) * 6 + (m.yo.vivo && (vivos(m) === 1 || t >= DURA) ? 400 : 0);
@@ -30,9 +31,7 @@ export function sumo(c: Contexto): Promise<Partida> {
     ancho: R0 * 2, fondo: R0 * 2, radio: R0, suelo: '', cielo: '#3fa9d6', dura: DURA, equipos: SOLOS,
     salida: (i) => [Math.sin(i * 1.047) * 5.6, Math.cos(i * 1.047) * 5.6],
     preparar(m) {
-      balsa = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.5, 30), mat('#b98548'));
-      balsa.position.y = -0.22;
-      m.e.escena.add(balsa);
+      balsa = crearBalsa(m.e.escena);
     },
     rival(m, x, t): Orden {
       if (Math.hypot(x.x, x.z) > radio(t) - 1.7) return { x: 0, z: 0 }; // primero, no caerse
@@ -43,7 +42,7 @@ export function sumo(c: Contexto): Promise<Partida> {
     roce: (_m, x, t) => (Math.hypot(x.x, x.z) > radio(t) - 1.5 ? 0.35 : 1),
     paso(m, t) {
       const R = radio(t);
-      balsa.scale.set(R, 1, R);
+      balsa.actualizar(R, t);
       // Cada 10 segundos aparece un coco de fuerza: quien lo toma pesa el doble por 6 segundos
       if (!fuerza && t >= proximo) {
         const a = m.r() * 6.28, d = m.r() * (R - 2);
@@ -66,6 +65,7 @@ export function sumo(c: Contexto): Promise<Partida> {
       for (const x of m.entes) {
         if (!x.vivo || Math.hypot(x.x, x.z) <= R + 0.15) continue;
         x.vivo = false;
+        m.e.chispas(x.x, 0, x.z, ['#ffffff', '#9fd8ff', '#2a9fd6'], 22, 5); // ¡al agua!
         if (x === m.yo) { x.dato.cayo = t; m.e.sonido.mal(); continue; }
         if (t - x.tocadoEn < 2.5 && x.tocadoPor === m.yo.id) { m.yo.dato.botados = (m.yo.dato.botados ?? 0) + 1; m.e.sonido.bien(); m.e.flotante('+150', x.x, 1.5, x.z, 'oro'); }
       }

@@ -6,6 +6,7 @@ import { COLOR_EQUIPO } from '../../juegos/arena/motor';
 import { crearMando } from '../../juegos/mando';
 import type { Contexto, Partida } from '../../juegos/marco';
 import { crearEscenario, mmss } from '../../juegos/reflejos/motor';
+import { crearBalsa } from '../../juegos/arena/balsa';
 import { crearMundo, entre, num, suave, type JuegoMundo, type Lado } from './red';
 
 // Sumo de Balsas en vivo, en el mismo mundo: los dos jugadores y cuatro de máquina sobre la misma balsa que se achica.
@@ -123,12 +124,10 @@ export const sumoMundo: JuegoMundo<EstadoSumo, EntradaSumo> = {
   async escena(c, e0, yo) {
     const v = c.vivo!, inclinacion = 0.98;
     const e = crearEscenario(c.caja, { ancho: R0 * 2 + 3, alto: R0 * 2 * Math.sin(inclinacion) + 4.5, centro: [0, 0.6, 0.6], inclinacion, sinPlaya: true });
-    e.escena.background = new THREE.Color('#3fa9d6');
     const mando = yo ? crearMando(e, c.caja, 'Embestir') : null;
-    const balsa = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.5, 30), new THREE.MeshStandardMaterial({ color: '#b98548', roughness: 0.8, flatShading: true }));
-    balsa.position.y = -0.22;
+    const balsa = crearBalsa(e.escena);
     const coco = new THREE.Mesh(new THREE.IcosahedronGeometry(0.45, 1), new THREE.MeshStandardMaterial({ color: '#ffc93c', emissive: '#ffc93c', emissiveIntensity: 0.5, flatShading: true }));
-    e.escena.add(balsa, coco);
+    e.escena.add(coco);
     // Cada uno con su personaje; los de máquina, sorteados con la semilla. Aro azul o rojo para los jugadores; el tuyo, más grueso
     const colorDe = (i: number) => (i === 0 ? '#3f8cff' : i === 1 ? '#ef5565' : COLOR_EQUIPO[(i + 1) % COLOR_EQUIPO.length]);
     const figuras: { k: Kenney; aro: THREE.Mesh; x: number; z: number; vivo: boolean }[] = await Promise.all(e0.c.map(async (o, i) => {
@@ -156,7 +155,7 @@ export const sumoMundo: JuegoMundo<EstadoSumo, EntradaSumo> = {
         // Si recargué, mis golpes siguen contando desde donde quedaron
         if (yo) golpe = Math.max(golpe, es.golpes[yo]);
         const R = radio(es);
-        balsa.scale.set(R, 1, R);
+        balsa.actualizar(R, es.t);
         coco.visible = !!es.coco;
         if (es.coco) { coco.position.set(es.coco.x, 0.5, es.coco.z); coco.rotation.y += dt * 3; }
         es.c.forEach((o, i) => {
