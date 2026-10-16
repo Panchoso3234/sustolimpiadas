@@ -31,11 +31,58 @@ export async function crear(c: Contexto): Promise<Partida> {
   piso.rotation.x = -Math.PI / 2; piso.position.z = -3; e.escena.add(piso);
   const linea = (geo: THREE.BufferGeometry, x: number, z: number) => { const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: '#ffffff', side: THREE.DoubleSide })); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.01, z); e.escena.add(m); return m; };
   linea(new THREE.RingGeometry(6.35, 6.45, 64, 1, Math.PI * 1.08, Math.PI * 0.84), 0, ARO_Z); // la línea de tres, del lado del tirador
-  const pintura = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 5.8), new THREE.MeshLambertMaterial({ color: '#c0483a' })); pintura.rotation.x = -Math.PI / 2; pintura.position.set(0, 0.005, ARO_Z + 2.9); e.escena.add(pintura);
-  const tribuna = new THREE.Mesh(new THREE.BoxGeometry(26, 6, 1), mat('#2c3566')); tribuna.position.set(0, 3, -12.5); e.escena.add(tribuna);
-  const publico = new THREE.InstancedMesh(new THREE.SphereGeometry(0.22, 8, 6), new THREE.MeshLambertMaterial(), 160), o = new THREE.Object3D(), tono = new THREE.Color();
-  for (let i = 0; i < 160; i++) { o.position.set(-12 + (i % 40) * 0.62, 1.6 + Math.floor(i / 40) * 1.1, -12); o.updateMatrix(); publico.setMatrixAt(i, o.matrix); publico.setColorAt(i, tono.setHSL(r(), 0.6, 0.55)); }
-  e.escena.add(publico);
+  linea(new THREE.PlaneGeometry(15, 0.1), 0, ARO_Z - 1.2);
+  for (const x of [-7.5, 7.5]) linea(new THREE.PlaneGeometry(0.1, 12), x, ARO_Z + 4.8);
+  for (const x of [-1.8, 1.8]) linea(new THREE.PlaneGeometry(0.08, 5.8), x, ARO_Z + 1.7);
+  linea(new THREE.PlaneGeometry(3.6, 0.08), 0, ARO_Z + 4.6);
+  linea(new THREE.RingGeometry(1.75, 1.83, 40), 0, ARO_Z + 4.6);
+  const pintura = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 5.8), new THREE.MeshLambertMaterial({ color: '#c0483a' })); pintura.rotation.x = -Math.PI / 2; pintura.position.set(0, 0.005, ARO_Z + 1.7); e.escena.add(pintura);
+  // Tribuna escalonada con público (cuerpo y cabeza); salta cuando encestas
+  for (let f = 0; f < 5; f++) { const grada = new THREE.Mesh(new THREE.BoxGeometry(28, 0.9 + f * 1.05, 1.2), mat(f % 2 ? '#2c3566' : '#34407a')); grada.position.set(0, (0.9 + f * 1.05) / 2, -11 - f * 1.2); e.escena.add(grada); }
+  const fondoTribuna = new THREE.Mesh(new THREE.BoxGeometry(30, 12, 0.5), mat('#1b2140')); fondoTribuna.position.set(0, 6, -17.2); e.escena.add(fondoTribuna);
+  const GENTE = 5 * 36, cuerpos = new THREE.InstancedMesh(new THREE.BoxGeometry(0.42, 0.55, 0.3), new THREE.MeshLambertMaterial(), GENTE), cabezas = new THREE.InstancedMesh(new THREE.SphereGeometry(0.17, 8, 6), new THREE.MeshLambertMaterial(), GENTE);
+  const o = new THREE.Object3D(), tono = new THREE.Color(), asientos: { x: number; y: number; z: number; fase: number }[] = [];
+  const POLERAS = ['#3f8cff', '#ef5565', '#ffd23c', '#ffffff', '#3fe07a', '#ff9a2e'], PIELES = ['#f2c9a0', '#d9a06a', '#a8703f', '#6b4423', '#f7d9b8'];
+  for (let i = 0; i < GENTE; i++) {
+    const fila = Math.floor(i / 36), x = -12.6 + (i % 36) * 0.72 + (fila % 2) * 0.3, y = 0.9 + fila * 1.05 + 0.3, z = -11 - fila * 1.2;
+    asientos.push({ x, y, z, fase: r() * 6.28 });
+    cuerpos.setColorAt(i, tono.set(POLERAS[Math.floor(r() * POLERAS.length)])); cabezas.setColorAt(i, tono.set(PIELES[Math.floor(r() * PIELES.length)]));
+  }
+  cuerpos.frustumCulled = cabezas.frustumCulled = false; // se mueven: el cálculo de qué se ve no los sigue
+  e.escena.add(cuerpos, cabezas);
+  let fiesta = 0;
+  const moverPublico = (t: number) => {
+    asientos.forEach((a, i) => {
+      const salto = Math.max(0, Math.sin(t * 9 + a.fase)) * 0.35 * fiesta + Math.sin(t * 2 + a.fase) * 0.03;
+      o.position.set(a.x, a.y + salto, a.z); o.updateMatrix(); cuerpos.setMatrixAt(i, o.matrix);
+      o.position.y += 0.44; o.updateMatrix(); cabezas.setMatrixAt(i, o.matrix);
+    });
+    cuerpos.instanceMatrix.needsUpdate = cabezas.instanceMatrix.needsUpdate = true;
+  };
+  // Letreros luminosos en la línea de fondo y focos que caen sobre la cancha
+  const letrero = document.createElement('canvas'); letrero.width = 512; letrero.height = 64;
+  const gl = letrero.getContext('2d')!; gl.fillStyle = '#10142a'; gl.fillRect(0, 0, 512, 64); gl.font = 'bold 40px sans-serif'; gl.textBaseline = 'middle';
+  ['SUSTOLIMPIADAS', '★ TRIPLES ★'].forEach((txt, i) => { gl.fillStyle = i ? '#ffd23c' : '#5ad1ff'; gl.fillText(txt, i ? 330 : 14, 34); });
+  const texLetrero = new THREE.CanvasTexture(letrero); texLetrero.colorSpace = THREE.SRGBColorSpace; texLetrero.wrapS = THREE.RepeatWrapping; texLetrero.repeat.set(3, 1);
+  const vallas = new THREE.Mesh(new THREE.BoxGeometry(24, 0.7, 0.2), [mat('#10142a'), mat('#10142a'), mat('#10142a'), mat('#10142a'), new THREE.MeshBasicMaterial({ map: texLetrero }), mat('#10142a')]);
+  vallas.position.set(0, 0.35, -9.6); e.escena.add(vallas);
+  const focos: THREE.Mesh[] = [];
+  for (const x of [-6, -2, 2, 6]) { const haz = new THREE.Mesh(new THREE.ConeGeometry(1.6, 9, 16, 1, true), new THREE.MeshBasicMaterial({ color: '#fff6d0', transparent: true, opacity: 0.045, depthWrite: false, side: THREE.DoubleSide })); haz.position.set(x, 5.5, -5 + Math.abs(x) * 0.2); e.escena.add(haz); focos.push(haz); }
+  // Pantalla gigante sobre el aro (puntaje y ronda)
+  const pantalla = document.createElement('canvas'); pantalla.width = 256; pantalla.height = 112;
+  const texPantalla = new THREE.CanvasTexture(pantalla); texPantalla.colorSpace = THREE.SRGBColorSpace;
+  const marcador = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.5, 0.3), [mat('#222222'), mat('#222222'), mat('#222222'), mat('#222222'), new THREE.MeshBasicMaterial({ map: texPantalla }), mat('#222222')]);
+  marcador.position.set(0, 5.5, -10.4); e.escena.add(marcador);
+  for (const x of [-1.2, 1.2]) { const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 3), mat('#555555')); cable.position.set(x, 7.7, -10.4); e.escena.add(cable); }
+  let mostrado = '';
+  const pintarPantalla = (puntaje: number, texto: string) => {
+    const clave = puntaje + texto; if (clave === mostrado) return; mostrado = clave;
+    const x = pantalla.getContext('2d')!;
+    x.fillStyle = '#05070f'; x.fillRect(0, 0, 256, 112);
+    x.fillStyle = '#ff9a2e'; x.font = 'bold 54px monospace'; x.textAlign = 'center'; x.fillText(String(puntaje).padStart(4, '0'), 128, 62);
+    x.fillStyle = '#5ad1ff'; x.font = 'bold 20px sans-serif'; x.fillText(texto, 128, 96);
+    texPantalla.needsUpdate = true;
+  };
   const aro = new THREE.Group();
   const tablero = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.05, 0.06), new THREE.MeshStandardMaterial({ color: '#ffffff', transparent: true, opacity: 0.88 }));
   tablero.position.set(0, ALTO_ARO + 0.4, TABLERO_Z - ARO_Z);
@@ -44,13 +91,15 @@ export async function crear(c: Contexto): Promise<Partida> {
   const anillo = new THREE.Mesh(new THREE.TorusGeometry(ARO, 0.025, 8, 28), mat('#ff5a1e')); anillo.rotation.x = Math.PI / 2; anillo.position.y = ALTO_ARO;
   const red = new THREE.Mesh(new THREE.CylinderGeometry(ARO, ARO * 0.65, 0.45, 14, 1, true), new THREE.MeshBasicMaterial({ color: '#ffffff', wireframe: true, transparent: true, opacity: 0.7 })); red.position.y = ALTO_ARO - 0.23;
   const poste = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, ALTO_ARO + 0.5), mat('#3a3a44')); poste.position.set(0, (ALTO_ARO + 0.5) / 2, TABLERO_Z - ARO_Z - 0.6);
+  for (const [w, h, x, y] of [[1.86, 0.06, 0, 0.53], [1.86, 0.06, 0, -0.53], [0.06, 1.1, -0.92, 0], [0.06, 1.1, 0.92, 0]]) { const borde = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.08), mat('#1a1a22')); borde.position.set(x, ALTO_ARO + 0.4 + y, TABLERO_Z - ARO_Z); aro.add(borde); }
   aro.add(tablero, cuadro, anillo, red, poste); aro.position.z = ARO_Z;
   e.escena.add(aro);
 
   // ── El tirador y su carro de balones ──
-  const yo = await e.personaje(c.aspecto, 1.8), sombraYo = sombra(0.4); e.escena.add(sombraYo);
+  const yo = await e.personaje(c.aspecto, 1.6), sombraYo = sombra(0.4); e.escena.add(sombraYo);
   const geoBola = new THREE.SphereGeometry(BOLA, 16, 12);
-  const pelo = (clase: Clase) => new THREE.MeshStandardMaterial({ color: clase === 'oro' ? '#ffd23c' : clase === 'dinero' ? '#ffffff' : '#e8722a', emissive: clase === 'oro' ? '#a86a00' : '#000000', emissiveIntensity: 0.4, roughness: 0.6, metalness: clase === 'oro' ? 0.5 : 0 });
+  const costuras = (() => { const c2 = document.createElement('canvas'); c2.width = 128; c2.height = 64; const x = c2.getContext('2d')!; x.fillStyle = '#e8722a'; x.fillRect(0, 0, 128, 64); x.strokeStyle = '#2a1a10'; x.lineWidth = 3; x.beginPath(); x.moveTo(0, 32); x.lineTo(128, 32); for (const cx of [32, 96]) { x.moveTo(cx, 0); x.lineTo(cx, 64); } x.stroke(); x.beginPath(); x.ellipse(64, 32, 20, 32, 0, 0, Math.PI * 2); x.stroke(); const t = new THREE.CanvasTexture(c2); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+  const pelo = (clase: Clase) => new THREE.MeshStandardMaterial({ map: clase === 'normal' ? costuras : null, color: clase === 'oro' ? '#ffd23c' : '#ffffff', emissive: clase === 'oro' ? '#a86a00' : '#000000', emissiveIntensity: 0.4, roughness: 0.6, metalness: clase === 'oro' ? 0.5 : 0 });
   const rayas = textura();
   function textura() { const c2 = document.createElement('canvas'); c2.width = 64; c2.height = 32; const x = c2.getContext('2d')!; x.fillStyle = '#ffffff'; x.fillRect(0, 0, 64, 32); for (let i = 0; i < 4; i++) { x.fillStyle = i % 2 ? '#d9443a' : '#2a5bd7'; x.fillRect(i * 16, 0, 8, 32); } const t = new THREE.CanvasTexture(c2); t.colorSpace = THREE.SRGBColorSpace; return t; }
   const carro = new THREE.Group(); e.escena.add(carro);
@@ -150,6 +199,8 @@ export async function crear(c: Contexto): Promise<Partida> {
       e.chispas(ax, ALTO_ARO - 0.3, ARO_Z, b.clase === 'oro' ? ['#ffd23c', '#ffffff'] : ['#ffffff', '#ff5a1e', '#3f8cff'], b.clase === 'normal' ? 16 : 34, 4);
       e.sonido.efecto(limpio ? 'campana' : 'bien', 0.5) || e.sonido.bien();
       red.scale.set(1, 1.25, 1);
+      fiesta = b.clase === 'normal' ? 0.7 : 1;
+      if (b.clase !== 'normal') e.chispas(ax, ALTO_ARO + 1, ARO_Z, ['#ffd23c', '#ef5565', '#3f8cff', '#ffffff'], 60, 7);
     }
   };
 
@@ -158,6 +209,10 @@ export async function crear(c: Contexto): Promise<Partida> {
   e.alCuadro((t, dt) => {
     const paso = Math.min(dt, 0.05);
     red.scale.y += (1 - red.scale.y) * Math.min(1, paso * 8);
+    fiesta = Math.max(0, fiesta - paso * 0.5);
+    moverPublico(t);
+    focos.forEach((f, i) => { f.rotation.z = Math.sin(t * 0.6 + i * 1.7) * 0.18; });
+    pintarPantalla(puntos, `RONDA ${ronda + 1} · ${aciertos}/${tiros}`);
     aro.position.x = aroX(t);
     for (let i = balones.length - 1; i >= 0; i--) {
       const b = balones[i];
