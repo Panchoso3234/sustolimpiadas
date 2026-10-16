@@ -305,15 +305,18 @@ export function crearEscenario(caja: HTMLElement, encuadre: Encuadre) {
     },
   };
 
-  // Individual: al cambiar de pestaña el reloj se congela y sigue al volver (en un enfrentamiento corre igual)
-  let pausado = false;
-  const alCambiarVista = () => {
+  // Individual: al cambiar de pestaña o con el botón Pausa el reloj se congela y sigue al volver (en un enfrentamiento corre igual)
+  let pausado = false, aMano = false;
+  const pausar = (detener: boolean) => {
     if (!ajustesPartida.pausable) return;
-    if (document.hidden && corriendo) { fijo = reloj(); corriendo = false; pausado = true; }
-    else if (!document.hidden && pausado) { pausado = false; salto = fijo; inicio = previo = performance.now(); corriendo = true; api.hud.aviso('Pausa: sigues donde quedaste', '', 1.4); }
+    if (detener && corriendo) { fijo = reloj(); corriendo = false; pausado = true; }
+    else if (!detener && pausado) { pausado = false; salto = fijo; inicio = previo = performance.now(); corriendo = true; api.hud.aviso('Pausa: sigues donde quedaste', '', 1.4); }
   };
+  const alCambiarVista = () => pausar(document.hidden || aMano);
+  const alPausar = (e: Event) => { aMano = !!(e as CustomEvent<boolean>).detail; pausar(aMano); };
   document.addEventListener('visibilitychange', alCambiarVista);
-  limpiezas.push(() => document.removeEventListener('visibilitychange', alCambiarVista));
+  window.addEventListener('susto-pausa', alPausar);
+  limpiezas.push(() => { document.removeEventListener('visibilitychange', alCambiarVista); window.removeEventListener('susto-pausa', alPausar); });
 
   // Para probar sin esperar: adelantar el reloj y dibujar un cuadro a mano
   if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__juego = { saltar: (s: number) => { salto += s; }, cuadro: paso, reloj, vista: alCambiarVista };

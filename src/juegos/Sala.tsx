@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { fechaChile, generador } from '../nucleo/azar';
 import { supabase, useSesion } from '../nucleo/supabase';
 import { aspectoAleatorio, normalizarAspecto, normalizarPersonaje, type Aspecto } from '../personaje/catalogo';
-import { MOTORES, VERSUS, type Juego } from './catalogo';
+import { JUEGOS, MOTORES, VERSUS, type Juego } from './catalogo';
+import { Records } from './Records';
 import { guardarMarca, marcaLocal, tablaDelDia, type Fila, type Guardado } from './marcas';
 import { CARGADORES, ajustesPartida, jornadaDe, type Partida, type Resultado } from './marco';
 import { PUNTOS_BASE, leerPuntos, puntosPorPuesto, type Puntos } from './puntos';
@@ -64,7 +65,15 @@ function Tabla({ juego, fecha, usuarioId, version }: { juego: Juego; fecha: stri
       {usuarioId && f.perfil !== usuarioId && retable && <a class="retar-mini" href={`#/juegos/1v1/${f.perfil}.${juego.id}`} title={`Retar a ${f.nombre} a un duelo amistoso`}>Retar</a>}
     </li>
   );
-  return <ol class="marcas">{top.map(fila)}{mio >= top.length && fila(estado.filas[mio], mio)}</ol>;
+  // Cuánto le falta para pasar a la persona de arriba (al empatar no se sube, así que se pide un punto más)
+  const falta = mio > 0 ? estado.filas[mio - 1].puntaje - estado.filas[mio].puntaje + 1 : 0;
+  return (
+    <>
+      {mio > 0 && <p class="falta chico">Te faltan <b>{falta}</b> para subir al puesto {mio}.</p>}
+      {mio === 0 && total > 1 && <p class="falta chico">Vas primero hoy. ¡Defiende el puesto!</p>}
+      <ol class="marcas">{top.map(fila)}{mio >= top.length && fila(estado.filas[mio], mio)}</ol>
+    </>
+  );
 }
 
 type Fase = 'previa' | 'cargando' | 'cuenta' | 'jugando' | 'resultado' | 'error';
@@ -81,6 +90,10 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
   const [version, setVersion] = useState(0);
   const [callado, setCallado] = useState(estaCallado);
   const [ayuda, setAyuda] = useState(false);
+  const [pausa, setPausa] = useState(false);
+  const [completa, setCompleta] = useState(false);
+  const [avance, setAvance] = useState(0);
+  const sala = useRef<HTMLDivElement>(null);
   const fecha = useRef(fechaChile(Date.now())).current, motor = MOTORES[juego.motor];
   const usuarioId = sesion.usuarioId, usuario = useRef(usuarioId);
   usuario.current = usuarioId;
@@ -160,16 +173,64 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
     return () => { window.removeEventListener('beforeunload', avisar); clearInterval(reloj); };
   }, [fase]);
 
-  const salir = () => { cerrar(); setFase('previa'); };
+  const salir = () => { pausar(false); cerrar(); setFase('previa'); };
+
+  // Pausa a mano (solo en el modo individual): los motores la tratan igual que cambiar de pestaña
+  const pausar = (si: boolean) => { setPausa(si); window.dispatchEvent(new CustomEvent('susto-pausa', { detail: si })); };
+  useEffect(() => { if (fase !== 'jugando' && pausa) pausar(false); }, [fase]);
+
+  // Pantalla completa de toda la sala (en iPhone el navegador no la permite: el botón no aparece)
+  const puedeCompleta = typeof document !== 'undefined' && !!document.fullscreenEnabled;
+  useEffect(() => {
+    const f = () => setCompleta(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', f);
+    return () => { document.removeEventListener('fullscreenchange', f); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); };
+  }, []);
+  const alternarCompleta = () => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); else sala.current?.requestFullscreen().catch(() => {}); };
+
+  // Barra de carga: avanza sola hacia el 90 % mientras se descarga el juego y llega al 100 % cuando está listo
+  useEffect(() => {
+    if (fase !== 'cargando') { setAvance(0); return; }
+    const t0 = performance.now(), reloj = setInterval(() => setAvance(Math.round(90 * (1 - Math.exp(-(performance.now() - t0) / 2500)))), 120);
+    return () => clearInterval(reloj);
+  }, [fase]);
+
+  // Atajos: Enter juega (o juega otra vez), Esc sale de la partida, P pausa
+  useEffect(() => {
+    const tecla = (e: KeyboardEvent) => {
+      const escribiendo = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, a, button');
+      if (escribiendo || e.repeat) return;
+      if (e.key === 'Enter' && (fase === 'previa' || fase === 'resultado') && !(reto && fase === 'resultado')) { e.preventDefault(); jugar(fase === 'resultado' && practica.current); }
+      else if (e.key === 'Escape' && !reto && (fase === 'jugando' || fase === 'cuenta') && !document.fullscreenElement) salir();
+      else if ((e.key === 'p' || e.key === 'P') && !reto && fase === 'jugando') pausar(!pausa);
+    };
+    window.addEventListener('keydown', tecla);
+    return () => window.removeEventListener('keydown', tecla);
+  }, [fase, pausa]);
+
+  // El próximo juego abierto que todavía no juegas hoy, para encadenar la ronda del día
+  const siguiente = (() => {
+    const abiertos = JUEGOS.filter((j) => j.listo), desde = abiertos.findIndex((j) => j.id === juego.id);
+    return [...abiertos.slice(desde + 1), ...abiertos.slice(0, desde)].find((j) => !marcaLocal(j.id, fecha)) ?? null;
+  })();
   const local = marcaLocal(juego.id, fecha), volver = reto?.volver ?? '#/juegos';
 
   return (
-    <div class={`sala fase-${fase}`} style={`--tono:${motor.color}`}>
+    <div class={`sala fase-${fase}`} style={`--tono:${motor.color}`} ref={sala}>
       <div class="juego-caja" ref={caja} />
       {(fase === 'cuenta' || fase === 'jugando') && (
         <div class="sala-salir">
-          {!reto && <button class="boton" onClick={salir}>Salir</button>}
+          {!reto && <button class="boton" title="Salir (Esc)" onClick={salir}>Salir</button>}
+          {!reto && fase === 'jugando' && <button class="boton" aria-pressed={pausa} title="Pausa (P)" onClick={(ev) => { pausar(!pausa); ev.currentTarget.blur(); }}>{pausa ? 'Seguir' : 'Pausa'}</button>}
           <button class="boton" aria-pressed={callado} onClick={(ev) => { silenciar(!callado); setCallado(!callado); ev.currentTarget.blur(); }}>{callado ? 'Sonido: no' : 'Sonido: sí'}</button>
+          {puedeCompleta && <button class="boton" aria-pressed={completa} aria-label={completa ? 'Salir de pantalla completa' : 'Pantalla completa'} title="Pantalla completa" onClick={(ev) => { alternarCompleta(); ev.currentTarget.blur(); }}>{completa ? '⤡' : '⛶'}</button>}
+        </div>
+      )}
+      {fase === 'jugando' && pausa && (
+        <div class="sala-pausa" role="dialog" aria-label="Juego en pausa">
+          <b>En pausa</b>
+          <p class="chico">El reloj está detenido.</p>
+          <button class="boton principal grande" onClick={() => pausar(false)}>Seguir jugando</button>
         </div>
       )}
       {fase === 'cuenta' && <div class="sala-cuenta" key={cuenta} aria-live="assertive">{cuenta}</div>}
@@ -186,6 +247,11 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
               ? <p class="aviso atencion">{reto.aviso}</p>
               : <p class="chico tenue">Premia: {juego.premia.toLowerCase()}. {local ? `Tu mejor marca de hoy: ${local.mejor} ${juego.unidad} en ${local.intentos} ${local.intentos === 1 ? 'intento' : 'intentos'}.` : 'Todavía no juegas hoy.'}</p>}
             {fase === 'error' && <p class="aviso error">{motivo || 'No se pudo cargar el juego. Revisa tu conexión y prueba de nuevo.'}</p>}
+            {fase === 'cargando' && (
+              <div class="carga" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={avance} aria-label="Cargando el juego">
+                <span style={`width:${avance}%`} /><b>{avance} %</b>
+              </div>
+            )}
             <div class="fila">
               {!(reto && fase === 'error') && <button class="boton principal grande" disabled={fase === 'cargando'} onClick={() => jugar()}>{fase === 'cargando' ? 'Preparando…' : reto ? 'Jugar mi intento' : 'Jugar'}</button>}
               {reto && fase !== 'error' && <a class="boton" href={reto.practica}>Practicar primero</a>}
@@ -193,7 +259,9 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
               <a class="boton" href={volver}>{reto ? 'Volver a mis enfrentamientos' : 'Volver al portal'}</a>
             </div>
             {reto && <p class="chico tenue">Practicar abre el mismo juego en modo individual, con un desafío distinto: no gasta tu intento.</p>}
+            {!reto && <><div class="sigla">Récords históricos</div><Records juego={juego.id} unidad={juego.unidad} version={version} /></>}
             {!reto && <><div class="sigla">Tabla de hoy</div><Tabla juego={juego} fecha={fecha} usuarioId={usuarioId} version={version} /></>}
+            {!reto && <p class="chico tenue atajos">Atajos: Enter para jugar · P para pausar · Esc para salir.</p>}
           </div>
         </div>
       )}
@@ -219,8 +287,11 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
             )}
             <div class="fila">
               {!reto && <button class="boton principal grande" onClick={() => jugar(practica.current)}>{practica.current ? 'Practicar otra vez' : 'Jugar otra vez'}</button>}
+              {!reto && siguiente && <a class="boton" href={`#/juegos/${siguiente.id}`} title="El próximo juego que todavía no juegas hoy">Siguiente: {siguiente.nombre} →</a>}
               <a class={reto ? 'boton principal grande' : 'boton'} href={volver}>{reto ? 'Volver a mis enfrentamientos' : 'Volver al portal'}</a>
             </div>
+            {!reto && !siguiente && <p class="aviso ok">¡Jugaste todos los juegos de hoy!</p>}
+            {!reto && <><div class="sigla">Récords históricos</div><Records juego={juego.id} unidad={juego.unidad} version={version} /></>}
             {!reto && <><div class="sigla">Tabla de hoy</div><Tabla juego={juego} fecha={fecha} usuarioId={usuarioId} version={version} /></>}
           </div>
         </div>

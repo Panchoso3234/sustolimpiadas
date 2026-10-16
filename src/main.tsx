@@ -44,7 +44,7 @@ function App() {
         <div class="cuenta">
           {sesion.cargando ? null : sesion.usuarioId
             ? <><Campana yo={sesion.usuarioId} /><a class="nombre" href="#/perfil" title="Mi perfil">{sesion.perfil?.nombre ?? 'Mi perfil'}</a><button class="boton" onClick={() => salir()}>Salir</button></>
-            : <button class="boton principal" onClick={() => entrar()}>Entrar con Discord</button>}
+            : <button class="boton principal" onClick={() => entrar()}>Entrar<span class="solo-ancho"> con Discord</span></button>}
           <a class="boton" href="#/ajustes" aria-label="Ajustes" title="Ajustes">⚙</a>
         </div>
       </header>

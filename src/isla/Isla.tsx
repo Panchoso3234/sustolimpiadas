@@ -13,6 +13,7 @@ import { crearKenney, type Kenney } from '../personaje/kenney';
 import { liberar } from '../personaje/modelo';
 import { CASAS, EVENTOS, casaDe, climaDe, conversacion, estadoDe, type Estado, type Pose } from './cerebro';
 import { LETRAS, NOMBRES_LETRAS, crearMundo } from './mundo';
+import { alCambiarVolumen, volumenMusica } from '../juegos/sonido';
 
 interface Habitante {
   clave: string; rol: Rol; personaje: Personaje;
@@ -182,6 +183,7 @@ export function Isla() {
   const [siguiendo, setSiguiendo] = useState('');
   const [imagen, setImagen] = useState('');
   const [conSonido, setConSonido] = useState(false);
+  const [menu, setMenu] = useState(false); // en el celular los botones se juntan en un menú
   const [nivel, setNivel] = useState(calidadInicial);
   const seguido = useRef('');
   const hablar = useRef(false);
@@ -485,7 +487,8 @@ export function Isla() {
   }, []);
 
   // Sonido de olas hecho con ruido filtrado; se detiene al salir de la isla
-  useEffect(() => () => { sonido.current?.ctx.close(); if ('speechSynthesis' in window) speechSynthesis.cancel(); }, []);
+  const dejarDeOir = useRef<(() => void) | null>(null);
+  useEffect(() => () => { dejarDeOir.current?.(); sonido.current?.ctx.close(); if ('speechSynthesis' in window) speechSynthesis.cancel(); }, []);
   const alternarSonido = () => {
     if (!sonido.current) {
       const ctx = new AudioContext(), ruido = ctx.createBufferSource(), datos = ctx.createBuffer(1, ctx.sampleRate * 4, ctx.sampleRate), canal = datos.getChannelData(0);
@@ -499,8 +502,9 @@ export function Isla() {
       ruido.start(); vaiven.start();
       // Música: un tema tranquilo que se repite sin corte ("Calm Loop" de wipics, dominio público), con las olas muy bajas de fondo
       const musica = ctx.createGain();
-      musica.gain.value = 0.9;
+      musica.gain.value = volumenMusica();
       musica.connect(ctx.destination);
+      dejarDeOir.current = alCambiarVolumen(() => musica.gain.setTargetAtTime(volumenMusica(), ctx.currentTime, 0.2));
       fetch(`${import.meta.env.BASE_URL}musica/calma.mp3`).then((r) => r.arrayBuffer()).then((datosAudio) => ctx.decodeAudioData(datosAudio)).then((tema) => {
         const fuente = ctx.createBufferSource();
         fuente.buffer = tema; fuente.loop = true;
@@ -535,7 +539,8 @@ export function Isla() {
         {hud.muestra && <span class="tenue chico">Habitantes de muestra, solo para pruebas.</span>}
         {hud.listo && hud.cantidad === 0 && <span class="tenue chico">La isla espera a sus primeros habitantes: crea tu personaje en “Mi personaje”.</span>}
       </div>
-      <div class="isla-botones">
+      <button class="boton isla-menu" aria-expanded={menu} aria-controls="isla-botones" aria-label={menu ? 'Cerrar opciones' : 'Opciones de la isla'} onClick={() => setMenu(!menu)}>{menu ? '✕' : '☰'}</button>
+      <div class={`isla-botones${menu ? ' abierto' : ''}`} id="isla-botones">
         <button class="boton" aria-pressed={!!filas} onClick={() => setFilas(filas ? null : mando.current?.lista() ?? [])}>Habitantes</button>
         {miClave && <button class="boton" onClick={() => (siguiendo === miClave ? seguir('') : mando.current?.fichaDe(miClave))}>{siguiendo === miClave ? 'Dejar de seguir' : 'Mi personaje'}</button>}
         <button class="boton" onClick={() => setImagen(mando.current?.foto() ?? '')}>Foto</button>

@@ -97,14 +97,18 @@ export function crearMesa(caja: HTMLElement, clase: string, aspecto?: Aspecto) {
     },
   };
   // Individual: al cambiar de pestaña el reloj se congela y sigue al volver; el tablero se tapa para no estudiarlo en pausa
-  let pausado = false;
-  const alCambiarVista = () => {
+  // (lo mismo con el botón Pausa de la sala)
+  let pausado = false, aMano = false;
+  const pausar = (detener: boolean) => {
     if (!ajustesPartida.pausable) return;
-    if (document.hidden && corriendo) { fijo = reloj(); corriendo = false; pausado = true; tablero.classList.add('oculta'); }
-    else if (!document.hidden && pausado) { pausado = false; salto = fijo; inicio = performance.now(); corriendo = true; tablero.classList.remove('oculta'); api.hud.aviso('Pausa: sigues donde quedaste', '', 1.4); }
+    if (detener && corriendo) { fijo = reloj(); corriendo = false; pausado = true; tablero.classList.add('oculta'); }
+    else if (!detener && pausado) { pausado = false; salto = fijo; inicio = performance.now(); corriendo = true; tablero.classList.remove('oculta'); api.hud.aviso('Pausa: sigues donde quedaste', '', 1.4); }
   };
+  const alCambiarVista = () => pausar(document.hidden || aMano);
+  const alPausar = (e: Event) => { aMano = !!(e as CustomEvent<boolean>).detail; pausar(aMano); };
   document.addEventListener('visibilitychange', alCambiarVista);
-  limpiezas.push(() => document.removeEventListener('visibilitychange', alCambiarVista));
+  window.addEventListener('susto-pausa', alPausar);
+  limpiezas.push(() => { document.removeEventListener('visibilitychange', alCambiarVista); window.removeEventListener('susto-pausa', alPausar); });
   if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__juego = { saltar: (s: number) => { salto += s; }, reloj, cuadro: () => {}, vista: alCambiarVista };
   return api;
 }

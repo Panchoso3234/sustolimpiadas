@@ -4,9 +4,21 @@ let callado = false, nivel = 1;
 try { callado = localStorage.getItem(CLAVE) === '1'; nivel = Math.min(1, Math.max(0, Number(localStorage.getItem('susto.volumen') ?? 1) || 0)); } catch { /* sin almacenamiento */ }
 const oyentes = new Set<() => void>();
 
+// La música de la isla tiene su propio nivel; "silenciar todo" también la apaga
+let musica = 0.9;
+try { musica = Math.min(1, Math.max(0, Number(localStorage.getItem('susto.volumenMusica') ?? 0.9) || 0)); } catch { /* sin almacenamiento */ }
+
 export const estaCallado = () => callado;
 export const nivelVolumen = () => nivel;
 export const volumen = () => (callado ? 0 : nivel);
+export const nivelMusica = () => musica;
+export const volumenMusica = () => (callado ? 0 : musica);
+
+export function ponerMusica(n: number) {
+  musica = Math.min(1, Math.max(0, n));
+  try { localStorage.setItem('susto.volumenMusica', String(musica)); } catch { /* sin almacenamiento */ }
+  oyentes.forEach((f) => f());
+}
 
 export function silenciar(si: boolean) {
   callado = si;

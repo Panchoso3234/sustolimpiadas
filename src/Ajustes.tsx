@@ -1,25 +1,36 @@
 import { useState } from 'preact/hooks';
-import { esDaltonico, marcarRecorrido, ponerDaltonico, recorridoVisto } from './nucleo/preferencias';
-import { estaCallado, nivelVolumen, ponerVolumen, silenciar } from './juegos/sonido';
+import { esDaltonico, instalarApp, marcarRecorrido, ponerDaltonico, puedeInstalar, recorridoVisto } from './nucleo/preferencias';
+import { estaCallado, nivelMusica, nivelVolumen, ponerMusica, ponerVolumen, silenciar } from './juegos/sonido';
 
 // Ajustes de cada persona (quedan en este navegador) y el recorrido de bienvenida de la primera visita.
 
 export function Ajustes({ alVerRecorrido }: { alVerRecorrido(): void }) {
   const [nivel, setNivel] = useState(nivelVolumen);
+  const [musica, setMusica] = useState(nivelMusica);
   const [callado, setCallado] = useState(estaCallado);
   const [daltonico, setDaltonico] = useState(esDaltonico);
+  const [instalable, setInstalable] = useState(puedeInstalar);
   return (
     <div class="pagina">
       <div class="sigla">Ajustes</div>
       <h1>Ajustes</h1>
       <p class="tenue">Se guardan en este navegador. La calidad de la isla se elige en la misma isla.</p>
       <section class="bloque formulario ajustes">
-        <label>Volumen de los juegos: {Math.round(nivel * 100)} %
+        <label>Efectos de los juegos: {Math.round(nivel * 100)} %
           <input type="range" min={0} max={100} step={5} value={Math.round(nivel * 100)} onInput={(e) => { const n = Number(e.currentTarget.value) / 100; ponerVolumen(n); setNivel(n); }} />
+        </label>
+        <label>Música de la isla: {Math.round(musica * 100)} %
+          <input type="range" min={0} max={100} step={5} value={Math.round(musica * 100)} onInput={(e) => { const n = Number(e.currentTarget.value) / 100; ponerMusica(n); setMusica(n); }} />
         </label>
         <label class="casilla"><input type="checkbox" checked={callado} onChange={(e) => { silenciar(e.currentTarget.checked); setCallado(e.currentTarget.checked); }} /> Silenciar todo</label>
         <label class="casilla"><input type="checkbox" checked={daltonico} onChange={(e) => { ponerDaltonico(e.currentTarget.checked); setDaltonico(e.currentTarget.checked); }} /> Modo daltónico (cambia verde y rojo por azul y naranjo, en la página y en los equipos de la arena)</label>
         <button class="boton" onClick={alVerRecorrido}>Ver de nuevo el recorrido de bienvenida</button>
+      </section>
+      <section class="bloque formulario ajustes">
+        <b>Tener el torneo como app</b>
+        <p class="tenue chico">Queda con su ícono en la pantalla de inicio y se abre sin la barra del navegador.</p>
+        {instalable && <button class="boton principal" onClick={() => instalarApp().then(() => setInstalable(false))}>Instalar app</button>}
+        <p class="chico">En iPhone: botón Compartir de Safari → "Agregar a inicio". En Android: menú ⋮ de Chrome → "Instalar app" o "Agregar a la pantalla principal".</p>
       </section>
     </div>
   );

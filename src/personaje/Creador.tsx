@@ -48,7 +48,9 @@ function leerBorrador(): Personaje {
     const crudo = localStorage.getItem(BORRADOR);
     if (crudo) return C.normalizarPersonaje(JSON.parse(crudo));
   } catch { /* sin almacenamiento: se parte de cero */ }
-  return C.personajeAleatorio();
+  // Quien llega por primera vez parte con un avatar anime al azar (lo que muestra la pestaña que se abre)
+  const [id] = TODOS[Math.floor(Math.random() * TODOS.length)];
+  return { ...C.personajeAleatorio(), apariencia: { ...C.aspectoBase(), vrm: id } };
 }
 
 function Mini({ aspecto, campo, indice, tipo }: { aspecto: Aspecto; campo: keyof Aspecto; indice: number; tipo: Encuadre }) {

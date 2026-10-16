@@ -33,6 +33,7 @@ export async function guardarMarca(juego: string, fecha: string, puntaje: number
   if (!usuarioId) return { donde: 'sin-sesion', esMejor };
   // La fecha y el dueño los pone el servidor: desde aquí solo viajan el juego, el puntaje y el resumen
   const { error } = await supabase.from('marcas').insert({ juego, puntaje, detalle });
+  records.delete(juego); // los récords se vuelven a pedir con la marca nueva
   return { donde: error ? 'local' : 'nube', esMejor };
 }
 
@@ -53,6 +54,29 @@ export async function marcasDelDia(fecha: string, juego: string): Promise<MarcaS
 export async function borrarMarca(id: number): Promise<string | null> {
   const { error } = await supabase.from('marcas').delete().eq('id', id);
   return error?.message ?? null;
+}
+
+const records = new Map<string, { hora: number; filas: Promise<Fila[]> }>();
+
+/** Récords históricos de un juego: la mejor marca de siempre de las 3 mejores personas (se recuerda un minuto). */
+export function recordsDelJuego(juego: string): Promise<Fila[]> {
+  const guardado = records.get(juego);
+  if (guardado && Date.now() - guardado.hora < 60_000) return guardado.filas;
+  const filas = Promise.resolve(supabase.from('marcas').select('perfil_id,puntaje,perfiles(nombre)').eq('juego', juego).order('puntaje', { ascending: false }).limit(500)
+    .then(({ data }) => {
+      const vistos = new Set<string>(), mejores: Fila[] = [];
+      for (const f of data ?? []) {
+        const perfil = f.perfil_id as string;
+        if (vistos.has(perfil)) continue;
+        vistos.add(perfil);
+        const rel = f.perfiles as unknown as { nombre: string } | { nombre: string }[] | null;
+        mejores.push({ perfil, nombre: (Array.isArray(rel) ? rel[0]?.nombre : rel?.nombre) ?? 'Participante', puntaje: f.puntaje as number });
+        if (mejores.length === 3) break;
+      }
+      return mejores;
+    }, () => [] as Fila[]));
+  records.set(juego, { hora: Date.now(), filas });
+  return filas;
 }
 
 /** Mejor marca de cada persona en un juego y un día, de mayor a menor. `disponible` es falso si la tabla aún no existe. */

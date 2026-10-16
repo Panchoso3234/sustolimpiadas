@@ -6,7 +6,9 @@ import * as V from './duelos';
 import { marcaLocal } from './marcas';
 import { alternarFavorito, favoritos } from '../nucleo/preferencias';
 import { Duelo, PestanaVersus, seJuegaEnVivo } from './PantallaVersus';
+import { CARGADORES } from './marco';
 import { Posiciones } from './Posiciones';
+import { Records } from './Records';
 import { Sala } from './Sala';
 import { Vivo } from '../vivo/PantallaVivo';
 import { PartidasEnLinea } from '../vivo/PartidasEnLinea';
@@ -78,11 +80,23 @@ export function Portal({ sub, extra }: { sub: string; extra: string }) {
 const FILTROS = [['todos', 'Todos'], ['favoritos', 'Favoritos'], ['pendientes', 'Sin jugar hoy'], ['jugados', 'Jugados hoy']] as const;
 type Filtro = (typeof FILTROS)[number][0];
 
+// Al volver de un juego, el portal queda como estaba: mismo filtro, misma búsqueda y misma altura de la página
+const RECUERDO = 'susto.portal';
+const recuerdo = (): { filtro?: Filtro; buscar?: string; y?: number } => { try { return JSON.parse(sessionStorage.getItem(RECUERDO) ?? '{}'); } catch { return {}; } };
+const recordar = (cambio: { filtro?: Filtro; buscar?: string; y?: number }) => { try { sessionStorage.setItem(RECUERDO, JSON.stringify({ ...recuerdo(), ...cambio })); } catch { /* sin almacenamiento */ } };
+const desplazable = () => document.querySelector('main');
+
 function Grilla() {
   const fecha = fechaChile(Date.now()), listos = JUEGOS.filter((j) => j.listo).length;
   const [favs, setFavs] = useState(favoritos);
-  const [filtro, setFiltro] = useState<Filtro>('todos');
-  const [buscar, setBuscar] = useState('');
+  const [filtro, setFiltroCrudo] = useState<Filtro>(() => recuerdo().filtro ?? 'todos');
+  const [buscar, setBuscarCrudo] = useState(() => recuerdo().buscar ?? '');
+  const setFiltro = (f: Filtro) => { setFiltroCrudo(f); recordar({ filtro: f }); };
+  const setBuscar = (b: string) => { setBuscarCrudo(b); recordar({ buscar: b }); };
+  useEffect(() => {
+    const y = recuerdo().y;
+    if (y) requestAnimationFrame(() => desplazable()?.scrollTo(0, y));
+  }, []);
   const texto = buscar.trim().toLowerCase();
   const pasa = (j: Juego) => (!texto || `${j.nombre} ${j.idea}`.toLowerCase().includes(texto))
     && (filtro === 'todos' || (filtro === 'favoritos' ? favs.includes(j.id) : j.listo && (filtro === 'jugados') === !!marcaLocal(j.id, fecha)));
@@ -120,11 +134,16 @@ function Tarjeta({ juego, fecha, favorito, alternar }: { juego: Juego; fecha: st
       <button class={`estrella${favorito ? ' puesta' : ''}`} aria-pressed={favorito} aria-label={favorito ? 'Quitar de favoritos' : 'Marcar como favorito'} onClick={(e) => { e.preventDefault(); e.stopPropagation(); alternar(); }}>{favorito ? '★' : '☆'}</button>
       <h3>{juego.nombre}</h3>
       <p>{juego.idea}</p>
+      {juego.listo && <Records juego={juego.id} compacto />}
       <span class="pie">
         <span class="premia">{juego.premia}</span>
         <span class={`estado${marca ? ' hecho' : ''}`}>{juego.listo ? (marca ? `✓ Jugado hoy · ${marca.mejor}` : 'Jugar') : juego.soloVivo ? 'Solo en vivo' : 'Pronto'}</span>
       </span>
     </>
   );
-  return juego.listo ? <a class="tarjeta" href={`#/juegos/${juego.id}`}>{dentro}</a> : <div class="tarjeta cerrada" aria-disabled="true">{dentro}</div>;
+  // Al apuntar o tocar la tarjeta el juego empieza a descargarse, para que abra más rápido
+  const precargar = () => { CARGADORES[juego.id]?.().catch(() => undefined); };
+  return juego.listo
+    ? <a class="tarjeta" href={`#/juegos/${juego.id}`} onPointerEnter={precargar} onTouchStart={precargar} onClick={() => recordar({ y: desplazable()?.scrollTop ?? 0 })}>{dentro}</a>
+    : <div class="tarjeta cerrada" aria-disabled="true">{dentro}</div>;
 }

@@ -26,3 +26,9 @@ export const marcarAvisos = (claves: string[]) => escribir('susto.avisos', [...n
 /** Último puesto conocido en la tabla de hoy de cada juego, para avisar si alguien te supera. */
 export const puestosVistos = (): Record<string, number> => leer('susto.puestos', {});
 export const guardarPuestos = (p: Record<string, number>) => escribir('susto.puestos', p);
+
+// Instalar el sitio como app: el navegador avisa si se puede (Chrome y Edge); se guarda el aviso para usarlo en Ajustes
+let pedidoInstalar: (Event & { prompt(): Promise<void> }) | null = null;
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); pedidoInstalar = e as Event & { prompt(): Promise<void> }; });
+export const puedeInstalar = () => !!pedidoInstalar;
+export async function instalarApp() { await pedidoInstalar?.prompt(); pedidoInstalar = null; }

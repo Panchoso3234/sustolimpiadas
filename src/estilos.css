@@ -19,7 +19,7 @@
 html, body, #app { height: 100%; }
 body { margin: 0; background: var(--noche); color: var(--hueso); font-family: var(--cuerpo); font-size: 16px; line-height: 1.5; }
 #app { display: flex; flex-direction: column; }
-main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+main { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
 h1, h3, p { margin: 0; }
 h1 { font-family: var(--display); font-weight: 400; font-size: clamp(1.7rem, 5vw, 2.6rem); line-height: 1.1; text-wrap: balance; }
 h3 { font-size: 1.2rem; font-weight: 800; }
@@ -113,7 +113,7 @@ a.boton { text-decoration: none; display: inline-block; }
 }
 
 /* Páginas de texto */
-.pagina { max-width: 760px; width: 100%; margin: 0 auto; padding: 36px 20px 60px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+.pagina { max-width: 760px; width: 100%; margin: 0 auto; padding: 36px 20px 60px; display: flex; flex-direction: column; gap: 16px; }
 .fichas { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0; list-style: none; }
 .fichas li { background: var(--tabla); border-radius: 99px; padding: 5px 14px; font-weight: 600; }
 .pagina.prueba { max-width: 1000px; }
@@ -604,3 +604,50 @@ body.foto .tren-poderes { display: none; }
 .duelo-puntos { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; font-weight: 800; }
 .duelo-puntos li { background: var(--noche-2); border-left: 4px solid var(--luna); border-radius: 8px; padding: 8px 12px; }
 @media (max-width: 760px) { .duelo-zona.con-juego { grid-template-columns: minmax(0, 1fr); } .duelo-mio { height: 62vh; } }
+
+/* Récords históricos (top 3 de siempre) con el personaje de cada persona */
+.cara { border-radius: 50%; object-fit: cover; background: #2a1f4e; flex: none; }
+.cara.vacia { display: inline-block; }
+.records { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.records li { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 10px; background: var(--tabla); }
+.records .medalla { font-size: 1.1rem; width: 1.4em; text-align: center; }
+.records .quien { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--hueso); text-decoration: none; font-weight: 700; }
+.records a.quien:hover { text-decoration: underline; }
+.records.compacto { gap: 2px; }
+.records.compacto li { padding: 1px 6px; gap: 6px; font-size: .8rem; background: rgba(0, 0, 0, .18); }
+.records.compacto .medalla { font-size: .9rem; }
+.records-vacio { margin: 0; min-height: 1.2em; }
+.falta { margin: 0; color: var(--luna); }
+
+/* Sala: barra de carga y pausa */
+.carga { position: relative; height: 22px; border-radius: 99px; background: var(--tabla); overflow: hidden; }
+.carga span { position: absolute; inset: 0 auto 0 0; background: var(--tono, var(--calabaza)); transition: width .12s linear; }
+.carga b { position: relative; display: block; text-align: center; font-size: .8rem; line-height: 22px; color: var(--hueso); text-shadow: 0 1px 2px rgba(0, 0, 0, .6); }
+.sala-pausa { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: rgba(12, 19, 36, .82); z-index: 5; text-align: center; }
+.sala-pausa b { font-family: var(--display); font-size: 2.4rem; color: var(--calabaza); }
+.sala:fullscreen { background: var(--noche); }
+.atajos { margin: 0; }
+@media (hover: none) { .atajos { display: none; } }
+
+/* Celular: barra de arriba en dos líneas cortas (marca y cuenta arriba, secciones abajo, deslizables) */
+@media (max-width: 760px) {
+  .barra { padding: 6px 10px; padding-top: calc(6px + env(safe-area-inset-top, 0px)); gap: 6px 8px; }
+  .marca { font-size: 1.05rem; }
+  .barra nav { order: 3; flex: 1 0 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 2px; }
+  .barra nav::-webkit-scrollbar { display: none; }
+  .barra nav a { padding: 4px 11px; font-size: .92rem; white-space: nowrap; }
+  .cuenta { margin-left: auto; gap: 6px; }
+  .cuenta .boton { padding: 6px 10px; font-size: .88rem; }
+  .cuenta .nombre { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .solo-ancho { display: none; }
+}
+
+/* Isla en el celular: los botones van dentro de un menú para no tapar la hora ni el evento del día */
+.isla-menu { display: none; }
+@media (max-width: 760px) {
+  .isla-menu { display: block; position: absolute; top: 10px; right: 12px; z-index: 3; width: 44px; height: 44px; padding: 0; font-size: 1.2rem; background: rgba(28, 44, 77, .9); }
+  .isla-botones { display: none; top: 62px; right: 12px; z-index: 3; }
+  .isla-botones.abierto { display: flex; }
+  .isla-hud { right: 66px; font-size: .9rem; }
+  .isla-lista { top: auto; bottom: calc(44px + env(safe-area-inset-bottom, 0px)); right: 12px; width: calc(100% - 24px); max-height: 42%; }
+}
