@@ -22,14 +22,42 @@ export async function crear(c: Contexto): Promise<Partida> {
   const tex = new THREE.CanvasTexture(cv); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(6, 3); tex.colorSpace = THREE.SRGBColorSpace;
   const pano = new THREE.Mesh(new THREE.PlaneGeometry(ANCHO, FONDO), new THREE.MeshLambertMaterial({ map: tex }));
   pano.rotation.x = -Math.PI / 2;
+  pano.position.y = 0.37;
   e.escena.add(pano);
-  const madera = mat('#6b3a1f');
-  for (const [w, d, x, z] of [[ANCHO + 1.4, 0.7, 0, -FONDO / 2 - 0.35], [ANCHO + 1.4, 0.7, 0, FONDO / 2 + 0.35], [0.7, FONDO, -ANCHO / 2 - 0.35, 0], [0.7, FONDO, ANCHO / 2 + 0.35, 0]]) {
-    const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.35, d), madera); b.position.set(x, 0.17, z); e.escena.add(b);
-  }
-  for (let i = 1; i < 8; i++) for (const lado of [-1, 1]) { const d = new THREE.Mesh(new THREE.CircleGeometry(0.06, 8), new THREE.MeshBasicMaterial({ color: '#f4e6c8' })); d.rotation.x = -Math.PI / 2; d.position.set(-ANCHO / 2 + (i * ANCHO) / 8, 0.36, lado * (FONDO / 2 + 0.35)); if (i !== 4) e.escena.add(d); }
-  for (const [x, z] of TRONERAS) { const t = new THREE.Mesh(new THREE.CircleGeometry(BOCA + 0.06, 20), new THREE.MeshBasicMaterial({ color: '#0a0a0e' })); t.rotation.x = -Math.PI / 2; t.position.set(x, 0.37, z); e.escena.add(t); }
-  const piso = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), mat('#3a2a2a')); piso.rotation.x = -Math.PI / 2; piso.position.y = -2; e.escena.add(piso);
+  // Charco de luz de la lámpara sobre el paño (más claro al centro)
+  const luz = document.createElement('canvas'); luz.width = luz.height = 128;
+  const gl = luz.getContext('2d')!, grad = gl.createRadialGradient(64, 64, 4, 64, 64, 64);
+  grad.addColorStop(0, 'rgba(255,248,210,0.28)'); grad.addColorStop(1, 'rgba(255,248,210,0)');
+  gl.fillStyle = grad; gl.fillRect(0, 0, 128, 128);
+  const texLuz = new THREE.CanvasTexture(luz);
+  for (const x of [-ANCHO / 4, ANCHO / 4]) { const charco = new THREE.Mesh(new THREE.PlaneGeometry(ANCHO * 0.75, FONDO * 1.2), new THREE.MeshBasicMaterial({ map: texLuz, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); charco.rotation.x = -Math.PI / 2; charco.position.set(x, 0.37 + 0.005, 0); e.escena.add(charco); }
+  // Mesa: cuerpo de madera con patas, bandas acolchadas verdes y borde de madera con esquinas de bronce
+  const madera = new THREE.MeshStandardMaterial({ color: '#6b3a1f', roughness: 0.45, flatShading: true }), bronce = new THREE.MeshStandardMaterial({ color: '#c9a227', roughness: 0.3, metalness: 0.6 });
+  const cuerpoMesa = new THREE.Mesh(new THREE.BoxGeometry(ANCHO + 1.6, 0.7, FONDO + 1.6), madera); cuerpoMesa.position.y = 0.0; e.escena.add(cuerpoMesa);
+  for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, -1], [0, 1]]) { const pata = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.2, 2.1, 10), madera); pata.position.set(x * (ANCHO / 2 + 0.3), -1.35, z * (FONDO / 2 + 0.3)); e.escena.add(pata); }
+  for (const [w, d, x, z] of [[ANCHO, 0.22, 0, -FONDO / 2 - 0.11], [ANCHO, 0.22, 0, FONDO / 2 + 0.11], [0.22, FONDO, -ANCHO / 2 - 0.11, 0], [0.22, FONDO, ANCHO / 2 + 0.11, 0]]) { const banda = new THREE.Mesh(new THREE.BoxGeometry(w, 0.16, d), mat('#1a7a42')); banda.position.set(x, 0.37 + 0.08, z); e.escena.add(banda); }
+  for (const [w, d, x, z] of [[ANCHO + 1.4, 0.5, 0, -FONDO / 2 - 0.47], [ANCHO + 1.4, 0.5, 0, FONDO / 2 + 0.47], [0.5, FONDO + 0.4, -ANCHO / 2 - 0.47, 0], [0.5, FONDO + 0.4, ANCHO / 2 + 0.47, 0]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.24, d), madera); b.position.set(x, 0.37 + 0.12, z); e.escena.add(b); }
+  // El salón: piso de parquet, alfombra, pared con cuadros, un taquero y un letrero de neón
+  const parquet = document.createElement('canvas'); parquet.width = parquet.height = 128;
+  const gp = parquet.getContext('2d')!;
+  gp.fillStyle = '#7a4a2a'; gp.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 8; i++) for (let k = 0; k < 4; k++) { gp.fillStyle = ['#7a4a2a', '#6e4224', '#86522e'][(i + k) % 3]; gp.fillRect(i * 16, (k * 32 + (i % 2) * 16) % 128, 16, 32); gp.fillStyle = 'rgba(0,0,0,0.18)'; gp.fillRect(i * 16, k * 32 + (i % 2) * 16, 1, 32); }
+  const texParquet = new THREE.CanvasTexture(parquet); texParquet.wrapS = texParquet.wrapT = THREE.RepeatWrapping; texParquet.repeat.set(12, 12); texParquet.colorSpace = THREE.SRGBColorSpace;
+  for (let i = 1; i < 8; i++) for (const lado of [-1, 1]) { const d = new THREE.Mesh(new THREE.CircleGeometry(0.06, 8), new THREE.MeshBasicMaterial({ color: '#f4e6c8' })); d.rotation.x = -Math.PI / 2; d.position.set(-ANCHO / 2 + (i * ANCHO) / 8, 0.37 + 0.245, lado * (FONDO / 2 + 0.47)); if (i !== 4) e.escena.add(d); }
+  // Troneras: el hoyo negro encima de las bandas (se ve desde arriba) con su aro de bronce
+  for (const [x, z] of TRONERAS) { const t = new THREE.Mesh(new THREE.CircleGeometry(BOCA + 0.06, 20), new THREE.MeshBasicMaterial({ color: '#0a0a0e' })); t.rotation.x = -Math.PI / 2; t.position.set(x, 0.37 + 0.25, z); const aro = new THREE.Mesh(new THREE.RingGeometry(BOCA + 0.06, BOCA + 0.17, 20), bronce); aro.rotation.x = -Math.PI / 2; aro.position.set(x, 0.37 + 0.251, z); e.escena.add(t, aro); }
+  const piso = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshLambertMaterial({ map: texParquet })); piso.rotation.x = -Math.PI / 2; piso.position.y = -2.4; e.escena.add(piso);
+  const alfombra = new THREE.Mesh(new THREE.PlaneGeometry(ANCHO + 5, FONDO + 5), mat('#8a2a2a')); alfombra.rotation.x = -Math.PI / 2; alfombra.position.y = -2.39; e.escena.add(alfombra);
+  const pared = new THREE.Mesh(new THREE.BoxGeometry(40, 10, 0.4), mat('#2a3a33')); pared.position.set(0, 2, -FONDO / 2 - 3.2); e.escena.add(pared);
+  for (const [x, color] of [[-5.5, '#d9a35a'], [5.5, '#5ad1ff']] as const) { const marco = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.5, 0.08), mat('#c9a227')); marco.position.set(x, 3.4, -FONDO / 2 - 2.95); const cuadro = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.2), mat(color)); cuadro.position.set(x, 3.4, -FONDO / 2 - 2.9); e.escena.add(marco, cuadro); }
+  for (let i = 0; i < 5; i++) { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 3.4, 6), mat(i % 2 ? '#d9a35a' : '#a8743c')); t.position.set(-1 + i * 0.5, 1.6, -FONDO / 2 - 2.85); e.escena.add(t); }
+  const neon = document.createElement('canvas'); neon.width = 256; neon.height = 64;
+  const gn = neon.getContext('2d')!; gn.fillStyle = '#1a2620'; gn.fillRect(0, 0, 256, 64); gn.font = 'bold 44px sans-serif'; gn.textAlign = 'center'; gn.textBaseline = 'middle'; gn.shadowColor = '#ff5ad1'; gn.shadowBlur = 14; gn.fillStyle = '#ffb3f0'; gn.fillText('★ BILLAR ★', 128, 34);
+  const texNeon = new THREE.CanvasTexture(neon); texNeon.colorSpace = THREE.SRGBColorSpace;
+  const letrero = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.85), new THREE.MeshBasicMaterial({ map: texNeon })); letrero.position.set(0, 3.9, -FONDO / 2 - 2.95); e.escena.add(letrero);
+  // Sombra suave bajo cada bola
+  const texSombra = (() => { const c3 = document.createElement('canvas'); c3.width = c3.height = 64; const g3 = c3.getContext('2d')!, gr = g3.createRadialGradient(32, 32, 2, 32, 32, 32); gr.addColorStop(0, 'rgba(0,0,0,0.55)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g3.fillStyle = gr; g3.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c3); })();
+  const geoSombra = new THREE.PlaneGeometry(RADIO * 3, RADIO * 3), matSombra = new THREE.MeshBasicMaterial({ map: texSombra, transparent: true, depthWrite: false });
 
   // ── Bolas, con su número pintado ──
   const COLORES = ['#f2c12e', '#2a5bd7', '#d93a2f', '#7a3fb0', '#f0812a', '#2e9a4f', '#8a2a2a', '#1a1a1a', '#f2c12e', '#2a5bd7'];
@@ -43,14 +71,15 @@ export async function crear(c: Contexto): Promise<Partida> {
   const geo = new THREE.SphereGeometry(RADIO, 20, 14);
   let bolas: Bola[] = [], postes: { x: number; z: number; r: number; malla: THREE.Mesh }[] = [], desafio: Desafio = DESAFIOS[0], nivel = -1, tiros = 0, siguiente = 1;
   const nueva = (x: number, z: number, n: number, color: string, extra: Partial<Bola> = {}): Bola => {
-    const malla = new THREE.Mesh(geo, extra.blanca ? new THREE.MeshStandardMaterial({ color: '#fbfaf2', roughness: 0.3 }) : new THREE.MeshStandardMaterial({ map: textura(color, n, !!extra.dorada), roughness: 0.3, metalness: extra.dorada ? 0.5 : 0, emissive: extra.dorada ? '#a86a00' : '#000000', emissiveIntensity: 0.3 }));
+    const malla = new THREE.Mesh(geo, extra.blanca ? new THREE.MeshStandardMaterial({ color: '#fbfaf2', roughness: 0.15 }) : new THREE.MeshStandardMaterial({ map: textura(color, n, !!extra.dorada), roughness: 0.15, metalness: extra.dorada ? 0.5 : 0, emissive: extra.dorada ? '#a86a00' : '#000000', emissiveIntensity: 0.3 }));
     malla.position.set(x, 0.37 + RADIO, z);
     malla.rotation.set(Math.random() * 6, Math.random() * 6, 0);
-    e.escena.add(malla);
+    const sombraBola = new THREE.Mesh(geoSombra, matSombra); sombraBola.rotation.x = -Math.PI / 2; malla.userData.sombra = sombraBola;
+    e.escena.add(malla, sombraBola);
     return { x, z, vx: 0, vz: 0, n, dorada: false, negra: false, blanca: false, dentro: false, malla, cae: 0, ...extra };
   };
   const armar = (i: number) => {
-    for (const b of bolas) e.escena.remove(b.malla);
+    for (const b of bolas) e.escena.remove(b.malla, b.malla.userData.sombra);
     for (const p of postes) e.escena.remove(p.malla);
     nivel = i; desafio = DESAFIOS[i]; tiros = desafio.tiros; siguiente = 1;
     bolas = [nueva(SALIDA[0], SALIDA[1], 0, '#ffffff', { blanca: true }), ...desafio.bolas.map((b) => nueva(b.x, b.z, b.n, b.negra ? '#1a1a1a' : COLORES[(b.n - 1) % COLORES.length], { dorada: !!b.dorada, negra: !!b.negra }))];
@@ -200,6 +229,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       const v = Math.hypot(b.vx, b.vz);
       if (v > 0.001) b.malla.rotateOnWorldAxis(new THREE.Vector3(b.vz / v, 0, -b.vx / v), (v * paso) / RADIO);
       b.malla.position.set(b.x, 0.37 + RADIO, b.z);
+      const sb = b.malla.userData.sombra as THREE.Mesh; sb.visible = b.malla.visible && !b.dentro; sb.position.set(b.x + 0.05, 0.37 + 0.01, b.z + 0.06);
     }
     // Apuntar: arrastrando (como honda) o con ← → y Espacio
     const listo = puede();
