@@ -552,6 +552,7 @@ body.foto ::-webkit-scrollbar { display: none; }
 .preseleccion button.elegida { border-color: var(--calabaza); background: #3a2a1a; }
 .preseleccion img, .preseleccion .hueco { width: 96px; height: 96px; }
 .preseleccion.chibis img { border-radius: 50%; object-fit: cover; background: #2a1f4e; }
+.grupo-galeria h3 { margin: 12px 0 6px; font-size: 1rem; color: var(--calabaza); }
 /* Gachapón: una cápsula que se sacude mientras "gira" */
 .gachapon { display: flex; gap: 14px; align-items: center; padding: 12px; margin-bottom: 10px; border-radius: 14px; background: linear-gradient(135deg, #3a2a5e, #2a3a6e); }
 .gachapon .capsula { flex: 0 0 64px; height: 64px; border-radius: 50%; background: linear-gradient(#ff7ab8 50%, #ffffff 50%); border: 3px solid #fff3; position: relative; box-shadow: 0 4px 0 #0004; }

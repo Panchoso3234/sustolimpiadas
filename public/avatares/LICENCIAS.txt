@@ -12,3 +12,13 @@ animaciones.json
   Universal Animation Library (Standard) de Quaternius, licencia CC0: https://quaternius.com
   https://opengameart.org/content/universal-animation-library
   Pasadas al esqueleto humanoide VRM con: node herramientas/animaciones.mjs <AnimationLibrary_Godot_Standard.glb>
+
+halloween/ (retratos chibi-01-h a chibi-16-h y chibi-01-h2 a chibi-16-h2)
+  Los mismos chibis de arriba con dos disfraces de Halloween hechos aquí (src/personaje/halloween.ts: textura repintada,
+  piezas navideñas ocultas y accesorios propios). Retratos sacados con: node herramientas/retratos.mjs
+
+monstruos/ (monstruo-01 a monstruo-05, .vrm y retratos .jpg)
+  Colección "Halloween Rising" (Polygonal Mind, 2023), estilo "Cute": Mocking Spit Grape, Mimic Slime Orange,
+  Esktix Midnight, Harvester Lavender y Wendigo Star Sky.
+  Licencia CC0 según el registro Open Source Avatars de ToxSam (data/projects.json → halloween-rising: "CC0").
+  Cambios hechos aquí: texturas PNG pasadas a JPG. Se preparan con: node herramientas/monstruos.mjs

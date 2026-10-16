@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { cargar, type Origen as Paquete } from '../../nucleo/modelos';
 import type { Aspecto } from '../../personaje/catalogo';
-import { crearKenney, type Kenney } from '../../personaje/kenney';
+import { ALTO, crearKenney, type Kenney } from '../../personaje/kenney';
 import { alCambiarVolumen, cargarMuestras, tocarMuestra, volumen } from '../sonido';
 import { ajustesPartida } from '../marco';
 
@@ -265,8 +265,8 @@ export function crearEscenario(caja: HTMLElement, encuadre: Encuadre) {
       const k = await crearKenney(aspecto);
       k.grupo.updateMatrixWorld(true);
       const medida = new THREE.Box3();
-      // Los avatares anime traen partes que no se ven en la caja de su geometría: se miden ya posados
-      if (k.grupo.userData.vrm) medida.setFromObject(k.grupo, true);
+      // Los avatares anime ya vienen a la altura ALTO (los monstruos, algo más bajos): medirlos contaría sombreros y alas
+      if (k.grupo.userData.vrm) k.grupo.scale.multiplyScalar(alto / ALTO);
       else k.grupo.traverse((o) => { const m = o as THREE.SkinnedMesh; if (m.isSkinnedMesh && m.visible) { m.geometry.computeBoundingBox(); medida.union(m.geometry.boundingBox!.clone().applyMatrix4(m.matrixWorld)); } });
       if (!medida.isEmpty()) k.grupo.scale.multiplyScalar(alto / Math.max(0.01, medida.max.y - medida.min.y));
       escena.add(k.grupo);

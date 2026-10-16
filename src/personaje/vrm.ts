@@ -3,7 +3,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { ALTO, type Kenney } from './kenney';
 
-// Avatares anime en formato VRM (por ahora, los chibis de public/avatares/chibis). Se arman con la misma "cara" que
+// Avatares anime en formato VRM: los chibis de public/avatares/chibis (también disfrazados de Halloween, con el id
+// terminado en "-h") y los monstruos de public/avatares/monstruos. Se arman con la misma "cara" que
 // los personajes de Kenney (grupo + animar), así cualquier juego los usa sin cambios. Las animaciones salen de
 // public/avatares/animaciones.json (ver herramientas/animaciones.mjs) y se aplican a los huesos humanoides del VRM.
 
@@ -23,9 +24,29 @@ export const CHIBIS: [string, string][] = [
   ['chibi-13', 'Nick North'], ['chibi-14', 'Krampus Wreath'], ['chibi-15', 'Cookie Gingerbread'], ['chibi-16', 'Snore Stocking'],
 ];
 
+/** Los mismos chibis disfrazados para Halloween (ver halloween.ts). */
+export const HALLOWEEN: [string, string][] = [
+  ['chibi-01-h', 'Calabacín'], ['chibi-02-h', 'Lobito'], ['chibi-03-h', 'Diablita'], ['chibi-04-h', 'Espíritu del bosque'],
+  ['chibi-05-h', 'Muñeco embrujado'], ['chibi-06-h', 'Gato negro'], ['chibi-07-h', 'Bruja verde'], ['chibi-08-h', 'Reina fantasma'],
+  ['chibi-09-h', 'Conejito maldito'], ['chibi-10-h', 'Vampira'], ['chibi-11-h', 'Murciélago'], ['chibi-12-h', 'Bruja morada'],
+  ['chibi-13-h', 'Espantapájaros'], ['chibi-14-h', 'Demonio'], ['chibi-15-h', 'Dulce o truco'], ['chibi-16-h', 'Pijama de fantasmas'],
+];
+/** El segundo disfraz de cada chibi. */
+export const HALLOWEEN2: [string, string][] = [
+  ['chibi-01-h2', 'Momia'], ['chibi-02-h2', 'Osito zombi'], ['chibi-03-h2', 'Fantasmita'], ['chibi-04-h2', 'Wendigo'],
+  ['chibi-05-h2', 'Rey calabaza'], ['chibi-06-h2', 'Hechicero'], ['chibi-07-h2', 'Araña'], ['chibi-08-h2', 'Hada oscura'],
+  ['chibi-09-h2', 'Segador'], ['chibi-10-h2', 'Fantasma pirata'], ['chibi-11-h2', 'Vampiro'], ['chibi-12-h2', 'Catrina'],
+  ['chibi-13-h2', 'Hombre lobo'], ['chibi-14-h2', 'Frankenstein'], ['chibi-15-h2', 'Bruja caramelo'], ['chibi-16-h2', 'Esqueleto'],
+];
+/** Monstruos tiernos de "Halloween Rising" (CC0); los prepara herramientas/monstruos.mjs. */
+export const MONSTRUOS: [string, string][] = [
+  ['monstruo-01', 'Ojo Burlón'], ['monstruo-02', 'Gelatina Mímica'], ['monstruo-03', 'Esktix'], ['monstruo-04', 'Segador'], ['monstruo-05', 'Wendigo'],
+];
+
 /** Si un id de avatar anime es válido (los que se guardan en la apariencia). */
-export const esVrm = (id: unknown): id is string => typeof id === 'string' && /^chibi-\d{2}$/.test(id);
-export const retratoVrm = (id: string) => `${RAIZ}chibis/${id}.jpg`;
+export const esVrm = (id: unknown): id is string => typeof id === 'string' && /^(chibi-\d{2}(-h2?)?|monstruo-\d{2})$/.test(id);
+const carpeta = (id: string) => (/-h\d?$/.test(id) ? 'halloween' : id.startsWith('monstruo-') ? 'monstruos' : 'chibis');
+export const retratoVrm = (id: string) => `${RAIZ}${carpeta(id)}/${id}.jpg`;
 
 const bajar = (url: string) => {
   let p = archivos.get(url);
@@ -53,7 +74,8 @@ function clipsPara(vrm: VRM, todas: Record<string, Animacion>) {
 
 export async function crearVrm(id: string): Promise<Kenney> {
   animaciones ??= fetch(`${RAIZ}animaciones.json`).then((r) => r.json());
-  const [datos, todas] = await Promise.all([bajar(`${RAIZ}chibis/${id}.vrm`), animaciones]);
+  const base = id.replace(/-h\d?$/, ''), disfraz = base !== id, monstruo = base.startsWith('monstruo-');
+  const [datos, todas] = await Promise.all([bajar(`${RAIZ}${monstruo ? 'monstruos' : 'chibis'}/${base}.vrm`), animaciones]);
   const gltf = await cargador.parseAsync(datos, '');
   const vrm = gltf.userData.vrm as VRM;
   VRMUtils.removeUnnecessaryVertices(vrm.scene);
@@ -96,11 +118,14 @@ export async function crearVrm(id: string): Promise<Kenney> {
   };
   api.animar('idle');
   mixer.update(0); vrm.update(0);
-  // Mismo alto que los personajes de Kenney, con los pies en el suelo (medido ya en la pose de reposo)
+  // Mismo alto que los personajes de Kenney, con los pies en el suelo (medido ya en la pose de reposo).
+  // Los monstruos son anchos: a la misma altura se verían gigantes, así que van más bajos.
   grupo.updateMatrixWorld(true);
   const caja = new THREE.Box3().setFromObject(vrm.scene, true), alto = Math.max(0.01, caja.max.y - caja.min.y);
-  vrm.scene.scale.setScalar(ALTO / alto);
-  vrm.scene.position.y = -caja.min.y * (ALTO / alto);
+  const escala = (monstruo ? ALTO * 0.72 : ALTO) / alto;
+  vrm.scene.scale.setScalar(escala);
+  vrm.scene.position.y = -caja.min.y * escala;
   grupo.userData.kenney = api;
+  if (disfraz) (await import('./halloween')).vestirHalloween(api, id);
   return api;
 }

@@ -6,7 +6,11 @@ import type { Aspecto, Personaje } from './catalogo';
 import { crearKenney, type Kenney, type Ranura } from './kenney';
 import { miniatura, tarjeta, type Encuadre } from './miniaturas';
 import { crearVisor } from './visor';
-import { CHIBIS, retratoVrm } from './vrm';
+import { CHIBIS, HALLOWEEN, HALLOWEEN2, MONSTRUOS, retratoVrm } from './vrm';
+
+// La galería de avatares anime, por grupos; el gachapón saca de todos
+const GALERIA: [string, [string, string][]][] = [['Halloween', HALLOWEEN], ['Más disfraces', HALLOWEEN2], ['Monstruos', MONSTRUOS], ['Navidad', CHIBIS]];
+const TODOS = GALERIA.flatMap(([, lista]) => lista);
 
 const BORRADOR = 'susto.personaje';
 const numerados = (palabra: string) => C.BASES.map((_, i) => `${palabra} ${i + 1}`);
@@ -65,7 +69,7 @@ export function Creador() {
   const [seccion, setSeccion] = useState('base');
   // Dos caminos: elegir un avatar anime (chibi) de la galería, o armar uno propio pieza por pieza
   const [modo, setModo] = useState<'anime' | 'crear'>(p.apariencia.vrm || !localStorage.getItem(BORRADOR) ? 'anime' : 'crear');
-  const chibi = CHIBIS.find(([id]) => id === p.apariencia.vrm);
+  const chibi = TODOS.find(([id]) => id === p.apariencia.vrm);
   const [girando, setGirando] = useState(false);
   const elegirChibi = (id: string) => { setP((antes) => ({ ...antes, apariencia: { ...C.aspectoBase(), vrm: id } })); setAviso(null); };
   // Gachapón: la cápsula se sacude un momento y sale un chibi al azar (distinto del que tienes)
@@ -73,7 +77,7 @@ export function Creador() {
     if (girando) return;
     setGirando(true);
     setTimeout(() => {
-      const otros = CHIBIS.filter(([id]) => id !== p.apariencia.vrm), [id, nombre] = otros[Math.floor(Math.random() * otros.length)];
+      const otros = TODOS.filter(([id]) => id !== p.apariencia.vrm), [id, nombre] = otros[Math.floor(Math.random() * otros.length)];
       elegirChibi(id); setGirando(false);
       setAviso({ tipo: 'ok', texto: `¡Del gachapón salió ${nombre}!` });
     }, 1300);
@@ -205,15 +209,20 @@ export function Creador() {
                 <button class="boton principal" disabled={girando} onClick={girar}>{girando ? 'Girando…' : 'Girar el gachapón'}</button>
               </div>
             </div>
-            <div class="preseleccion chibis">
-              {CHIBIS.map(([id, nombre]) => (
-                <button key={id} class={p.apariencia.vrm === id ? 'elegida' : ''} aria-pressed={p.apariencia.vrm === id} onClick={() => elegirChibi(id)}>
-                  <img src={retratoVrm(id)} alt="" width="96" height="96" loading="lazy" />
-                  <b>{nombre}</b>
-                </button>
-              ))}
-            </div>
-            <p class="tenue chico">Chibis de la colección "Xmas Chibis" (licencia CC0, libres para usar). Tu nombre, frase y voz se arreglan en "Crear el mío" → Personalidad.</p>
+            {GALERIA.map(([titulo, lista]) => (
+              <section key={titulo} class="grupo-galeria">
+                <h3>{titulo}</h3>
+                <div class="preseleccion chibis">
+                  {lista.map(([id, nombre]) => (
+                    <button key={id} class={p.apariencia.vrm === id ? 'elegida' : ''} aria-pressed={p.apariencia.vrm === id} onClick={() => elegirChibi(id)}>
+                      <img src={retratoVrm(id)} alt="" width="96" height="96" loading="lazy" />
+                      <b>{nombre}</b>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ))}
+            <p class="tenue chico">Chibis de "Xmas Chibis" (con disfraces de Halloween hechos aquí) y monstruos de "Halloween Rising", ambas colecciones con licencia CC0, libres para usar. Tu nombre, frase y voz se arreglan en "Crear el mío" → Personalidad.</p>
             {chibi && <p class="aviso ok">Elegiste a <b>{chibi[1]}</b>. {sesion.usuarioId ? 'Aprieta "Guardar personaje" para que sea el tuyo.' : 'Entra con Discord para guardarlo.'}</p>}
           </>
         )}
