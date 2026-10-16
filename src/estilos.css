@@ -250,13 +250,16 @@ body.foto .mesa { padding: 10px; }
 .luz.encendida { background: radial-gradient(circle at 40% 35%, #fff7c2, #ffd23c 60%, #f0a020); box-shadow: 0 0 18px #ffd23c; border-color: #b8860b; }
 
 .mapa { width: 100%; height: auto; border-radius: 12px; background: #9fd88a; touch-action: manipulation; }
-.mapa .camino { stroke: #8a5a38; stroke-width: 1.2; stroke-linejoin: round; stroke-linecap: round; }
-.mapa .camino.vuelta { stroke-dasharray: 2 1.6; }
+.mapa .camino { stroke: #e8722a; stroke-width: 1.3; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 2.4 1.2; animation: ruta-avanza 1s linear infinite; }
+.mapa .camino-borde { stroke: #ffffff; stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; opacity: .85; }
+@keyframes ruta-avanza { to { stroke-dashoffset: -3.6; } }
+@media (prefers-reduced-motion: reduce) { .mapa .camino { animation: none; } }
+.mapa .camino.vuelta { stroke: #8a5a38; stroke-dasharray: 1 1.4; animation: none; }
 .mapa .zona { fill: transparent; }
 .mapa .casa, .mapa .correo { cursor: pointer; }
 .mapa .correo { cursor: default; }
 .mapa .cuerpo { fill: #fff8e6; stroke: #5a4a3a; stroke-width: .5; }
-.mapa .techo { fill: #ef5565; stroke: #5a4a3a; stroke-width: .5; }
+.mapa .techo { fill: var(--techo, #ef5565); stroke: #5a4a3a; stroke-width: .5; }
 .mapa .correo .cuerpo { fill: #ffd23c; }
 .mapa .sobre { fill: none; stroke: #5a4a3a; stroke-width: .5; }
 .mapa .casa.visitada .techo { fill: #3f8cff; }
@@ -452,7 +455,17 @@ body.daltonico { --alga: #56b4e9; --sangre: #e69f00; }
 .voltorb .pista.esquina { background: none; }
 
 /* Ruta del Cartero: calles y casas urgentes */
-.mapa .calles { stroke: #c9e8b4; stroke-width: 1.6; fill: none; }
+.mapa .calles { stroke: #c9ccd1; stroke-width: 1.7; fill: none; }
+.mapa .linea-calle { stroke: #ffffff; stroke-width: .14; stroke-dasharray: .8 .8; fill: none; opacity: .8; }
+.mapa .arbol { fill: #3f9a4a; } .mapa .brillo { fill: #6cc85a; } .mapa .sombra-arbol { fill: rgba(0, 40, 0, .18); }
+.mapa .flor { opacity: .9; } .mapa .flor.f0 { fill: #ff7ab8; } .mapa .flor.f1 { fill: #ffd23c; } .mapa .flor.f2 { fill: #ffffff; }
+.mapa .laguna { fill: #5ac8ec; stroke: #3fa0c8; stroke-width: .3; } .mapa .plaza { fill: #e8dcc0; } .mapa .pileta { fill: #9fe0ff; stroke: #c9b89a; stroke-width: .4; }
+.mapa .chimenea { fill: #a0503a; } .mapa .puerta { fill: #8a5a38; } .mapa .ventana { fill: #9fe0ff; stroke: #5a4a3a; stroke-width: .25; }
+.mapa .asta { stroke: #5a4a3a; stroke-width: .4; } .mapa .banderin { fill: #ef5565; } .mapa .rotulo { font: 800 2.2px var(--cuerpo); fill: var(--noche); text-anchor: middle; }
+.mapa .listo { font-size: 3px; fill: #1f8a4c; display: none; } .mapa .visitada .listo { display: inline; }
+.mapa .bici { fill: #e8722a; stroke: #ffffff; stroke-width: .6; pointer-events: none; animation: urgente 1.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.mapa .urgente .reloj { animation: urgente 1s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes urgente { 50% { transform: scale(1.25); } }
 .mapa .urgente .techo { fill: #ff9a2e; }
 .mapa .reloj { font-size: 4.2px; text-anchor: middle; }
 

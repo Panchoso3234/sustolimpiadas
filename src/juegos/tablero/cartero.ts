@@ -65,18 +65,39 @@ export async function crear(c: Contexto): Promise<Partida> {
     lienzo.appendChild(e);
     return e;
   };
-  // Calles de fondo
+  // El barrio: manzanas con árboles y flores (una laguna y una plaza), y calles grises con línea al centro
+  const b = generador(`${c.semilla}|barrio`), laguna = [Math.floor(b() * 12), Math.floor(b() * 8)], plaza = [(laguna[0] + 6) % 12, (laguna[1] + 3) % 8];
+  for (let mx = 0; mx < 13; mx++) for (let my = 0; my < 8; my++) {
+    const x0 = (mx - 1) * 8 + 4.8, y0 = (my - 1) * 8 + 4.8 + 0;
+    if (mx === laguna[0] && my === laguna[1]) { forma('ellipse', { cx: x0 + 3.2, cy: y0 + 3.2, rx: 2.8, ry: 2.2, class: 'laguna' }); continue; }
+    if (mx === plaza[0] && my === plaza[1]) { forma('rect', { x: x0 + 0.4, y: y0 + 0.4, width: 5.6, height: 5.6, rx: 1, class: 'plaza' }); forma('circle', { cx: x0 + 3.2, cy: y0 + 3.2, r: 1.2, class: 'pileta' }); continue; }
+    for (let k = 0; k < 3; k++) { if (b() < 0.45) continue; const x = x0 + 0.9 + b() * 4.6, y = y0 + 0.9 + b() * 4.6; forma('circle', { cx: x + 0.25, cy: y + 0.35, r: 1.1, class: 'sombra-arbol' }); forma('circle', { cx: x, cy: y, r: 1.05, class: 'arbol' }); forma('circle', { cx: x - 0.3, cy: y - 0.3, r: 0.45, class: 'brillo' }); }
+    for (let k = 0; k < 2; k++) if (b() < 0.5) forma('circle', { cx: x0 + b() * 6.4, cy: y0 + b() * 6.4, r: 0.35, class: `flor f${Math.floor(b() * 3)}` });
+  }
   const calles: string[] = [];
   for (let x = 4; x < ANCHO; x += 8) calles.push(`M${x} 0 V${ALTO}`);
   for (let y = 4; y < ALTO; y += 8) calles.push(`M0 ${y} H${ANCHO}`);
   forma('path', { class: 'calles', d: calles.join(' ') });
-  const camino = forma('polyline', { class: 'camino', fill: 'none' }), vuelta = forma('polyline', { class: 'camino vuelta', fill: 'none' });
+  forma('path', { class: 'linea-calle', d: calles.join(' ') });
+  const borde = forma('polyline', { class: 'camino-borde', fill: 'none' }), camino = forma('polyline', { class: 'camino', fill: 'none' }), vuelta = forma('polyline', { class: 'camino vuelta', fill: 'none' });
+  // El cartero: un punto que marca dónde va (al final de la ruta)
+  const bici = forma('circle', { r: 1.5, class: 'bici' });
   const marcas = puntos.map((p, i) => {
     const g = forma('g', { class: i === 0 ? 'correo' : 'casa', transform: `translate(${p.x} ${p.y})`, tabindex: i === 0 ? -1 : 0, role: 'button', 'aria-label': i === 0 ? 'Correo' : `Casa ${i}` });
     const pieza = (tag: string, a: Record<string, string | number>, texto?: string) => { const e = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(a)) e.setAttribute(k, String(v)); if (texto) e.textContent = texto; g.appendChild(e); return e; };
     pieza('circle', { r: 6.5, class: 'zona' });
-    if (i === 0) { pieza('rect', { x: -4, y: -3, width: 8, height: 6, rx: 1, class: 'cuerpo' }); pieza('path', { d: 'M-4 -3 L0 0.6 L4 -3', class: 'sobre' }); }
-    else { pieza('rect', { x: -3.2, y: -1.2, width: 6.4, height: 4.6, class: 'cuerpo' }); pieza('path', { d: 'M-4.3 -1 L0 -4.8 L4.3 -1 Z', class: 'techo' }); }
+    if (i === 0) {
+      pieza('rect', { x: -4.6, y: -3.4, width: 9.2, height: 6.8, rx: 1, class: 'cuerpo' }); pieza('path', { d: 'M-4.6 -3.4 L0 0.6 L4.6 -3.4', class: 'sobre' });
+      pieza('path', { d: 'M3.6 -3.4 V-8.6', class: 'asta' }); pieza('path', { d: 'M3.6 -8.6 L7 -7.6 L3.6 -6.6 Z', class: 'banderin' });
+      pieza('text', { y: 5.6, class: 'rotulo' }, 'CORREO');
+    } else {
+      pieza('rect', { x: 1.6, y: -4.6, width: 1.1, height: 2.2, class: 'chimenea' });
+      pieza('rect', { x: -3.2, y: -1.2, width: 6.4, height: 4.6, class: 'cuerpo' });
+      pieza('path', { d: 'M-4.3 -1 L0 -4.8 L4.3 -1 Z', class: 'techo', style: `--techo: ${['#ef5565', '#3f8cff', '#8a5ad9', '#3fae6a', '#d9443a', '#2a9fd6'][i % 6]}` });
+      pieza('rect', { x: -0.7, y: 1.1, width: 1.4, height: 2.3, class: 'puerta' });
+      for (const x of [-2.5, 1.3]) pieza('rect', { x, y: 0, width: 1.2, height: 1.1, class: 'ventana' });
+      pieza('text', { x: 4.4, y: -2.4, class: 'listo' }, '✔');
+    }
     const numero = pieza('text', { y: 8.6, class: 'orden' });
     if (urgentes.includes(i)) { g.classList.add('urgente'); pieza('text', { y: -6.2, class: 'reloj' }, '⏰'); g.setAttribute('aria-label', `Casa ${i}, urgente`); }
     if (i > 0) { g.addEventListener('click', () => visitar(i)); g.addEventListener('keydown', (e) => { if ((e as KeyboardEvent).key === 'Enter' || (e as KeyboardEvent).key === ' ') { e.preventDefault(); visitar(i); } }); }
@@ -90,6 +111,9 @@ export async function crear(c: Contexto): Promise<Partida> {
   const pintar = () => {
     const texto = (lista: P[]) => porCalles(lista).map((p) => `${p.x},${p.y}`).join(' ');
     camino.setAttribute('points', texto([0, ...ruta].map((i) => puntos[i])));
+    borde.setAttribute('points', camino.getAttribute('points')!);
+    const fin = puntos[ruta[ruta.length - 1] ?? 0];
+    bici.setAttribute('cx', String(fin.x + 4.6)); bici.setAttribute('cy', String(fin.y + 3.2));
     const completa = ruta.length === casas, ultima = puntos[ruta[ruta.length - 1] ?? 0];
     vuelta.setAttribute('points', texto([ultima, puntos[0]]));
     vuelta.style.display = completa ? '' : 'none';
