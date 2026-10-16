@@ -24,6 +24,7 @@ export const DUELOS: Record<string, Formato> = {
   bolos: 'turnos',
   minigolf: 'turnos',
   agujero: 'turnos',
+  billar: 'turnos',
   sumo: 'mundo',
   tanques: 'mundo',
 };
