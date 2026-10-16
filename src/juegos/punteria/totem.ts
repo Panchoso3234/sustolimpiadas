@@ -28,15 +28,45 @@ export async function crear(c: Contexto): Promise<Partida> {
   k.grupo.rotation.y = 2.6;
   k.animar('holding-right');
 
-  // Diana sobre un poste
-  const poste = caja(0.5, ALTO, 0.5, '#8a5a38');
-  poste.position.set(0, ALTO / 2 - 0.3, Z - 0.4);
-  diana.add(poste);
-  ANILLOS.forEach((color, i) => {
-    const disco = new THREE.Mesh(new THREE.CircleGeometry(RADIO * (1 - i / ANILLOS.length), 40), new THREE.MeshBasicMaterial({ color }));
-    disco.position.set(0, ALTO, Z + i * 0.01);
-    diana.add(disco);
-  });
+  // El tótem: cabezas talladas apiladas que sostienen la diana, y un águila con las alas abiertas arriba
+  const cara = (y: number, alto: number, color: string, boca: string) => {
+    const g = new THREE.Group(), bloque = new THREE.Mesh(new THREE.BoxGeometry(1.5, alto, 1), mat(color));
+    g.add(bloque);
+    for (const x of [-0.33, 0.33]) { const ojo = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.2, 0.08), mat('#f3ecdc')), pupila = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.16, 0.1), mat('#1a1a22')); ojo.position.set(x, alto * 0.18, 0.5); pupila.position.set(x, alto * 0.18, 0.52); g.add(ojo, pupila); }
+    const nariz = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.36, 4), mat('#3a2a20')); nariz.rotation.x = Math.PI / 2; nariz.position.set(0, -alto * 0.02, 0.58); g.add(nariz);
+    const labio = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.14, 0.08), mat(boca)); labio.position.set(0, -alto * 0.28, 0.5); g.add(labio);
+    for (const x of [-0.25, 0, 0.25]) { const diente = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.1), mat('#f3ecdc')); diente.position.set(x, -alto * 0.28, 0.53); g.add(diente); }
+    g.position.set(0, y, Z - 0.45);
+    return g;
+  };
+  const altoCara = (ALTO - RADIO - 0.2) / 3;
+  ['#b5653a', '#3f8c7a', '#c9a227'].forEach((color, i) => diana.add(cara(altoCara * (i + 0.5), altoCara * 0.96, color, ['#ef5565', '#ffd23c', '#3f8cff'][i])));
+  const aguila = new THREE.Group(), cabeza = cara(0, 0.9, '#ef5565', '#ffd23c');
+  cabeza.position.set(0, 0, 0); aguila.add(cabeza);
+  const pico = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.6, 4), mat('#ffd23c')); pico.rotation.x = Math.PI / 2; pico.position.set(0, -0.05, 0.75); aguila.add(pico);
+  for (const lado of [-1, 1]) for (let k2 = 0; k2 < 3; k2++) { const pluma = new THREE.Mesh(new THREE.BoxGeometry(1.1 - k2 * 0.2, 0.32, 0.18), mat(['#3f8cff', '#ffd23c', '#ef5565'][k2])); pluma.position.set(lado * (1.25 + k2 * 0.35), 0.15 - k2 * 0.22, 0); pluma.rotation.z = lado * (0.35 + k2 * 0.12); aguila.add(pluma); }
+  aguila.position.set(0, ALTO + RADIO + 0.65, Z - 0.45);
+  diana.add(aguila);
+  // La diana: paja trenzada con anillos de colores (una textura) y los números de cada anillo
+  const lienzo = document.createElement('canvas'); lienzo.width = lienzo.height = 512;
+  const g = lienzo.getContext('2d')!;
+  ANILLOS.forEach((color, i) => { g.fillStyle = color; g.beginPath(); g.arc(256, 256, 256 * (1 - i / ANILLOS.length), 0, Math.PI * 2); g.fill(); });
+  for (let i = 0; i < 1400; i++) { const a = Math.random() * Math.PI * 2, d = Math.random() * 250; g.strokeStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)'; g.lineWidth = 2; g.beginPath(); g.moveTo(256 + Math.cos(a) * d, 256 + Math.sin(a) * d); g.lineTo(256 + Math.cos(a + 0.05) * d, 256 + Math.sin(a + 0.05) * d); g.stroke(); }
+  g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 3;
+  ANILLOS.forEach((_, i) => { g.beginPath(); g.arc(256, 256, 256 * (1 - i / ANILLOS.length) - 1, 0, Math.PI * 2); g.stroke(); });
+  const texDiana = new THREE.CanvasTexture(lienzo); texDiana.colorSpace = THREE.SRGBColorSpace;
+  const cara0 = new THREE.Mesh(new THREE.CircleGeometry(RADIO, 48), new THREE.MeshLambertMaterial({ map: texDiana }));
+  cara0.position.set(0, ALTO, Z + 0.01);
+  diana.add(cara0);
+  // Antorchas tiki a los lados, con fuego que titila
+  const llamas: THREE.Mesh[] = [];
+  for (const x of [-4.4, 4.4]) {
+    const palo = caja(0.16, 3.2, 0.16, '#6f4826'); palo.position.set(x, 1.6, Z + 0.5);
+    const copa = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.18, 0.45, 8), mat('#c9b25a')); copa.position.set(x, 3.4, Z + 0.5);
+    const llama = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.8, 7), new THREE.MeshBasicMaterial({ color: '#ffb02e' })); llama.position.set(x, 3.95, Z + 0.5);
+    const centro = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.45, 6), new THREE.MeshBasicMaterial({ color: '#fff2a0' })); centro.position.y = -0.1; llama.add(centro);
+    e.escena.add(palo, copa, llama); llamas.push(llama);
+  }
   const respaldo = new THREE.Mesh(new THREE.CylinderGeometry(RADIO + 0.2, RADIO + 0.2, 0.3, 40), mat('#a06a3c'));
   respaldo.rotation.x = Math.PI / 2;
   respaldo.position.set(0, ALTO, Z - 0.17);
@@ -58,14 +88,16 @@ export async function crear(c: Contexto): Promise<Partida> {
   const moldeFlecha = new THREE.Group(), asta = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.5, 6), mat('#e9dcc0'));
   asta.rotation.x = Math.PI / 2;
   asta.position.z = 0.75;
-  const plumas = caja(0.24, 0.24, 0.3, '#ef5565');
-  plumas.position.z = 1.45;
-  moldeFlecha.add(asta, plumas);
+  const punta = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.22, 6), new THREE.MeshStandardMaterial({ color: '#c9ccd6', metalness: 0.7, roughness: 0.3 }));
+  punta.rotation.x = -Math.PI / 2; punta.position.z = -0.08;
+  moldeFlecha.add(asta, punta);
+  for (let i = 0; i < 3; i++) { const pluma = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.18, 0.34), mat(i ? '#ffffff' : '#ef5565')); pluma.position.set(0, 0, 1.38); const eje = new THREE.Group(); eje.rotation.z = (i / 3) * Math.PI * 2; pluma.position.y = 0.08; eje.add(pluma); eje.position.z = 0; moldeFlecha.add(eje); }
 
   const apunte = new THREE.Vector2(0, ALTO), plano = new THREE.Plane(new THREE.Vector3(0, 0, 1), -Z), toque = new THREE.Vector3();
   const mover = (ev: PointerEvent) => { if (e.apuntar(ev).ray.intersectPlane(plano, toque)) apunte.set(limitar(toque.x, -5, 5), limitar(toque.y, 0.8, 8.5)); };
   e.escuchar(e.lienzo, 'pointermove', mover);
 
+  let sacudida = 0;
   let flecha = 0, puntos = 0, centros = 0, fallidas = 0, mejor = 0, terminado = false, turno = 0.5, libre = 0;
   let vuelo: { o: THREE.Object3D; desde: THREE.Vector3; hasta: THREE.Vector3; t0: number } | null = null;
   const tiros: number[] = [];
@@ -103,7 +135,10 @@ export async function crear(c: Contexto): Promise<Partida> {
   if (import.meta.env.DEV) (window as unknown as { __juego: Record<string, unknown> }).__juego.estado = () => ({ apunte: apunte.toArray(), mira: mira.position.toArray(), tiros, vuelo: vuelo?.hasta.toArray() });
   anunciar();
   e.hud.puntos(0);
-  e.alCuadro((t) => {
+  e.alCuadro((t, dt) => {
+    llamas.forEach((l, i) => { const f2 = 1 + Math.sin(t * 13 + i * 2.1) * 0.12; l.scale.set(f2, 1 + Math.sin(t * 17 + i) * 0.18, f2); });
+    sacudida = Math.max(0, sacudida - dt * 4); cara0.position.z = Z + 0.01 - Math.sin(sacudida * 20) * sacudida * 0.08;
+    aguila.children.forEach((p, i) => { if (i > 1) p.rotation.x = Math.sin(t * 3 + i) * 0.05; });
     // La mira sigue al dedo pero se mece; cada flecha se mece un poco más
     const meneo = (0.34 + flecha * 0.03) * (1 + (c.nivel - 1) * 0.1);
     mira.position.x = apunte.x + (Math.sin(t * 1.7) + Math.sin(t * 2.9) * 0.5) * meneo;
@@ -115,11 +150,11 @@ export async function crear(c: Contexto): Promise<Partida> {
       const q = limitar((t - vuelo.t0) / VUELO, 0, 1);
       vuelo.o.position.lerpVectors(vuelo.desde, vuelo.hasta, q);
       vuelo.o.position.y += Math.sin(q * Math.PI) * 0.7;
-      if (q < 1) return;
+      if (q < 1) { e.chispas(vuelo.o.position.x, vuelo.o.position.y, vuelo.o.position.z + 0.6, ['#ffffff', '#fff2a0'], 1, 0.4); return; }
       vuelo.o.position.copy(vuelo.hasta);
       const d = Math.hypot(vuelo.hasta.x - diana.position.x, vuelo.hasta.y - ALTO), gana = d > RADIO ? 0 : Math.max(10, Math.ceil((1 - d / RADIO) * 10) * 10);
       if (!gana) { fallidas++; e.escena.remove(vuelo.o); }
-      else diana.attach(vuelo.o); // la flecha queda clavada y se mueve con la diana
+      else { diana.attach(vuelo.o); sacudida = 1; e.chispas(vuelo.hasta.x, vuelo.hasta.y, Z + 0.3, gana >= 90 ? ['#ffd23c', '#ffffff', '#ef5565'] : ['#d9b46a', '#8a5a38'], gana >= 90 ? 30 : 10, gana >= 90 ? 5 : 2.5); } // la flecha queda clavada y se mueve con la diana
       if (gana >= 90) centros++;
       mejor = Math.max(mejor, gana);
       puntos += gana;
