@@ -139,6 +139,8 @@ function puntaDe(malla: THREE.SkinnedMesh, hueso: string): THREE.Vector3 | null 
 export interface Kenney { grupo: THREE.Group; ranuras: Ranura[]; animar(nombre: string, unaVez?: boolean): void }
 
 export async function crearKenney(a: Aspecto): Promise<Kenney> {
+  // Avatar anime (VRM): se carga aparte y solo cuando alguien lo usa
+  if (a.vrm) return (await import('./vrm')).crearVrm(a.vrm);
   const [cuerpo, cabeza, datos, ayuda] = await Promise.all([
     base(`character-${BASES[a.cuerpo]}`), base(`character-${BASES[a.cabeza]}`), leerPaleta(), a.lentes > 0 ? base(AYUDAS[a.lentes]) : null,
   ]);

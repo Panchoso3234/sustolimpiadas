@@ -1,0 +1,82 @@
+[
+  {
+    "id": "chibi-01",
+    "nombre": "Elel Silverbell",
+    "archivo": "chibi-01.vrm"
+  },
+  {
+    "id": "chibi-02",
+    "nombre": "Paws Chestnut",
+    "archivo": "chibi-02.vrm"
+  },
+  {
+    "id": "chibi-03",
+    "nombre": "Holy Garland",
+    "archivo": "chibi-03.vrm"
+  },
+  {
+    "id": "chibi-04",
+    "nombre": "Comet Kringle",
+    "archivo": "chibi-04.vrm"
+  },
+  {
+    "id": "chibi-05",
+    "nombre": "Frosty Claus",
+    "archivo": "chibi-05.vrm"
+  },
+  {
+    "id": "chibi-06",
+    "nombre": "Merry Yulelog",
+    "archivo": "chibi-06.vrm"
+  },
+  {
+    "id": "chibi-07",
+    "nombre": "Pip Poinsenttia",
+    "archivo": "chibi-07.vrm"
+  },
+  {
+    "id": "chibi-08",
+    "nombre": "Crystal Yuletide",
+    "archivo": "chibi-08.vrm"
+  },
+  {
+    "id": "chibi-09",
+    "nombre": "Thumper Cranberry",
+    "archivo": "chibi-09.vrm"
+  },
+  {
+    "id": "chibi-10",
+    "nombre": "Clara Nutcracker",
+    "archivo": "chibi-10.vrm"
+  },
+  {
+    "id": "chibi-11",
+    "nombre": "Whisker Eggnog",
+    "archivo": "chibi-11.vrm"
+  },
+  {
+    "id": "chibi-12",
+    "nombre": "Piney Tinselbaun",
+    "archivo": "chibi-12.vrm"
+  },
+  {
+    "id": "chibi-13",
+    "nombre": "Nick North",
+    "archivo": "chibi-13.vrm"
+  },
+  {
+    "id": "chibi-14",
+    "nombre": "Krampus Wreath",
+    "archivo": "chibi-14.vrm"
+  },
+  {
+    "id": "chibi-15",
+    "nombre": "Cookie Gingerbread",
+    "archivo": "chibi-15.vrm"
+  },
+  {
+    "id": "chibi-16",
+    "nombre": "Snore Stocking",
+    "archivo": "chibi-16.vrm"
+  }
+]

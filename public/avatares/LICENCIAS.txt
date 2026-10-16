@@ -1,0 +1,14 @@
+Avatares anime de Las Sustolimpiadas
+
+chibis/ (chibi-01 a chibi-16, .vrm y retratos .jpg)
+  Colección "Xmas Chibis" (VIPE / Polygonal Mind, 2023), variante "Neutral".
+  Licencia CC0 según el registro Open Source Avatars de ToxSam (fundador de Polygonal Mind y CryptoAvatars):
+  https://github.com/ToxSam/open-source-avatars (data/projects.json → xmas-chibis: "CC0")
+  Nota: los archivos traen dentro metadatos de la época NFT con otros permisos ("Redistribution_Prohibited");
+  el registro de su creador los publica después como CC0. Cambios hechos aquí: textura PNG pasada a JPG de 1024 px.
+  Se preparan con: node herramientas/chibis.mjs
+
+animaciones.json
+  Universal Animation Library (Standard) de Quaternius, licencia CC0: https://quaternius.com
+  https://opengameart.org/content/universal-animation-library
+  Pasadas al esqueleto humanoide VRM con: node herramientas/animaciones.mjs <AnimationLibrary_Godot_Standard.glb>

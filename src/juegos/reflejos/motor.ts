@@ -265,7 +265,9 @@ export function crearEscenario(caja: HTMLElement, encuadre: Encuadre) {
       const k = await crearKenney(aspecto);
       k.grupo.updateMatrixWorld(true);
       const medida = new THREE.Box3();
-      k.grupo.traverse((o) => { const m = o as THREE.SkinnedMesh; if (m.isSkinnedMesh && m.visible) { m.geometry.computeBoundingBox(); medida.union(m.geometry.boundingBox!.clone().applyMatrix4(m.matrixWorld)); } });
+      // Los avatares anime traen partes que no se ven en la caja de su geometría: se miden ya posados
+      if (k.grupo.userData.vrm) medida.setFromObject(k.grupo, true);
+      else k.grupo.traverse((o) => { const m = o as THREE.SkinnedMesh; if (m.isSkinnedMesh && m.visible) { m.geometry.computeBoundingBox(); medida.union(m.geometry.boundingBox!.clone().applyMatrix4(m.matrixWorld)); } });
       if (!medida.isEmpty()) k.grupo.scale.multiplyScalar(alto / Math.max(0.01, medida.max.y - medida.min.y));
       escena.add(k.grupo);
       animados.push(k.grupo);

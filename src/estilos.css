@@ -551,6 +551,14 @@ body.foto ::-webkit-scrollbar { display: none; }
 .preseleccion button:hover { border-color: var(--tenue); }
 .preseleccion button.elegida { border-color: var(--calabaza); background: #3a2a1a; }
 .preseleccion img, .preseleccion .hueco { width: 96px; height: 96px; }
+.preseleccion.chibis img { border-radius: 50%; object-fit: cover; background: #2a1f4e; }
+/* Gachapón: una cápsula que se sacude mientras "gira" */
+.gachapon { display: flex; gap: 14px; align-items: center; padding: 12px; margin-bottom: 10px; border-radius: 14px; background: linear-gradient(135deg, #3a2a5e, #2a3a6e); }
+.gachapon .capsula { flex: 0 0 64px; height: 64px; border-radius: 50%; background: linear-gradient(#ff7ab8 50%, #ffffff 50%); border: 3px solid #fff3; position: relative; box-shadow: 0 4px 0 #0004; }
+.gachapon .capsula span { position: absolute; left: 6px; right: 6px; top: 29px; height: 6px; border-radius: 3px; background: #0002; }
+.gachapon.girando .capsula { animation: capsula .22s ease-in-out infinite alternate; }
+@keyframes capsula { from { transform: rotate(-18deg) scale(1); } to { transform: rotate(18deg) scale(1.1); } }
+@media (prefers-reduced-motion: reduce) { .gachapon.girando .capsula { animation: none; } }
 .preseleccion b { font-size: .95rem; }
 .preseleccion span { font-size: .75rem; color: var(--tenue); text-align: center; }
 .kart-objeto { position: absolute; right: 14px; top: 64px; width: 64px; height: 64px; border-radius: 16px; display: grid; place-items: center; font-size: 2.2rem; background: rgba(20, 32, 58, .65); border: 3px dashed rgba(255, 255, 255, .35); pointer-events: none; }

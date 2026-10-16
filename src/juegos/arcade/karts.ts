@@ -157,7 +157,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     auto.rotation.y = Math.PI; // los autos de Kenney miran hacia -z
     grupo.add(auto);
     piloto.grupo.position.set(0, 0.45, -0.15);
-    piloto.animar('sit');
+    piloto.animar(piloto.grupo.userData.vrm ? 'manejar' : 'sit'); // los avatares anime tienen su propia pose de manejar
     grupo.add(piloto.grupo);
     const s = sombra(1.3);
     s.scale.set(1, 1.7, 1);
