@@ -18,16 +18,52 @@ export async function crear(c: Contexto): Promise<Partida> {
   const mundo = new R.World({ x: 0, y: -22, z: 0 }), cuerpos: Cuerpo[] = [];
   mundo.createCollider(R.ColliderDesc.cuboid(40, 1, 40).setTranslation(0, -1, 0).setFriction(0.5));
 
-  const [k] = await Promise.all([e.personaje(c.aspecto, 2.4), e.modelo('tree_palmTall', -7.5, -17, 10, 0.5), e.modelo('tree_palmBend', 7.8, -19, 10, 3.4), e.modelo('rocks-sand-a', -8, -11, 0.9, 0.6, 'pirata'), e.modelo('rocks-sand-b', 6, -4, 0.7, 2, 'pirata')]);
+  const [k] = await Promise.all([e.personaje(c.aspecto, 2.4), e.modelo('tree_palmTall', -8, -17, 7, 0.5), e.modelo('tree_palmBend', 8.2, -19, 7, 3.4), e.modelo('rocks-sand-a', -8, -11, 0.9, 0.6, 'pirata'), e.modelo('rocks-sand-b', 6, -4, 0.7, 2, 'pirata')]);
 
   k.grupo.position.set(-4.3, 0, 2.2);
   k.grupo.rotation.y = Math.PI * 0.85;
 
   // Pista y flecha de la inclinación
-  const pista = new THREE.Mesh(new THREE.PlaneGeometry(ANCHO * 2 + 1.2, 28), new THREE.MeshStandardMaterial({ color: '#e3c88c', roughness: 1 }));
+  // Pista de tablas de madera, con las flechitas y puntos para apuntar
+  const lienzo = document.createElement('canvas'); lienzo.width = 256; lienzo.height = 1024;
+  const g = lienzo.getContext('2d')!;
+  for (let i = 0; i < 16; i++) { g.fillStyle = ['#e2b878', '#d9ad6c', '#e8c189', '#dcb072'][i % 4]; g.fillRect(i * 16, 0, 16, 1024); g.fillStyle = 'rgba(110,70,30,0.35)'; g.fillRect(i * 16 + 15, 0, 1, 1024); g.fillRect(i * 16, (i * 173) % 1024, 16, 1); }
+  g.fillStyle = '#c0483a';
+  for (let i = -3; i <= 3; i++) { const x = 128 + i * 26, y = 640 - Math.abs(i) * 30; g.beginPath(); g.moveTo(x, y - 22); g.lineTo(x - 8, y); g.lineTo(x + 8, y); g.fill(); }
+  for (let i = -2; i <= 2; i++) { g.beginPath(); g.arc(128 + i * 36, 860, 4, 0, Math.PI * 2); g.fill(); }
+  const texPista = new THREE.CanvasTexture(lienzo); texPista.colorSpace = THREE.SRGBColorSpace; texPista.anisotropy = 8;
+  const pista = new THREE.Mesh(new THREE.PlaneGeometry(ANCHO * 2 + 1.2, 28), new THREE.MeshStandardMaterial({ map: texPista, roughness: 0.55 }));
+  // Canaletas de bambú a los lados (con sus nudos)
+  for (const lado of [-1, 1]) {
+    const x = lado * (ANCHO + 0.85), cana = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 28, 10), mat('#c9b25a'));
+    cana.rotation.x = Math.PI / 2; cana.position.set(x, 0.2, -9); e.escena.add(cana);
+    for (let z = 4; z > -23; z -= 2.2) { const nudo = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.04, 6, 12), mat('#9a8338')); nudo.position.set(x, 0.2, z); e.escena.add(nudo); }
+  }
+  // Arco tiki detrás de los bolos, con su letrero y guirnalda de luces
+  const arco = new THREE.Group();
+  for (const lado of [-1, 1]) { const poste = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 4.6, 8), mat('#8a5a38')); poste.position.set(lado * 3.8, 2.3, 0); arco.add(poste); const cara = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.8, 0.5), mat(lado < 0 ? '#c0483a' : '#3f8cff')); cara.position.set(lado * 3.8, 4.7, 0); arco.add(cara); for (const ox of [-0.14, 0.14]) { const ojo = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.06), new THREE.MeshBasicMaterial({ color: '#ffffff' })); ojo.position.set(lado * 3.8 + ox, 4.85, 0.27); arco.add(ojo); } }
+  const viga = new THREE.Mesh(new THREE.BoxGeometry(8.4, 0.35, 0.4), mat('#6b4423')); viga.position.y = 4.1; arco.add(viga);
+  const cartel = document.createElement('canvas'); cartel.width = 512; cartel.height = 96;
+  const gc = cartel.getContext('2d')!; gc.fillStyle = '#2b1d10'; gc.fillRect(0, 0, 512, 96); gc.font = 'bold 60px sans-serif'; gc.textAlign = 'center'; gc.textBaseline = 'middle';
+  [...'BOLOS DE COCO'].forEach((l, i) => { gc.fillStyle = ['#ffd23c', '#ff7a3c', '#3fe07a', '#5ad1ff'][i % 4]; gc.fillText(l, 40 + i * 36, 50); });
+  const texCartel = new THREE.CanvasTexture(cartel); texCartel.colorSpace = THREE.SRGBColorSpace;
+  const letrero = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 1.2), new THREE.MeshBasicMaterial({ map: texCartel })); letrero.position.set(0, 3.35, 0.22); arco.add(letrero);
+  const focos: THREE.Mesh[] = [];
+  for (let i = 0; i < 15; i++) { const x = -3.6 + i * 0.514, foco = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffffff' })); foco.position.set(x, 4.35 - Math.sin((i / 14) * Math.PI) * 0.0 + 0.0, 0.25); arco.add(foco); focos.push(foco); }
+  arco.position.set(0, -0.9, FONDO - 3.6); arco.scale.setScalar(0.82); // más bajo, para que el letrero quepa en la pantalla
+  e.escena.add(arco);
+  // Antorchas tiki con fuego que titila
+  const llamas: THREE.Mesh[] = [];
+  for (const [x, z] of [[-4.9, 0.5], [4.9, 0.5], [-4.9, -11], [4.9, -11], [-4.9, -21], [4.9, -21]]) {
+    const palo = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 2.6, 6), mat('#8a5a38')); palo.position.set(x, 1.3, z);
+    const copa = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.14, 0.4, 8), mat('#c9b25a')); copa.position.set(x, 2.75, z);
+    const llama = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.6, 7), new THREE.MeshBasicMaterial({ color: '#ffb02e' })); llama.position.set(x, 3.2, z);
+    const centro = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.35, 6), new THREE.MeshBasicMaterial({ color: '#fff2a0' })); centro.position.set(0, -0.08, 0); llama.add(centro);
+    e.escena.add(palo, copa, llama); llamas.push(llama);
+  }
   pista.rotation.x = -Math.PI / 2;
   pista.position.set(0, 0.03, -9);
-  const raya = new THREE.Mesh(new THREE.PlaneGeometry(ANCHO * 2 + 1.2, 0.14), new THREE.MeshBasicMaterial({ color: '#b88a4a' }));
+  const raya = new THREE.Mesh(new THREE.PlaneGeometry(ANCHO * 2 + 1.2, 0.14), new THREE.MeshBasicMaterial({ color: '#d9443a' }));
   raya.rotation.x = -Math.PI / 2;
   raya.position.set(0, 0.05, LINEA - 0.9);
   const flecha = new THREE.Group(), cuerpoFlecha = caja(1.6, 0.12, 0.3, '#ef5565'), punta = new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.7, 4), mat('#ef5565'));
@@ -63,9 +99,11 @@ export async function crear(c: Contexto): Promise<Partida> {
   e.escuchar(window, 'keydown', (ev) => { if (lanzada >= 0) return; if (ev.key === 'a' || ev.key === 'A') ponerEfecto(Math.max(-1, efecto - 1)); if (ev.key === 'd' || ev.key === 'D') ponerEfecto(Math.min(1, efecto + 1)); });
 
   // Diez bolos en triángulo
-  const moldeBolo = new THREE.Group(), tronco = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 1.4, 8), mat('#f3ecdc')), franja = new THREE.Mesh(new THREE.CylinderGeometry(0.235, 0.26, 0.2, 8), mat('#ef5565'));
-  franja.position.y = 0.3;
-  moldeBolo.add(tronco, franja);
+  const perfil = [[0, -0.7], [0.2, -0.7], [0.27, -0.48], [0.3, -0.22], [0.24, 0.05], [0.14, 0.27], [0.135, 0.42], [0.165, 0.56], [0.12, 0.67], [0, 0.71]].map(([x, y]) => new THREE.Vector2(x, y));
+  const blanco = new THREE.MeshStandardMaterial({ color: '#fbf6ea', roughness: 0.35 });
+  const moldeBolo = new THREE.Group(), tronco = new THREE.Mesh(new THREE.LatheGeometry(perfil, 14), blanco);
+  moldeBolo.add(tronco);
+  for (const y of [0.24, 0.34]) { const franja = new THREE.Mesh(new THREE.CylinderGeometry(0.155, 0.17, 0.05, 14), mat('#ef5565')); franja.position.y = y; moldeBolo.add(franja); }
   const bolos: { c: Cuerpo; x: number; z: number; caido: boolean }[] = [];
   for (let fila = 0; fila < 4; fila++) for (let i = 0; i <= fila; i++) {
     const x = (i - fila / 2) * 1.05, z = FONDO - fila * 0.92;
@@ -155,7 +193,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     enTurno += nuevos;
     botados += nuevos;
     let gana = nuevos * 10, texto = nuevos ? `${nuevos} ${nuevos === 1 ? 'bolo' : 'bolos'}` : 'Ninguno';
-    if (enTurno === 10 && tirada === 0) { gana += 50; chuzas++; texto = '¡Chuza! +50'; e.sonido.bien(); }
+    if (enTurno === 10 && tirada === 0) { gana += 50; chuzas++; texto = '¡Chuza! +50'; e.sonido.bien(); e.chispas(0, 1.5, FONDO - 1.4, ['#ffd23c', '#ef5565', '#3fe07a', '#5ad1ff', '#ffffff'], 70, 8); e.temblar(0.5); }
     else if (enTurno === 10) { gana += 20; semis++; texto = '¡Semichuza! +20'; e.sonido.bien(); }
     else if (!nuevos) e.sonido.mal();
     puntos += gana;
@@ -173,6 +211,8 @@ export async function crear(c: Contexto): Promise<Partida> {
   anunciar();
   e.hud.puntos(0);
   e.alCuadro((t, dt) => {
+    llamas.forEach((l, i) => { const f = 1 + Math.sin(t * 13 + i * 2.1) * 0.12 + Math.sin(t * 23 + i) * 0.06; l.scale.set(f, 1 + Math.sin(t * 17 + i) * 0.18, f); });
+    focos.forEach((f, i) => (f.material as THREE.MeshBasicMaterial).color.setHSL((i * 0.13 + t * 0.2) % 1, 0.9, Math.sin(t * 4 + i) > 0 ? 0.65 : 0.45));
     seguir(cuerpos);
     const v = tiro.tirando && tiro.dy > 0.02 ? velocidad(tiro.dx, tiro.dy, tiro.fuerza) : null;
     puntosGuia.forEach((p, i) => { p.visible = !!v && tiro.fuerza > 0.12 && lanzada < 0; if (v) { const s = (i + 1) * 0.07; p.position.set(salida + v.x * s, 0.3, LINEA + v.z * s); } });
