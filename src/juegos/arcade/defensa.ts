@@ -86,6 +86,28 @@ export async function crear(c: Contexto): Promise<Partida> {
   portal.position.set(inicio.x - CELDA * 0.6, 0.7, inicio.z); portal.rotation.y = Math.PI / 2;
   e.escena.add(portal);
   await bosque(e.escena, 'pueblo', 'tree', alrededor(r, 26, AN + 1, FO + 1, 1.2, 5, [1.2, 2.2]).map((p) => ({ ...p, y: -0.9 }))).catch(() => null);
+  // Flores en el pasto, piedritas al borde del camino y una cerca de madera alrededor
+  const decor = new THREE.Object3D(), tonoDecor = new THREE.Color();
+  const flores = new THREE.InstancedMesh(new THREE.SphereGeometry(0.07, 6, 4), new THREE.MeshLambertMaterial(), 140);
+  const piedras = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.11, 0), mat('#9a948a'), 120);
+  let nf = 0, np = 0;
+  for (let cz = 0; cz < FILAS; cz++) for (let cx = 0; cx < COLS; cx++) {
+    const p = centro(cx, cz), tierra = camino.has(`${cx},${cz}`);
+    if (!tierra && nf < 140 && r() < 0.55) for (let k = 0; k < 2 && nf < 140; k++) { decor.position.set(p.x + (r() - 0.5) * CELDA * 0.8, 0.04, p.z + (r() - 0.5) * CELDA * 0.8); decor.scale.setScalar(1); decor.updateMatrix(); flores.setMatrixAt(nf, decor.matrix); flores.setColorAt(nf++, tonoDecor.set(['#ffffff', '#ffd23c', '#ff7ab8', '#c79bff'][Math.floor(r() * 4)])); }
+    if (tierra && np < 120) for (let k = 0; k < 2 && np < 120; k++) { const lado = r() < 0.5 ? -1 : 1, enX = r() < 0.5; decor.position.set(p.x + (enX ? lado * CELDA * 0.46 : (r() - 0.5) * CELDA), -0.06, p.z + (enX ? (r() - 0.5) * CELDA : lado * CELDA * 0.46)); decor.rotation.set(r() * 3, r() * 3, 0); decor.scale.setScalar(0.7 + r() * 0.7); decor.updateMatrix(); piedras.setMatrixAt(np++, decor.matrix); }
+  }
+  flores.count = nf; piedras.count = np;
+  e.escena.add(flores, piedras);
+  const cerca = new THREE.InstancedMesh(new THREE.BoxGeometry(0.12, 0.55, 0.12), mat('#8a5a38'), 80);
+  let nc = 0;
+  for (let i = 0; i <= COLS; i += 1) for (const z of [-FO / 2 - 0.35, FO / 2 + 0.35]) { decor.position.set(-AN / 2 + i * CELDA, 0.1, z); decor.rotation.set(0, 0, 0); decor.scale.setScalar(1); decor.updateMatrix(); cerca.setMatrixAt(nc++, decor.matrix); }
+  for (let i = 1; i < FILAS; i++) for (const x of [-AN / 2 - 0.35, AN / 2 + 0.35]) { decor.position.set(x, 0.1, -FO / 2 + i * CELDA); decor.updateMatrix(); if (nc < 80) cerca.setMatrixAt(nc++, decor.matrix); }
+  cerca.count = nc;
+  e.escena.add(cerca);
+  for (const [w, d, x, z] of [[AN + 0.7, 0.06, 0, -FO / 2 - 0.35], [AN + 0.7, 0.06, 0, FO / 2 + 0.35], [0.06, FO + 0.7, -AN / 2 - 0.35, 0], [0.06, FO + 0.7, AN / 2 + 0.35, 0]]) for (const y of [0.18, 0.32]) { const tabla = new THREE.Mesh(new THREE.BoxGeometry(w, 0.07, d), mat('#a0703c')); tabla.position.set(x, y, z); e.escena.add(tabla); }
+  const texNube = (() => { const c2 = document.createElement('canvas'); c2.width = c2.height = 64; const g2 = c2.getContext('2d')!, gr = g2.createRadialGradient(32, 32, 4, 32, 32, 32); gr.addColorStop(0, 'rgba(0,30,0,0.22)'); gr.addColorStop(1, 'rgba(0,30,0,0)'); g2.fillStyle = gr; g2.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c2); })();
+  const nubes = [0, 1, 2].map((i) => { const n = new THREE.Mesh(new THREE.PlaneGeometry(7, 4.5), new THREE.MeshBasicMaterial({ map: texNube, transparent: true, depthWrite: false })); n.rotation.x = -Math.PI / 2; n.position.set(-AN / 2 + i * 9, 0.08, -3 + i * 3); e.escena.add(n); return n; });
+
   // El castillo: torre de piedra con almenas, techo rojo y bandera
   const castillo = new THREE.Group(), piedra = mat('#c9c0b0');
   const torreon = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.85, 1.9, 10), piedra);
@@ -95,6 +117,11 @@ export async function crear(c: Contexto): Promise<Partida> {
   const asta = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.7), mat('#5a3a22')); asta.position.y = 3.4; castillo.add(asta);
   const bandera = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.3), new THREE.MeshBasicMaterial({ color: '#ffd23c', side: THREE.DoubleSide })); bandera.position.set(0.26, 3.6, 0); castillo.add(bandera);
   const puerta = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.1), mat('#5a3a22')); puerta.position.set(-0.6, 0.35, 0.45); puerta.rotation.y = -0.9; castillo.add(puerta);
+  for (const lado of [-1, 1]) {
+    const torre = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.42, 1.3, 8), piedra); torre.position.set(-0.2, 0.65, lado * 1.15); castillo.add(torre);
+    const punta = new THREE.Mesh(new THREE.ConeGeometry(0.45, 0.7, 8), mat('#3f6ad9')); punta.position.set(-0.2, 1.65, lado * 1.15); castillo.add(punta);
+    const muro = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.8, 0.8), piedra); muro.position.set(-0.2, 0.4, lado * 0.6); castillo.add(muro);
+  }
   castillo.position.set(fin.x + CELDA * 0.9, 0, fin.z);
   castillo.scale.setScalar(0.72); // es lo más alto de la cancha: en el borde de la foto se ve muy inclinado
   const sombraCastillo = sombra(1.1);
@@ -123,8 +150,10 @@ export async function crear(c: Contexto): Promise<Partida> {
   // ── Torres ──
   const torres = new Map<string, Torre>();
   const armarTorre = (tipo: Tipo, cx: number, cz: number): Torre => {
-    const p = centro(cx, cz), g = new THREE.Group(), pie = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, 0.7, 8), mat('#b8b0a2'));
+    const p = centro(cx, cz), g = new THREE.Group(), pie = tipo === 'ballesta' ? new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.9), mat('#a0703c')) : tipo === 'hielo' ? new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.6, 0.7, 6), mat('#bfe6f5')) : new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.68, 0.6, 10), mat('#6a6a72'));
     pie.position.y = 0.35; g.add(pie);
+    if (tipo === 'ballesta') for (const y of [0.15, 0.55]) { const faja = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.08, 0.94), mat('#5a3a22')); faja.position.y = y; g.add(faja); }
+    if (tipo === 'mortero') for (let i = 0; i < 6; i++) { const almena = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.18, 0.2), mat('#55555c')), a = (i / 6) * Math.PI * 2; almena.position.set(Math.cos(a) * 0.55, 0.7, Math.sin(a) * 0.55); g.add(almena); }
     const cabeza = new THREE.Group();
     if (tipo === 'ballesta') {
       const caja = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.24, 0.8), mat('#8a5a38')), arco = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.05, 6, 14, Math.PI), mat('#5a3a22'));
@@ -245,6 +274,8 @@ export async function crear(c: Contexto): Promise<Partida> {
   e.hud.puntos(0);
   e.alCuadro((t, dt) => {
     portal.rotation.z += dt * 2;
+    if (Math.floor(t * 6) !== Math.floor((t - dt) * 6)) e.chispas(portal.position.x, portal.position.y, portal.position.z, ['#b46cff', '#e0c3ff'], 2, 1.2);
+    for (const n of nubes) { n.position.x += dt * 0.6; if (n.position.x > AN / 2 + 5) n.position.x = -AN / 2 - 5; }
     bandera.rotation.y = Math.sin(t * 3) * 0.3;
     for (const { tipo, b } of botones) { b.classList.toggle('activo', tipo === elegido); b.classList.toggle('caro', monedas < TORRES[tipo].costo); }
     ya.style.visibility = empezado && !terminado && pausaHasta !== Infinity ? 'visible' : 'hidden';
