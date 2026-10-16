@@ -20,7 +20,7 @@ export interface Juego {
 export const TOPES: Record<string, number> = {
   rodillos: 2000, puertas: 2000, huevo: 3400, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, torre: 2400, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2800, parejas: 1000, buscaconchas: 1800, luces: 1800,
   cartero: 1000, cofre: 1300, palabra: 1000, totem: 1000, catapulta: 2800, bolos: 750, minigolf: 1000,
-  karts: 2300, tren: 9000, tanques: 7500, bombas: 4200, agujero: 14000, serpientes: 5000, defensa: 6500, museo: 5000, tiro: 9000, cocina: 6000, billar: 8000,
+  karts: 2300, tren: 9000, tanques: 7500, bombas: 4200, agujero: 14000, serpientes: 5000, defensa: 6500, museo: 5000, tiro: 9000, cocina: 6000, billar: 8000, triples: 9000,
 };
 
 export const MOTORES: Record<Motor, { nombre: string; color: string }> = {
@@ -108,6 +108,8 @@ export const JUEGOS: Juego[] = [
     'Muévete con las flechas, WASD o arrastrando el dedo. Espacio o el botón Tomar/Dejar sirve para todo: tomar de un cajón, dejar en un mesón, juntar en un plato, entregar en la ventanilla verde o botar en la basura. En la tabla, mantén Espacio para picar. La carne picada va a la plancha: se cocina sola y se quema si la dejas mucho. Los pedidos están arriba con su tiempo; si se acaba, pierdes el cliente. Entregar rápido da propina.'),
   j(34, 'billar', 'Billar', 'G', 'Seis desafíos en una mesa de pool con tiros contados: embocarlas todas, en orden, entre postes, la negra al final, el triángulo y bolas de oro.', 'Cálculo y pulso',
     'Arrastra desde cualquier parte de la mesa hacia atrás, como una honda, y suelta para tirar: mientras más arrastras, más fuerte. La línea blanca muestra hacia dónde va la bola blanca. Con el teclado: ← → para apuntar y mantén Espacio para cargar la fuerza. Cada bola vale 100 (las de oro, 300); varias en un tiro dan bono y la blanca adentro resta 50. Superar un desafío da bono por los tiros que te sobraron.'),
+  j(35, 'triples', 'Triples', 'G', 'Concurso de triples: cinco estaciones con cinco balones, el último vale doble. Tres rondas de un minuto; en la segunda salen balones de oro y en la final el aro se mueve.', 'Ritmo y precisión',
+    'Mantén apretado (clic, Espacio, tocar la pantalla o el botón Lanzar) y el medidor de la derecha sube y baja: suelta cuando esté en la zona verde. Más al centro de la zona, ¡perfecto! El balón normal vale 100, el de rayas (el último de cada carro) 200 y el de oro 300. Encestar sin tocar el aro da +50 y tres canastas seguidas suman bono de racha. En la ronda final el aro se mueve: suelta cuando venga hacia ti.'),
 ];
 
 export const juegoPorId = (id: string) => JUEGOS.find((x) => x.id === id);
@@ -142,6 +144,7 @@ export const VERSUS: TipoVersus[] = [
   v('1v1', 'tiro-duelo', 'Duelo de Pistoleros', 'Los mismos blancos para los dos: gana la mejor puntería.', 'tiro'),
   v('1v1', 'cocina-duelo', 'Duelo de Chefs', 'Los mismos pedidos para los dos: gana la cocina con más puntos.', 'cocina'),
   v('1v1', 'billar-duelo', 'Mesa contra Mesa', 'Por turnos, los mismos desafíos: gana quien emboque mejor.', 'billar'),
+  v('1v1', 'triples-duelo', 'Duelo de Triples', 'Los mismos carros de balones para los dos: gana quien enceste más.', 'triples'),
   v('1v1', 'serpientes-duelo', 'Duelo de Serpientes', 'El mismo jardín y las mismas rivales: gana la serpiente con más puntos.', 'serpientes'),
   v('1v1', 'torre-duelo', 'Duelo de Torres', 'El mismo ritmo para los dos; gana la torre más alta.', 'torre'),
   v('3v3', 'cocos-equipo', 'Cosecha en Equipo', 'Cada integrante atrapa cocos; se suman los tres.', 'cocos'),
@@ -169,6 +172,7 @@ export const VERSUS: TipoVersus[] = [
   v('3v3', 'tiro-equipo', 'Feria en Equipo', 'Los tres disparan en el mismo puesto; suma el equipo.', 'tiro'),
   v('3v3', 'cocina-equipo', 'Brigada de Cocina', 'Los tres cocinan los mismos pedidos; suma el equipo.', 'cocina'),
   v('3v3', 'billar-equipo', 'Club de Billar', 'Los tres juegan los mismos desafíos; suma el equipo.', 'billar'),
+  v('3v3', 'triples-equipo', 'Concurso por Equipos', 'Los tres tiran los mismos carros; suma el equipo.', 'triples'),
   v('3v3', 'serpientes-equipo', 'Nido de Serpientes', 'Los tres juegan el mismo jardín; suma el equipo.', 'serpientes'),
   v('3v3', 'torre-equipo', 'Torres en Equipo', 'Cada integrante levanta su torre; suman los tres.', 'torre'),
   v('3v3', 'bandera', 'Captura la Bandera', 'Robar la bandera rival y traerla a la base.'),

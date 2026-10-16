@@ -476,6 +476,13 @@ body.foto .bolos-efecto { display: none; }
 .defensa-barra .boton.caro small { color: #ff8a8a; }
 .defensa-barra b { opacity: .7; margin-right: 2px; }
 body.foto .defensa-barra { display: none; }
+/* Triples: medidor de fuerza */
+.triples-medidor { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); width: 26px; height: min(46%, 260px); border-radius: 14px; background: rgba(20, 32, 58, .85); border: 2px solid rgba(255, 255, 255, .7); overflow: hidden; pointer-events: none; z-index: 2; }
+.triples-medidor span { position: absolute; left: 0; right: 0; }
+.triples-medidor .zona { background: rgba(63, 224, 122, .55); }
+.triples-medidor .perfecto { background: #ffd23c; }
+.triples-medidor .nivel { bottom: 0; height: 0; background: linear-gradient(#ff9a2e, #ffd23c); opacity: .85; mix-blend-mode: screen; }
+body.foto .triples-medidor { display: none; }
 /* Cocina Caótica: pedidos arriba */
 .cocina-pedidos { position: absolute; top: 52px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; pointer-events: none; z-index: 2; max-width: calc(100% - 20px); }
 .cocina-pedido { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; min-width: 76px; padding: 4px 8px 8px; border-radius: 10px; background: rgba(255, 248, 230, .95); color: #2a1d10; font-size: .72rem; line-height: 1.15; text-align: center; }
