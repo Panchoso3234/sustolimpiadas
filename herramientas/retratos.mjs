@@ -1,7 +1,7 @@
 // Saca los retratos de la galería para los chibis disfrazados y los monstruos (256×256 JPG):
 //   node herramientas/retratos.mjs            (con el sitio corriendo en localhost:5173)
 //   node herramientas/retratos.mjs chibi-03-h monstruo-02   (solo algunos)
-// Los deja en public/avatares/halloween/ (los dos disfraces) y public/avatares/monstruos/.
+// Los deja en public/avatares/halloween/ (los dos disfraces), monstruos/ y zorritas/.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { abrir, limpiarPerfiles } from '../pruebas/navegador.mjs';
 
@@ -11,8 +11,8 @@ await new Promise((r) => setTimeout(r, 4000));
 const fotos = JSON.parse(await p.js(`(async () => {
   document.body.innerHTML = '';
   const THREE = await import('/node_modules/.vite/deps/three.js');
-  const { crearVrm, HALLOWEEN, HALLOWEEN2, MONSTRUOS } = await import('/src/personaje/vrm.ts');
-  const pedidos = ${JSON.stringify(pedidos)}, ids = [...HALLOWEEN, ...HALLOWEEN2, ...MONSTRUOS].map(([id]) => id).filter((id) => !pedidos.length || pedidos.includes(id));
+  const { crearVrm, HALLOWEEN, HALLOWEEN2, MONSTRUOS, ZORRITAS } = await import('/src/personaje/vrm.ts');
+  const pedidos = ${JSON.stringify(pedidos)}, ids = [...HALLOWEEN, ...HALLOWEEN2, ...MONSTRUOS, ...ZORRITAS].map(([id]) => id).filter((id) => !pedidos.length || pedidos.includes(id));
   const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(256, 256, false);
   const esc = new THREE.Scene(); esc.background = new THREE.Color('#2a1f4e');
   const cam = new THREE.PerspectiveCamera(30, 1, 0.05, 50), fotos = {};
@@ -33,7 +33,7 @@ const fotos = JSON.parse(await p.js(`(async () => {
   return JSON.stringify(fotos);
 })()`));
 for (const [id, url] of Object.entries(fotos)) {
-  const dir = `public/avatares/${id.startsWith('monstruo-') ? 'monstruos' : 'halloween'}`;
+  const dir = `public/avatares/${id.startsWith('monstruo-') ? 'monstruos' : id.endsWith('-z') ? 'zorritas' : 'halloween'}`;
   mkdirSync(dir, { recursive: true });
   writeFileSync(`${dir}/${id}.jpg`, Buffer.from(url.split(',')[1], 'base64'));
   console.log('listo', id);

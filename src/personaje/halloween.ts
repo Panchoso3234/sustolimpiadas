@@ -14,13 +14,14 @@ type Clase = 'todo' | 'rojo' | 'verde' | 'dorado' | 'azul' | 'claro' | 'palido' 
 interface Tinte { p: number[] | 'todas'; a: string; si?: Clase; no?: Clase[]; liso?: boolean; piel?: boolean; vendas?: boolean }
 type Accesorio = ['calabaza'] | ['bruja', string, string] | ['mago', string] | ['paja'] | ['cuernos', string] | ['orejasLobo', string]
   | ['alas', string] | ['alasHada', string] | ['capa', string, string] | ['cubeta'] | ['fantasmita'] | ['sabana'] | ['tornillos']
-  | ['patasArana', string] | ['guadana'] | ['tricornio'] | ['corona', number] | ['flores'] | ['cola', string] | ['costillas'];
+  | ['patasArana', string] | ['guadana'] | ['tricornio'] | ['corona', number] | ['flores'] | ['cola', string] | ['costillas']
+  | ['orejasZorro', string, string] | ['colasZorro', string, number];
 /** `fantasma`: el cuerpo queda medio transparente y teñido de ese color. */
 interface Disfraz { tenir: Tinte[]; ocultar?: number[]; accesorios: Accesorio[]; fantasma?: string }
 
 const NARANJA = '#f07a1a', NEGRO = '#26202e', MORADO = '#5b2a86', CARMESI = '#b3203a', NOCHE = '#1d1a22', HUESO = '#efe9dc';
 
-/** Los disfraces por id de avatar: "chibi-NN-h" es el primero de cada chibi y "chibi-NN-h2" el segundo. */
+/** Los disfraces por id de avatar: "chibi-NN-h" es el primero de cada chibi, "chibi-NN-h2" el segundo y "chibi-NN-z" las zorritas. */
 export const DISFRACES: Record<string, Disfraz> = {
   'chibi-01-h': { ocultar: [0], accesorios: [['calabaza']],
     tenir: [{ p: [17], a: '#4a2a78' }, { p: [16], a: NARANJA }, { p: [18, 19], a: NEGRO }] },
@@ -96,6 +97,14 @@ export const DISFRACES: Record<string, Disfraz> = {
   'chibi-16-h2': { accesorios: [['costillas']], // Esqueleto
     tenir: [{ p: 'todas', si: 'piel', a: HUESO, piel: true }, { p: [14], no: ['verde', 'azul'], a: NOCHE, liso: true, piel: true },
       { p: [14], si: 'verde', a: '#3a3a44' }, { p: [0], no: ['oscuro'], a: NOCHE, piel: true }] },
+
+  // ---- Zorritas (id "chibi-NN-z"; ver ZORRITAS en vrm.ts) ----
+  'chibi-03-z': { ocultar: [0, 1], accesorios: [['orejasZorro', '#c8321e', '#fff1e6'], ['colasZorro', '#c8321e', 3]], // Zorrita Roja
+    tenir: [{ p: [2], a: '#c8321e' }, { p: [4, 5, 6, 7, 8, 11], a: '#ffd9a0' }] },
+  'chibi-08-z': { accesorios: [['orejasZorro', '#f4f1fb', '#ffb3c6'], ['colasZorro', '#f4f1fb', 5]], // Kitsune Blanca
+    tenir: [{ p: [0], a: '#f6f3ff' }, { p: [1], a: '#d9d2ee' }, { p: [24, 25, 26, 27, 28], a: CARMESI }] },
+  'chibi-12-z': { ocultar: [0, 1, 5, 6], accesorios: [['orejasZorro', '#d4501f', '#fff1e6'], ['colasZorro', '#d4501f', 3]], // Bruja Zorra
+    tenir: [{ p: [2, 4, 7, 8], a: '#d4501f' }, { p: [24], a: '#2a2433' }] },
 };
 
 /** Número de pieza de cada vértice (componentes conexos, uniendo vértices que comparten posición), de arriba abajo. */
@@ -271,23 +280,30 @@ const estrella = () => new THREE.ShapeGeometry(new THREE.Shape(Array.from({ leng
 })));
 
 interface Medidas { tope: number; radio: number; frente: number; torso: number; cuello: THREE.Vector3; suelo: number; sueloCabeza: number; pechoAdelante: number }
-/** Mide la cabeza (en el espacio del hueso de la cabeza) y el torso (en el del pecho) con la malla ya vestida. */
-function medir(vrm: VRM, malla: THREE.SkinnedMesh, cabeza: THREE.Object3D, pecho: THREE.Object3D, raiz: THREE.Object3D): Medidas {
-  raiz.updateMatrixWorld(true); malla.skeleton.update();
-  const usados = new Set(malla.geometry.index!.array), v = new THREE.Vector3(), enCabeza: THREE.Vector3[] = [], enPecho: THREE.Vector3[] = [];
-  for (const i of usados) {
-    malla.getVertexPosition(i, v); v.applyMatrix4(malla.matrixWorld);
-    enCabeza.push(cabeza.worldToLocal(v.clone())); enPecho.push(pecho.worldToLocal(v.clone()));
+const mayor = (lista: THREE.Vector3[], f: (q: THREE.Vector3) => number) => lista.reduce((max, q) => Math.max(max, f(q)), -Infinity);
+
+/** Mide la cabeza (en el espacio del hueso de la cabeza) y el torso (en el del pecho) con las mallas ya vestidas
+ *  (los chibis tienen una sola; los avatares de VRoid traen cara, cuerpo y pelo por separado). */
+function medir(vrm: VRM, mallas: THREE.SkinnedMesh[], cabeza: THREE.Object3D, pecho: THREE.Object3D, raiz: THREE.Object3D): Medidas {
+  raiz.updateMatrixWorld(true);
+  const v = new THREE.Vector3(), enCabeza: THREE.Vector3[] = [], enPecho: THREE.Vector3[] = [];
+  for (const malla of mallas) {
+    malla.skeleton.update();
+    const usados = malla.geometry.index ? new Set(malla.geometry.index.array) : Array.from({ length: malla.geometry.attributes.position.count }, (_, i) => i);
+    for (const i of usados) {
+      malla.getVertexPosition(i, v); v.applyMatrix4(malla.matrixWorld);
+      enCabeza.push(cabeza.worldToLocal(v.clone())); enPecho.push(pecho.worldToLocal(v.clone()));
+    }
   }
-  const tope = Math.max(...enCabeza.map((q) => q.y));
+  const tope = mayor(enCabeza, (q) => q.y);
   const arriba = enCabeza.filter((q) => q.y > tope * 0.35);
   const cuello = pecho.worldToLocal((vrm.humanoid.getNormalizedBoneNode('neck') ?? cabeza).getWorldPosition(new THREE.Vector3()));
   const base = pecho.getWorldPosition(new THREE.Vector3()), piso = raiz.getWorldPosition(new THREE.Vector3());
   const suelo = pecho.worldToLocal(new THREE.Vector3(base.x, piso.y, base.z)).y;
-  const torso = Math.max(...enPecho.filter((q) => q.y < cuello.y && q.y > suelo * 0.5).map((q) => Math.hypot(q.x, q.z)));
+  const torso = mayor(enPecho.filter((q) => q.y < cuello.y && q.y > suelo * 0.5), (q) => Math.hypot(q.x, q.z));
   const sobreCabeza = cabeza.getWorldPosition(new THREE.Vector3()), sueloCabeza = cabeza.worldToLocal(new THREE.Vector3(sobreCabeza.x, piso.y, sobreCabeza.z)).y;
-  const pechoAdelante = Math.max(...enPecho.filter((q) => q.y < cuello.y && q.y > 0 && Math.abs(q.x) < torso * 0.3).map((q) => q.z));
-  return { tope, radio: Math.max(...arriba.map((q) => Math.abs(q.x))), frente: Math.max(...arriba.map((q) => q.z)), torso, cuello, suelo, sueloCabeza, pechoAdelante };
+  const pechoAdelante = mayor(enPecho.filter((q) => q.y < cuello.y && q.y > 0 && Math.abs(q.x) < torso * 0.3), (q) => q.z);
+  return { tope, radio: mayor(arriba, (q) => Math.abs(q.x)), frente: mayor(arriba, (q) => q.z), torso, cuello, suelo, sueloCabeza, pechoAdelante };
 }
 
 /** Viste a un chibi recién creado con su disfraz de Halloween (si tiene uno). */
@@ -313,7 +329,9 @@ export function vestirHalloween(k: Kenney, id: string) {
   const giro = vrm.meta?.metaVersion === '0' ? Math.PI : 0;
   const marco = (n: THREE.Object3D) => { const o = new THREE.Object3D(); o.rotation.y = giro; n.add(o); return o; };
   const cabeza = marco(hueso('head')!), pecho = marco(hueso('upperChest') ?? hueso('chest') ?? hueso('spine')!);
-  const m = medir(vrm, malla, cabeza, pecho, k.grupo), r = m.radio;
+  const mallas: THREE.SkinnedMesh[] = [];
+  k.grupo.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) mallas.push(o as THREE.SkinnedMesh); });
+  const m = medir(vrm, mallas, cabeza, pecho, k.grupo), r = m.radio;
   const vivos: ((t: number) => void)[] = [];
   for (const a of d.accesorios) {
     switch (a[0]) {
@@ -455,6 +473,38 @@ export function vestirHalloween(k: Kenney, id: string) {
           parte(new THREE.SphereGeometry(m.torso * 0.2, 10, 8), '#d8d2c4', [0, 0, -m.torso * 1.45], [0, 0, 0], [1, 1, 1.6])]);
         const base = marco(cadera), meneo = new THREE.Group(); meneo.rotation.x = -0.6; meneo.add(c); base.add(meneo);
         vivos.push((t) => { meneo.rotation.y = 0.35 * Math.sin(t * 4); });
+        break;
+      }
+      case 'orejasZorro': {
+        // Orejas altas y puntiagudas, con el interior claro y un mechón en la base
+        const partes: THREE.BufferGeometry[] = [];
+        for (const lado of [-1, 1]) {
+          const pos = [lado * r * 0.52, m.tope * 0.9, -r * 0.05], rot = [-0.12, lado * 0.25, -lado * 0.32];
+          partes.push(parte(new THREE.ConeGeometry(r * 0.27, r * 0.78, 4, 1), a[1], pos, rot, [1, 1, 0.42]),
+            parte(new THREE.ConeGeometry(r * 0.17, r * 0.55, 4, 1), a[2], [pos[0] - lado * r * 0.01, pos[1] - r * 0.06, pos[2] + r * 0.06], rot, [1, 1, 0.25]),
+            parte(new THREE.SphereGeometry(r * 0.13, 8, 6), a[2], [pos[0] * 0.92, pos[1] - r * 0.3, pos[2] + r * 0.1], [0, 0, 0], [1.2, 0.8, 0.6]));
+        }
+        cabeza.add(fundir(partes)); break;
+      }
+      case 'colasZorro': {
+        // Varias colas esponjosas en abanico, cada una con la punta blanca, que se mecen desfasadas
+        const cadera = hueso('hips');
+        if (!cadera) break;
+        // tamaño por el ancho de caderas (el pelo largo de VRoid inflaría la medida del torso)
+        const piernaI = hueso('leftUpperLeg'), piernaD = hueso('rightUpperLeg');
+        k.grupo.updateMatrixWorld(true);
+        const ancho = piernaI && piernaD ? piernaI.getWorldPosition(new THREE.Vector3()).distanceTo(piernaD.getWorldPosition(new THREE.Vector3())) / Math.max(1e-6, cadera.getWorldScale(new THREE.Vector3()).x) : m.torso;
+        const n = a[2], s = Math.min(m.torso * 1.2, ancho * 1.7), base = marco(cadera), colas: THREE.Group[] = [], apertura = n > 1 ? 2.1 : 0;
+        for (let i = 0; i < n; i++) {
+          const abre = n === 1 ? 0 : (i / (n - 1) - 0.5) * apertura, partes: THREE.BufferGeometry[] = [];
+          for (let j = 0; j < 5; j++) { // bulto que engorda y adelgaza hacia la punta
+            const k = j / 4, grosor = s * (0.22 + 0.2 * Math.sin(k * Math.PI * 0.85)), z = -s * (0.45 + k * 1.15), y = s * 0.35 * k * k;
+            partes.push(parte(new THREE.SphereGeometry(grosor, 10, 8), j === 4 ? '#f6f1e8' : a[1], [0, y, z], [0, 0, 0], [1, 1, 1.35]));
+          }
+          const cola = new THREE.Group(); cola.add(fundir(partes)); cola.rotation.set(0.95, abre, abre * 0.5);
+          base.add(cola); colas.push(cola);
+        }
+        vivos.push((t) => colas.forEach((c, i) => { c.rotation.y = (n === 1 ? 0 : (i / (n - 1) - 0.5) * apertura) + 0.18 * Math.sin(t * 3 + i * 1.3); }));
         break;
       }
       case 'costillas': {

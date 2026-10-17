@@ -22,3 +22,6 @@ monstruos/ (monstruo-01 a monstruo-05, .vrm y retratos .jpg)
   Esktix Midnight, Harvester Lavender y Wendigo Star Sky.
   Licencia CC0 según el registro Open Source Avatars de ToxSam (data/projects.json → halloween-rising: "CC0").
   Cambios hechos aquí: texturas PNG pasadas a JPG. Se preparan con: node herramientas/monstruos.mjs
+
+zorritas/ (retratos chibi-03-z, chibi-08-z y chibi-12-z)
+  Los mismos chibis de arriba disfrazados de zorro aquí (src/personaje/halloween.ts: pelo repintado, orejas y colas propias).

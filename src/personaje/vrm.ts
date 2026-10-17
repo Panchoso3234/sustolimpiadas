@@ -43,9 +43,12 @@ export const MONSTRUOS: [string, string][] = [
   ['monstruo-01', 'Ojo Burlón'], ['monstruo-02', 'Gelatina Mímica'], ['monstruo-03', 'Esktix'], ['monstruo-04', 'Segador'], ['monstruo-05', 'Wendigo'],
 ];
 
+/** Zorritas: chibis con orejas y colas de zorro (id terminado en "-z", ver halloween.ts). */
+export const ZORRITAS: [string, string][] = [['chibi-03-z', 'Zorrita Roja'], ['chibi-08-z', 'Kitsune Blanca'], ['chibi-12-z', 'Bruja Zorra']];
+
 /** Si un id de avatar anime es válido (los que se guardan en la apariencia). */
-export const esVrm = (id: unknown): id is string => typeof id === 'string' && /^(chibi-\d{2}(-h2?)?|monstruo-\d{2})$/.test(id);
-const carpeta = (id: string) => (/-h\d?$/.test(id) ? 'halloween' : id.startsWith('monstruo-') ? 'monstruos' : 'chibis');
+export const esVrm = (id: unknown): id is string => typeof id === 'string' && /^(chibi-\d{2}(-h2?|-z)?|monstruo-\d{2})$/.test(id);
+const carpeta = (id: string) => (/-h\d?$/.test(id) ? 'halloween' : id.endsWith('-z') ? 'zorritas' : id.startsWith('monstruo-') ? 'monstruos' : 'chibis');
 export const retratoVrm = (id: string) => `${RAIZ}${carpeta(id)}/${id}.jpg`;
 
 const bajar = (url: string) => {
@@ -74,7 +77,7 @@ function clipsPara(vrm: VRM, todas: Record<string, Animacion>) {
 
 export async function crearVrm(id: string): Promise<Kenney> {
   animaciones ??= fetch(`${RAIZ}animaciones.json`).then((r) => r.json());
-  const base = id.replace(/-h\d?$/, ''), disfraz = base !== id, monstruo = base.startsWith('monstruo-');
+  const base = id.replace(/-(h\d?|z)$/, ''), disfraz = base !== id, monstruo = base.startsWith('monstruo-');
   const [datos, todas] = await Promise.all([bajar(`${RAIZ}${monstruo ? 'monstruos' : 'chibis'}/${base}.vrm`), animaciones]);
   const gltf = await cargador.parseAsync(datos, '');
   const vrm = gltf.userData.vrm as VRM;

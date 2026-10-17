@@ -6,10 +6,10 @@ import type { Aspecto, Personaje } from './catalogo';
 import { crearKenney, type Kenney, type Ranura } from './kenney';
 import { miniatura, tarjeta, type Encuadre } from './miniaturas';
 import { crearVisor } from './visor';
-import { CHIBIS, HALLOWEEN, HALLOWEEN2, MONSTRUOS, retratoVrm } from './vrm';
+import { CHIBIS, HALLOWEEN, HALLOWEEN2, MONSTRUOS, ZORRITAS, retratoVrm } from './vrm';
 
 // La galería de avatares anime, por grupos; el gachapón saca de todos
-const GALERIA: [string, [string, string][]][] = [['Halloween', HALLOWEEN], ['Más disfraces', HALLOWEEN2], ['Monstruos', MONSTRUOS], ['Navidad', CHIBIS]];
+const GALERIA: [string, [string, string][]][] = [['Halloween', HALLOWEEN], ['Más disfraces', [...HALLOWEEN2, ...ZORRITAS]], ['Monstruos', MONSTRUOS], ['Navidad', CHIBIS]];
 const TODOS = GALERIA.flatMap(([, lista]) => lista);
 
 const BORRADOR = 'susto.personaje';

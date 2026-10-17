@@ -99,7 +99,7 @@ export function normalizarAspecto(dato: unknown): Aspecto {
     lentes: entero(d.lentes, ANTEOJOS.length, 0), objeto: entero(d.objeto, OBJETOS.length, 0), espalda: entero(d.espalda, ESPALDAS.length, 0),
     colorAccesorio: esColor(d.colorAccesorio) ? d.colorAccesorio.toLowerCase() : base.colorAccesorio, altura: unidad(d.altura), contextura: unidad(d.contextura),
     ...(typeof d.preset === 'string' && /^[a-z0-9-]{2,24}$/.test(d.preset) ? { preset: d.preset } : {}),
-    ...(typeof d.vrm === 'string' && /^(chibi-\d{2}(-h2?)?|monstruo-\d{2})$/.test(d.vrm) ? { vrm: d.vrm } : {}),
+    ...(typeof d.vrm === 'string' && /^(chibi-\d{2}(-h2?|-z)?|monstruo-\d{2})$/.test(d.vrm) ? { vrm: d.vrm } : {}),
   };
 }
 
