@@ -20,7 +20,7 @@ export interface Juego {
 export const TOPES: Record<string, number> = {
   rodillos: 2000, puertas: 2000, huevo: 3400, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, torre: 2400, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2800, parejas: 1000, buscaconchas: 1800, luces: 1800,
   cartero: 1000, cofre: 1300, palabra: 1000, totem: 1000, catapulta: 2800, bolos: 750, minigolf: 1000,
-  karts: 2300, tren: 9000, tanques: 7500, bombas: 4200, agujero: 14000, serpientes: 5000, defensa: 6500, museo: 5000, tiro: 9000, cocina: 6000, billar: 8000, triples: 9000,
+  karts: 2300, tren: 9000, tanques: 7500, bombas: 4200, agujero: 14000, serpientes: 5000, defensa: 6500, museo: 5000, tiro: 9000, cocina: 6000, billar: 8000, triples: 9000, calabazas: 3500, laberinto: 5000, escobas: 4000,
 };
 
 export const MOTORES: Record<Motor, { nombre: string; color: string }> = {
@@ -110,7 +110,16 @@ export const JUEGOS: Juego[] = [
     'Arrastra desde cualquier parte de la mesa hacia atrás, como una honda, y suelta para tirar: mientras más arrastras, más fuerte. La línea blanca muestra hacia dónde va la bola blanca. Con el teclado: ← → para apuntar y mantén Espacio para cargar la fuerza. Cada bola vale 100 (las de oro, 300); varias en un tiro dan bono y la blanca adentro resta 50. Superar un desafío da bono por los tiros que te sobraron.'),
   j(35, 'triples', 'Triples', 'G', 'Concurso de triples: cinco estaciones con cinco balones, el último vale doble. Tres rondas de un minuto; en la segunda salen balones de oro y en la final el aro se mueve.', 'Ritmo y precisión',
     'Mantén apretado (clic, Espacio, tocar la pantalla o el botón Lanzar) y el medidor de la derecha sube y baja: suelta cuando esté en la zona verde. Más al centro de la zona, ¡perfecto! El balón normal vale 100, el de rayas (el último de cada carro) 200 y el de oro 300. Encestar sin tocar el aro da +50 y tres canastas seguidas suman bono de racha. En la ronda final el aro se mueve: suelta cuando venga hacia ti.'),
+  j(36, 'calabazas', 'Torre de Calabazas', 'C', 'En un cementerio de noche, un gancho va y viene sobre una tabla que se balancea: suelta calabazas, cajas de dulces y tablones y apílalos lo más alto que puedas.', 'Pulso y paciencia',
+    'Toca la pantalla, haz clic o aprieta Espacio (o el botón Soltar) para soltar la pieza que cuelga del gancho. Hay calabazas redondas, anchas y altas, cajas de dulces y tablones largos que sirven de puente. La tabla se balancea cada vez más y el gancho se apura. Cuenta la altura que la torre sostiene quieta (100 por metro) y cada pieza que queda arriba (+20). Tres piezas al suelo o 2 minutos y se acaba.'),
+  j(37, 'laberinto', 'Laberinto Embrujado', 'G', 'Un laberinto de piedra de noche y tu linterna como única luz: junta las velas, abre la reja y escapa piso tras piso mientras los fantasmas te buscan.', 'Orientación y sangre fría',
+    'Muévete con las flechas, WASD o arrastrando el dedo. Pasa sobre las velas para juntarlas (+50); con todas, la reja morada del fondo se abre y pasas al piso siguiente (+300), más grande y con más fantasmas. Tu linterna se gasta: las pilas verdes la recargan. Con Espacio o el botón Linterna lanzas un destello que asusta a los fantasmas cercanos (se ponen azules y huyen): si tocas uno asustado, lo espantas (+100). Si te toca uno normal pierdes una de tus 3 vidas. Tienes 2 minutos y medio.'),
+  j(38, 'escobas', 'Carrera de Escobas', 'G', 'Una carrera en escoba de noche por un valle embrujado contra tres brujas: pasa por los aros, junta dulces, esquiva árboles secos y murciélagos y llega primero al castillo.', 'Reflejos y trazada',
+    'La escoba vuela sola hacia adelante. Muévete a los lados con las flechas, A/D o arrastrando el dedo, y sube o baja con arriba/abajo, W/S o arrastrando hacia arriba y abajo. Cada aro suma 50 y cada tres aros cargas una calabaza de turbo (hasta 3): úsala con Espacio o el botón Turbo. Los dulces suman 10. Los árboles secos y las bandadas de murciélagos te frenan. Al llegar suman el puesto (600, 400, 250 o 120) y un bono por tiempo.'),
 ];
+
+/** Juegos que en celular se ven mucho mejor de lado: avisan al partir si el teléfono está parado. */
+export const HORIZONTALES = new Set(['catapulta', 'billar', 'karts', 'tiro', 'defensa', 'cocina', 'triples', 'escobas']);
 
 export const juegoPorId = (id: string) => JUEGOS.find((x) => x.id === id);
 
@@ -146,6 +155,9 @@ export const VERSUS: TipoVersus[] = [
   v('1v1', 'billar-duelo', 'Mesa contra Mesa', 'Por turnos, los mismos desafíos: gana quien emboque mejor.', 'billar'),
   v('1v1', 'triples-duelo', 'Duelo de Triples', 'Los mismos carros de balones para los dos: gana quien enceste más.', 'triples'),
   v('1v1', 'serpientes-duelo', 'Duelo de Serpientes', 'El mismo jardín y las mismas rivales: gana la serpiente con más puntos.', 'serpientes'),
+  v('1v1', 'calabazas-duelo', 'Duelo de Calabazas', 'Por turnos, las mismas piezas en el mismo orden: gana la torre más alta.', 'calabazas'),
+  v('1v1', 'laberinto-duelo', 'Laberinto en Paralelo', 'El mismo laberinto y los mismos fantasmas: gana quien llega más lejos.', 'laberinto'),
+  v('1v1', 'escobas-duelo', 'Duelo de Escobas', 'El mismo valle y las mismas brujas: gana quien hace más puntos.', 'escobas'),
   v('1v1', 'torre-duelo', 'Duelo de Torres', 'El mismo ritmo para los dos; gana la torre más alta.', 'torre'),
   v('3v3', 'cocos-equipo', 'Cosecha en Equipo', 'Cada integrante atrapa cocos; se suman los tres.', 'cocos'),
   v('3v3', 'eco-cadena', 'Eco en Cadena', 'La misma secuencia para los seis; suma hasta dónde llegó cada uno.', 'eco'),
@@ -174,6 +186,9 @@ export const VERSUS: TipoVersus[] = [
   v('3v3', 'billar-equipo', 'Club de Billar', 'Los tres juegan los mismos desafíos; suma el equipo.', 'billar'),
   v('3v3', 'triples-equipo', 'Concurso por Equipos', 'Los tres tiran los mismos carros; suma el equipo.', 'triples'),
   v('3v3', 'serpientes-equipo', 'Nido de Serpientes', 'Los tres juegan el mismo jardín; suma el equipo.', 'serpientes'),
+  v('3v3', 'calabazas-equipo', 'Huerto en Equipo', 'Cada integrante levanta su torre de calabazas con las mismas piezas; suman los tres.', 'calabazas'),
+  v('3v3', 'laberinto-equipo', 'Cazafantasmas', 'Los tres recorren el mismo laberinto; suma el equipo.', 'laberinto'),
+  v('3v3', 'escobas-equipo', 'Aquelarre', 'Los tres vuelan la misma carrera; suma el equipo.', 'escobas'),
   v('3v3', 'torre-equipo', 'Torres en Equipo', 'Cada integrante levanta su torre; suman los tres.', 'torre'),
   v('3v3', 'bandera', 'Captura la Bandera', 'Robar la bandera rival y traerla a la base.'),
 ];

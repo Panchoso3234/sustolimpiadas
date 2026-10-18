@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { fechaChile, generador } from '../nucleo/azar';
 import { supabase, useSesion } from '../nucleo/supabase';
 import { aspectoAleatorio, normalizarAspecto, normalizarPersonaje, type Aspecto } from '../personaje/catalogo';
-import { JUEGOS, MOTORES, VERSUS, type Juego } from './catalogo';
+import { HORIZONTALES, JUEGOS, MOTORES, VERSUS, type Juego } from './catalogo';
 import { Records } from './Records';
-import { guardarMarca, marcaLocal, tablaDelDia, type Fila, type Guardado } from './marcas';
+import { guardarMarca, historial, marcaLocal, tablaDelDia, type Fila, type Guardado } from './marcas';
 import { CARGADORES, ajustesPartida, jornadaDe, type Partida, type Resultado } from './marco';
 import { PUNTOS_BASE, leerPuntos, puntosPorPuesto, type Puntos } from './puntos';
 import { estaCallado, fanfarria, silenciar } from './sonido';
@@ -76,6 +76,20 @@ function Tabla({ juego, fecha, usuarioId, version }: { juego: Juego; fecha: stri
   );
 }
 
+/** Tus últimas 5 partidas de este juego (en este navegador), como barritas, para ver si vas mejorando. */
+function Historial({ juego, unidad, version }: { juego: string; unidad: string; version: number }) {
+  const lista = historial(juego), tope = Math.max(1, ...lista.map((h) => h.puntaje));
+  if (!lista.length) return null;
+  const [primera, ultima] = [lista[0].puntaje, lista[lista.length - 1].puntaje];
+  return (
+    <div class="historial" key={version}>
+      <div class="sigla">Tus últimas partidas</div>
+      <ol>{lista.map((h, i) => <li key={h.hora} class={i === lista.length - 1 ? 'nueva' : ''} title={new Date(h.hora).toLocaleString('es-CL')}><span style={`height:${Math.max(6, (h.puntaje / tope) * 100)}%`} /><b>{h.puntaje}</b></li>)}</ol>
+      {lista.length > 1 && <p class="chico tenue">{ultima > primera ? `Vas subiendo: +${ultima - primera} ${unidad} desde la primera.` : ultima < primera ? 'Bajaste un poco: ¡la próxima sale mejor!' : 'Parejo: misma marca que al principio.'}</p>}
+    </div>
+  );
+}
+
 type Fase = 'previa' | 'cargando' | 'cuenta' | 'jugando' | 'resultado' | 'error';
 
 export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
@@ -90,6 +104,8 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
   const [version, setVersion] = useState(0);
   const [callado, setCallado] = useState(estaCallado);
   const [ayuda, setAyuda] = useState(false);
+  const [tutorial, setTutorial] = useState(true);
+  const [girar, setGirar] = useState(true);
   const [pausa, setPausa] = useState(false);
   const [completa, setCompleta] = useState(false);
   const [avance, setAvance] = useState(0);
@@ -138,6 +154,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
       partida.current = nueva;
       // Cuenta regresiva: 3, 2, 1 y parte
       setFase('cuenta');
+      setTutorial(true);
       for (let n = 3; n >= 1; n--) {
         setCuenta(n);
         await new Promise((listo) => setTimeout(listo, 750));
@@ -145,6 +162,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
       }
       setFase('jugando');
       setAyuda(true);
+      setTutorial(false);
       setTimeout(() => { if (mio === turno.current) setAyuda(false); }, 6000);
       nueva.empezar();
     } catch (e) {
@@ -223,10 +241,11 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
           {!reto && <button class="boton" title="Salir (Esc)" onClick={salir}>Salir</button>}
           {!reto && fase === 'jugando' && <button class="boton" aria-pressed={pausa} title="Pausa (P)" onClick={(ev) => { pausar(!pausa); ev.currentTarget.blur(); }}>{pausa ? 'Seguir' : 'Pausa'}</button>}
           <button class="boton" aria-pressed={callado} onClick={(ev) => { silenciar(!callado); setCallado(!callado); ev.currentTarget.blur(); }}>{callado ? 'Sonido: no' : 'Sonido: sí'}</button>
+          {fase === 'jugando' && <button class="boton" aria-label="Cómo se juega" title="Cómo se juega" onClick={(ev) => { setAyuda(false); setTutorial(true); if (!reto) pausar(true); ev.currentTarget.blur(); }}>?</button>}
           {puedeCompleta && <button class="boton" aria-pressed={completa} aria-label={completa ? 'Salir de pantalla completa' : 'Pantalla completa'} title="Pantalla completa" onClick={(ev) => { alternarCompleta(); ev.currentTarget.blur(); }}>{completa ? '⤡' : '⛶'}</button>}
         </div>
       )}
-      {fase === 'jugando' && pausa && (
+      {fase === 'jugando' && pausa && !tutorial && (
         <div class="sala-pausa" role="dialog" aria-label="Juego en pausa">
           <b>En pausa</b>
           <p class="chico">El reloj está detenido.</p>
@@ -234,7 +253,10 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
         </div>
       )}
       {fase === 'cuenta' && <div class="sala-cuenta" key={cuenta} aria-live="assertive">{cuenta}</div>}
-      {fase === 'cuenta' && <div class="sala-tutorial"><b>Cómo se juega</b><p>{juego.controles}</p></div>}
+      {(fase === 'cuenta' || fase === 'jugando') && tutorial && (fase === 'cuenta' || !ayuda) && (
+        <div class="sala-tutorial" role="button" tabIndex={0} title="Toca para cerrar" onClick={() => { setTutorial(false); if (fase === 'jugando' && !reto) pausar(false); }}><b>Cómo se juega</b><p>{juego.controles}</p><span class="chico tenue">Toca para cerrar</span></div>
+      )}
+      {(fase === 'cuenta' || fase === 'jugando') && HORIZONTALES.has(juego.id) && girar && <button class="sala-girar" onClick={() => setGirar(false)}><b>↻ Gira el celular</b><span>Este juego se ve mejor de lado. Toca para seguir así.</span></button>}
       {fase === 'jugando' && ayuda && <div class="sala-teclas" aria-hidden="true">{juego.controles}</div>}
       {(fase === 'previa' || fase === 'cargando' || fase === 'error') && (
         <div class="sala-telon">
@@ -259,6 +281,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
               <a class="boton" href={volver}>{reto ? 'Volver a mis enfrentamientos' : 'Volver al portal'}</a>
             </div>
             {reto && <p class="chico tenue">Practicar abre el mismo juego en modo individual, con un desafío distinto: no gasta tu intento.</p>}
+            {!reto && <Historial juego={juego.id} unidad={juego.unidad} version={version} />}
             {!reto && <><div class="sigla">Récords históricos</div><Records juego={juego.id} unidad={juego.unidad} version={version} /></>}
             {!reto && <><div class="sigla">Tabla de hoy</div><Tabla juego={juego} fecha={fecha} usuarioId={usuarioId} version={version} /></>}
             {!reto && <p class="chico tenue atajos">Atajos: Enter para jugar · P para pausar · Esc para salir.</p>}
@@ -291,6 +314,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
               <a class={reto ? 'boton principal grande' : 'boton'} href={volver}>{reto ? 'Volver a mis enfrentamientos' : 'Volver al portal'}</a>
             </div>
             {!reto && !siguiente && <p class="aviso ok">¡Jugaste todos los juegos de hoy!</p>}
+            {!reto && <Historial juego={juego.id} unidad={juego.unidad} version={version} />}
             {!reto && <><div class="sigla">Récords históricos</div><Records juego={juego.id} unidad={juego.unidad} version={version} /></>}
             {!reto && <><div class="sigla">Tabla de hoy</div><Tabla juego={juego} fecha={fecha} usuarioId={usuarioId} version={version} /></>}
           </div>

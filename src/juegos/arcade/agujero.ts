@@ -193,6 +193,9 @@ export async function crear(c: Contexto): Promise<Partida> {
     });
   };
   // Cuesta más crecer mientras más grande eres: así los rascacielos llegan hacia el final
+  // Lo que viene: con qué tamaño te puedes tragar cada cosa grande (se traga lo que mide menos del 92 % de tu radio)
+  const METAS: [string, number][] = [['árboles', 0.8], ['puestos', 1.05], ['autos', 1.4], ['camiones', 1.9], ['edificios', 2.5], ['rascacielos', 3.0], ['el rascacielos grande', 3.4]];
+  const proxima = (radio: number) => { const m = METAS.find(([, tr]) => tr >= radio * 0.92); return m ? ` · Para ${m[0]}: falta ${Math.max(0.1, m[1] / 0.92 - radio).toFixed(1)} m` : ' · ¡Te cabe todo!'; };
   const crecer = (h: Hoyo, valor: number) => { h.r = Math.min(R_MAX, Math.sqrt(h.r * h.r + (valor * 0.06) / (1 + h.r * h.r * 0.04))); };
 
   const objetivo = new THREE.Vector3(), mira = new THREE.Vector3();
@@ -271,7 +274,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       if (t >= DURA) return terminar();
       const orden = [...hoyos].sort((a, b) => b.r - a.r);
       e.hud.tiempo(mmss(DURA - t));
-      e.hud.extra(`Tamaño ${yo.r.toFixed(1)} m · ${orden.indexOf(yo) + 1}º de 3${t < recarga ? '' : ' · Turbo listo'}`);
+      e.hud.extra(`Tamaño ${yo.r.toFixed(1)} m · ${orden.indexOf(yo) + 1}º de 3${proxima(yo.r)}${t < recarga ? '' : ' · Turbo listo'}`);
       e.hud.puntos(yo.puntos + yo.rivales * 300);
     }
     // Lo que va cayendo: se acerca al centro, se inclina, se achica y se hunde

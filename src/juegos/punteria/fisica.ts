@@ -1,6 +1,7 @@
 import type RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import type { Escenario } from '../reflejos/motor';
+import { sensibilidad } from '../../nucleo/preferencias';
 
 // Motor C · Puntería y lanzamiento. Lo común de sus juegos: el gesto de "tirar hacia atrás y soltar"
 // y el puente entre el motor de física (Rapier) y lo que se dibuja.
@@ -44,7 +45,7 @@ export function arrastre(e: Escenario, puede: () => boolean, alSoltar: (t: Tiro)
     const r = e.lienzo.getBoundingClientRect(), escala = Math.min(r.width, r.height);
     tiro.dx = (ev.clientX - tiro.inicio.clientX) / escala;
     tiro.dy = (ev.clientY - tiro.inicio.clientY) / escala;
-    tiro.fuerza = Math.min(1, Math.hypot(tiro.dx, tiro.dy) / TOPE);
+    tiro.fuerza = Math.min(1, Math.hypot(tiro.dx, tiro.dy) / (TOPE / sensibilidad()));
   };
   e.escuchar(e.lienzo, 'pointerdown', (ev) => {
     if (!puede()) return;

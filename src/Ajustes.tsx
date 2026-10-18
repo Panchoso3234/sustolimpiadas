@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks';
-import { esDaltonico, instalarApp, marcarRecorrido, ponerDaltonico, puedeInstalar, recorridoVisto } from './nucleo/preferencias';
+import { esDaltonico, esLiviano, instalarApp, marcarRecorrido, ponerDaltonico, ponerLiviano, ponerSensibilidad, puedeInstalar, recorridoVisto, sensibilidad } from './nucleo/preferencias';
 import { estaCallado, nivelMusica, nivelVolumen, ponerMusica, ponerVolumen, silenciar } from './juegos/sonido';
 
 // Ajustes de cada persona (quedan en este navegador) y el recorrido de bienvenida de la primera visita.
@@ -10,6 +10,8 @@ export function Ajustes({ alVerRecorrido }: { alVerRecorrido(): void }) {
   const [callado, setCallado] = useState(estaCallado);
   const [daltonico, setDaltonico] = useState(esDaltonico);
   const [instalable, setInstalable] = useState(puedeInstalar);
+  const [sens, setSens] = useState(sensibilidad);
+  const [liviano, setLiviano] = useState(esLiviano);
   return (
     <div class="pagina">
       <div class="sigla">Ajustes</div>
@@ -23,6 +25,10 @@ export function Ajustes({ alVerRecorrido }: { alVerRecorrido(): void }) {
           <input type="range" min={0} max={100} step={5} value={Math.round(musica * 100)} onInput={(e) => { const n = Number(e.currentTarget.value) / 100; ponerMusica(n); setMusica(n); }} />
         </label>
         <label class="casilla"><input type="checkbox" checked={callado} onChange={(e) => { silenciar(e.currentTarget.checked); setCallado(e.currentTarget.checked); }} /> Silenciar todo</label>
+        <label>Sensibilidad del dedo o del mouse en los juegos: {sens.toFixed(1)}×
+          <input type="range" min={0.5} max={2} step={0.1} value={sens} onInput={(e) => { const n = Number(e.currentTarget.value); ponerSensibilidad(n); setSens(n); }} />
+        </label>
+        <label class="casilla"><input type="checkbox" checked={liviano} onChange={(e) => { ponerLiviano(e.currentTarget.checked); setLiviano(e.currentTarget.checked); }} /> Modo liviano (los juegos se ven menos nítidos y con menos chispas, pero andan más fluidos en celulares lentos)</label>
         <label class="casilla"><input type="checkbox" checked={daltonico} onChange={(e) => { ponerDaltonico(e.currentTarget.checked); setDaltonico(e.currentTarget.checked); }} /> Modo daltónico (cambia verde y rojo por azul y naranjo, en la página y en los equipos de la arena)</label>
         <button class="boton" onClick={alVerRecorrido}>Ver de nuevo el recorrido de bienvenida</button>
       </section>

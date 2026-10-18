@@ -66,7 +66,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       }
       for (let col = 0; col < columnas; col++) for (let piso = 0; piso < pisos; piso++) {
         const cx = x + (columnas === 1 ? 0 : (col - 0.5) * 1.06), cy = arriba + 0.5 + piso * 1.001;
-        const cuerpo = mundo.createRigidBody(plano().setTranslation(cx, cy, 0).setLinearDamping(0.25).setAngularDamping(0.9));
+        const cuerpo = mundo.createRigidBody(plano().setTranslation(cx, cy, 0).setLinearDamping(0.25).setAngularDamping(0.9).setSleeping(i !== conMovil));
         mundo.createCollider(R.ColliderDesc.cuboid(0.5, 0.5, 0.5).setFriction(0.7).setRestitution(0.05).setDensity(1.1), cuerpo);
         const malla = new THREE.Mesh(geoCaja, mat(piso % 2 ? '#c99655' : '#b98548'));
         malla.add(bordes.clone());
@@ -86,6 +86,10 @@ export async function crear(c: Contexto): Promise<Partida> {
   e.escena.add(enCuchara);
 
   const puntosGuia = guia(e.escena, 9);
+  // La trayectoria del tiro anterior queda marcada con puntos dorados, para corregir el siguiente
+  const huella = guia(e.escena, 30, '#ffd23c'), marcas: { x: number; y: number }[] = [];
+  (huella[0].material as THREE.MeshBasicMaterial).opacity = 0.45;
+  let marcarEn = 0, foco = 0.5, zoom = 1;
   let desdeNivel = 0, quedan = SANDIAS, botadas = 0, botadasNivel = 0, nivel = 0, terminado = false, cerrando = false, enVuelo: { c: Cuerpo; desde: number } | null = null, empezado = false;
   const velocidad = (dx: number, dy: number, fuerza: number) => {
     const largo = Math.hypot(dx, dy) || 1;
@@ -103,6 +107,8 @@ export async function crear(c: Contexto): Promise<Partida> {
     const par = { cuerpo, malla };
     cuerpos.push(par);
     enVuelo = { c: par, desde: e.reloj() };
+    marcas.length = 0;
+    for (const h of huella) h.visible = false;
     quedan--;
     e.gesto(k, 'attack-melee-right', 0.6);
     if (!e.sonido.efecto('soltar')) e.sonido.ruido(0.15, 0.2);
@@ -150,13 +156,16 @@ export async function crear(c: Contexto): Promise<Partida> {
     e.hud.puntos(botadas * 40);
     e.hud.extra(`Nivel ${Math.min(nivel + 1, NIVELES)} · ${botadasNivel} de ${cajas.length} cajas`);
     if (enVuelo) {
-      const p = enVuelo.c.cuerpo.translation(), quieta = enVuelo.c.cuerpo.isSleeping() || (t - enVuelo.desde > 1.2 && Math.hypot(enVuelo.c.cuerpo.linvel().x, enVuelo.c.cuerpo.linvel().y) < 0.25);
+      const p = enVuelo.c.cuerpo.translation();
+      if (t >= marcarEn && marcas.length < huella.length && p.x < 26 && p.y > -1) { marcas.push({ x: p.x, y: p.y }); marcarEn = t + 0.06; }
+      const quieta = enVuelo.c.cuerpo.isSleeping() || (t - enVuelo.desde > 1.2 && Math.hypot(enVuelo.c.cuerpo.linvel().x, enVuelo.c.cuerpo.linvel().y) < 0.25);
       if (t - enVuelo.desde > ESPERA || p.x > 26 || p.x < -20 || quieta) {
         // La sandía usada se retira para no estorbar el tiro siguiente
         e.escena.remove(enVuelo.c.malla);
         mundo.removeRigidBody(enVuelo.c.cuerpo);
         cuerpos.splice(cuerpos.indexOf(enVuelo.c), 1);
         enVuelo = null;
+        marcas.forEach((m, i) => { huella[i].position.set(m.x, m.y, 0); huella[i].visible = true; });
         if (botadasNivel === cajas.length) {
           nivel++;
           if (nivel >= NIVELES) { cerrando = true; e.alCuadro(cierre(t + 1.4)); }
@@ -170,6 +179,11 @@ export async function crear(c: Contexto): Promise<Partida> {
         } else if (quedan === 0) { cerrando = true; e.alCuadro(cierre(t + 1.4)); }
       }
     }
+    // La cámara acompaña un poco a la sandía en vuelo y vuelve sola al encuadre de siempre
+    const vuela = enVuelo?.c.cuerpo.translation(), suave = 1 - Math.exp(-3 * dt);
+    foco += ((vuela ? 0.5 + (Math.min(vuela.x, 18) - 0.5) * 0.35 : 0.5) - foco) * suave;
+    zoom += ((vuela ? 0.86 : 1) - zoom) * suave;
+    e.enfocar(foco, 5.2, 0, zoom);
   });
   // Tras la última sandía se esperan unos instantes: puede que alguna caja siga cayendo
   const cierre = (cuando: number) => (t: number) => { if (t >= cuando) terminar(); };

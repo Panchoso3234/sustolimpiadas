@@ -4,6 +4,7 @@ import type { Aspecto } from '../../personaje/catalogo';
 import { ALTO, crearKenney, type Kenney } from '../../personaje/kenney';
 import { alCambiarVolumen, cargarMuestras, tocarMuestra, volumen } from '../sonido';
 import { ajustesPartida } from '../marco';
+import { esLiviano } from '../../nucleo/preferencias';
 
 // Motor D · Reflejos y ritmo. Resuelve una sola vez lo que comparten sus cuatro juegos: una playa pequeña en 3D,
 // la cámara que se acomoda a cualquier pantalla, el reloj de la partida, el marcador, los textos que saltan,
@@ -20,7 +21,8 @@ const ARENA = '#f2deae', MAR = '#58c0ea', CIELO = '#a6e0ff';
 
 export function crearEscenario(caja: HTMLElement, encuadre: Encuadre) {
   // En vivo se conserva la imagen del lienzo para poder sacarle fotos (el espejo del rival)
-  const render = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: ajustesPartida.foto });
+  const liviano = esLiviano();
+  const render = new THREE.WebGLRenderer({ antialias: !liviano, preserveDrawingBuffer: ajustesPartida.foto, powerPreference: liviano ? 'low-power' : 'default' });
   render.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   const lienzo = render.domElement;
   lienzo.style.touchAction = 'none';
@@ -55,17 +57,22 @@ export function crearEscenario(caja: HTMLElement, encuadre: Encuadre) {
 
   const FOV = 40, camara = new THREE.PerspectiveCamera(FOV, 1, 0.5, 400);
   const centro = new THREE.Vector3(...encuadre.centro);
+  let distancia = 1, acerca = 1;
+  const ubicar = () => {
+    const d = distancia * acerca;
+    camara.position.set(centro.x, centro.y + Math.sin(encuadre.inclinacion) * d, centro.z + Math.cos(encuadre.inclinacion) * d);
+    camara.lookAt(centro);
+  };
   const medir = () => {
     const w = caja.clientWidth, h = caja.clientHeight;
     if (!w || !h) return;
     // En pantallas grandes se dibuja a menos píxeles (unos 1,1 millones) y el navegador lo agranda: en una gráfica integrada se nota mucho más la fluidez que la nitidez
-    render.setPixelRatio(Math.min(window.devicePixelRatio, ajustesPartida.vivo ? 1 : 1.5, Math.sqrt(1.1e6 / (w * h))));
+    render.setPixelRatio(Math.min(window.devicePixelRatio, liviano ? 0.75 : ajustesPartida.vivo ? 1 : 1.5, Math.sqrt((liviano ? 0.5e6 : 1.1e6) / (w * h))));
     render.setSize(w, h);
     camara.aspect = w / h;
     const media = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
-    const d = Math.max(encuadre.alto / 2 / media, encuadre.ancho / 2 / (media * camara.aspect));
-    camara.position.set(centro.x, centro.y + Math.sin(encuadre.inclinacion) * d, centro.z + Math.cos(encuadre.inclinacion) * d);
-    camara.lookAt(centro);
+    distancia = Math.max(encuadre.alto / 2 / media, encuadre.ancho / 2 / (media * camara.aspect));
+    ubicar();
     camara.updateProjectionMatrix();
   };
   const observador = new ResizeObserver(medir);
@@ -189,6 +196,8 @@ export function crearEscenario(caja: HTMLElement, encuadre: Encuadre) {
       e.addEventListener('animationend', () => e.remove());
     },
     alCuadro(f: (t: number, dt: number) => void) { tareas.push(f); },
+    /** Corre el encuadre fijo hacia otro centro y lo acerca (`acercar` menor que 1) o lo aleja; los juegos que siguen algo lo llaman en cada cuadro. */
+    enfocar(x: number, y: number, z: number, acercar = 1) { centro.set(x, y, z); acerca = acercar; ubicar(); },
     /** Escucha un evento y lo suelta solo al cerrar el juego. */
     escuchar<K extends keyof WindowEventMap>(donde: Window | HTMLElement, tipo: K, f: (e: WindowEventMap[K]) => void) {
       donde.addEventListener(tipo, f as EventListener);
@@ -238,6 +247,7 @@ export function crearEscenario(caja: HTMLElement, encuadre: Encuadre) {
         for (let i = 0; i < CHISPAS; i++) { chispas.setMatrixAt(i, unaChispa.matrix); chispas.setColorAt(i, colorChispa.set('#ffffff')); }
         escena.add(chispas);
       }
+      if (liviano) cuantas = Math.min(cuantas, 6);
       for (let n = 0; n < cuantas; n++) {
         const i = siguiente++ % CHISPAS, a = Math.random() * 6.28, sube = 0.5 + Math.random();
         posChispa[i * 3] = x; posChispa[i * 3 + 1] = y; posChispa[i * 3 + 2] = z;

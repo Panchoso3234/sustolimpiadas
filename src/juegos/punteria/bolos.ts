@@ -107,7 +107,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   const bolos: { c: Cuerpo; x: number; z: number; caido: boolean }[] = [];
   for (let fila = 0; fila < 4; fila++) for (let i = 0; i <= fila; i++) {
     const x = (i - fila / 2) * 1.05, z = FONDO - fila * 0.92;
-    const cuerpo = mundo.createRigidBody(R.RigidBodyDesc.dynamic().setTranslation(x, 0.7, z).setLinearDamping(0.2).setAngularDamping(0.4));
+    const cuerpo = mundo.createRigidBody(R.RigidBodyDesc.dynamic().setTranslation(x, 0.7, z).setLinearDamping(0.2).setAngularDamping(0.4).setSleeping(true)); // dormidos hasta que algo los toque: no tiemblan ni se caen solos
     mundo.createCollider(R.ColliderDesc.cylinder(0.7, 0.27).setDensity(0.55).setFriction(0.5).setRestitution(0.25), cuerpo);
     const malla = moldeBolo.clone();
     e.escena.add(malla);

@@ -1,3 +1,4 @@
+import { sensibilidad } from '../nucleo/preferencias';
 import type { Escenario } from './reflejos/motor';
 
 // Controles compartidos por los juegos donde se maneja al personaje (carreras y arena):
@@ -36,7 +37,7 @@ export function crearMando(e: Escenario, caja: HTMLElement, etiqueta: string, ag
   e.escuchar(e.lienzo, 'pointerdown', (ev) => { palanca = { x0: ev.clientX, y0: ev.clientY, x: 0, z: 0 }; e.lienzo.setPointerCapture(ev.pointerId); });
   e.escuchar(e.lienzo, 'pointermove', (ev) => {
     if (!palanca) return;
-    const dx = (ev.clientX - palanca.x0) / 55, dz = (ev.clientY - palanca.y0) / 55, largo = Math.max(1, Math.hypot(dx, dz));
+    const s = 55 / sensibilidad(), dx = (ev.clientX - palanca.x0) / s, dz = (ev.clientY - palanca.y0) / s, largo = Math.max(1, Math.hypot(dx, dz));
     palanca.x = dx / largo;
     palanca.z = dz / largo;
   });

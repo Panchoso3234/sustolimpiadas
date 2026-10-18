@@ -25,11 +25,25 @@ function anotarLocal(juego: string, fecha: string, puntaje: number): boolean {
   return esMejor;
 }
 
-export type Guardado = 'nube' | 'local' | 'sin-sesion';
+type Historial = Record<string, { puntaje: number; hora: number }[]>;
+/** Las últimas 5 partidas de un juego en este navegador (la más nueva al final), para ver si vas mejorando. */
+export function historial(juego: string): { puntaje: number; hora: number }[] {
+  try { return (JSON.parse(localStorage.getItem('susto.historial') ?? '{}') as Historial)[juego] ?? []; } catch { return []; }
+}
+function anotarHistorial(juego: string, puntaje: number) {
+  try {
+    const todo = JSON.parse(localStorage.getItem('susto.historial') ?? '{}') as Historial;
+    todo[juego] = [...(todo[juego] ?? []), { puntaje, hora: Date.now() }].slice(-5);
+    localStorage.setItem('susto.historial', JSON.stringify(todo));
+  } catch { /* sin almacenamiento */ }
+}
+
+export type Guardado ='nube' | 'local' | 'sin-sesion';
 
 /** Anota la marca. Devuelve dónde quedó y si fue la mejor del día en este navegador. */
 export async function guardarMarca(juego: string, fecha: string, puntaje: number, detalle: Record<string, unknown>, usuarioId: string | null): Promise<{ donde: Guardado; esMejor: boolean }> {
   const esMejor = anotarLocal(juego, fecha, puntaje);
+  anotarHistorial(juego, puntaje);
   if (!usuarioId) return { donde: 'sin-sesion', esMejor };
   // La fecha y el dueño los pone el servidor: desde aquí solo viajan el juego, el puntaje y el resumen
   const { error } = await supabase.from('marcas').insert({ juego, puntaje, detalle });

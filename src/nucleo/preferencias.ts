@@ -32,3 +32,11 @@ let pedidoInstalar: (Event & { prompt(): Promise<void> }) | null = null;
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); pedidoInstalar = e as Event & { prompt(): Promise<void> }; });
 export const puedeInstalar = () => !!pedidoInstalar;
 export async function instalarApp() { await pedidoInstalar?.prompt(); pedidoInstalar = null; }
+
+/** Sensibilidad del dedo o del mouse al arrastrar en los juegos (0,5 a 2; 1 es la de siempre). */
+export const sensibilidad = (): number => leer('susto.sensibilidad', 1);
+export const ponerSensibilidad = (n: number) => escribir('susto.sensibilidad', n);
+
+/** Modo liviano: los juegos se dibujan a menos resolución, sin suavizado ni chispas, para celulares lentos. */
+export const esLiviano = (): boolean => leer('susto.liviano', false);
+export const ponerLiviano = (si: boolean) => escribir('susto.liviano', si);

@@ -172,6 +172,11 @@ export async function crear(c: Contexto): Promise<Partida> {
     s.turbo = !!mejor && mejor.valor > 2 && s.masa > 25;
   };
 
+  // Flecha suave delante de tu cabeza: muestra hacia dónde apuntas, para que nunca parezca que gira sola
+  const flecha = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1, 3), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.35, depthWrite: false }));
+  flecha.rotation.order = 'YXZ';
+  flecha.rotation.x = Math.PI / 2;
+  e.escena.add(flecha);
   const o = new THREE.Object3D(), objetivo = new THREE.Vector3();
   const camara = (dt: number, ya = false) => {
     const alto = Math.min(34, 17 + yo.masa * 0.06);
@@ -270,6 +275,13 @@ export async function crear(c: Contexto): Promise<Partida> {
     bolitas.count = m;
     bolitas.instanceMatrix.needsUpdate = true;
     if (bolitas.instanceColor) bolitas.instanceColor.needsUpdate = true;
+    flecha.visible = yo.viva && empezado && !terminado;
+    if (flecha.visible) {
+      const lejos = grosor(yo) * 2 + 1.4, giro = Math.abs(Math.atan2(Math.sin(yo.meta - yo.ang), Math.cos(yo.meta - yo.ang)));
+      flecha.position.set(yo.x + Math.sin(yo.meta) * lejos, 0.2, yo.z + Math.cos(yo.meta) * lejos);
+      flecha.rotation.y = yo.meta;
+      (flecha.material as THREE.MeshBasicMaterial).opacity = 0.22 + Math.min(1, giro) * 0.45;
+    }
     jinete.grupo.visible = yo.viva;
     jinete.grupo.position.set(yo.x - Math.sin(yo.ang) * 0.2, grosor(yo) * 1.7, yo.z - Math.cos(yo.ang) * 0.2);
     jinete.grupo.rotation.y = yo.ang;

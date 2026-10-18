@@ -68,6 +68,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   const arbolPino = await e.objeto('naturaleza', 'tree_pineRoundC', 6), arbol2 = await e.objeto('naturaleza', 'tree_default', 5.5), farol = await e.objeto('pueblo', 'lantern', 3.2);
   const COLORES_EDIFICIO = ['#f2b880', '#e88a7a', '#9bc4e2', '#c9a8e8', '#f6dc8a', '#a8d8b0', '#e6e0d0'];
   const tramos: Tramo[] = [];
+  const geoBaliza = new THREE.SphereGeometry(0.13, 8, 6), matBaliza = new THREE.MeshBasicMaterial({ color: '#ffb02e' });
   const ocupadaPrevia = [Infinity, Infinity, Infinity]; // por vía, hasta dónde llega lo último puesto (se comparte entre tramos)
   const crearTramo = (kTramo: number): Tramo => {
     const r = generador(`${c.semilla}|tramo${kTramo}`), grupo = new THREE.Group(), z0 = -kTramo * TRAMO, obstaculos: Obstaculo[] = [], lista: Tramo['monedas'] = [], poderes: Poder[] = [];
@@ -137,7 +138,10 @@ export async function crear(c: Contexto): Promise<Partida> {
               g.add(ramp);
             }
             let luz: THREE.Object3D | undefined;
-            if (tipo === 'viene') { luz = new THREE.Sprite(new THREE.SpriteMaterial({ map: halo('rgba(255,60,40,0.95)'), depthWrite: false, blending: THREE.AdditiveBlending })); luz.scale.set(2.5, 2.5, 1); luz.position.set(0, 2.3, 0.6); g.add(luz); }
+            if (tipo === 'viene') { luz = new THREE.Sprite(new THREE.SpriteMaterial({ map: halo('rgba(255,60,40,0.95)'), depthWrite: false, blending: THREE.AdditiveBlending })); luz.scale.set(2.5, 2.5, 1); luz.position.set(0, 2.3, 0.6); g.add(luz);
+              // Franja roja sobre la vía, delante del tren: avisa por dónde viene antes de que se vea entero
+              const franja = new THREE.Mesh(new THREE.PlaneGeometry(CARRIL * 0.7, 26), new THREE.MeshBasicMaterial({ color: '#ff3b2f', transparent: true, opacity: 0.35, depthWrite: false }));
+              (franja.material as THREE.MeshBasicMaterial).userData.propio = true; franja.rotation.x = -Math.PI / 2; franja.position.set(0, 0.06, 13.5); g.add(franja); luz.userData.franja = franja; }
             g.position.set((carril - 1) * CARRIL, 0, z);
             grupo.add(g);
             const largo = n * LARGO_VAGON;
@@ -147,8 +151,10 @@ export async function crear(c: Contexto): Promise<Partida> {
           } else {
             const g = new THREE.Group(), color = tipo === 'baja' ? '#e8443a' : '#ffb02e';
             if (tipo === 'baja') {
-              for (const y of [0.35, 0.8]) { const tabla = new THREE.Mesh(new THREE.BoxGeometry(CARRIL * 0.86, 0.28, 0.18), mat(y > 0.5 ? '#f7f7f0' : color)); tabla.position.y = y; g.add(tabla); }
-              for (const x of [-1, 1]) { const pata = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1, 0.14), mat('#5d5560')); pata.position.set(x * CARRIL * 0.38, 0.5, 0); g.add(pata); }
+              for (const y of [0.4, 0.92]) { const tabla = new THREE.Mesh(new THREE.BoxGeometry(CARRIL * 0.86, 0.3, 0.18), mat(y > 0.5 ? '#f7f7f0' : color)); tabla.position.y = y; g.add(tabla); }
+              // Dos balizas encendidas arriba: se distinguen de lejos aunque haya niebla
+              for (const x of [-1, 1]) { const baliza = new THREE.Mesh(geoBaliza, matBaliza); baliza.position.set(x * CARRIL * 0.38, 1.15, 0); g.add(baliza); }
+              for (const x of [-1, 1]) { const pata = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.1, 0.14), mat('#5d5560')); pata.position.set(x * CARRIL * 0.38, 0.55, 0); g.add(pata); }
             } else {
               const barra = new THREE.Mesh(new THREE.BoxGeometry(CARRIL * 0.95, 0.5, 0.3), mat(color));
               barra.position.y = 1.55;
@@ -304,7 +310,7 @@ export async function crear(c: Contexto): Promise<Partida> {
         if (o.tipo !== 'viene') continue;
         const cerca = o.z - yo.z > -70 && o.z < yo.z + 5;
         if (cerca) { o.z += 12 * paso; o.malla.position.z = o.z; }
-        if (o.luz) o.luz.visible = Math.sin(t * 12) > 0;
+        if (o.luz) { o.luz.visible = Math.sin(t * 12) > 0; ((o.luz.userData.franja as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = 0.2 + Math.abs(Math.sin(t * 6)) * 0.3; }
         if (cerca && !o.malla.userData.aviso && o.z - yo.z > -60 && o.carril === yo.carril) { o.malla.userData.aviso = true; e.sonido.tono(330, 0.5, { tipo: 'sawtooth', vol: 0.12 }); e.sonido.tono(262, 0.6, { tipo: 'sawtooth', vol: 0.12, cuando: (e.sonido.ctx?.currentTime ?? 0) + 0.5 }); }
       }
       // Monedas y poderes

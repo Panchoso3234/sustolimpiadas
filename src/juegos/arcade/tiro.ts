@@ -85,7 +85,9 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (tipo === 'pato' || tipo === 'dorado') malla.scale.x = rl.dir;
     blancos.push({ tipo, malla, riel, x, vivo: true, caida: 0 });
   };
-  const rapidez = (ronda: number, riel: number) => (1.5 + ronda * 0.55) * RIELES[riel].vel * apuro;
+  // Los blancos aceleran dentro de cada ronda (hasta +40 %) y más en las rondas altas: la habilidad sube el puntaje, no el aguante
+  let acelera = 1;
+  const rapidez = (ronda: number, riel: number) => (1.5 + ronda * 0.7) * RIELES[riel].vel * apuro * acelera;
   const llenar = (ronda: number) => { for (let riel = 0; riel < 3; riel++) for (let x = -BORDE + 1; x < BORDE; x += 2.3) poner(ronda, riel, x + r() * 0.6); };
 
   // ── Disparo ──
@@ -182,6 +184,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     for (let i = blancos.length - 1; i >= 0; i--) if (!blancos[i].vivo && blancos[i].caida <= 0) blancos.splice(i, 1);
     // Rondas
     const queda = DURA_RONDA + extra - (t - inicioRonda);
+    acelera = 1 + Math.min(1, Math.max(0, t - inicioRonda) / DURA_RONDA) * (0.25 + ronda * 0.075);
     if (queda <= 0) {
       if (ronda >= RONDAS - 1) return terminar();
       ronda++; inicioRonda = t + PAUSA; extra = 0; pausaHasta = t + PAUSA; balas = BALAS; recargaHasta = 0;
