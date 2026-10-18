@@ -81,6 +81,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   const matFuego = new THREE.MeshBasicMaterial({ color: '#ffb02e', transparent: true, opacity: 0.85 });
   const llamarada = new THREE.InstancedMesh(geoFuego, matFuego, COLS * FILAS);
   llamarada.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  llamarada.frustumCulled = false; // las llamas aparecen en cualquier celda: la esfera calculada al inicio no las cubre
   e.escena.add(llamarada);
   const o = new THREE.Object3D();
 

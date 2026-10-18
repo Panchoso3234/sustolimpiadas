@@ -121,6 +121,9 @@ export async function crear(c: Contexto): Promise<Partida> {
       if (!m.isMesh) return;
       const malla = new THREE.InstancedMesh(m.geometry, m.material, Math.max(1, porTipo[k]));
       malla.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      // Sin recorte por cámara: la esfera que envuelve las instancias se calcula una sola vez y, al moverse o tragarse
+      // las cosas, quedaba vieja; entonces se dejaban de dibujar grupos enteros (parpadeo, edificios invisibles)
+      malla.frustumCulled = false;
       e.escena.add(malla);
       partes.push({ malla, base: m.matrixWorld.clone() });
     });
@@ -148,6 +151,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   // ── Gente que camina por las veredas (instancias propias: cuerpo y cabeza) ──
   const GENTE = 140, cuerpos = new THREE.InstancedMesh(new THREE.CapsuleGeometry(0.22, 0.6, 3, 8), new THREE.MeshLambertMaterial(), GENTE), cabezas = new THREE.InstancedMesh(new THREE.SphereGeometry(0.2, 8, 6), new THREE.MeshLambertMaterial({ color: '#f1c9a5' }), GENTE);
   cuerpos.instanceMatrix.setUsage(THREE.DynamicDrawUsage); cabezas.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  cuerpos.frustumCulled = cabezas.frustumCulled = false;
   e.escena.add(cuerpos, cabezas);
   const ROPA = ['#ef5565', '#3f8cff', '#3fc79a', '#ffb02e', '#c79bff', '#26365c', '#ffffff'], color = new THREE.Color();
   const gente = Array.from({ length: GENTE }, (_, i) => {

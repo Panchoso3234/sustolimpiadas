@@ -66,7 +66,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       }
       for (let col = 0; col < columnas; col++) for (let piso = 0; piso < pisos; piso++) {
         const cx = x + (columnas === 1 ? 0 : (col - 0.5) * 1.06), cy = arriba + 0.5 + piso * 1.001;
-        const cuerpo = mundo.createRigidBody(plano().setTranslation(cx, cy, 0).setLinearDamping(0.05).setAngularDamping(0.3));
+        const cuerpo = mundo.createRigidBody(plano().setTranslation(cx, cy, 0).setLinearDamping(0.25).setAngularDamping(0.9));
         mundo.createCollider(R.ColliderDesc.cuboid(0.5, 0.5, 0.5).setFriction(0.7).setRestitution(0.05).setDensity(1.1), cuerpo);
         const malla = new THREE.Mesh(geoCaja, mat(piso % 2 ? '#c99655' : '#b98548'));
         malla.add(bordes.clone());
@@ -86,7 +86,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   e.escena.add(enCuchara);
 
   const puntosGuia = guia(e.escena, 9);
-  let quedan = SANDIAS, botadas = 0, botadasNivel = 0, nivel = 0, terminado = false, cerrando = false, enVuelo: { c: Cuerpo; desde: number } | null = null, empezado = false;
+  let desdeNivel = 0, quedan = SANDIAS, botadas = 0, botadasNivel = 0, nivel = 0, terminado = false, cerrando = false, enVuelo: { c: Cuerpo; desde: number } | null = null, empezado = false;
   const velocidad = (dx: number, dy: number, fuerza: number) => {
     const largo = Math.hypot(dx, dy) || 1;
     return { x: (-dx / largo) * VEL_MAX * fuerza, y: (dy / largo) * VEL_MAX * fuerza }; // tirar atrás y abajo = salir adelante y arriba
@@ -135,7 +135,8 @@ export async function crear(c: Contexto): Promise<Partida> {
     });
     if (terminado || t <= 0) return;
     if (movil) {
-      const y = movil.y + Math.sin(t * (1.1 + (c.nivel - 1) * 0.15)) * 0.9;
+      // La fase parte en cero con cada nivel: con el reloj del juego la plataforma saltaba de golpe al nacer y reventaba su torre
+      const y = movil.y + Math.sin((t - desdeNivel) * (1.1 + (c.nivel - 1) * 0.15)) * 0.9;
       movil.cuerpo.setNextKinematicTranslation({ x: movil.x, y, z: 0 });
       movil.malla.position.y = y;
     }
@@ -164,6 +165,7 @@ export async function crear(c: Contexto): Promise<Partida> {
             botadasNivel = 0;
             e.hud.aviso(`¡Nivel ${nivel + 1}! Torres nuevas y +${EXTRA} sandías`, 'oro', 1.8);
             armar(nivel);
+            desdeNivel = t;
           }
         } else if (quedan === 0) { cerrando = true; e.alCuadro(cierre(t + 1.4)); }
       }

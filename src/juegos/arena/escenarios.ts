@@ -209,6 +209,7 @@ export async function estadio(m: Mundo, arco: number, colores: string[]): Promis
   fundir(tribunas);
   e.escena.add(tribunas);
   const PERSONAS = 220, gente = new THREE.InstancedMesh(new THREE.BoxGeometry(0.34, 0.5, 0.3), new THREE.MeshLambertMaterial(), PERSONAS);
+  gente.frustumCulled = false; // el público se mueve: la esfera calculada al inicio queda vieja
   const ubicaciones: { x: number; y: number; z: number; equipo: number; fase: number }[] = [], o = new THREE.Object3D(), color = new THREE.Color();
   for (let i = 0; i < PERSONAS; i++) {
     const lado = i % 2 ? 1 : -1, fila = Math.floor(r() * 3), x = -ancho / 2 - 2.5 + r() * (ancho + 5), equipo = x < 0 ? 0 : 1;

@@ -651,3 +651,12 @@ body.foto .tren-poderes { display: none; }
   .isla-hud { right: 66px; font-size: .9rem; }
   .isla-lista { top: auto; bottom: calc(44px + env(safe-area-inset-bottom, 0px)); right: 12px; width: calc(100% - 24px); max-height: 42%; }
 }
+
+/* Celular (pantalla angosta o táctil): los controles ya se leyeron antes de jugar, así que no se repiten encima del
+   juego, y el tutorial de la cuenta regresiva va arriba, chico y corto, para no tapar la partida */
+@media (max-width: 760px), (hover: none) {
+  .sala-teclas { display: none; }
+  .sala-tutorial { top: 56px; bottom: auto; padding: 8px 12px; width: min(440px, calc(100% - 24px)); }
+  .sala-tutorial p { font-size: .86rem; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  .juego-aviso { font-size: clamp(1.1rem, 5.5vw, 1.8rem); white-space: normal; max-width: 90%; }
+}

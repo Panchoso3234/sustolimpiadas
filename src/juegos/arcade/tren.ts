@@ -68,6 +68,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   const arbolPino = await e.objeto('naturaleza', 'tree_pineRoundC', 6), arbol2 = await e.objeto('naturaleza', 'tree_default', 5.5), farol = await e.objeto('pueblo', 'lantern', 3.2);
   const COLORES_EDIFICIO = ['#f2b880', '#e88a7a', '#9bc4e2', '#c9a8e8', '#f6dc8a', '#a8d8b0', '#e6e0d0'];
   const tramos: Tramo[] = [];
+  const ocupadaPrevia = [Infinity, Infinity, Infinity]; // por vía, hasta dónde llega lo último puesto (se comparte entre tramos)
   const crearTramo = (kTramo: number): Tramo => {
     const r = generador(`${c.semilla}|tramo${kTramo}`), grupo = new THREE.Group(), z0 = -kTramo * TRAMO, obstaculos: Obstaculo[] = [], lista: Tramo['monedas'] = [], poderes: Poder[] = [];
     const piso = new THREE.Mesh(new THREE.PlaneGeometry(CARRIL * 3.4, TRAMO), matVias);
@@ -106,7 +107,8 @@ export async function crear(c: Contexto): Promise<Partida> {
       const dificultad = Math.min(1, kTramo / 12) + (c.nivel - 1) * 0.08;
       let zz = 6;
       // Hasta dónde llega (hacia el fondo) lo último puesto en cada vía: un tren largo ocupa varias filas
-      const ocupada = [z0 + 99, z0 + 99, z0 + 99];
+      // Sigue del tramo anterior: si no, un tren que viene de frente podía nacer detrás de uno detenido y atravesarlo
+      const ocupada = ocupadaPrevia;
       while (zz < TRAMO - 8) {
         const zFila = z0 - zz, libres = [0, 1, 2].filter((x) => ocupada[x] > zFila + 1);
         if (!libres.length) { zz += 6; continue; }
@@ -115,7 +117,7 @@ export async function crear(c: Contexto): Promise<Partida> {
         for (let carril = 0; carril < 3; carril++) {
           if (!libres.includes(carril) || (carril === libre && !pasable)) continue;
           // Un tren que viene de frente solo en una vía despejada hacia el jugador
-          let tipo: Tipo = r() < 0.12 + dificultad * 0.15 && ocupada[carril] > zFila + 30 && carril !== libre ? 'viene' : r() < 0.55 ? 'tren' : r() < 0.5 ? 'baja' : 'alta';
+          let tipo: Tipo = r() < 0.12 + dificultad * 0.15 && ocupada[carril] > zFila + 45 && carril !== libre ? 'viene' : r() < 0.55 ? 'tren' : r() < 0.5 ? 'baja' : 'alta';
           if (carril === libre) tipo = r() < 0.5 ? 'baja' : 'alta';
           const z = zFila - r() * 3;
           if (tipo === 'tren' || tipo === 'viene') {

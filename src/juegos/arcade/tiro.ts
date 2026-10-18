@@ -8,7 +8,8 @@ import { crearEscenario, mmss } from '../reflejos/motor';
 // desde el mostrador. Apuntas y disparas con el clic (o tocando la pantalla); el rifle tiene seis tiros y hay que
 // recargar. Aciertos seguidos suben el multiplicador; las bombas restan y lo cortan. Tres rondas que se ponen difíciles.
 
-const RONDAS = 3, DURA_RONDA = 35, PAUSA = 3, BALAS = 6, RECARGA = 0.9, BORDE = 8.6;
+// EXTRA_MAX: lo más que los relojes alargan una ronda (sin tope, un buen tirador la estiraba casi sin fin)
+const RONDAS = 3, DURA_RONDA = 35, PAUSA = 3, BALAS = 6, RECARGA = 0.9, BORDE = 8.6, EXTRA_MAX = 6;
 type Tipo = 'pato' | 'diana' | 'botella' | 'dorado' | 'bomba' | 'reloj' | 'asoma';
 const VALOR: Record<Tipo, number> = { pato: 10, diana: 15, botella: 20, dorado: 100, bomba: -50, reloj: 10, asoma: 25 };
 // Cada riel: altura, profundidad, sentido y rapidez (el de arriba, más lejos y más rápido)
@@ -89,7 +90,7 @@ export async function crear(c: Contexto): Promise<Partida> {
 
   // ── Disparo ──
   let balas = BALAS, recargaHasta = 0, racha = 0, tiros = 0, aciertos = 0, puntos = 0, ronda = 0, inicioRonda = 0, extra = 0, pausaHasta = 0, empezado = false, terminado = false;
-  const multi = () => Math.min(5, 1 + Math.floor(racha / 3));
+  const multi = () => Math.min(4, 1 + Math.floor(racha / 4));
   const recargar = (t: number) => { if (balas === BALAS || t < recargaHasta) return; recargaHasta = t + RECARGA; e.sonido.tono(300, 0.08, { tipo: 'square', vol: 0.08 }); e.sonido.tono(500, 0.08, { tipo: 'square', vol: 0.08, cuando: (e.sonido.ctx?.currentTime ?? 0) + 0.5 }); };
   const disparar = (ev: PointerEvent) => {
     const t = e.reloj();
@@ -119,7 +120,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     aciertos++; racha++;
     const valor = VALOR[b.tipo] * multi();
     puntos += valor;
-    if (b.tipo === 'reloj') { extra += 3; e.hud.aviso('+3 segundos', 'oro', 0.8); }
+    if (b.tipo === 'reloj' && extra < EXTRA_MAX) { extra += 3; e.hud.aviso('+3 segundos', 'oro', 0.8); }
     if (b.tipo === 'botella') { e.chispas(p.x, p.y, p.z, ['#3fbf6a', '#bff5cf', '#ffffff'], 22, 4); e.escena.remove(b.malla); e.sonido.tono(1800, 0.12, { tipo: 'triangle', vol: 0.1, hasta: 2600 }); }
     else { e.chispas(p.x, p.y, p.z, b.tipo === 'dorado' ? ['#ffd23c', '#ffffff', '#ffb000'] : ['#ffffff', '#ffd23c'], b.tipo === 'dorado' ? 40 : 12, 4); e.sonido.tono(b.tipo === 'dorado' ? 1500 : 900, 0.1, { tipo: 'triangle', vol: 0.12, hasta: 1300 }); }
     e.flotante(`+${valor}${multi() > 1 ? ` x${multi()}` : ''}`, p.x, p.y + 0.6, p.z, 'oro');

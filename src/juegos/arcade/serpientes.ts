@@ -115,9 +115,14 @@ export async function crear(c: Contexto): Promise<Partida> {
     return null;
   };
 
-  // Puntería con mouse: la serpiente sigue al cursor; con teclado o dedo, la dirección pedida
+  // Puntería con mouse: la serpiente va hacia donde apunta el cursor visto desde el centro de la pantalla (como en
+  // slither). Antes apuntaba a un punto fijo del mapa y, al pasarlo con turbo, se daba vuelta sola.
   let mouse: { x: number; z: number } | null = null, mouseHasta = 0, apretado = false;
-  e.escuchar(e.lienzo, 'pointermove', (ev) => { if (ev.pointerType !== 'mouse') return; const p = e.enSuelo(ev); if (p) { mouse = { x: p.x, z: p.z }; mouseHasta = e.reloj() + 3; } });
+  e.escuchar(e.lienzo, 'pointermove', (ev) => {
+    if (ev.pointerType !== 'mouse') return;
+    const caja = e.lienzo.getBoundingClientRect(), dx = ev.clientX - (caja.left + caja.width / 2), dy = ev.clientY - (caja.top + caja.height / 2);
+    if (Math.hypot(dx, dy) > 12) { mouse = { x: dx, z: dy }; mouseHasta = e.reloj() + 3; }
+  });
   e.escuchar(e.lienzo, 'pointerdown', (ev) => { if (ev.pointerType === 'mouse') apretado = true; });
   e.escuchar(window, 'pointerup', () => { apretado = false; });
 
@@ -187,7 +192,7 @@ export async function crear(c: Contexto): Promise<Partida> {
         // Dirección
         if (s.humano && !automatico) {
           const mx = mando.x, mz = mando.z;
-          if (mouse && t < mouseHasta && Math.hypot(mx, mz) < 0.3) s.meta = Math.atan2(mouse.x - s.x, mouse.z - s.z);
+          if (mouse && t < mouseHasta && Math.hypot(mx, mz) < 0.3) s.meta = Math.atan2(mouse.x, mouse.z);
           else if (Math.hypot(mx, mz) > 0.3) s.meta = Math.atan2(mx, mz);
           else s.meta = s.ang;
           s.turbo = mando.pulsada || apretado;
@@ -204,7 +209,11 @@ export async function crear(c: Contexto): Promise<Partida> {
         // Rastro: un punto nuevo cada tanto; se guarda lo justo para el largo actual
         const ult = s.rastro[0];
         let d = Math.hypot(s.x - ult.x, s.z - ult.z);
-        while (d >= PASO_RASTRO) { const k = PASO_RASTRO / d; s.rastro.unshift({ x: ult.x + (s.x - ult.x) * k, z: ult.z + (s.z - ult.z) * k }); d -= PASO_RASTRO; break; }
+        // (tantos puntos como haga falta: con turbo o pocos cuadros por segundo la cabeza se despegaba del cuerpo)
+        for (let a = s.rastro[0]; d >= PASO_RASTRO; a = s.rastro[0], d = Math.hypot(s.x - a.x, s.z - a.z)) {
+          const k = PASO_RASTRO / d;
+          s.rastro.unshift({ x: a.x + (s.x - a.x) * k, z: a.z + (s.z - a.z) * k });
+        }
         s.rastro.length = Math.min(s.rastro.length, segmentos(s) * espacio(s) + 4);
         // Comer: la comida cercana se acerca a la boca
         const boca = grosor(s) + 0.5;
