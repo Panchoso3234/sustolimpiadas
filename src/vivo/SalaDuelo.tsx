@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { generador } from '../nucleo/azar';
+import { fechaChile, generador } from '../nucleo/azar';
 import { supabase, useSesion } from '../nucleo/supabase';
 import { aspectoAleatorio, normalizarAspecto, type Aspecto } from '../personaje/catalogo';
 import * as V from '../juegos/duelos';
@@ -10,6 +10,7 @@ import { repartir, rondasDistintas, rondaSiguiente } from './asientos';
 import { capturar, limpiar } from './espejo';
 import { DUELOS } from './formatos';
 import { asientosValidos, debeReiniciar, identidadVivo, type Oficial } from './PantallaVivo';
+import { Prediccion, cerrarVivo, empezarVivo, idPartidaVivo } from './Prediccion';
 import { PuntosDuelo } from './PuntosDuelo';
 import { unirse, type Presente, type Sala } from './sala';
 import { COLOR_LADO, ladoDe, type Lado } from './tablero';
@@ -275,6 +276,13 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
   });
   if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__duelo = { estado: () => est.current, lado: () => miLado, fase: () => fase, terminar: (n: number) => { setFase('listo'); cerrarJuego(); publicar(n); }, foto: (l: Lado) => !!espejos.current[l]?.firstChild };
 
+  // Predicciones: los jugadores anotan el duelo al partir (se cierran las apuestas) y quién ganó al terminar
+  const pareja = asientos ?? (sentados.length === 2 ? sentados : null);
+  const idVivo = pareja ? idPartidaVivo(codigo, fechaChile(Date.now()), p.partida, pareja) : '';
+  const ganadorVivo = p.abandono ?? (fin && asientos ? (puntos.a! > puntos.b! ? asientos[0] : puntos.b! > puntos.a! ? asientos[1] : 'empate') : null);
+  useEffect(() => { if (idVivo && asientos && soyJugador && sesion.usuarioId) empezarVivo(idVivo, juego, asientos[0], asientos[1]); }, [idVivo, !!asientos]);
+  useEffect(() => { if (idVivo && ganadorVivo && soyJugador && sesion.usuarioId) cerrarVivo(idVivo, ganadorVivo); }, [idVivo, ganadorVivo]);
+
   if (!formato || !ficha) return <><h1>Sala no encontrada</h1><p><a class="boton" href="#/juegos/vivo">Volver al juego en vivo</a></p></>;
   if (sesion.cargando) return <p class="tenue">Cargando…</p>;
 
@@ -305,6 +313,7 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
       <ul class="vivo-gente">
         {sentados.map((id, i) => <li key={id} class="juega"><b>{nombre(id)}{id === yo.id ? ' (tú)' : ''}</b><span class="tenue chico">{(asientos ? asientos.indexOf(id) : i) === 0 ? 'Azul' : 'Rojo'}{!asientos ? (presentes.some((x) => x.id === id && x.listo === p.partida) ? ' · listo' : ' · esperando') : presentes.some((x) => x.id === id) ? '' : ' · desconectado'}</span></li>)}
       </ul>
+      {!soyJugador && pareja && idVivo && <Prediccion partida={idVivo} a={{ id: pareja[0], nombre: nombre(pareja[0]) }} b={{ id: pareja[1], nombre: nombre(pareja[1]) }} abierta={!asientos} ganador={ganadorVivo} usuarioId={sesion.usuarioId} />}
       {!asientos && (sentados.length < 2 ? <p class="aviso atencion">Esperando a otra persona. Comparte el enlace de la sala.</p>
         : rivalEnOtraRonda ? <p class="aviso atencion">Tu rival está en otra ronda (ya jugó una a su hora): terminen esta ronda en diferido.</p>
         : soyJugador ? <button class="boton principal grande" onClick={() => sala.current?.marcarListo(yoListo ? 0 : p.partida)}>{yoListo ? 'Ya no estoy listo' : '¡Listo!'}</button>

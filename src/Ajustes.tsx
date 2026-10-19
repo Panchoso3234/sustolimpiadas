@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks';
-import { esDaltonico, esLiviano, instalarApp, marcarRecorrido, ponerDaltonico, ponerLiviano, ponerSensibilidad, puedeInstalar, recorridoVisto, sensibilidad } from './nucleo/preferencias';
+import { esDaltonico, esLiviano, instalarApp, marcarRecorrido, ponerDaltonico, ponerClips, ponerLiviano, ponerSensibilidad, clipsActivos, puedeInstalar, recorridoVisto, sensibilidad } from './nucleo/preferencias';
 import { estaCallado, nivelMusica, nivelVolumen, ponerMusica, ponerVolumen, silenciar } from './juegos/sonido';
 
 // Ajustes de cada persona (quedan en este navegador) y el recorrido de bienvenida de la primera visita.
@@ -12,6 +12,7 @@ export function Ajustes({ alVerRecorrido }: { alVerRecorrido(): void }) {
   const [instalable, setInstalable] = useState(puedeInstalar);
   const [sens, setSens] = useState(sensibilidad);
   const [liviano, setLiviano] = useState(esLiviano);
+  const [clips, setClips] = useState(clipsActivos);
   return (
     <div class="pagina">
       <div class="sigla">Ajustes</div>
@@ -30,6 +31,7 @@ export function Ajustes({ alVerRecorrido }: { alVerRecorrido(): void }) {
         </label>
         <label class="casilla"><input type="checkbox" checked={liviano} onChange={(e) => { ponerLiviano(e.currentTarget.checked); setLiviano(e.currentTarget.checked); }} /> Modo liviano (los juegos se ven menos nítidos y con menos chispas, pero andan más fluidos en celulares lentos)</label>
         <label class="casilla"><input type="checkbox" checked={daltonico} onChange={(e) => { ponerDaltonico(e.currentTarget.checked); setDaltonico(e.currentTarget.checked); }} /> Modo daltónico (cambia verde y rojo por azul y naranjo, en la página y en los equipos de la arena)</label>
+        <label class="casilla"><input type="checkbox" checked={clips} onChange={(e) => { ponerClips(e.currentTarget.checked); setClips(e.currentTarget.checked); }} /> Grabar mis partidas para guardar clips (botón 🎬; usa un poco más el equipo)</label>
         <button class="boton" onClick={alVerRecorrido}>Ver de nuevo el recorrido de bienvenida</button>
       </section>
       <section class="bloque formulario ajustes">

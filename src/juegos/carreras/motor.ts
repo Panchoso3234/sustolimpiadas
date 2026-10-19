@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { figuraFantasma, grabadora } from '../fantasma';
 import { crearMando } from '../mando';
 import type { Contexto, Partida } from '../marco';
 import { crearEscenario, limitar, mmss } from '../reflejos/motor';
@@ -82,6 +83,8 @@ export async function crearCarrera(c: Contexto, pista: Pista): Promise<Partida> 
   let enSuelo = false, aire = 0, aturdido = 0, caidas = 0, mejor = 0, terminado = false, empezado = false, rumbo = Math.PI;
   const solido = (x: (typeof piezas)[number]) => !x.fuera && x.b.tipo !== 'real';
 
+  // Fantasma del líder (si se juega contra él) y grabación del propio recorrido
+  const ruta = grabadora(), lider = c.fantasma ? figuraFantasma(e.escena, c.fantasma, 1.7) : null;
   const terminar = (t: number, llego: boolean) => {
     if (terminado) return;
     terminado = true;
@@ -90,7 +93,7 @@ export async function crearCarrera(c: Contexto, pista: Pista): Promise<Partida> 
     c.alTerminar({
       puntaje: llego ? Math.max(300, Math.round(2000 - 20 * t - 40 * caidas)) : Math.round(600 * mejor),
       lineas: [['Resultado', llego ? 'Llegaste a la meta' : pista.lava ? 'Te alcanzó la lava' : 'Se acabó el tiempo'], ['Recorrido', `${Math.round((llego ? 1 : mejor) * 100)} %`], ['Tiempo', `${t.toFixed(1)} s`], ['Caídas', String(caidas)]],
-      detalle: { llego, avance: Math.round(mejor * 100), seg: Math.round(t * 10) / 10, caidas },
+      detalle: { llego, avance: Math.round(mejor * 100), seg: Math.round(t * 10) / 10, caidas, ruta: ruta.final() },
     });
   };
   const reaparecer = () => {
@@ -202,7 +205,7 @@ export async function crearCarrera(c: Contexto, pista: Pista): Promise<Partida> 
   e.hud.puntos(0);
   const mira = new THREE.Vector3();
   e.alCuadro((t, dt) => {
-    if (empezado && !terminado) { const medio = Math.min(dt, 0.05) / 2; paso(t, medio); if (!terminado) paso(t + medio, medio); }
+    if (empezado && !terminado) { const medio = Math.min(dt, 0.05) / 2; paso(t, medio); if (!terminado) paso(t + medio, medio); ruta.anotar(t, p.x, p.y, p.z); lider?.mover(t); }
     // Personaje y cámara
     const andando = Math.hypot(v.x, v.z) > 0.6;
     if (andando) rumbo = Math.atan2(v.x, v.z);
@@ -211,7 +214,7 @@ export async function crearCarrera(c: Contexto, pista: Pista): Promise<Partida> 
     k.grupo.scale.y = k.grupo.scale.x * (mando.agachado && !terminado ? 0.6 : 1);
     fantasma.position.lerpVectors(salida, llegada, empezado ? limitar(t / pista.ritmo, 0, 1) : 0);
     fantasma.position.y += 0.85;
-    fantasma.visible = empezado && !terminado && t < pista.ritmo + 1.5;
+    fantasma.visible = !lider && empezado && !terminado && t < pista.ritmo + 1.5;
     // La sombra cae en el bloque que está justo debajo: así se ve dónde vas a aterrizar
     let piso = -Infinity;
     for (const x of piezas) if (solido(x) && Math.abs(p.x - x.b.x) <= x.b.w / 2 && Math.abs(p.z - x.b.z) <= x.b.d / 2 && x.b.y <= p.y + 0.05) piso = Math.max(piso, x.b.y);

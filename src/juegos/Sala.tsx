@@ -2,9 +2,14 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { fechaChile, generador } from '../nucleo/azar';
 import { supabase, useSesion } from '../nucleo/supabase';
 import { aspectoAleatorio, normalizarAspecto, normalizarPersonaje, type Aspecto } from '../personaje/catalogo';
-import { HORIZONTALES, JUEGOS, MOTORES, VERSUS, type Juego } from './catalogo';
+import { HORIZONTALES, JUEGOS, MOTORES, TOPES, VERSUS, type Juego } from './catalogo';
 import { Records } from './Records';
 import { guardarMarca, historial, marcaLocal, tablaDelDia, type Fila, type Guardado } from './marcas';
+import { clipsActivos } from '../nucleo/preferencias';
+import { entregarClip, grabarClips, type Clips } from './clips';
+import { Firma } from '../Progreso';
+import { vitrinaLocal, vitrinas, type Vitrina } from './progreso';
+import { CON_FANTASMA, decodificar, liderDelDia, type Fantasma } from './fantasma';
 import { CARGADORES, ajustesPartida, jornadaDe, type Partida, type Resultado } from './marco';
 import { PUNTOS_BASE, leerPuntos, puntosPorPuesto, type Puntos } from './puntos';
 import { estaCallado, fanfarria, silenciar } from './sonido';
@@ -48,6 +53,8 @@ export async function aspectoDe(usuarioId: string | null): Promise<Aspecto> {
 function Tabla({ juego, fecha, usuarioId, version }: { juego: Juego; fecha: string; usuarioId: string | null; version: number }) {
   const [estado, setEstado] = useState<{ filas: Fila[]; disponible: boolean } | null>(null);
   const [puntos, setPuntos] = useState<Puntos>(PUNTOS_BASE);
+  const [vits, setVits] = useState<Map<string, Vitrina>>(new Map());
+  useEffect(() => { vitrinas().then(setVits).catch(() => {}); }, []);
   useEffect(() => { leerPuntos().then(setPuntos); }, []);
   useEffect(() => {
     let vigente = true;
@@ -61,7 +68,7 @@ function Tabla({ juego, fecha, usuarioId, version }: { juego: Juego; fecha: stri
   const retable = VERSUS.some((t) => t.modo === '1v1' && t.base === juego.id), total = estado.filas.length, mio = estado.filas.findIndex((f) => f.perfil === usuarioId), top = estado.filas.slice(0, 8);
   const fila = (f: Fila, i: number) => (
     <li key={f.perfil} class={f.perfil === usuarioId ? 'mia' : ''}>
-      <span class="puesto">{i + 1}</span><a class="quien" href={`#/perfil/${f.perfil}`}>{f.nombre}</a><b>{f.puntaje}</b><span class="torneo" title="Puntos del torneo por este puesto">+{puntosPorPuesto(puntos, i, total)}</span>
+      <span class="puesto">{i + 1}</span><a class="quien" href={`#/perfil/${f.perfil}`}><Firma nombre={f.nombre} vitrina={vits.get(f.perfil)} /></a><b>{f.puntaje}</b><span class="torneo" title="Puntos del torneo por este puesto">+{puntosPorPuesto(puntos, i, total)}</span>
       {usuarioId && f.perfil !== usuarioId && retable && <a class="retar-mini" href={`#/juegos/1v1/${f.perfil}.${juego.id}`} title={`Retar a ${f.nombre} a un duelo amistoso`}>Retar</a>}
     </li>
   );
@@ -90,6 +97,28 @@ function Historial({ juego, unidad, version }: { juego: string; unidad: string; 
   );
 }
 
+/** El efecto del pase al hacer tu mejor marca: lluvia de dulces, murciélagos o fuegos artificiales. */
+const LLUVIAS: Record<string, string[]> = { dulces: ['🍬', '🍭', '🍫', '🍬'], murcielagos: ['🦇'], fuegos: ['🎆', '✨', '🎇'] };
+function Lluvia({ efecto }: { efecto: string }) {
+  const caen = LLUVIAS[efecto];
+  if (!caen) return null;
+  return <div class="lluvia" aria-hidden="true">{Array.from({ length: 26 }, (_, i) => <span key={i} style={`left:${(i * 37) % 100}%;animation-delay:${(i % 9) * 0.18}s;font-size:${1.3 + (i % 4) * 0.35}rem`}>{caen[i % caen.length]}</span>)}</div>;
+}
+
+/** El resultado como texto para pegar en Discord, con una barra de emojis según qué tan cerca quedó del tope del juego. */
+function textoResultado(juego: Juego, r: Resultado, mejor: boolean, contra: Fantasma | null): string {
+  const tope = TOPES[juego.id], llenos = tope ? Math.max(0, Math.min(10, Math.round((r.puntaje / tope) * 10 * 1.6))) : 0;
+  const barra = tope ? '🟧'.repeat(llenos) + '⬛'.repeat(10 - llenos) : '';
+  return [
+    `🎃 Las Sustolimpiadas · ${juego.nombre}`,
+    `🏆 ${r.puntaje} ${juego.unidad}${mejor ? ' · ¡mi mejor marca de hoy!' : ''}`,
+    barra,
+    ...r.lineas.slice(0, 3).map(([que, cuanto]) => `▫️ ${que}: ${cuanto}`),
+    contra ? (r.puntaje > contra.puntaje ? `👻 Le gané al fantasma de ${contra.nombre} (${contra.puntaje})` : `👻 El fantasma de ${contra.nombre} me ganó por ${contra.puntaje - r.puntaje + 1}`) : '',
+    `¿Me superas? https://panchoso3234.github.io/sustolimpiadas/#/juegos/${juego.id}`,
+  ].filter(Boolean).join('\n');
+}
+
 type Fase = 'previa' | 'cargando' | 'cuenta' | 'jugando' | 'resultado' | 'error';
 
 export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
@@ -109,19 +138,36 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
   const [pausa, setPausa] = useState(false);
   const [completa, setCompleta] = useState(false);
   const [avance, setAvance] = useState(0);
+  // Fantasma del líder: quién es (si su marca trae recorrido) y si la partida en curso es contra él
+  const [lider, setLider] = useState<Fantasma | null>(null);
+  const contra = useRef<Fantasma | null>(null);
+  // Clips: grabación continua del lienzo mientras dura la partida
+  const clips = useRef<Clips | null>(null);
+  const [clip, setClip] = useState('');
+  const [copiado, setCopiado] = useState(false);
   const sala = useRef<HTMLDivElement>(null);
   const fecha = useRef(fechaChile(Date.now())).current, motor = MOTORES[juego.motor];
   const usuarioId = sesion.usuarioId, usuario = useRef(usuarioId);
   usuario.current = usuarioId;
 
-  const cerrar = () => { turno.current++; partida.current?.destruir(); partida.current = null; };
+  const cerrar = () => { turno.current++; clips.current?.detener(); clips.current = null; partida.current?.destruir(); partida.current = null; };
+  const sacarClip = async () => {
+    if (!clips.current || clip === 'preparando') return;
+    setClip('preparando');
+    const listo = await clips.current.guardar();
+    if (!listo) { setClip('No se pudo grabar el clip en este navegador.'); setTimeout(() => setClip(''), 3000); return; }
+    const como = await entregarClip(listo.blob, `sustolimpiadas-${juego.id}-${fecha}.${listo.extension}`);
+    setClip(como === 'compartido' ? '¡Clip compartido!' : '🎬 Clip descargado: súbelo a Discord');
+    setTimeout(() => setClip(''), 3500);
+  };
   useEffect(() => cerrar, []);
 
   // Práctica: se juega igual, pero la marca no se guarda en ninguna parte
   const practica = useRef(false);
-  const jugar = async (soloPractica = false) => {
+  const jugar = async (soloPractica = false, contraLider: Fantasma | null = null) => {
     cerrar();
     practica.current = !reto && soloPractica;
+    contra.current = reto ? null : contraLider;
     const mio = turno.current;
     setFase('cargando');
     setResultado(null);
@@ -131,12 +177,12 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
     try {
       const [crear, aspecto] = await Promise.all([CARGADORES[juego.id](), aspectoDe(usuario.current)]);
       // En un enfrentamiento el intento se gasta aquí, cuando el juego ya está descargado
-      const semilla = reto ? await reto.empezar() : `${juego.id}|${fecha}|${Math.random().toString(36).slice(2, 10)}`;
+      const semilla = reto ? await reto.empezar() : contra.current?.semilla ?? `${juego.id}|${fecha}|${Math.random().toString(36).slice(2, 10)}`;
       if (mio !== turno.current || !caja.current) return;
       ajustesPartida.pausable = !reto; // en un enfrentamiento el reloj no se detiene al cambiar de pestaña
       ajustesPartida.vivo = ajustesPartida.foto = false;
       const nueva = await crear({
-        caja: caja.current, semilla, aspecto, nivel: reto?.nivel ?? jornadaDe(fecha),
+        caja: caja.current, semilla, aspecto, nivel: reto?.nivel ?? jornadaDe(fecha), fantasma: contra.current ?? undefined,
         alTerminar(r) {
           if (mio !== turno.current) return;
           setResultado(r);
@@ -146,12 +192,17 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
           else {
             const previa = marcaLocal(juego.id, fecha);
             fanfarria(!previa || r.puntaje > previa.mejor);
-            guardarMarca(juego.id, fecha, r.puntaje, { ...r.detalle, semilla }, usuario.current).then((g) => { if (mio === turno.current) { setGuardado(g); setVersion((v) => v + 1); } });
+            const prueba = import.meta.env.DEV ? decodificar(r.detalle.ruta) : null;
+            if (prueba) try { localStorage.setItem(`susto.fantasmaPrueba.${juego.id}`, JSON.stringify({ nombre: 'Prueba', puntaje: r.puntaje, semilla, ...prueba })); localStorage.setItem('susto.pesoDetalle', String(JSON.stringify(r.detalle).length)); } catch { /* sin almacenamiento */ }
+            const vsLider = contra.current ? { lider: contra.current.nombre, venceLider: r.puntaje > contra.current.puntaje } : {};
+            guardarMarca(juego.id, fecha, r.puntaje, { ...r.detalle, semilla, ...vsLider }, usuario.current).then((g) => { if (mio === turno.current) { setGuardado(g); setVersion((v) => v + 1); } });
           }
         },
       });
       if (mio !== turno.current) return nueva.destruir();
       partida.current = nueva;
+      const lienzo = caja.current?.querySelector('canvas');
+      if (lienzo && clipsActivos()) clips.current = grabarClips(lienzo);
       // Cuenta regresiva: 3, 2, 1 y parte
       setFase('cuenta');
       setTutorial(true);
@@ -171,6 +222,14 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
       setFase('error');
     }
   };
+
+  // El líder del día con recorrido grabado (se vuelve a pedir al volver a la previa o al resultado: puede haber cambiado)
+  useEffect(() => {
+    if (reto || !CON_FANTASMA.has(juego.id) || (fase !== 'previa' && fase !== 'resultado')) return;
+    let vigente = true;
+    liderDelDia(juego.id, fecha, usuarioId).then((l) => { if (vigente) setLider(l); }).catch(() => {});
+    return () => { vigente = false; };
+  }, [fase, usuarioId, version]);
 
   // Solo en pruebas: "?auto=1" parte la partida sin tocar nada, para tomar capturas; "&foto=1" además esconde todo lo que no es el juego
   useEffect(() => {
@@ -242,6 +301,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
           {!reto && fase === 'jugando' && <button class="boton" aria-pressed={pausa} title="Pausa (P)" onClick={(ev) => { pausar(!pausa); ev.currentTarget.blur(); }}>{pausa ? 'Seguir' : 'Pausa'}</button>}
           <button class="boton" aria-pressed={callado} onClick={(ev) => { silenciar(!callado); setCallado(!callado); ev.currentTarget.blur(); }}>{callado ? 'Sonido: no' : 'Sonido: sí'}</button>
           {fase === 'jugando' && <button class="boton" aria-label="Cómo se juega" title="Cómo se juega" onClick={(ev) => { setAyuda(false); setTutorial(true); if (!reto) pausar(true); ev.currentTarget.blur(); }}>?</button>}
+          {clips.current && fase === 'jugando' && <button class="boton" title="Guarda en video los últimos segundos de la partida" disabled={clip === 'preparando'} onClick={(ev) => { sacarClip(); ev.currentTarget.blur(); }}>🎬 Clip</button>}
           {puedeCompleta && <button class="boton" aria-pressed={completa} aria-label={completa ? 'Salir de pantalla completa' : 'Pantalla completa'} title="Pantalla completa" onClick={(ev) => { alternarCompleta(); ev.currentTarget.blur(); }}>{completa ? '⤡' : '⛶'}</button>}
         </div>
       )}
@@ -252,6 +312,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
           <button class="boton principal grande" onClick={() => pausar(false)}>Seguir jugando</button>
         </div>
       )}
+      {clip && <div class="clip-aviso" role="status">{clip === 'preparando' ? '🎬 Preparando tu clip…' : clip}</div>}
       {fase === 'cuenta' && <div class="sala-cuenta" key={cuenta} aria-live="assertive">{cuenta}</div>}
       {(fase === 'cuenta' || fase === 'jugando') && tutorial && (fase === 'cuenta' || !ayuda) && (
         <div class="sala-tutorial" role="button" tabIndex={0} title="Toca para cerrar" onClick={() => { setTutorial(false); if (fase === 'jugando' && !reto) pausar(false); }}><b>Cómo se juega</b><p>{juego.controles}</p><span class="chico tenue">Toca para cerrar</span></div>
@@ -278,6 +339,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
               {!(reto && fase === 'error') && <button class="boton principal grande" disabled={fase === 'cargando'} onClick={() => jugar()}>{fase === 'cargando' ? 'Preparando…' : reto ? 'Jugar mi intento' : 'Jugar'}</button>}
               {reto && fase !== 'error' && <a class="boton" href={reto.practica}>Practicar primero</a>}
               {!reto && <button class="boton" disabled={fase === 'cargando'} onClick={() => jugar(true)} title="Juegas igual, pero la marca no se guarda">Práctica (no guarda)</button>}
+              {!reto && lider && <button class="boton fantasma-boton" disabled={fase === 'cargando'} onClick={() => jugar(false, lider)} title="El mismo recorrido que hizo el líder de hoy, con su fantasma corriendo a tu lado">👻 Correr contra {lider.nombre} ({lider.puntaje})</button>}
               <a class="boton" href={volver}>{reto ? 'Volver a mis enfrentamientos' : 'Volver al portal'}</a>
             </div>
             {reto && <p class="chico tenue">Practicar abre el mismo juego en modo individual, con un desafío distinto: no gasta tu intento.</p>}
@@ -288,12 +350,14 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
           </div>
         </div>
       )}
+      {fase === 'resultado' && guardado?.esMejor && vitrinaLocal().efecto && <Lluvia efecto={vitrinaLocal().efecto!} />}
       {fase === 'resultado' && resultado && (
         <div class="sala-telon">
           <div class="sala-panel">
             <div class="sigla">{juego.nombre} · resultado</div>
             <div class="puntaje"><b>{resultado.puntaje}</b><span>{juego.unidad}</span></div>
             {guardado?.esMejor && <p class="aviso ok">Es tu mejor marca de hoy.</p>}
+            {contra.current && <p class={resultado.puntaje > contra.current.puntaje ? 'aviso ok' : 'aviso'}>{resultado.puntaje > contra.current.puntaje ? `👻 ¡Le ganaste al fantasma de ${contra.current.nombre}! (${contra.current.puntaje})` : `👻 El fantasma de ${contra.current.nombre} sigue arriba: ${contra.current.puntaje}. Te faltaron ${contra.current.puntaje - resultado.puntaje + 1}.`}</p>}
             <dl class="desglose">{resultado.lineas.map(([que, cuanto]) => <div key={que}><dt>{que}</dt><dd>{cuanto}</dd></div>)}</dl>
             {reto ? (
               <p class={envio?.error ? 'aviso error' : 'chico tenue'}>
@@ -310,9 +374,12 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
             )}
             <div class="fila">
               {!reto && <button class="boton principal grande" onClick={() => jugar(practica.current)}>{practica.current ? 'Practicar otra vez' : 'Jugar otra vez'}</button>}
+              {!reto && lider && <button class="boton fantasma-boton" onClick={() => jugar(false, lider)}>👻 Contra {lider.nombre}</button>}
               {!reto && siguiente && <a class="boton" href={`#/juegos/${siguiente.id}`} title="El próximo juego que todavía no juegas hoy">Siguiente: {siguiente.nombre} →</a>}
               <a class={reto ? 'boton principal grande' : 'boton'} href={volver}>{reto ? 'Volver a mis enfrentamientos' : 'Volver al portal'}</a>
             </div>
+            <button class="boton clip-boton" onClick={() => navigator.clipboard.writeText(textoResultado(juego, resultado, !!guardado?.esMejor, contra.current)).then(() => { setCopiado(true); setTimeout(() => setCopiado(false), 2500); }, () => {})}>{copiado ? '✓ Copiado: pégalo en Discord' : '📋 Copiar mi resultado para Discord'}</button>
+            {clips.current && <button class="boton clip-boton" disabled={clip === 'preparando'} onClick={sacarClip}>🎬 Guardar la jugada en video (los últimos segundos)</button>}
             {!reto && !siguiente && <p class="aviso ok">¡Jugaste todos los juegos de hoy!</p>}
             {!reto && <Historial juego={juego.id} unidad={juego.unidad} version={version} />}
             {!reto && <><div class="sigla">Récords históricos</div><Records juego={juego.id} unidad={juego.unidad} version={version} /></>}

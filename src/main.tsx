@@ -9,6 +9,7 @@ import { entrar, salir, useSesion } from './nucleo/supabase';
 import { Portal } from './juegos/Portal';
 import { Admin, Arena } from './paginas';
 import { Perfil } from './Perfil';
+import { Progreso } from './Progreso';
 import { Creador } from './personaje/Creador';
 import './nucleo/preferencias';
 
@@ -16,6 +17,7 @@ const RUTAS = [
   { ruta: 'isla', titulo: 'Isla' },
   { ruta: 'personaje', titulo: 'Mi personaje' },
   { ruta: 'juegos', titulo: 'Juegos' },
+  { ruta: 'progreso', titulo: 'Progreso' },
   { ruta: 'arena', titulo: 'Arena' },
 ];
 
@@ -54,6 +56,7 @@ function App() {
           : seccion === 'juegos' ? <Portal sub={sub} extra={extra} />
           : seccion === 'arena' ? <Arena />
           : seccion === 'admin' ? <Admin />
+          : seccion === 'progreso' ? <Progreso sub={sub} />
           : seccion === 'perfil' ? <Perfil key={sub} id={sub} />
           : seccion === 'ajustes' ? <Ajustes alVerRecorrido={() => setRecorrido(true)} />
           : seccion === 'modelos' ? <Galeria />

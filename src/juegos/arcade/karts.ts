@@ -3,6 +3,7 @@ import { generador } from '../../nucleo/azar';
 import { aspectoAleatorio } from '../../personaje/catalogo';
 import type { Kenney } from '../../personaje/kenney';
 import { bosque, cielo, pasto, type Planta } from '../decorado';
+import { figuraFantasma, grabadora } from '../fantasma';
 import { crearMando } from '../mando';
 import { volumen } from '../sonido';
 import type { Contexto, Partida } from '../marco';
@@ -289,7 +290,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     c.alTerminar({
       puntaje: base + yo.monedas * 15 + bono,
       lineas: [['Puesto', `${puesto}º de 6`], ['Pista', nombrePista], ['Tiempo', yo.fin ? `${tiempo.toFixed(1)} s` : 'No terminó'], ['Monedas', String(yo.monedas)], ['Bono de tiempo', String(bono)]],
-      detalle: { puesto, seg: Math.round(tiempo * 10) / 10, monedas: yo.monedas, pista: nombrePista },
+      detalle: { puesto, seg: Math.round(tiempo * 10) / 10, monedas: yo.monedas, pista: nombrePista, ruta: ruta.final() },
     });
   };
 
@@ -317,8 +318,11 @@ export async function crear(c: Contexto): Promise<Partida> {
   e.hud.tiempo(`Vuelta 1/${VUELTAS}`);
   e.hud.puntos(0);
   camara(0, true);
+  // Fantasma del líder (si se juega contra él) y grabación del propio recorrido
+  const ruta = grabadora(), lider = c.fantasma ? figuraFantasma(e.escena, c.fantasma, 1.6) : null;
   e.alCuadro((t, dt) => {
     if (empezado && !terminado) {
+      ruta.anotar(t, yo.x, 0.3, yo.z); lider?.mover(t);
       if (!motor) { encenderMotor(); inicio = t; }
       // Jugador
       const pidoObjeto = mando.agachado;

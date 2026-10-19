@@ -48,6 +48,8 @@ export const SITIOS = {
   faro: { x: -86, z: 26 }, molino: { x: 78, z: -20 }, granja: { x: 48, z: -44 }, camping: { x: 46, z: 62 }, cascada: { x: -22, z: -54 },
   volcan: { x: 0, z: -78 }, porton: { x: 0, z: -46 },
   lago: { x: 52, z: 22 }, ruinas: { x: -72, z: -32 }, cementerio: { x: 72, z: -64 }, caleta: borde(-63, 6),
+  /** Barrio de los Participantes: una casita por inscrito, adornada con lo que ganó en el pase de temporada. */
+  barrio: { x: -22, z: 52 },
 };
 
 // Salidas del pueblo: puntos libres por donde parten los caminos al resto de la isla
@@ -69,7 +71,7 @@ const CERROS = [{ ...SITIOS.volcan, h: 12, s: 24 }, { ...SITIOS.faro, h: 8, s: 1
 // Explanadas: el terreno se aplana alrededor de cada construcción fuera del pueblo
 const PLANOS = [
   { ...SITIOS.faro, r: 3.6 }, { ...SITIOS.molino, r: 4.2 }, { ...SITIOS.granja, r: 8.5 }, { ...SITIOS.porton, r: 4.5 }, { ...SITIOS.camping, r: 5 }, { ...SITIOS.cascada, r: 3 },
-  { ...SITIOS.lago, r: 10 }, { ...SITIOS.ruinas, r: 7 }, { ...SITIOS.cementerio, r: 7 }, ...CASAS.map((c) => ({ x: c.x, z: c.z, r: 6.5 })),
+  { ...SITIOS.lago, r: 10 }, { ...SITIOS.ruinas, r: 7 }, { ...SITIOS.cementerio, r: 7 }, { ...SITIOS.barrio, r: 16 }, ...CASAS.map((c) => ({ x: c.x, z: c.z, r: 6.5 })),
 ].map((p) => ({ ...p, h: 0 }));
 
 function relieve(x: number, z: number): number {
@@ -161,6 +163,7 @@ export const LUGARES: Lugar[] = [
   { id: 'lago', x: 45.2, z: 15.2, r: 1.4, verbo: 'pescando en el lago', peso: 1.2, pose: 'pescar', emote: '…', gusto: { Tranquilo: 2, Tímido: 1.5 }, acceso: [SALIDA.este] },
   { id: 'ruinas', x: -68, z: -30, r: 2.4, verbo: 'explorando las ruinas', peso: 1.1, pose: 'pie', gusto: { Soñador: 2.5, Competitivo: 1.5 }, acceso: [SALIDA.noroeste, PUENTE_NORTE] },
   { id: 'cementerio', x: 68.5, z: -61, r: 2.2, verbo: 'contando historias en el cementerio', peso: 2.5, pose: 'pie', cuando: 'noche', gusto: { Payaso: 2 }, acceso: [SALIDA.noreste, HACIA_GRANJA] },
+  { id: 'barrio', ...en(SITIOS.barrio), r: 3.4, verbo: 'paseando por el Barrio de los Participantes', peso: 1.6, pose: 'pie', gusto: { Competitivo: 1.5, Payaso: 1.5 }, acceso: [SALIDA.sur] },
   { id: 'caleta', ...en(borde(-63, 9.5)), r: 1.8, verbo: 'mirando las redes en la caleta', peso: 1, pose: 'pie', gusto: { Glotón: 1.5 }, acceso: [SALIDA.oeste, PUENTE, TRAS_PUENTE] },
 ];
 // Cada casa es también un lugar: de día se pasa a verla y de madrugada se duerme frente a ella

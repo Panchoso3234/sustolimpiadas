@@ -1,48 +1,27 @@
 import { useEffect, useState } from 'preact/hooks';
-import { fechaChile, horaChile } from './nucleo/azar';
+import { fechaChile } from './nucleo/azar';
 import { supabase, useSesion } from './nucleo/supabase';
-import { JUEGOS, MOTORES, ORDEN_MOTORES, juegoPorId, nombreVersus } from './juegos/catalogo';
+import { JUEGOS, MOTORES, juegoPorId, nombreVersus } from './juegos/catalogo';
 import * as V from './juegos/duelos';
 import { PUNTOS_BASE, leerPuntos, puntosVersus, type Puntos } from './juegos/puntos';
+import { cargarDatos, logros, premio, vitrinas, type Logro, type Vitrina } from './juegos/progreso';
+import { Firma } from './Progreso';
 
 // Perfil de una persona: estadísticas, insignias, resumen de la semana, mejores marcas, duelos e historial.
 // Todo se calcula de las marcas y enfrentamientos que ya existen; no guarda nada nuevo.
 
 interface Marca { juego: string; puntaje: number; fecha: string; creado: string }
-interface Datos { nombre: string; marcas: Marca[]; duelos: { e: V.Enfrentamiento; lado: V.Lado }[]; personas: V.Persona[]; equipos: V.Equipo[]; puntos: Puntos }
+interface Datos { nombre: string; marcas: Marca[]; duelos: { e: V.Enfrentamiento; lado: V.Lado }[]; personas: V.Persona[]; equipos: V.Equipo[]; puntos: Puntos; logros: Logro[]; vitrina: Vitrina | null }
 
 async function cargar(id: string): Promise<Datos> {
-  const [{ data: perfil }, { data: marcas }, personas, equipos, { lista }, puntos] = await Promise.all([
+  const [{ data: perfil }, { data: marcas }, personas, equipos, { lista }, puntos, progreso, todas] = await Promise.all([
     supabase.from('perfiles').select('nombre').eq('id', id).maybeSingle(),
     supabase.from('marcas').select('juego,puntaje,fecha,creado').eq('perfil_id', id).order('creado', { ascending: false }).limit(2000),
     V.listarPersonas(), V.listarEquipos(), V.listarEnfrentamientos(), leerPuntos().catch(() => PUNTOS_BASE),
+    cargarDatos(id), vitrinas().catch(() => new Map<string, Vitrina>()),
   ]);
   const duelos = lista.map((e) => ({ e, lado: V.ladoDe(e, id, equipos) })).filter((x): x is { e: V.Enfrentamiento; lado: V.Lado } => x.lado !== null);
-  return { nombre: (perfil as { nombre: string } | null)?.nombre ?? 'Participante', marcas: (marcas as Marca[] | null) ?? [], duelos, personas, equipos, puntos };
-}
-
-interface Insignia { nombre: string; como: string; tiene: boolean }
-
-function insignias(d: Datos): Insignia[] {
-  const juegos = new Set(d.marcas.map((m) => m.juego)), dias = new Set(d.marcas.map((m) => m.fecha));
-  const porDia = new Map<string, number>();
-  for (const m of d.marcas) porDia.set(m.fecha, (porDia.get(m.fecha) ?? 0) + 1);
-  const motores = new Set([...juegos].map((j) => juegoPorId(j)?.motor).filter(Boolean));
-  const victorias = d.duelos.filter((x) => x.e.estado === 'cerrado' && x.e.ganador === x.lado).length;
-  const abiertos = JUEGOS.filter((j) => j.listo).length;
-  const horas = d.marcas.map((m) => horaChile(Date.parse(m.creado)));
-  return [
-    { nombre: 'Primer paso', como: 'Juega tu primera partida', tiene: d.marcas.length > 0 },
-    { nombre: 'Constante', como: 'Juega en 5 días distintos', tiene: dias.size >= 5 },
-    { nombre: 'Explorador', como: 'Prueba 10 juegos distintos', tiene: juegos.size >= 10 },
-    { nombre: 'Todoterreno', como: 'Juega al menos un juego de cada tipo', tiene: ORDEN_MOTORES.every((m) => motores.has(m)) },
-    { nombre: 'Coleccionista', como: `Juega los ${abiertos} juegos abiertos`, tiene: juegos.size >= abiertos },
-    { nombre: 'Maratón', como: 'Juega 20 partidas en un mismo día', tiene: [...porDia.values()].some((n) => n >= 20) },
-    { nombre: 'Duelista', como: 'Gana un enfrentamiento', tiene: victorias >= 1 },
-    { nombre: 'Campeón de duelos', como: 'Gana 5 enfrentamientos', tiene: victorias >= 5 },
-    { nombre: 'Madrugador', como: 'Juega antes de las 8 de la mañana', tiene: horas.some((h) => h >= 5 && h < 8) },
-    { nombre: 'Noctámbulo', como: 'Juega pasada la medianoche', tiene: horas.some((h) => h < 4) },
-  ];
+  return { nombre: (perfil as { nombre: string } | null)?.nombre ?? 'Participante', marcas: (marcas as Marca[] | null) ?? [], duelos, personas, equipos, puntos, logros: logros(progreso), vitrina: todas.get(id) ?? null };
 }
 
 const corta = (f: string) => f.split('-').reverse().slice(0, 2).join('/');
@@ -66,13 +45,14 @@ export function Perfil({ id }: { id: string }) {
   const casa = d.equipos.find((q) => q.miembros.includes(quien));
   const aporte = cerrados.filter((x) => x.e.oficial && x.e.modo === '1v1').reduce((t, x) => t + puntosVersus(d.puntos, x.e.ganador === 'empate' ? 'empata' : x.e.ganador === x.lado ? 'gana' : 'pierde', x.e.jornada), 0);
   const duelosSemana = cerrados.filter((x) => fechaChile(Date.parse(x.e.creado)) >= desde);
-  const lista = insignias(d), ganadas = lista.filter((x) => x.tiene).length;
+  const lista = d.logros, ganadas = lista.filter((x) => x.tiene).length, pct = Math.round((ganadas / lista.length) * 100);
   const favorito = [...semana.reduce((m, x) => m.set(x.juego, (m.get(x.juego) ?? 0) + 1), new Map<string, number>())].sort((a, b) => b[1] - a[1])[0];
 
   return (
     <div class="pagina perfil">
       <div class="sigla">{propio ? 'Mi perfil' : 'Perfil'}</div>
-      <h1>{d.nombre}</h1>
+      <h1><Firma nombre={d.nombre} vitrina={d.vitrina} /></h1>
+      {d.vitrina && <p class="tenue">Nivel <b>{d.vitrina.nivel}</b> del pase de temporada{premio('efecto', d.vitrina.efecto) ? ` · ${premio('efecto', d.vitrina.efecto)!.icono} al ganar` : ''}{propio && <> · <a href="#/progreso">Ver mi progreso</a></>}</p>}
       {casa && <p class="tenue">Casa: <b>{casa.nombre}</b></p>}
       <div class="cifras">
         <div><b>{d.marcas.length}</b><span>partidas</span></div>
@@ -80,7 +60,7 @@ export function Perfil({ id }: { id: string }) {
         <div><b>{new Set(d.marcas.map((m) => m.fecha)).size}</b><span>días jugados</span></div>
         <div><b>{g}-{em}-{p}</b><span>duelos (G-E-P)</span></div>
         <div><b>{aporte}</b><span>{casa ? `pts de duelos para ${casa.nombre}` : 'pts de duelos para su casa'}</span></div>
-        <div><b>{ganadas}/{lista.length}</b><span>insignias</span></div>
+        <div><b>{pct}%</b><span>logros ({ganadas}/{lista.length})</span></div>
       </div>
 
       <section class="bloque">
@@ -93,10 +73,13 @@ export function Perfil({ id }: { id: string }) {
       </section>
 
       <section class="bloque">
-        <h2>Insignias</h2>
+        <h2>Logros <span class="tenue chico">{ganadas} de {lista.length} · {pct}%</span></h2>
+        <div class="pase-barra"><span style={`width:${pct}%`} /></div>
         <ul class="insignias">
-          {lista.map((x) => <li key={x.nombre} class={x.tiene ? 'tiene' : ''} title={x.como}><b>{x.tiene ? '★' : '☆'} {x.nombre}</b><span>{x.como}</span></li>)}
+          {lista.filter((x) => x.tiene).map((x) => <li key={x.id} class="tiene" title={x.como}><b>{x.icono} {x.nombre}</b><span>{x.como}</span></li>)}
         </ul>
+        {!ganadas && <p class="tenue">Todavía sin logros.</p>}
+        {propio && <a class="boton" href="#/progreso/logros">Ver todos mis logros</a>}
       </section>
 
       <section class="bloque">

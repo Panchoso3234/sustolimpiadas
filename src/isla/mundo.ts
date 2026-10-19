@@ -594,7 +594,7 @@ export function crearMundo(escena: THREE.Scene, clima: 0 | 1 | 2) {
     const h = terreno(x, z);
     if (h > 10.5 || h < 1.2 || Math.hypot(x - SITIOS.volcan.x, z - SITIOS.volcan.z) < 15 || Math.hypot(x - SITIOS.lago.x, z - SITIOS.lago.z) < 11) continue;
     if (Math.sin(x * 0.07 + 2) + Math.cos(z * 0.06 - 1) < -0.3 && al(i, 'tb') > 0.2) continue; // deja claros entre los bosques
-    if (enCamino(x, z, 2.8) || distRio(x, z) < 3.8 || !lejosDeSitios(x, z, 7)) continue;
+    if (enCamino(x, z, 2.8) || distRio(x, z) < 3.8 || !lejosDeSitios(x, z, 7) || Math.hypot(x - SITIOS.barrio.x, z - SITIOS.barrio.z) < 21) continue;
     plantar(x, z, i, h > 4.2 || al(i, 'tp') < 0.3);
     plantados++;
   }
@@ -612,7 +612,7 @@ export function crearMundo(escena: THREE.Scene, clima: 0 | 1 | 2) {
   for (let i = 0; i < 2800 && matas.length < 300; i++) {
     const x = (al(i, 'bx') - 0.5) * 280, z = (al(i, 'bz') - 0.5) * 280, dc = Math.hypot(x - CENTRO.x, z - CENTRO.z);
     if (!lejosDeCasas(x, z) || Math.hypot(x - SITIOS.lago.x, z - SITIOS.lago.z) < 10) continue;
-    if (costa(Math.atan2(x, z)) - Math.hypot(x, z) < 8 || (dc < RADIO_PUEBLO && (dc < 13.8 || dc > 16.2)) || enCamino(x, z, 1.9) || distRio(x, z) < 3.4 || !lejosDeSitios(x, z, 4.5)) continue;
+    if (costa(Math.atan2(x, z)) - Math.hypot(x, z) < 8 || (dc < RADIO_PUEBLO && (dc < 13.8 || dc > 16.2)) || enCamino(x, z, 1.9) || distRio(x, z) < 3.4 || !lejosDeSitios(x, z, 4.5) || Math.hypot(x - SITIOS.barrio.x, z - SITIOS.barrio.z) < 19) continue;
     const y = terreno(x, z), r = 0.4 + al(i, 'bs') * 0.45;
     if (y > 10) continue;
     matas.push({ p: [x, y + r * 0.5, z], e: [r * 1.2, r * 0.8, r * 1.2], c: i % 3 ? '#4fa862' : '#6cc070' });
@@ -741,6 +741,22 @@ export function crearMundo(escena: THREE.Scene, clima: 0 | 1 | 2) {
   caja(caleta, madera, 1.8, 0.16, 7, [0, 0.9, -5.4]);
   for (const z of [-3, -6, -8.6]) for (const s of [-1, 1]) cil(caleta, palo, 0.12, 0.12, 2.6, [s * 0.8, 0, z], 6);
   esfera(caleta, m('#3f8cff'), 1, [2.4, 0.15, -7.4], [1.8, 0.45, 0.75]);
+
+  // Plaza del Barrio de los Participantes (las casitas se arman aparte, con los inscritos de verdad: ver barrio.ts)
+  const barrio = tocable(grupo(SITIOS.barrio), 'barrio');
+  cil(barrio, piedra, 4.6, 4.8, 0.16, [0, 0.08, 0], 24);
+  cil(barrio, textura('piedra', '#b9a98f', 3, 3), 3.2, 3.2, 0.2, [0, 0.12, 0], 24);
+  // Estatua: una calabaza gigante sobre un pedestal, con la cara encendida de noche
+  cil(barrio, piedra, 0.9, 1.1, 1.2, [0, 0.8, 0], 8);
+  esfera(barrio, zapallo, 1.1, [0, 2.3, 0], [1.2, 0.95, 1.2]);
+  cil(barrio, verde, 0.1, 0.16, 0.5, [0, 3.4, 0], 6);
+  for (const a of [0, PI / 2, PI, -PI / 2]) { const g = new THREE.Group(); g.rotation.y = a; barrio.add(g); caja(g, llama, 0.28, 0.18, 0.05, [-0.35, 2.5, 1.27]); caja(g, llama, 0.28, 0.18, 0.05, [0.35, 2.5, 1.27]); caja(g, llama, 0.7, 0.12, 0.05, [0, 2.1, 1.3]); }
+  // Arco de entrada mirando al camino del pueblo, con su letrero
+  const entrada = new THREE.Group(); entrada.position.set(0, 0, 0); entrada.rotation.y = Math.atan2(CENTRO.x - SITIOS.barrio.x, CENTRO.z - SITIOS.barrio.z); barrio.add(entrada);
+  for (const s of [-1, 1]) { cil(entrada, palo, 0.16, 0.18, 3.6, [s * 2.2, 1.8, 15.5], 8); esfera(entrada, farol, 0.22, [s * 2.2, 3.75, 15.5]); }
+  caja(entrada, madera, 5, 0.9, 0.2, [0, 3.1, 15.5]);
+  cartel(entrada, ['Barrio de los Participantes'], 4.6, 0.7, [0, 3.1, 15.62], undefined, '#3a2516', '#ffe08a');
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * PI * 2 + PI / 8; cil(barrio, palo, 0.06, 0.06, 1.6, [Math.sin(a) * 4.4, 0.8, Math.cos(a) * 4.4], 6); esfera(barrio, farol, 0.16, [Math.sin(a) * 4.4, 1.7, Math.cos(a) * 4.4]); }
 
   // Árboles donde antes estaban las casas del pueblo
   [32, -32, 72, -72, 108, -108, 142].forEach((gr, i) => { const p = polar(gr, 20 + (i % 3)); plantar(p.x, p.z, 6000 + i, false); const q = polar(gr + 7, 23.5); plantar(q.x, q.z, 6100 + i, i % 2 === 0); });

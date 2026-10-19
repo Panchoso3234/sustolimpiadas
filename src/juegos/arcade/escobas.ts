@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { generador } from '../../nucleo/azar';
 import { bosque, halo, nocheEmbrujada, pasto, type Planta } from '../decorado';
+import { figuraFantasma, grabadora } from '../fantasma';
 import { crearMando } from '../mando';
 import type { Contexto, Partida } from '../marco';
 import { mat } from '../punteria/fisica';
@@ -138,7 +139,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     c.alTerminar({
       puntaje: PREMIO[p - 1] + arosPasados * 50 + dulcesTomados * 10 + bono,
       lineas: [['Puesto', llego ? `${p}º de 4 (+${PREMIO[p - 1]})` : 'No llegaste'], ['Tiempo', llego ? `${t.toFixed(1)} s (+${bono})` : '—'], ['Aros', `${arosPasados} (+${arosPasados * 50})`], ['Dulces', `${dulcesTomados} (+${dulcesTomados * 10})`], ['Choques', String(choques)]],
-      detalle: { puesto: p, seg: Math.round(t * 10) / 10, aros: arosPasados, dulces: dulcesTomados, choques },
+      detalle: { puesto: p, seg: Math.round(t * 10) / 10, aros: arosPasados, dulces: dulcesTomados, choques, ruta: ruta.final() },
     });
   };
   const usarTurbo = (t: number) => {
@@ -150,6 +151,8 @@ export async function crear(c: Contexto): Promise<Partida> {
   // Solo en pruebas: "?piloto=1" vuela solo por los aros
   const automatico = import.meta.env.DEV && new URLSearchParams(location.search).has('piloto');
 
+  // Fantasma del líder (si se juega contra él) y grabación del propio recorrido
+  const ruta = grabadora(), lider = c.fantasma ? figuraFantasma(e.escena, c.fantasma, 1.4) : null;
   const mira = new THREE.Vector3();
   const camara = (dt: number, ya = false) => {
     const objetivo = new THREE.Vector3(yo.x, yo.y + 2.4, yo.z + 7.5);
@@ -164,6 +167,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     noche.avanzar(t);
     const paso = Math.min(dt, 0.05);
     if (empezado && !terminado && t > 0) {
+      ruta.anotar(t, yo.x, yo.y - 0.5, yo.z); lider?.mover(t);
       // Dirección: lados y arriba/abajo; adelante va solo
       let mx = mando.x, my = -mando.z;
       if (automatico) { const a = aros.find((x) => !x.pasado && x.z < yo.z); if (a) { mx = limitar((a.x - yo.x) / 3, -1, 1); my = limitar((a.y - yo.y) / 3, -1, 1); } if (yo.cargas > 0 && t > 3) usarTurbo(t); }
@@ -220,6 +224,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       const p = centro(b.z), x = p.x + Math.sin(t * 0.9 + b.fase) * 4, y = p.y + Math.cos(t * 0.7 + b.fase) * 1.5;
       b.g.position.set(x, y, b.z); b.g.rotation.z = Math.sin(t * 0.9 + b.fase) * 0.25;
     }
+    for (const ob of obstaculos) if (ob.tipo === 'bichos') ob.malla.visible = ob.z < yo.z + 1.5; // ya pasados, tapan la cámara
     for (const ob of obstaculos) if (ob.tipo === 'bichos' && Math.abs(ob.z - yo.z) < 120) ob.malla.children.forEach((b) => { b.rotation.y = t * 3 + b.userData.fase; b.children[0].rotation.x = Math.sin(t * 18 + b.userData.fase) * 0.6; b.children[1].rotation.x = -Math.sin(t * 18 + b.userData.fase) * 0.6; });
     for (const a of aros) if (!a.pasado && Math.abs(a.z - yo.z) < 200) a.malla.rotation.z = t * 0.8;
     for (let i = 0; i < posDulce.length; i++) {

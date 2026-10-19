@@ -1,4 +1,5 @@
 import type { Aspecto } from '../personaje/catalogo';
+import type { Fantasma } from './fantasma';
 
 // El contrato entre el portal y cualquier juego, sea del motor que sea.
 // El portal se encarga de la pantalla previa, la cuenta regresiva, el resultado y el guardado;
@@ -40,6 +41,8 @@ export interface Contexto {
   alTerminar(r: Resultado): void;
   /** Solo cuando la partida se juega en vivo. */
   vivo?: ContextoVivo;
+  /** Jugando contra el líder del día: su recorrido grabado (la semilla ya es la suya). */
+  fantasma?: Fantasma;
 }
 
 /** Lo que la sala le avisa a los motores para la partida que parte (shortcut: un valor compartido; basta porque hay una sola partida a la vez). */

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { generador } from '../../nucleo/azar';
 import { aspectoAleatorio } from '../../personaje/catalogo';
 import { cielo, halo } from '../decorado';
+import { figuraFantasma, grabadora } from '../fantasma';
 import { crearMando } from '../mando';
 import type { Contexto, Partida } from '../marco';
 import { crearEscenario, limitar, sombra } from '../reflejos/motor';
@@ -218,7 +219,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     c.alTerminar({
       puntaje: metros + monedasTotal * 5,
       lineas: [['Distancia', `${metros} m`], ['Monedas', String(monedasTotal)], ['Tiempo corriendo', `${Math.round(t - inicio)} s`], ['Fin', porque]],
-      detalle: { metros, monedas: monedasTotal, seg: Math.round(t - inicio) },
+      detalle: { metros, monedas: monedasTotal, seg: Math.round(t - inicio), ruta: ruta.final() },
     });
   };
 
@@ -264,8 +265,11 @@ export async function crear(c: Contexto): Promise<Partida> {
   e.hud.tiempo('0 m');
   e.hud.puntos(0);
   ubicarCamara(0, true);
+  // Fantasma del líder (si se juega contra él) y grabación del propio recorrido
+  const ruta = grabadora(), lider = c.fantasma ? figuraFantasma(e.escena, c.fantasma, 1.75) : null;
   e.alCuadro((t, dt) => {
     if (empezado && !terminado) {
+      ruta.anotar(t, yo.x, yo.y, yo.z); lider?.mover(t);
       if (!inicio) inicio = t;
       v = Math.min(34, v + dt * (0.16 + (c.nivel - 1) * 0.02));
       const paso = Math.min(dt, 0.05);

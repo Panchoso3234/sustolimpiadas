@@ -40,3 +40,7 @@ export const ponerSensibilidad = (n: number) => escribir('susto.sensibilidad', n
 /** Modo liviano: los juegos se dibujan a menos resolución, sin suavizado ni chispas, para celulares lentos. */
 export const esLiviano = (): boolean => leer('susto.liviano', false);
 export const ponerLiviano = (si: boolean) => escribir('susto.liviano', si);
+
+/** Grabar las partidas para poder guardar clips (gasta algo de equipo; por defecto no en modo liviano). */
+export const clipsActivos = (): boolean => leer('susto.clips', !esLiviano());
+export const ponerClips = (si: boolean) => escribir('susto.clips', si);

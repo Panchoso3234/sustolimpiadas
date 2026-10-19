@@ -8,6 +8,8 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { fechaChile, generador, horaChile, textoHora } from '../nucleo/azar';
 import { supabase, useSesion, type Rol } from '../nucleo/supabase';
+import { PREMIOS, limpiarVitrina, premio, refrescarVitrina, vitrinas, type Vitrina } from '../juegos/progreso';
+import { crearBarrio } from './barrio';
 import { normalizarPersonaje, personajeAleatorio, type Personaje } from '../personaje/catalogo';
 import { crearKenney, type Kenney } from '../personaje/kenney';
 import { liberar } from '../personaje/modelo';
@@ -47,6 +49,7 @@ const INFO: Record<string, Panel> = {
   muelle: { sigla: 'Costa este', titulo: 'El muelle', lineas: ['Aquí se pesca con paciencia. Si miras un rato, verás saltar a los peces.'], enlace: { texto: 'Jugar El Cofre o la Ola', href: '#/juegos/cofre' } },
   lago: { sigla: 'Este', titulo: 'El lago', lineas: ['Agua quieta, un islote con su árbol y un embarcadero. Los tranquilos vienen a pescar.'] },
   ruinas: { sigla: 'Bosque del noroeste', titulo: 'Las ruinas', lineas: ['Columnas rotas y una cabeza de piedra que nadie sabe quién talló.', 'Dicen que son más antiguas que el portón de la arena.'], enlace: { texto: 'Jugar Eco del Templo', href: '#/juegos/eco' } },
+  barrio: { sigla: 'Suroeste', titulo: 'Barrio de los Participantes', lineas: ['Cada inscrito tiene aquí su casita, con su nombre, su título y su nivel del pase de temporada.', 'Los adornos (calabazas, farolas, fantasma mascota, caldero, murciélagos, trofeo y hasta una torre) se ganan subiendo de nivel en el pase.', 'Toca una casa para ver de quién es.'], enlace: { texto: 'Ver mi pase de temporada', href: '#/progreso/pase' } },
   cementerio: { sigla: 'Noreste', titulo: 'El cementerio', lineas: ['De día no pasa nada. De noche aparecen tres fantasmas y los habitantes vienen a contar historias.', 'Será el centro de la Noche de Brujas del 30 de octubre.'] },
   caleta: { sigla: 'Costa oeste', titulo: 'La caleta', lineas: ['Dos chozas sobre pilotes, pescado secándose al sol y un bote azul.'], enlace: { texto: 'Jugar Mata-Cangrejos', href: '#/juegos/cangrejos' } },
 };
@@ -170,6 +173,8 @@ function calidadInicial(): number {
 
 export function Isla() {
   const sesion = useSesion();
+  // Quien entra deja al día su nivel y logros en la vitrina: así su casa del barrio se ve como va
+  useEffect(() => { if (sesion.usuarioId) refrescarVitrina(sesion.usuarioId).catch(() => {}); }, [sesion.usuarioId]);
   const caja = useRef<HTMLDivElement>(null);
   const mando = useRef<{ seguir(clave: string): void; foto(): string; fichaDe(clave: string): void; lista(): Fila[]; calidad(nivel: number): void } | null>(null);
   // Calidad automática: baja sola si el equipo no alcanza ~30 cuadros por segundo y sube si sobra (sin pasar de alta)
@@ -219,6 +224,7 @@ export function Isla() {
 
     const mundo = crearMundo(escena, clima);
     const habitantes: Habitante[] = [];
+    let barrio: ReturnType<typeof crearBarrio> | null = null, vits = new Map<string, Vitrina>();
     let globo: THREE.Sprite | null = null, textoGlobo = '', vivo = true, ultimoHud = 0;
     setHud((v) => ({ ...v, clima, evento: proximoEvento(hoy) }));
 
@@ -280,6 +286,10 @@ export function Isla() {
         habitantes.push({ ...h, grupo, kenney, nombre, emote: null, simbolo: '', accesorio: null, pose: '', saludo: 0, estado: null });
       }
       setHud((v) => ({ ...v, cantidad: lista.length, muestra, listo: true }));
+      // El barrio: una casa por inscrito, con lo que lleva puesto del pase (en la muestra, adornos al azar)
+      vits = await vitrinas().catch(() => new Map<string, Vitrina>());
+      if (muestra || (import.meta.env.DEV && new URLSearchParams(location.search).has('adornos'))) lista.forEach((h, i) => vits.set(h.clave, limpiarVitrina({ nivel: 4 + ((i * 7) % 27), logros: (i * 11) % 60, titulo: PREMIOS.filter((x) => x.tipo === 'titulo')[i % 10].id, marco: PREMIOS.filter((x) => x.tipo === 'marco')[i % 7].id, deco: PREMIOS.filter((x) => x.tipo === 'deco' && (x.nivel * (i + 3)) % 4 !== 0).map((x) => x.id) })));
+      if (vivo) barrio = crearBarrio(escena, lista.map((h) => ({ clave: h.clave, nombre: h.personaje.nombre, vitrina: vits.get(h.clave) ?? null })));
     }).catch(() => setHud((v) => ({ ...v, listo: true })));
 
     function medir() {
@@ -326,6 +336,11 @@ export function Isla() {
         const notas = despiertos.slice(0, 4).map((h) => `${h.personaje.nombre} fue visto ${haciendo(h.estado!)}.`);
         return { sigla: `Edición del ${fechaLarga(hoy)}`, titulo: 'El Diario de ValRigo', lineas: [`Hoy el día está ${CLIMAS[clima].toLowerCase()} y en la isla viven ${habitantes.length} habitantes.`, `${proximoEvento(hoy)}.`, 'El portón de la arena sigue sellado. Vecinos aseguran haber oído ruidos de noche.', ...notas, 'Cuando empiecen las jornadas, aquí saldrán los resultados, las rachas y los récords.'] };
       }
+      if (id.startsWith('hogar-')) {
+        const clave = id.slice(6), h = habitantes.find((x) => x.clave === clave), v = vits.get(clave), t = premio('titulo', v?.titulo);
+        const adornos = (v?.deco ?? []).map((d) => premio('deco', d)).filter(Boolean).map((d) => `${d!.icono} ${d!.nombre}`);
+        return { sigla: 'Barrio de los Participantes', titulo: `Casa de ${h?.personaje.nombre || 'alguien'}`, lineas: [t ? `${t.icono} ${t.nombre}` : 'Todavía sin título del pase.', `Nivel ${v?.nivel ?? 1} del pase · ${v?.logros ?? 0} logros.`, adornos.length ? 'Adornos de la casa:' : 'Sin adornos todavía: se ganan en el pase de temporada.'], lista: adornos.map((t) => ({ t })), enlace: clave.startsWith('muestra') ? undefined : { texto: 'Ver su perfil', href: `#/perfil/${clave}` } };
+      }
       if (id.startsWith('casa-')) {
         const i = Number(id.slice(5));
         const vecinos = habitantes.filter((h) => casaDe(h.clave) === i);
@@ -355,7 +370,7 @@ export function Isla() {
       const persona = raizCon(rayo.intersectObjects(habitantes.map((h) => h.grupo), true)[0]?.object ?? null, 'clave');
       const h = persona && habitantes.find((x) => x.clave === persona.userData.clave);
       if (h) return abrirFicha(h);
-      const cosa = raizCon(rayo.intersectObjects(mundo.interactivos, true)[0]?.object ?? null, 'info');
+      const cosa = raizCon(rayo.intersectObjects([...mundo.interactivos, ...(barrio?.interactivos ?? [])], true)[0]?.object ?? null, 'info');
       setFicha(null);
       setPanel(cosa ? infoDe(cosa.userData.info) : null);
     };
@@ -364,7 +379,7 @@ export function Isla() {
       ultimoMov = performance.now();
       apuntar(e);
       sobre = raizCon(rayo.intersectObjects(habitantes.map((h) => h.grupo), true)[0]?.object ?? null, 'clave')
-        ?? raizCon(rayo.intersectObjects(mundo.interactivos, true)[0]?.object ?? null, 'info');
+        ?? raizCon(rayo.intersectObjects([...mundo.interactivos, ...(barrio?.interactivos ?? [])], true)[0]?.object ?? null, 'info');
       render.domElement.style.cursor = sobre ? 'pointer' : 'grab';
     };
     render.domElement.addEventListener('pointerdown', alBajar);
@@ -377,7 +392,7 @@ export function Isla() {
       const ahora = Date.now(), seg = ahora / 1000, dt = Math.min(0.1, (ahora - cuadroAnterior) / 1000);
       cuadroAnterior = ahora;
       const hora = horaFija ?? horaChile(ahora);
-      mundo.actualizar(hora, ahora);
+      barrio?.actualizar(seg, mundo.actualizar(hora, ahora));
 
       for (const h of habitantes) {
         const e = estadoDe(h.clave, h.personaje.personalidad, ahora), g = h.grupo;
