@@ -33,11 +33,11 @@ const PI = Math.PI, PI_2 = Math.PI / 2;
 const CALIDAD = 'susto.calidad';
 
 const INFO: Record<string, Panel> = {
-  tabla: { sigla: 'Plaza', titulo: 'Tabla de posiciones', lineas: ['Los equipos se sortean el viernes 16 de octubre, en La Llegada. Desde ese día, aquí se suman los puntos de los tres modos de juego.', 'Cada jornada vale más que la anterior: ×1, ×1,25, ×1,5 y ×2.'], enlace: { texto: 'Ver la tabla de posiciones', href: '#/juegos/posiciones' } },
+  tabla: { sigla: 'Plaza', titulo: 'Tabla de posiciones', lineas: ['Aquí se suman los puntos de la liga: solo cuentan los duelos oficiales de los cruces.', 'Cada jornada vale más que la anterior: ×1, ×1,25, ×1,5 y ×2.'], enlace: { texto: 'Ver la tabla de posiciones', href: '#/juegos/posiciones' } },
   ruleta: { sigla: 'Plaza', titulo: 'La ruleta de juegos', lineas: ['El portal de juegos tiene tres modos: individual, uno contra uno y equipo contra equipo.', 'En individual, cada día hay un desafío igual para todos. En los versus, cada lado juega el mismo desafío a su hora y con un solo intento.'], enlace: { texto: 'Ir al portal de juegos', href: '#/juegos' } },
-  arena: { sigla: 'Montaña', titulo: 'El portón de la Arena', lineas: ['Está sellado hasta la noche del viernes 13 de noviembre.', 'Entran 12: los tres mejores equipos completos y tres cupos especiales.', 'Ahí adentro se definen los siete premios. Cada punto que ganes mejora lo que recibirás al entrar.'] },
+  arena: { sigla: 'Montaña', titulo: 'El portón de la Arena', lineas: ['Está sellado hasta que termine la liga (17 de noviembre); la fecha de la final se anuncia por Discord.', 'Entran 12: los participantes de los 4 mejores equipos (el staff no entra) y los mejores puntajes personales.', 'Ahí adentro se definen los siete premios. Cada punto que ganes mejora lo que recibirás al entrar.'] },
   fuente: { sigla: 'Plaza', titulo: 'La fuente', lineas: ['El centro de ValRigo. Dicen que si tiras una moneda y pides un cinco estrellas, a veces funciona.'] },
-  escenario: { sigla: 'Plaza', titulo: 'El escenario', lineas: ['Aquí se canta y se baila. En las noches en vivo de los viernes, el anfitrión entrega los trofeos de la semana.'] },
+  escenario: { sigla: 'Plaza', titulo: 'El escenario', lineas: ['Aquí se canta y se baila. Al cerrar cada jornada, aquí se celebra a los líderes de la semana.'] },
   atril: { sigla: 'Plaza', titulo: 'El atril de Rigo', lineas: ['Rigo pinta aquí el retrato del líder de cada semana.', 'Uno de los siete premios del torneo es una comisión suya.'] },
   alcaldia: { sigla: 'Pueblo', titulo: 'La Alcaldía', lineas: ['Desde aquí Vale anuncia las jornadas. El reloj de la torre marca la hora real de Chile.', 'Las seis bendiciones lunares del torneo son regalo suyo.'] },
   cafe: { sigla: 'Pueblo', titulo: 'La cafetería', lineas: ['El lugar favorito de los glotones, y donde se arman los mejores chismes de la isla.'] },
@@ -150,6 +150,7 @@ const diasHasta = (fecha: string, hoy: string) => Math.round((Date.parse(fecha) 
 function proximoEvento(hoy: string): string {
   const e = EVENTOS.find((x) => x.fecha >= hoy);
   if (!e) return 'El torneo terminó. ¡Gracias por jugar!';
+  if (e.porAnunciar) return `Lo que viene: ${e.nombre} (fecha por anunciar)`;
   const dias = diasHasta(e.fecha, hoy);
   return dias === 0 ? `Hoy: ${e.nombre}` : dias === 1 ? `Mañana: ${e.nombre}` : `Faltan ${dias} días para ${e.nombre}`;
 }
@@ -329,7 +330,7 @@ export function Isla() {
     const infoDe = (id: string): Panel | null => {
       if (id === 'eventos') {
         const proximo = EVENTOS.find((x) => x.fecha >= hoy);
-        return { sigla: 'Plaza', titulo: 'Tablón de eventos', lineas: ['Todos los viernes hay noche en vivo por Discord.'], lista: EVENTOS.map((e) => ({ t: `${fechaLarga(e.fecha)} · ${e.nombre}`, d: e.detalle, ahora: e === proximo })) };
+        return { sigla: 'Plaza', titulo: 'Tablón de eventos', lineas: ['La liga va de miércoles a martes: 4 jornadas y 11 cruces de equipos.'], lista: EVENTOS.map((e) => ({ t: `${e.porAnunciar ? 'Fecha por anunciar' : fechaLarga(e.fecha)} · ${e.nombre}`, d: e.detalle, ahora: e === proximo })) };
       }
       if (id === 'diario') {
         const despiertos = habitantes.filter((h) => h.estado && h.estado.lugar.id !== 'dormir');

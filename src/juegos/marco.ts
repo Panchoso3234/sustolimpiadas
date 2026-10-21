@@ -48,8 +48,8 @@ export interface Contexto {
 /** Lo que la sala le avisa a los motores para la partida que parte (shortcut: un valor compartido; basta porque hay una sola partida a la vez). */
 export const ajustesPartida = { pausable: true, /** En vivo: resolución más baja, para que ande liviano. */ vivo: false, /** El lienzo guarda su imagen para mandarle fotos al rival (espejo). */ foto: false };
 
-/** Jornada del torneo (1 a 4) de una fecha "AAAA-MM-DD": parten los viernes desde el 16 de octubre; antes cuenta como la 1. */
-export const jornadaDe = (fecha: string) => Math.min(4, Math.max(1, Math.floor((Date.parse(fecha) - Date.parse('2026-10-16')) / (7 * 864e5)) + 1));
+/** Jornada del torneo (1 a 4) de una fecha "AAAA-MM-DD": de miércoles a martes desde el 21 de octubre (ver liga.ts); antes cuenta como la 1. */
+export const jornadaDe = (fecha: string) => Math.min(4, Math.max(1, Math.floor((Date.parse(fecha) - Date.parse('2026-10-21')) / (7 * 864e5)) + 1));
 
 export interface Partida {
   empezar(): void;

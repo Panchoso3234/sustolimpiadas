@@ -11,7 +11,6 @@ import { Firma } from '../Progreso';
 import { vitrinaLocal, vitrinas, type Vitrina } from './progreso';
 import { CON_FANTASMA, decodificar, liderDelDia, type Fantasma } from './fantasma';
 import { CARGADORES, ajustesPartida, jornadaDe, type Partida, type Resultado } from './marco';
-import { PUNTOS_BASE, leerPuntos, puntosPorPuesto, type Puntos } from './puntos';
 import { estaCallado, fanfarria, silenciar } from './sonido';
 
 // La "sala" envuelve a cualquier juego: pantalla previa, cuenta regresiva, partida, resultado y guardado.
@@ -52,10 +51,8 @@ export async function aspectoDe(usuarioId: string | null): Promise<Aspecto> {
 
 function Tabla({ juego, fecha, usuarioId, version }: { juego: Juego; fecha: string; usuarioId: string | null; version: number }) {
   const [estado, setEstado] = useState<{ filas: Fila[]; disponible: boolean } | null>(null);
-  const [puntos, setPuntos] = useState<Puntos>(PUNTOS_BASE);
   const [vits, setVits] = useState<Map<string, Vitrina>>(new Map());
   useEffect(() => { vitrinas().then(setVits).catch(() => {}); }, []);
-  useEffect(() => { leerPuntos().then(setPuntos); }, []);
   useEffect(() => {
     let vigente = true;
     tablaDelDia(juego.id, fecha).then((r) => { if (vigente) setEstado(r); });
@@ -68,7 +65,7 @@ function Tabla({ juego, fecha, usuarioId, version }: { juego: Juego; fecha: stri
   const retable = VERSUS.some((t) => t.modo === '1v1' && t.base === juego.id), total = estado.filas.length, mio = estado.filas.findIndex((f) => f.perfil === usuarioId), top = estado.filas.slice(0, 8);
   const fila = (f: Fila, i: number) => (
     <li key={f.perfil} class={f.perfil === usuarioId ? 'mia' : ''}>
-      <span class="puesto">{i + 1}</span><a class="quien" href={`#/perfil/${f.perfil}`}><Firma nombre={f.nombre} vitrina={vits.get(f.perfil)} /></a><b>{f.puntaje}</b><span class="torneo" title="Puntos del torneo por este puesto">+{puntosPorPuesto(puntos, i, total)}</span>
+      <span class="puesto">{i + 1}</span><a class="quien" href={`#/perfil/${f.perfil}`}><Firma nombre={f.nombre} vitrina={vits.get(f.perfil)} /></a><b>{f.puntaje}</b>
       {usuarioId && f.perfil !== usuarioId && retable && <a class="retar-mini" href={`#/juegos/1v1/${f.perfil}.${juego.id}`} title={`Retar a ${f.nombre} a un duelo amistoso`}>Retar</a>}
     </li>
   );

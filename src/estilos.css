@@ -733,3 +733,47 @@ body.foto .tren-poderes { display: none; }
 .prediccion .boton.prediccion-azul { border-color: #3f8cff; }
 .prediccion .boton.prediccion-rojo { border-color: #ef5565; }
 .prediccion .boton.elegido { background: var(--luna); color: var(--noche); }
+
+/* ───────── Sorteo de equipos con ruletas (Mesa de control) ───────── */
+.sorteo { display: flex; flex-direction: column; gap: 14px; background: var(--noche); padding: 8px 0; }
+.sorteo:fullscreen { padding: 20px 28px; overflow: auto; }
+.sorteo-cabeza { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+.sorteo-cabeza h2 { margin: 0; font-family: var(--display); color: var(--calabaza); font-size: 2rem; }
+.sorteo-cuerpo { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.sorteo-ruletas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sorteo-botones { grid-column: span 2; display: flex; gap: 10px; justify-content: center; }
+.ruleta { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.ruleta h3 { margin: 0; color: var(--luna); font-family: var(--letras); letter-spacing: .08em; }
+.ruleta canvas { width: 100%; max-width: 380px; aspect-ratio: 1; filter: drop-shadow(0 10px 24px #0008); }
+.ruleta-sale { min-height: 2.4em; margin: 0; font-family: var(--display); font-size: 1.6rem; color: var(--tenue); text-align: center; }
+.ruleta-sale.lleno { color: var(--calabaza); animation: aparece .5s ease; }
+@keyframes aparece { from { transform: scale(.6); opacity: 0; } }
+.sorteo-equipos { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.sorteo-equipo { border: 3px solid var(--color); border-radius: 14px; padding: 8px 10px; background: var(--noche-2); display: flex; flex-direction: column; gap: 4px; transition: transform .3s; }
+.sorteo-equipo.recien { transform: scale(1.05); box-shadow: 0 0 24px var(--color); }
+.sorteo-equipo input { font-weight: 900; color: var(--color); background: transparent; border: 0; padding: 2px 0; font-size: 1rem; }
+.sorteo-equipo ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; }
+.sorteo-equipo li { font-weight: 800; }
+.sorteo-equipo li em { font-style: normal; font-size: .72rem; color: var(--luna); margin-left: 4px; }
+.sorteo-equipo li:not(.ocupado) { list-style: circle; }
+.sorteo-preparar { display: flex; flex-direction: column; gap: 12px; }
+.sorteo-personas { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-persona { font: inherit; font-weight: 800; color: var(--hueso); background: var(--noche-2); border: 2px solid var(--linea); border-radius: 99px; padding: 5px 12px; cursor: pointer; }
+.chip-persona.capitan { border-color: var(--luna); color: var(--luna); }
+.sorteo-final { display: flex; flex-direction: column; gap: 8px; }
+@media (max-width: 1000px) { .sorteo-cuerpo { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .sorteo-ruletas { grid-template-columns: 1fr; } .sorteo-botones { grid-column: auto; flex-direction: column; } }
+.pagina.pagina-ancha { max-width: min(1500px, 100%); }
+.sorteo-cabeza .fila { align-items: center; }
+.sorteo-marcar { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; }
+.ruleta canvas { max-width: 460px; }
+/* Mesa · Liga de cruces */
+.liga-cruces { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.liga-cruces > li { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 14px; background: var(--noche-2); border: 2px solid var(--linea); }
+.liga-cruces > li.creado { border-color: var(--alga); }
+.liga-cruces > li.ahora { border-color: var(--calabaza); box-shadow: 0 0 14px #ff9a2e55; }
+.liga-cruces ul { margin: 0; padding-left: 16px; font-size: .88rem; font-weight: 700; }
+.liga-cruce-cabeza { display: flex; flex-direction: column; }
+.liga-borrador .tabla td { font-size: .9rem; }
+.tabla tr.zona-final td { background: #6fd6b41a; }
+.tabla tr.zona-final td:first-child { box-shadow: inset 4px 0 0 var(--alga); }

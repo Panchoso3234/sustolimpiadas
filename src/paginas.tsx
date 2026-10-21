@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { AjustePuntos, Enfrentamientos, Equipos, Marcas } from './juegos/Mesa';
+import { Sorteo } from './juegos/Sorteo';
+import { MesaLiga } from './juegos/MesaLiga';
 import { supabase, useSesion, type Perfil, type Rol } from './nucleo/supabase';
 
 export function Arena() {
@@ -8,7 +10,7 @@ export function Arena() {
       <div class="porton" aria-hidden="true"><span /><span /></div>
       <div class="sigla">Fase 2</div>
       <h1>La Arena está sellada</h1>
-      <p>El portón del volcán se abre la noche del viernes 13 de noviembre. Entran 12: los tres mejores equipos completos y tres cupos especiales. Ahí se definen los siete premios.</p>
+      <p>El portón del volcán se abre cuando termine la liga (17 de noviembre); la fecha de la final se anuncia por Discord. Entran 12: los participantes de los 4 mejores equipos (el staff no entra) y, para completar, los mejores puntajes personales. Ahí se definen los siete premios.</p>
       <p class="tenue">Cada punto que ganes en las jornadas mejora lo que recibirás al entrar.</p>
     </div>
   );
@@ -17,7 +19,7 @@ export function Arena() {
 const ROLES: Rol[] = ['jugador', 'guardian', 'admin'];
 // En la base el staff sigue guardado como "guardian"; en pantalla se llama staff
 const NOMBRE_ROL: Record<Rol, string> = { jugador: 'Jugador', guardian: 'Staff', admin: 'Organizador' };
-const SECCIONES = [['personas', 'Personas'], ['equipos', 'Equipos'], ['enfrentamientos', 'Enfrentamientos'], ['marcas', 'Marcas'], ['puntos', 'Puntos']] as const;
+const SECCIONES = [['personas', 'Personas'], ['sorteo', '🎡 Sorteo de equipos'], ['liga', '🏆 Liga (cruces)'], ['equipos', 'Equipos'], ['enfrentamientos', 'Enfrentamientos'], ['marcas', 'Marcas'], ['puntos', 'Puntos']] as const;
 type Seccion = (typeof SECCIONES)[number][0];
 
 export function Admin() {
@@ -36,6 +38,9 @@ export function Admin() {
   };
   useEffect(() => { cargar(); }, []);
 
+  // Solo en pruebas: "?sorteo" muestra el sorteo sin sesión (guardar fallará: lo protege la base)
+  if (import.meta.env.DEV && new URLSearchParams(location.search).has('liga')) return <div class="pagina"><h1>Liga (prueba)</h1><MesaLiga /></div>;
+  if (import.meta.env.DEV && new URLSearchParams(location.search).has('sorteo')) return <div class="pagina pagina-ancha"><h1>Sorteo de equipos (prueba)</h1><Sorteo /></div>;
   if (sesion.cargando) return <div class="pagina"><p>Cargando…</p></div>;
   if (sesion.perfil?.rol !== 'admin') return <div class="pagina"><h1>Sin permiso</h1><p>Esta sección es solo para el organizador.</p></div>;
 
@@ -57,11 +62,13 @@ export function Admin() {
   };
 
   return (
-    <div class="pagina">
+    <div class={`pagina${seccion === 'sorteo' ? ' pagina-ancha' : ''}`}>
       <div class="sigla">Mesa de control</div>
       <nav class="modos" aria-label="Secciones de la mesa de control">
         {SECCIONES.map(([id, titulo]) => <button key={id} class={seccion === id ? 'activa' : ''} onClick={() => setSeccion(id)}>{titulo}</button>)}
       </nav>
+      {seccion === 'sorteo' && <><h1>Sorteo de equipos</h1><Sorteo /></>}
+      {seccion === 'liga' && <><h1>Liga: cruces</h1><MesaLiga /></>}
       {seccion === 'equipos' && <><h1>Equipos</h1><Equipos /></>}
       {seccion === 'enfrentamientos' && <><h1>Enfrentamientos</h1><Enfrentamientos /></>}
       {seccion === 'marcas' && <><h1>Marcas del día</h1><Marcas /></>}

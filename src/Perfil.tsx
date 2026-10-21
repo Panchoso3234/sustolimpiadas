@@ -6,6 +6,7 @@ import * as V from './juegos/duelos';
 import { PUNTOS_BASE, leerPuntos, puntosVersus, type Puntos } from './juegos/puntos';
 import { cargarDatos, logros, premio, vitrinas, type Logro, type Vitrina } from './juegos/progreso';
 import { Firma } from './Progreso';
+import { cuentaParaLaLiga } from './juegos/liga';
 
 // Perfil de una persona: estadísticas, insignias, resumen de la semana, mejores marcas, duelos e historial.
 // Todo se calcula de las marcas y enfrentamientos que ya existen; no guarda nada nuevo.
@@ -43,7 +44,8 @@ export function Perfil({ id }: { id: string }) {
   const g = cerrados.filter((x) => x.e.ganador === x.lado).length, em = cerrados.filter((x) => x.e.ganador === 'empate').length, p = cerrados.length - g - em;
   // Lo que sus duelos oficiales 1v1 le han dado a su casa (en Posiciones se suman al equipo de cada jugador)
   const casa = d.equipos.find((q) => q.miembros.includes(quien));
-  const aporte = cerrados.filter((x) => x.e.oficial && x.e.modo === '1v1').reduce((t, x) => t + puntosVersus(d.puntos, x.e.ganador === 'empate' ? 'empata' : x.e.ganador === x.lado ? 'gana' : 'pierde', x.e.jornada), 0);
+  // Solo duelos de la liga (oficiales desde el 21 de octubre); no jugar da 0
+  const aporte = Math.round(cerrados.filter((x) => cuentaParaLaLiga(x.e) && x.e.no_jugo !== x.lado && x.e.no_jugo !== 'ambos').reduce((t, x) => t + puntosVersus(d.puntos, x.e.ganador === 'empate' ? 'empata' : x.e.ganador === x.lado ? 'gana' : 'pierde', x.e.jornada), 0) * 100) / 100;
   const duelosSemana = cerrados.filter((x) => fechaChile(Date.parse(x.e.creado)) >= desde);
   const lista = d.logros, ganadas = lista.filter((x) => x.tiene).length, pct = Math.round((ganadas / lista.length) * 100);
   const favorito = [...semana.reduce((m, x) => m.set(x.juego, (m.get(x.juego) ?? 0) + 1), new Map<string, number>())].sort((a, b) => b[1] - a[1])[0];

@@ -20,7 +20,7 @@ const MODOS = [
   { ruta: '1v1', titulo: 'Versus 1v1 (Diferido)', bajada: 'Si no pueden a la vez' },
   { ruta: 'vivo', titulo: 'En vivo', bajada: '1v1 y 3v3, conectados' },
   { ruta: 'en-linea', titulo: 'Partidas en línea', bajada: 'Mirar en directo' },
-  { ruta: 'posiciones', titulo: 'Posiciones', bajada: 'Tabla del torneo' },
+  { ruta: 'posiciones', titulo: 'Tabla oficial', bajada: 'Liga de cruces' },
 ];
 
 /** Cuántos enfrentamientos esperan a que esta persona juegue, por modo. */

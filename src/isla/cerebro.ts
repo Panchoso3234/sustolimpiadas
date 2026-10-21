@@ -278,11 +278,11 @@ const GENERALES = [
   '{otro}, te desafío cuando abran los juegos.', '{otro} anda muy callado… algo trama.', 'Dicen que {otro} es buenísimo para la puntería.',
   'Ojalá me toque equipo con {otro}.', 'Yo vine por las bendiciones lunares.', '¿En qué casa me irá a tocar?', 'Necesito entrenar mis reflejos.',
   'Si gano, tiro en el banner que viene.', '{otro}, ¿ya elegiste tu gacha para la bendición?', 'Quiero la comisión de Rigo.',
-  'Faltan días para La Llegada…', 'Alguien dígale a {otro} que no se vale practicar tanto.', 'Hoy amanecí con suerte.',
+  '¿Ya jugaste tu duelo del cruce?', 'Alguien dígale a {otro} que no se vale practicar tanto.', 'Hoy amanecí con suerte.',
 ];
 const POR_LUGAR: Record<string, string[]> = {
   tabla: ['Todavía está vacía… pronto estaré arriba.', 'Primer lugar o nada.', '{otro}, mira bien: ahí va a estar mi nombre.'],
-  eventos: ['El viernes es La Llegada, no falten.', 'Anoten: Noche de Brujas el 30.', '¿Ya vieron qué viene esta semana?'],
+  eventos: ['¿Ya viste contra quién te toca en este cruce?', 'La Noche de Brujas es el 31.', 'Esta jornada vale más que la anterior, ojo.'],
   fuente: ['Tiré una moneda y pedí un cinco estrellas.', 'El agua está heladísima.'],
   banco: ['Qué rico sentarse un rato.', 'Desde aquí se ve todo el pueblo.'],
   kiosko: ['Dice aquí que el portón hizo ruido anoche.', 'El horóscopo me favorece.', 'Extra, extra: todavía no pasa nada.'],
@@ -333,12 +333,14 @@ export function climaDe(fecha: string): 0 | 1 | 2 {
   return t < 0.6 ? 0 : t < 0.86 ? 1 : 2;
 }
 
-export const EVENTOS = [
+/** Calendario de la liga (desde el 21 de octubre; sin noches de viernes). `porAnunciar`: la fecha todavía no se fija. */
+export const EVENTOS: { fecha: string; nombre: string; detalle: string; porAnunciar?: boolean }[] = [
   { fecha: '2026-10-13', nombre: 'la apertura de inscripciones', detalle: 'Crear personaje, conocer la isla y probar los juegos sin puntos.' },
-  { fecha: '2026-10-16', nombre: 'La Llegada y el sorteo de equipos', detalle: 'Noche en vivo: inicio oficial y sorteo de los equipos de tres.' },
-  { fecha: '2026-10-23', nombre: 'la Noche de Trivia', detalle: 'Cierre de la Jornada 1 (puntos ×1).' },
-  { fecha: '2026-10-30', nombre: 'la Noche de Brujas', detalle: 'Cierre de la Jornada 2 (puntos ×1,25). Isla embrujada.' },
-  { fecha: '2026-11-06', nombre: 'La Gran Feria', detalle: 'Cierre de la Jornada 3 (puntos ×1,5).' },
-  { fecha: '2026-11-12', nombre: 'el cierre de la Jornada 4', detalle: 'Última oportunidad de clasificar (puntos ×2).' },
-  { fecha: '2026-11-13', nombre: 'la Arena', detalle: 'La final en una sola noche. Se definen los 7 premios.' },
+  { fecha: '2026-10-21', nombre: 'el inicio de la liga', detalle: 'Sorteo de los equipos con ruletas y Jornada 1 (puntos ×1). Cruces 1 al 3.' },
+  { fecha: '2026-10-28', nombre: 'la Jornada 2', detalle: 'Puntos ×1,25. Cruces 4 al 6.' },
+  { fecha: '2026-10-31', nombre: 'la Noche de Brujas', detalle: 'La isla se pone embrujada. 👻' },
+  { fecha: '2026-11-04', nombre: 'la Jornada 3', detalle: 'Puntos ×1,5. Cruces 7 al 9.' },
+  { fecha: '2026-11-11', nombre: 'la Jornada 4', detalle: 'Puntos ×2: la última oportunidad de clasificar. Cruces 10 y 11.' },
+  { fecha: '2026-11-17', nombre: 'el cierre de la liga', detalle: 'Último día del cruce 11. Se conocen los 12 de la Arena.' },
+  { fecha: '2026-11-18', nombre: 'la Arena', detalle: 'La final: se definen los 7 premios. La fecha se anuncia por Discord.', porAnunciar: true },
 ];

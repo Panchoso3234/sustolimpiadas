@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import * as V from '../juegos/duelos';
+import { cuentaParaLaLiga } from '../juegos/liga';
 import { leerPuntos, puntosVersus } from '../juegos/puntos';
 
 // Al terminar un enfrentamiento oficial: cuántos puntos del torneo se lleva cada jugador y para qué casa.
@@ -13,13 +14,15 @@ export function PuntosDuelo({ id }: { id: number }) {
       if (!vigente) return;
       if (!e || e.estado !== 'cerrado' || !e.ganador) { if (++intentos < 30) setTimeout(mirar, 4000); return; }
       if (!e.oficial) return setTexto(['Amistoso: no suma puntos del torneo.']);
+      if (!cuentaParaLaLiga(e)) return setTexto(['Duelo de prueba (anterior al inicio de la liga): no suma puntos.']);
       const [p, personas, equipos] = await Promise.all([leerPuntos(), V.listarPersonas(), V.listarEquipos()]);
       if (!vigente) return;
       setTexto((['a', 'b'] as V.Lado[]).map((l) => {
         const perfil = l === 'a' ? e.a_perfil : e.b_perfil, como = e.ganador === 'empate' ? 'empata' : e.ganador === l ? 'gana' : 'pierde';
         const nombre = V.nombreLado(e, l, personas, equipos), casa = equipos.find((q) => perfil && q.miembros.includes(perfil))?.nombre;
+        if (e.no_jugo === l || e.no_jugo === 'ambos') return `${nombre} no jugó: 0 puntos`;
         const pts = puntosVersus(p, como, e.jornada);
-        return `+${pts} puntos para ${nombre}${casa ? ` y para su casa, ${casa}` : ' (sumarán a su casa cuando se armen los equipos)'}`;
+        return `+${pts} puntos para ${nombre}${casa ? ` y para su equipo, ${casa}` : ' (no tiene equipo: no suman a la tabla)'}`;
       }));
     };
     mirar();

@@ -53,11 +53,11 @@ export function MisEnVivo() {
   );
 }
 
-/** Cuánto ha jugado cada integrante del equipo hoy y en la jornada (las jornadas parten los viernes desde el 16 de octubre). */
+/** Cuánto ha jugado cada integrante del equipo hoy y en la jornada (las jornadas van de miércoles a martes desde el 21 de octubre). */
 function EstadoEquipo({ equipo, personas }: { equipo: V.Equipo; personas: V.Persona[] }) {
   const [cuentas, setCuentas] = useState<Record<string, { hoy: number; jornada: number; juegos: number }> | null>(null);
-  const hoy = fechaChile(Date.now()), dias = Math.floor((Date.parse(hoy) - Date.parse('2026-10-16')) / 864e5);
-  const inicio = dias < 0 ? hoy : fechaChile(Date.parse('2026-10-16T12:00:00Z') + (dias - (dias % 7)) * 864e5);
+  const hoy = fechaChile(Date.now()), dias = Math.floor((Date.parse(hoy) - Date.parse('2026-10-21')) / 864e5);
+  const inicio = dias < 0 ? hoy : fechaChile(Date.parse('2026-10-21T12:00:00Z') + (dias - (dias % 7)) * 864e5);
   useEffect(() => {
     supabase.from('marcas').select('perfil_id,juego,fecha').in('perfil_id', equipo.miembros).gte('fecha', inicio).limit(3000).then(({ data }) => {
       const r: Record<string, { hoy: number; jornada: number; juegos: number }> = {};

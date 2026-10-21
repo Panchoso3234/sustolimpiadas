@@ -319,7 +319,7 @@ export function AjustePuntos() {
   const guardar = async () => { const error = await guardarPuntos(p); setAviso(error ? { texto: `No se pudo guardar: ${error}`, ok: false } : { texto: 'Puntos guardados.', ok: true }); };
   return (
     <>
-      <p>Cuántos puntos del torneo vale cada resultado. En el modo individual, el primer puesto de la tabla de un juego recibe el máximo y el último el mínimo; los demás se reparten parejo entre medio.</p>
+      <p>Cuántos puntos del torneo vale cada resultado de un duelo oficial (no jugar siempre da 0, y el bono por ganar un enfrentamiento de cruce es +5; ambos se multiplican por la jornada). Desde el 21 de octubre la tabla oficial solo suma duelos: los valores del modo individual quedan sin uso.</p>
       <Mensaje aviso={aviso} />
       <h2>Versus (1v1 y 3v3)</h2>
       <div class="formulario">

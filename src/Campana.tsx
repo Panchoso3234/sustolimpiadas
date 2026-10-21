@@ -43,8 +43,8 @@ async function calcular(yo: string): Promise<Aviso[]> {
   }
   guardarPuestos(nuevos);
 
-  // Resumen de la semana: uno por jornada (las jornadas cambian los viernes)
-  const semana = Math.floor((Date.parse(hoy) - Date.parse('2026-10-16')) / (7 * 864e5));
+  // Resumen de la semana: uno por jornada (las jornadas cambian los miércoles)
+  const semana = Math.floor((Date.parse(hoy) - Date.parse('2026-10-21')) / (7 * 864e5));
   avisos.push({ clave: `semana-${semana}`, texto: 'Tu resumen de la semana está listo', enlace: '#/perfil' });
   return avisos;
 }

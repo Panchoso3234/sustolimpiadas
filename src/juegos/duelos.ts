@@ -7,17 +7,21 @@ export interface Enfrentamiento {
   id: number; modo: '1v1' | '3v3'; juego: string; rondas: number; jornada: number; plazo: string | null; oficial: boolean;
   a_perfil: string | null; b_perfil: string | null; a_equipo: number | null; b_equipo: number | null;
   estado: 'pendiente' | 'cerrado' | 'anulado'; ganador: Lado | 'empate' | null; puntos_a: number; puntos_b: number; creado_por: string; creado: string;
+  /** Liga (etapa 3): a qué cruce pertenece y quién no jugó ninguna ronda. */
+  cruce?: number | null; no_jugo?: Lado | 'ambos' | null;
 }
 export interface MarcaVersus {
   enfrentamiento_id: number; perfil_id: string; ronda: number; lado: Lado; puntaje: number; terminado: boolean;
   detalle: Record<string, unknown>; creado: string; avance: string | null; reinicios: number;
 }
 export interface Persona { id: string; nombre: string; rol: Rol }
-export interface Equipo { id: number; nombre: string; miembros: string[] }
-export type NuevoEnfrentamiento = Pick<Enfrentamiento, 'modo' | 'juego' | 'rondas' | 'jornada' | 'plazo' | 'oficial' | 'a_perfil' | 'b_perfil' | 'a_equipo' | 'b_equipo'>;
+export interface Equipo { id: number; nombre: string; miembros: string[]; /** El capitán (staff): juega y suma, pero no pasa a la final. */ capitan?: string | null }
+export type NuevoEnfrentamiento = Pick<Enfrentamiento, 'modo' | 'juego' | 'rondas' | 'jornada' | 'plazo' | 'oficial' | 'a_perfil' | 'b_perfil' | 'a_equipo' | 'b_equipo'> & { cruce?: number };
 
 // La semilla queda fuera a propósito: no se puede leer, solo la entrega `empezar_ronda`
 const COLUMNAS = 'id,modo,juego,rondas,jornada,plazo,oficial,a_perfil,b_perfil,a_equipo,b_equipo,estado,ganador,puntos_a,puntos_b,creado_por,creado';
+// Con las columnas de la liga (etapa-3.sql); si la base aún no las tiene, se piden las de antes
+const COLUMNAS_LIGA = `${COLUMNAS},cruce,no_jugo`;
 
 export async function listarPersonas(): Promise<Persona[]> {
   const { data } = await supabase.from('perfiles').select('id,nombre,rol').order('nombre');
@@ -26,24 +30,25 @@ export async function listarPersonas(): Promise<Persona[]> {
 
 export async function listarEquipos(): Promise<Equipo[]> {
   const [{ data: equipos }, { data: miembros }] = await Promise.all([
-    supabase.from('equipos').select('id,nombre').order('id'),
+    supabase.from('equipos').select('id,nombre,capitan').order('id').then((r) => (r.error ? supabase.from('equipos').select('id,nombre').order('id') : r)),
     supabase.from('equipo_miembros').select('perfil_id,equipo_id'),
   ]);
-  return ((equipos as { id: number; nombre: string }[] | null) ?? []).map((e) => ({
+  return ((equipos as { id: number; nombre: string; capitan?: string | null }[] | null) ?? []).map((e) => ({
     ...e, miembros: ((miembros as { perfil_id: string; equipo_id: number }[] | null) ?? []).filter((m) => m.equipo_id === e.id).map((m) => m.perfil_id),
   }));
 }
 
 /** `disponible` es falso mientras las tablas del versus no existan en Supabase. */
 export async function listarEnfrentamientos(modo?: '1v1' | '3v3'): Promise<{ lista: Enfrentamiento[]; disponible: boolean }> {
-  let consulta = supabase.from('enfrentamientos').select(COLUMNAS).order('id', { ascending: false }).limit(500);
-  if (modo) consulta = consulta.eq('modo', modo);
-  const { data, error } = await consulta;
+  const pedir = (columnas: string) => { let consulta = supabase.from('enfrentamientos').select(columnas).order('id', { ascending: false }).limit(1000); if (modo) consulta = consulta.eq('modo', modo); return consulta; };
+  let { data, error } = await pedir(COLUMNAS_LIGA);
+  if (error) ({ data, error } = await pedir(COLUMNAS));
   return { lista: (data as Enfrentamiento[] | null) ?? [], disponible: !error };
 }
 
 export async function unEnfrentamiento(id: number): Promise<Enfrentamiento | null> {
-  const { data } = await supabase.from('enfrentamientos').select(COLUMNAS).eq('id', id).maybeSingle();
+  let { data, error } = await supabase.from('enfrentamientos').select(COLUMNAS_LIGA).eq('id', id).maybeSingle();
+  if (error) ({ data } = await supabase.from('enfrentamientos').select(COLUMNAS).eq('id', id).maybeSingle());
   return (data as Enfrentamiento | null) ?? null;
 }
 

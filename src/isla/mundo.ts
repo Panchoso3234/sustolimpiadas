@@ -271,7 +271,7 @@ export function crearMundo(escena: THREE.Scene, clima: 0 | 1 | 2) {
     cartel(t, lineas, 5.2, 2.6, [0, 2.9, 0.1]);
     return t;
   };
-  tablon(SITIOS.tablero, 0, 'tabla', ['TABLA DE POSICIONES', 'Se estrena el viernes 16', 'Toca para abrir'], '#ef5565');
+  tablon(SITIOS.tablero, 0, 'tabla', ['TABLA OFICIAL', 'La liga de cruces', 'Toca para abrir'], '#ef5565');
   tablon(SITIOS.eventos, PI, 'eventos', ['TABLÓN DE EVENTOS', 'Calendario del torneo', 'Toca para abrir'], '#3f8cff');
   const ruleta = tocable(grupo({ ...SITIOS.ruleta, y: 1.5 }, 0.5), 'ruleta');
   cil(ruleta, palo, 0.15, 0.2, 2.2, [0, 1.1, 0], 8);
