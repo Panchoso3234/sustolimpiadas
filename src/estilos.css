@@ -785,3 +785,24 @@ body.foto .tren-poderes { display: none; }
 .chip-persona.sin-cuenta { border-style: dashed; }
 em.sin-cuenta { font-style: normal; font-size: .72rem; color: var(--sangre); margin-left: 4px; }
 .boton.quitar { padding: 2px 10px; font-size: .8rem; margin: 2px; }
+/* Mesa · Planificación y Dashboard */
+.plan-tareas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.plan-tareas li { display: grid; grid-template-columns: 110px 1fr; gap: 10px; padding: 6px 10px; border-radius: 10px; background: var(--noche); }
+.plan-tareas li.hoy { box-shadow: inset 4px 0 0 var(--calabaza); }
+.plan-grilla { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.plan-cabeza { text-align: center; font-weight: 800; color: var(--tenue); font-size: .8rem; padding: 4px 0; }
+.plan-dia { min-height: 78px; border-radius: 10px; padding: 6px; background: var(--noche-2); border: 2px solid transparent; border-top: 6px solid var(--color, var(--linea)); display: flex; flex-direction: column; gap: 2px; font-size: .78rem; }
+.plan-dia.fuera { opacity: .4; }
+.plan-dia.hoy { border-color: var(--luna); border-top-color: var(--color, var(--luna)); box-shadow: 0 0 12px #ffe08a55; }
+.plan-num { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
+.plan-num b { font-size: 1rem; }
+.plan-num em { font-style: normal; font-weight: 800; color: var(--calabaza); margin-left: auto; }
+.plan-cruce { font-weight: 800; color: var(--color); }
+.plan-nota { font-size: 1rem; line-height: 1; }
+.plan-punto { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: middle; }
+.dash .cifras .alerta b { color: var(--sangre); }
+.dash-dos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.dash-top { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
+.dash-top li span { display: inline-block; min-width: 60%; }
+.tabla tr.alerta td { color: var(--sangre); }
+@media (max-width: 700px) { .dash-dos { grid-template-columns: 1fr; } .plan-dia { min-height: 60px; font-size: .68rem; padding: 3px; } .plan-tareas li { grid-template-columns: 1fr; gap: 2px; } }

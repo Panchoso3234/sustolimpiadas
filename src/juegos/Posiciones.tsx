@@ -71,7 +71,7 @@ export function Posiciones() {
           </div>
         </>
       )}
-      <p class="tenue chico">La liga parte el {V.fechaCorta(INICIO)}. Jornadas de miércoles a martes; los duelos se cierran solos cuando juegan los dos o cuando vence su plazo.</p>
+      <p class="tenue chico">La liga parte el {V.fechaCorta(INICIO)}. Dos cruces por semana (miércoles a sábado y domingo a martes) hasta el 28 de noviembre; los duelos se cierran solos cuando juegan los dos o cuando vence su plazo.</p>
     </>
   );
 }

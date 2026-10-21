@@ -3,7 +3,7 @@ import type { Persona, Equipo, Enfrentamiento } from './duelos';
 import { puntosVersus, type Puntos } from './puntos';
 
 // La liga del torneo (desde el 21 de octubre de 2026). 11 equipos de 3: 8 con un capitán del staff y 3 solo de participantes.
-// Todos contra todos en 11 cruces: en cada cruce se juegan 5 enfrentamientos de equipo contra equipo (3 duelos 1v1,
+// Todos contra todos en 11 cruces (dos por semana, hasta el 28 de noviembre): en cada cruce se juegan 5 enfrentamientos de equipo contra equipo (3 duelos 1v1,
 // al mejor de 3) y descansa un equipo. La tabla oficial suma SOLO duelos oficiales creados desde el inicio:
 //  · cada duelo: ganar 10, empatar 6, perder 3 y no jugar 0, por el multiplicador de la jornada; van al jugador y a su equipo;
 //  · bono de cruce: +5 (por el multiplicador) al equipo que gana 2 de los 3 duelos de su enfrentamiento.
@@ -13,19 +13,25 @@ import { puntosVersus, type Puntos } from './puntos';
 export const INICIO = '2026-10-21';
 export const BONO_CRUCE = 5, EQUIPOS_A_LA_FINAL = 4, CUPOS_FINAL = 12;
 
-/** Las cuatro jornadas, de miércoles a martes. */
-export const JORNADAS = [
-  { n: 1, desde: '2026-10-21', hasta: '2026-10-27' },
-  { n: 2, desde: '2026-10-28', hasta: '2026-11-03' },
-  { n: 3, desde: '2026-11-04', hasta: '2026-11-10' },
-  { n: 4, desde: '2026-11-11', hasta: '2026-11-17' },
-];
-/** Los 11 cruces: tres por semana (miércoles-jueves, viernes-domingo, lunes-martes) y dos más largos en la última. */
+/**
+ * Los 11 cruces, dos por semana para no agobiar: miércoles a sábado (4 días) y domingo a martes (3 días).
+ * Así cada persona juega 1 o 2 duelos por semana. La liga termina el sábado 28 de noviembre.
+ */
 export const CRUCES = [
-  { n: 1, desde: '2026-10-21', hasta: '2026-10-22' }, { n: 2, desde: '2026-10-23', hasta: '2026-10-25' }, { n: 3, desde: '2026-10-26', hasta: '2026-10-27' },
-  { n: 4, desde: '2026-10-28', hasta: '2026-10-29' }, { n: 5, desde: '2026-10-30', hasta: '2026-11-01' }, { n: 6, desde: '2026-11-02', hasta: '2026-11-03' },
-  { n: 7, desde: '2026-11-04', hasta: '2026-11-05' }, { n: 8, desde: '2026-11-06', hasta: '2026-11-08' }, { n: 9, desde: '2026-11-09', hasta: '2026-11-10' },
-  { n: 10, desde: '2026-11-11', hasta: '2026-11-13' }, { n: 11, desde: '2026-11-14', hasta: '2026-11-17' },
+  { n: 1, desde: '2026-10-21', hasta: '2026-10-24' }, { n: 2, desde: '2026-10-25', hasta: '2026-10-27' },
+  { n: 3, desde: '2026-10-28', hasta: '2026-10-31' }, { n: 4, desde: '2026-11-01', hasta: '2026-11-03' },
+  { n: 5, desde: '2026-11-04', hasta: '2026-11-07' }, { n: 6, desde: '2026-11-08', hasta: '2026-11-10' },
+  { n: 7, desde: '2026-11-11', hasta: '2026-11-14' }, { n: 8, desde: '2026-11-15', hasta: '2026-11-17' },
+  { n: 9, desde: '2026-11-18', hasta: '2026-11-21' }, { n: 10, desde: '2026-11-22', hasta: '2026-11-24' },
+  { n: 11, desde: '2026-11-25', hasta: '2026-11-28' },
+];
+export const FIN = '2026-11-28';
+/** Las cuatro jornadas (cada una con su multiplicador) agrupan cruces: 1-3, 4-6, 7-9 y 10-11. */
+export const JORNADAS = [
+  { n: 1, desde: '2026-10-21', hasta: '2026-10-31', cruces: [1, 2, 3] },
+  { n: 2, desde: '2026-11-01', hasta: '2026-11-10', cruces: [4, 5, 6] },
+  { n: 3, desde: '2026-11-11', hasta: '2026-11-21', cruces: [7, 8, 9] },
+  { n: 4, desde: '2026-11-22', hasta: '2026-11-28', cruces: [10, 11] },
 ];
 
 /** Jornada (1 a 4) de una fecha "AAAA-MM-DD"; antes del inicio cuenta como la 1. */

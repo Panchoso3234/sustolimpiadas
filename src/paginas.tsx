@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { AjustePuntos, Enfrentamientos, Equipos, Marcas } from './juegos/Mesa';
 import { Sorteo } from './juegos/Sorteo';
 import { MesaLiga } from './juegos/MesaLiga';
+import { Dashboard, Planificacion } from './juegos/Panel';
 import { supabase, useSesion, type Perfil, type Rol } from './nucleo/supabase';
 
 export function Arena() {
@@ -10,7 +11,7 @@ export function Arena() {
       <div class="porton" aria-hidden="true"><span /><span /></div>
       <div class="sigla">Fase 2</div>
       <h1>La Arena está sellada</h1>
-      <p>El portón del volcán se abre cuando termine la liga (17 de noviembre); la fecha de la final se anuncia por Discord. Entran 12: los participantes de los 4 mejores equipos (el staff no entra) y, para completar, los mejores puntajes personales. Ahí se definen los siete premios.</p>
+      <p>El portón del volcán se abre cuando termine la liga (28 de noviembre); la fecha de la final se anuncia por Discord. Entran 12: los participantes de los 4 mejores equipos (el staff no entra) y, para completar, los mejores puntajes personales. Ahí se definen los siete premios.</p>
       <p class="tenue">Cada punto que ganes en las jornadas mejora lo que recibirás al entrar.</p>
     </div>
   );
@@ -19,12 +20,12 @@ export function Arena() {
 const ROLES: Rol[] = ['jugador', 'guardian', 'admin'];
 // En la base el staff sigue guardado como "guardian"; en pantalla se llama staff
 const NOMBRE_ROL: Record<Rol, string> = { jugador: 'Jugador', guardian: 'Staff', admin: 'Organizador' };
-const SECCIONES = [['personas', 'Personas'], ['sorteo', '🎡 Sorteo de equipos'], ['liga', '🏆 Liga (cruces)'], ['equipos', 'Equipos'], ['enfrentamientos', 'Enfrentamientos'], ['marcas', 'Marcas'], ['puntos', 'Puntos']] as const;
+const SECCIONES = [['dashboard', '📊 Dashboard'], ['plan', '📅 Planificación'], ['personas', 'Personas'], ['sorteo', '🎡 Sorteo de equipos'], ['liga', '🏆 Liga (cruces)'], ['equipos', 'Equipos'], ['enfrentamientos', 'Enfrentamientos'], ['marcas', 'Marcas'], ['puntos', 'Puntos']] as const;
 type Seccion = (typeof SECCIONES)[number][0];
 
 export function Admin() {
   const sesion = useSesion();
-  const [seccion, setSeccion] = useState<Seccion>('personas');
+  const [seccion, setSeccion] = useState<Seccion>('dashboard');
   const [perfiles, setPerfiles] = useState<Perfil[]>([]);
   const [personajes, setPersonajes] = useState<Record<string, { nombre: string; frase: string }>>({});
   const [porBorrar, setPorBorrar] = useState('');
@@ -41,6 +42,7 @@ export function Admin() {
   useEffect(() => { cargar(); }, []);
 
   // Solo en pruebas: "?sorteo" muestra el sorteo sin sesión (guardar fallará: lo protege la base)
+  if (import.meta.env.DEV && new URLSearchParams(location.search).has('panel')) return <div class="pagina pagina-ancha"><h1>Dashboard (prueba)</h1><Dashboard /><h1>Planificación (prueba)</h1><Planificacion /></div>;
   if (import.meta.env.DEV && new URLSearchParams(location.search).has('liga')) return <div class="pagina"><h1>Liga (prueba)</h1><MesaLiga /></div>;
   if (import.meta.env.DEV && new URLSearchParams(location.search).has('sorteo')) return <div class="pagina pagina-ancha"><h1>Sorteo de equipos (prueba)</h1><Sorteo /></div>;
   if (sesion.cargando) return <div class="pagina"><p>Cargando…</p></div>;
@@ -76,11 +78,13 @@ export function Admin() {
   };
 
   return (
-    <div class={`pagina${seccion === 'sorteo' ? ' pagina-ancha' : ''}`}>
+    <div class={`pagina${seccion === 'sorteo' || seccion === 'plan' || seccion === 'dashboard' ? ' pagina-ancha' : ''}`}>
       <div class="sigla">Mesa de control</div>
       <nav class="modos" aria-label="Secciones de la mesa de control">
         {SECCIONES.map(([id, titulo]) => <button key={id} class={seccion === id ? 'activa' : ''} onClick={() => setSeccion(id)}>{titulo}</button>)}
       </nav>
+      {seccion === 'dashboard' && <><h1>Dashboard</h1><Dashboard /></>}
+      {seccion === 'plan' && <><h1>Planificación de la liga</h1><Planificacion /></>}
       {seccion === 'sorteo' && <><h1>Sorteo de equipos</h1><Sorteo /></>}
       {seccion === 'liga' && <><h1>Liga: cruces</h1><MesaLiga /></>}
       {seccion === 'equipos' && <><h1>Equipos</h1><Equipos /></>}

@@ -35,7 +35,7 @@ const CALIDAD = 'susto.calidad';
 const INFO: Record<string, Panel> = {
   tabla: { sigla: 'Plaza', titulo: 'Tabla de posiciones', lineas: ['Aquí se suman los puntos de la liga: solo cuentan los duelos oficiales de los cruces.', 'Cada jornada vale más que la anterior: ×1, ×1,25, ×1,5 y ×2.'], enlace: { texto: 'Ver la tabla de posiciones', href: '#/juegos/posiciones' } },
   ruleta: { sigla: 'Plaza', titulo: 'La ruleta de juegos', lineas: ['El portal de juegos tiene tres modos: individual, uno contra uno y equipo contra equipo.', 'En individual, cada día hay un desafío igual para todos. En los versus, cada lado juega el mismo desafío a su hora y con un solo intento.'], enlace: { texto: 'Ir al portal de juegos', href: '#/juegos' } },
-  arena: { sigla: 'Montaña', titulo: 'El portón de la Arena', lineas: ['Está sellado hasta que termine la liga (17 de noviembre); la fecha de la final se anuncia por Discord.', 'Entran 12: los participantes de los 4 mejores equipos (el staff no entra) y los mejores puntajes personales.', 'Ahí adentro se definen los siete premios. Cada punto que ganes mejora lo que recibirás al entrar.'] },
+  arena: { sigla: 'Montaña', titulo: 'El portón de la Arena', lineas: ['Está sellado hasta que termine la liga (28 de noviembre); la fecha de la final se anuncia por Discord.', 'Entran 12: los participantes de los 4 mejores equipos (el staff no entra) y los mejores puntajes personales.', 'Ahí adentro se definen los siete premios. Cada punto que ganes mejora lo que recibirás al entrar.'] },
   fuente: { sigla: 'Plaza', titulo: 'La fuente', lineas: ['El centro de ValRigo. Dicen que si tiras una moneda y pides un cinco estrellas, a veces funciona.'] },
   escenario: { sigla: 'Plaza', titulo: 'El escenario', lineas: ['Aquí se canta y se baila. Al cerrar cada jornada, aquí se celebra a los líderes de la semana.'] },
   atril: { sigla: 'Plaza', titulo: 'El atril de Rigo', lineas: ['Rigo pinta aquí el retrato del líder de cada semana.', 'Uno de los siete premios del torneo es una comisión suya.'] },
@@ -330,7 +330,7 @@ export function Isla() {
     const infoDe = (id: string): Panel | null => {
       if (id === 'eventos') {
         const proximo = EVENTOS.find((x) => x.fecha >= hoy);
-        return { sigla: 'Plaza', titulo: 'Tablón de eventos', lineas: ['La liga va de miércoles a martes: 4 jornadas y 11 cruces de equipos.'], lista: EVENTOS.map((e) => ({ t: `${e.porAnunciar ? 'Fecha por anunciar' : fechaLarga(e.fecha)} · ${e.nombre}`, d: e.detalle, ahora: e === proximo })) };
+        return { sigla: 'Plaza', titulo: 'Tablón de eventos', lineas: ['La liga tiene 11 cruces de equipos, dos por semana (miércoles a sábado y domingo a martes), en 4 jornadas.'], lista: EVENTOS.map((e) => ({ t: `${e.porAnunciar ? 'Fecha por anunciar' : fechaLarga(e.fecha)} · ${e.nombre}`, d: e.detalle, ahora: e === proximo })) };
       }
       if (id === 'diario') {
         const despiertos = habitantes.filter((h) => h.estado && h.estado.lugar.id !== 'dormir');
