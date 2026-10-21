@@ -779,3 +779,9 @@ body.foto .tren-poderes { display: none; }
 .tabla tr.zona-final td:first-child { box-shadow: inset 4px 0 0 var(--alga); }
 .tabla td.acciones { display: flex; flex-wrap: wrap; gap: 6px; }
 .boton.peligro { background: var(--sangre); border-color: var(--sangre); color: #fff; }
+.sorteo-agregar { display: flex; gap: 6px; align-items: center; }
+.sorteo-agregar .texto { min-width: 170px; }
+.sorteo-agregar-bloque { padding: 10px 12px; border: 2px dashed var(--linea); border-radius: 12px; display: flex; flex-direction: column; gap: 6px; }
+.chip-persona.sin-cuenta { border-style: dashed; }
+em.sin-cuenta { font-style: normal; font-size: .72rem; color: var(--sangre); margin-left: 4px; }
+.boton.quitar { padding: 2px 10px; font-size: .8rem; margin: 2px; }

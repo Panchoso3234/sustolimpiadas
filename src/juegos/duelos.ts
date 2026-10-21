@@ -15,7 +15,12 @@ export interface MarcaVersus {
   detalle: Record<string, unknown>; creado: string; avance: string | null; reinicios: number;
 }
 export interface Persona { id: string; nombre: string; rol: Rol }
-export interface Equipo { id: number; nombre: string; miembros: string[]; /** El capitán (staff): juega y suma, pero no pasa a la final. */ capitan?: string | null }
+export interface Equipo {
+  id: number; nombre: string; miembros: string[]; /** El capitán (staff): juega y suma, pero no pasa a la final. */ capitan?: string | null;
+  /** Sorteados que todavía no tienen cuenta (etapa-5.sql): se vinculan cuando entran con Discord. */
+  pendientes?: Pendiente[];
+}
+export interface Pendiente { id: number; nombre: string; es_capitan: boolean }
 export type NuevoEnfrentamiento = Pick<Enfrentamiento, 'modo' | 'juego' | 'rondas' | 'jornada' | 'plazo' | 'oficial' | 'a_perfil' | 'b_perfil' | 'a_equipo' | 'b_equipo'> & { cruce?: number };
 
 // La semilla queda fuera a propósito: no se puede leer, solo la entrega `empezar_ronda`
@@ -29,12 +34,14 @@ export async function listarPersonas(): Promise<Persona[]> {
 }
 
 export async function listarEquipos(): Promise<Equipo[]> {
-  const [{ data: equipos }, { data: miembros }] = await Promise.all([
+  const [{ data: equipos }, { data: miembros }, { data: pendientes }] = await Promise.all([
     supabase.from('equipos').select('id,nombre,capitan').order('id').then((r) => (r.error ? supabase.from('equipos').select('id,nombre').order('id') : r)),
     supabase.from('equipo_miembros').select('perfil_id,equipo_id'),
+    supabase.from('equipo_pendientes').select('id,equipo_id,nombre,es_capitan').order('id'), // si la tabla aún no existe, llega vacío
   ]);
   return ((equipos as { id: number; nombre: string; capitan?: string | null }[] | null) ?? []).map((e) => ({
     ...e, miembros: ((miembros as { perfil_id: string; equipo_id: number }[] | null) ?? []).filter((m) => m.equipo_id === e.id).map((m) => m.perfil_id),
+    pendientes: ((pendientes as (Pendiente & { equipo_id: number })[] | null) ?? []).filter((x) => x.equipo_id === e.id).map(({ id, nombre, es_capitan }) => ({ id, nombre, es_capitan })),
   }));
 }
 

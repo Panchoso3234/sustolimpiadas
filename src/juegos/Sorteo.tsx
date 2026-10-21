@@ -14,7 +14,11 @@ const COLORES = ['#ff9a2e', '#8a5ce6', '#2fae86', '#ef5565', '#3fa3dc', '#e85aa2
 const MEMORIA = 'susto.sorteo';
 
 interface EquipoSorteo { nombre: string; capitan: string | null; miembros: string[] }
-interface Estado { equipos: EquipoSorteo[]; capitanes: string[]; historial: { persona: string; equipo: number }[] }
+/** `extras`: participantes agregados a mano que todavía no tienen cuenta (su id empieza con "pend-"). */
+interface Estado { equipos: EquipoSorteo[]; capitanes: string[]; historial: { persona: string; equipo: number }[]; extras?: Extra[] }
+interface Extra { id: string; nombre: string }
+const esPendiente = (id: string) => id.startsWith('pend-');
+const nuevoExtra = (nombre: string): Extra => ({ id: `pend-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, nombre: nombre.trim().slice(0, 40) });
 interface Item { id: string; texto: string; color: string }
 
 /** Coincidencia flexible entre el nombre de Discord y el del capitán ("Pancho 🎃" sirve para "Pancho"). */
@@ -103,10 +107,11 @@ export function Sorteo() {
   useEffect(() => { try { const g = JSON.parse(localStorage.getItem(MEMORIA) ?? 'null'); if (g?.equipos) setEstado(g); } catch { /* nada */ } }, []);
   useEffect(() => { if (estado) try { localStorage.setItem(MEMORIA, JSON.stringify(estado)); } catch { /* sin almacenamiento */ } }, [estado]);
 
-  const nombre = (id: string) => personas.find((p) => p.id === id)?.nombre ?? '¿?';
-  const preparar = (capitanes: string[]) => {
-    const cuantos = Math.max(capitanes.length, Math.ceil(personas.length / 3));
-    setEstado({ capitanes, historial: [], equipos: Array.from({ length: cuantos }, (_, i) => ({ nombre: `Equipo ${i + 1}`, capitan: null, miembros: [] })) });
+  const extras = estado?.extras ?? [], todos: { id: string; nombre: string }[] = [...personas, ...extras];
+  const nombre = (id: string) => todos.find((p) => p.id === id)?.nombre ?? '¿?';
+  const preparar = (capitanes: string[], nuevos: Extra[]) => {
+    const cuantos = Math.max(capitanes.length, Math.ceil((personas.length + nuevos.length) / 3));
+    setEstado({ capitanes, historial: [], extras: nuevos, equipos: Array.from({ length: cuantos }, (_, i) => ({ nombre: `Equipo ${i + 1}`, capitan: null, miembros: [] })) });
     setSale({ p: null, e: null }); setPersona(null); setFase('persona');
   };
   if (!personas.length) return <p class="tenue">Cargando inscritos…</p>;
@@ -118,7 +123,7 @@ export function Sorteo() {
   const ubicados = new Set(estado.equipos.flatMap((q) => q.miembros));
   const capitanesPendientes = estado.capitanes.filter((id) => !ubicados.has(id));
   const enCapitanes = capitanesPendientes.length > 0;
-  const pendientes = enCapitanes ? capitanesPendientes : personas.map((p) => p.id).filter((id) => !ubicados.has(id) && !estado.capitanes.includes(id));
+  const pendientes = enCapitanes ? capitanesPendientes : todos.map((p) => p.id).filter((id) => !ubicados.has(id) && !estado.capitanes.includes(id));
   const cupo = (q: EquipoSorteo) => (enCapitanes ? !q.capitan : q.miembros.length < 3);
   const equiposLibres = estado.equipos.map((q, i) => ({ q, i })).filter(({ q }) => cupo(q));
   const terminado = !pendientes.length || !equiposLibres.length;
@@ -152,19 +157,31 @@ export function Sorteo() {
     setEstado({ ...estado, historial: estado.historial.slice(0, -1), equipos: estado.equipos.map((q, i) => (i !== ultimo.equipo ? q : { ...q, miembros: q.miembros.filter((x) => x !== ultimo.persona), capitan: q.capitan === ultimo.persona ? null : q.capitan, nombre: q.capitan === ultimo.persona ? `Equipo ${i + 1}` : q.nombre })) });
     setPersona(null); setSale({ p: null, e: null }); setFase('persona');
   };
+  // A mitad del sorteo: sumar a alguien que llegó tarde (si faltan cupos, se agrega un equipo)
+  const agregar = (nombreNuevo: string) => {
+    if (!nombreNuevo.trim()) return;
+    const extra = nuevoExtra(nombreNuevo), total = todos.length + 1, equipos = [...estado.equipos];
+    while (equipos.length < Math.ceil(total / 3)) equipos.push({ nombre: `Equipo ${equipos.length + 1}`, capitan: null, miembros: [] });
+    setEstado({ ...estado, extras: [...extras, extra], equipos });
+  };
   const renombrar = (i: number, nombreNuevo: string) => setEstado({ ...estado, equipos: estado.equipos.map((q, k) => (k === i ? { ...q, nombre: nombreNuevo.slice(0, 30) || q.nombre } : q)) });
 
   const guardar = async () => {
     setAviso(null);
     const borrar = await supabase.from('equipos').delete().gt('id', 0);
     if (borrar.error) return setAviso({ texto: borrar.error.message, ok: false });
-    let r = await supabase.from('equipos').insert(estado.equipos.map((q) => ({ nombre: q.nombre, capitan: q.capitan }))).select('id');
+    let r = await supabase.from('equipos').insert(estado.equipos.map((q) => ({ nombre: q.nombre, capitan: q.capitan && !esPendiente(q.capitan) ? q.capitan : null }))).select('id');
     let sinCapitan = false;
     if (r.error) { sinCapitan = true; r = await supabase.from('equipos').insert(estado.equipos.map((q) => ({ nombre: q.nombre }))).select('id'); }
     if (r.error || !r.data) return setAviso({ texto: r.error?.message ?? 'No se pudieron crear los equipos.', ok: false });
     const ids = (r.data as { id: number }[]).map((f) => f.id);
-    const m = await supabase.from('equipo_miembros').insert(estado.equipos.flatMap((q, i) => q.miembros.map((perfil_id) => ({ perfil_id, equipo_id: ids[i] }))));
-    setAviso(m.error ? { texto: m.error.message, ok: false } : { texto: `¡Listo! ${ids.length} equipos guardados en el torneo.${sinCapitan ? ' Falta ejecutar supabase/etapa-3.sql para guardar quién es capitán.' : ''}`, ok: !sinCapitan });
+    const m = await supabase.from('equipo_miembros').insert(estado.equipos.flatMap((q, i) => q.miembros.filter((id) => !esPendiente(id)).map((perfil_id) => ({ perfil_id, equipo_id: ids[i] }))));
+    if (m.error) return setAviso({ texto: m.error.message, ok: false });
+    // Los que aún no tienen cuenta quedan como pendientes de su equipo, hasta vincularlos en la pestaña Equipos
+    const sinCuenta = estado.equipos.flatMap((q, i) => q.miembros.filter(esPendiente).map((id) => ({ equipo_id: ids[i], nombre: nombre(id), es_capitan: q.capitan === id })));
+    const pend = sinCuenta.length ? await supabase.from('equipo_pendientes').insert(sinCuenta) : { error: null };
+    if (pend.error) return setAviso({ texto: `Equipos guardados, pero no los ${sinCuenta.length} sin cuenta: falta ejecutar supabase/etapa-5.sql (${pend.error.message}).`, ok: false });
+    setAviso({ texto: `¡Listo! ${ids.length} equipos guardados en el torneo.${sinCuenta.length ? ` ${sinCuenta.length} quedaron pendientes de cuenta: vincúlalos en la pestaña Equipos cuando entren.` : ''}${sinCapitan ? ' Falta ejecutar supabase/etapa-3.sql para guardar quién es capitán.' : ''}`, ok: !sinCapitan });
   };
   const completa = () => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); else pantalla.current?.requestFullscreen().catch(() => {}); };
 
@@ -179,6 +196,7 @@ export function Sorteo() {
           <label class="sorteo-marcar"><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.currentTarget.checked)} /> Girar seguido</label>
           <button class="boton" onClick={deshacer} disabled={!estado.historial.length || fase.startsWith('girando')}>Deshacer</button>
           <button class="boton" onClick={completa}>Pantalla completa</button>
+          <AgregarNombre alAgregar={agregar} />
         </div>
       </div>
       <div class="sorteo-cuerpo">
@@ -197,7 +215,7 @@ export function Sorteo() {
               <ol>
                 {[0, 1, 2].map((k) => {
                   const id = q.miembros[k];
-                  return <li key={k} class={id ? 'ocupado' : ''}>{id ? <>{q.capitan === id && <span title="Capitán (staff)">⭐ </span>}{nombre(id)}{q.capitan === id && <em> capitán</em>}</> : <span class="tenue">libre</span>}</li>;
+                  return <li key={k} class={id ? 'ocupado' : ''}>{id ? <>{q.capitan === id && <span title="Capitán (staff)">⭐ </span>}{nombre(id)}{q.capitan === id && <em> capitán</em>}{esPendiente(id) && <em class="sin-cuenta"> sin cuenta</em>}</> : <span class="tenue">libre</span>}</li>;
                 })}
               </ol>
               {!q.capitan && !enCapitanes && <span class="chico tenue">Sin staff: pueden pasar los 3</span>}
@@ -226,18 +244,38 @@ function ConfirmarBoton({ texto, alConfirmar }: { texto: string; alConfirmar(): 
 }
 
 /** Antes de girar: confirmar quiénes son los capitanes (vienen marcados los que se llaman como el staff). */
-function Preparar({ personas, sugeridos, alEmpezar }: { personas: V.Persona[]; sugeridos: string[]; alEmpezar(capitanes: string[]): void }) {
+function Preparar({ personas, sugeridos, alEmpezar }: { personas: V.Persona[]; sugeridos: string[]; alEmpezar(capitanes: string[], extras: Extra[]): void }) {
   const [capitanes, setCapitanes] = useState<string[]>(sugeridos);
-  const equipos = Math.max(capitanes.length, Math.ceil(personas.length / 3)), faltan = CAPITANES.filter((c) => !personas.some((p) => capitanes.includes(p.id) && parecido(p.nombre, c)));
+  const [extras, setExtras] = useState<Extra[]>([]);
+  const todos = [...personas, ...extras], total = todos.length;
+  const equipos = Math.max(capitanes.length, Math.ceil(total / 3)), faltan = CAPITANES.filter((c) => !todos.some((p) => capitanes.includes(p.id) && parecido(p.nombre, c)));
   return (
     <div class="sorteo-preparar">
-      <p>Hay <b>{personas.length}</b> personas inscritas: salen <b>{equipos} equipos</b> de 3 ({capitanes.length} con capitán y {equipos - capitanes.length} solo de participantes).{personas.length % 3 ? ` Ojo: ${personas.length} no se divide en grupos de 3; ${3 - (personas.length % 3)} cupo(s) quedarán libres.` : ''}</p>
-      {faltan.length > 0 && <p class="aviso atencion">No encontré entre los inscritos a: {faltan.join(', ')}. Tienen que entrar al sitio con Discord antes del sorteo (o márcalos a mano si su nombre es distinto).</p>}
+      <p>Hay <b>{personas.length}</b> personas inscritas{extras.length ? <> y <b>{extras.length}</b> agregadas a mano</> : null}: salen <b>{equipos} equipos</b> de 3 ({capitanes.length} con capitán y {equipos - capitanes.length} solo de participantes).{total % 3 ? ` Ojo: ${total} no se divide en grupos de 3; ${3 - (total % 3)} cupo(s) quedarán libres.` : ''}</p>
+      {faltan.length > 0 && <p class="aviso atencion">No encontré entre los inscritos a: {faltan.join(', ')}. Agrégalos abajo con su nombre (y márcalos como capitán), o márcalos a mano si su nombre en Discord es distinto.</p>}
+      <div class="sorteo-agregar-bloque">
+        <b>¿Falta alguien que todavía no entra al sitio?</b>
+        <p class="chico tenue">Agrégalo con su nombre: entra al sorteo igual y queda "sin cuenta" en su equipo. Cuando entre con Discord, lo vinculas en la pestaña Equipos (hasta entonces no se le pueden crear duelos).</p>
+        <AgregarNombre alAgregar={(n) => setExtras((x) => [...x, nuevoExtra(n)])} />
+      </div>
       <p class="chico tenue">Toca un nombre para marcarlo o desmarcarlo como capitán. Solo pueden participar quienes ya entraron al sitio con Discord.</p>
       <div class="sorteo-personas">
-        {personas.map((p) => <button key={p.id} class={`chip-persona${capitanes.includes(p.id) ? ' capitan' : ''}`} onClick={() => setCapitanes((c) => (c.includes(p.id) ? c.filter((x) => x !== p.id) : [...c, p.id]))}>{capitanes.includes(p.id) ? '⭐ ' : ''}{p.nombre}</button>)}
+        {todos.map((p) => <button key={p.id} class={`chip-persona${capitanes.includes(p.id) ? ' capitan' : ''}${esPendiente(p.id) ? ' sin-cuenta' : ''}`} onClick={() => setCapitanes((c) => (c.includes(p.id) ? c.filter((x) => x !== p.id) : [...c, p.id]))}>{capitanes.includes(p.id) ? '⭐ ' : ''}{p.nombre}{esPendiente(p.id) ? ' (sin cuenta)' : ''}</button>)}
       </div>
-      <button class="boton principal grande" onClick={() => alEmpezar(capitanes)}>Empezar el sorteo ({capitanes.length} capitanes)</button>
+      {extras.length > 0 && <p class="chico">Agregados a mano (toca para quitar): {extras.map((x) => <button key={x.id} class="boton quitar" title="Quitar" onClick={() => { setExtras((l) => l.filter((y) => y.id !== x.id)); setCapitanes((c) => c.filter((y) => y !== x.id)); }}>{x.nombre} ✕</button>)}</p>}
+      <button class="boton principal grande" onClick={() => alEmpezar(capitanes, extras)}>Empezar el sorteo ({capitanes.length} capitanes)</button>
     </div>
+  );
+}
+
+/** Campo chico para sumar a alguien por su nombre. */
+function AgregarNombre({ alAgregar }: { alAgregar(nombre: string): void }) {
+  const [texto, setTexto] = useState('');
+  const listo = () => { if (texto.trim()) { alAgregar(texto); setTexto(''); } };
+  return (
+    <form class="sorteo-agregar" onSubmit={(e) => { e.preventDefault(); listo(); }}>
+      <input class="texto" value={texto} maxLength={40} placeholder="Nombre de quien falta" aria-label="Nombre del participante a agregar" onInput={(e) => setTexto(e.currentTarget.value)} />
+      <button class="boton" type="submit" disabled={!texto.trim()}>+ Agregar</button>
+    </form>
   );
 }

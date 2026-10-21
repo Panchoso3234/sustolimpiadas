@@ -65,6 +65,11 @@ export function MesaLiga() {
         <section class="bloque liga-borrador">
           <h2>Cruce {borrador.cruce} · vista previa</h2>
           <p>Juegos: {borrador.juegos.map((j, i) => <b key={j}>{i ? ' · ' : ''}Duelo {i + 1}: {nombreVersus('1v1', j)}</b>)}</p>
+          {(() => {
+            // Quienes siguen sin cuenta no pueden tener duelos: su duelo falta hasta que se vinculen
+            const ids = new Set((calendario[borrador.cruce - 1]?.parejas ?? []).flat()), faltan = equipos.filter((q) => ids.has(q.id)).flatMap((q) => (q.pendientes ?? []).map((x) => `${x.nombre} (${q.nombre})`));
+            return faltan.length ? <p class="aviso atencion">Sin cuenta todavía: {faltan.join(', ')}. Sus duelos no se crean; vincúlalos en la pestaña Equipos y vuelve a preparar el cruce si quieres incluirlos.</p> : null;
+          })()}
           <div class="tabla-caja"><table class="tabla">
             <thead><tr><th>Enfrentamiento</th><th>Duelo</th><th>Juego</th></tr></thead>
             <tbody>{borrador.duelos.map((d, i) => <tr key={i}><td class="tenue chico">{nombreEquipo(d.equipos[0])} vs {nombreEquipo(d.equipos[1])}</td><td><b>{nombre(d.a)}</b> vs <b>{nombre(d.b)}</b></td><td>{nombreVersus('1v1', d.juego)}</td></tr>)}</tbody>

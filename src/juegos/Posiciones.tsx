@@ -38,7 +38,7 @@ export function Posiciones() {
                 {tabla.map((l, i) => (
                   <tr key={l.equipo.id} class={i < EQUIPOS_A_LA_FINAL && l.puntos > 0 ? 'zona-final' : ''}>
                     <td>{i + 1}</td>
-                    <td><b>{l.equipo.nombre}</b><br /><span class="tenue chico">{l.equipo.miembros.map((id) => `${id === l.capitan ? '⭐ ' : ''}${nombre(id) || 'Participante'}`).join(', ') || 'Sin integrantes'}</span></td>
+                    <td><b>{l.equipo.nombre}</b><br /><span class="tenue chico">{[...l.equipo.miembros.map((id) => `${id === l.capitan ? '⭐ ' : ''}${nombre(id) || 'Participante'}`), ...(l.equipo.pendientes ?? []).map((x) => `${x.es_capitan ? '⭐ ' : ''}${x.nombre} (sin cuenta)`)].join(', ') || 'Sin integrantes'}</span></td>
                     {l.porJornada.map((n, k) => <td key={k} class="tenue">{bonito(n)}</td>)}
                     <td>{l.ganados}-{l.empatados}-{l.perdidos}{l.sinJugar ? <span class="tenue chico"> ({l.sinJugar} sin jugar)</span> : null}</td>
                     <td>{bonito(l.bonos)}</td>

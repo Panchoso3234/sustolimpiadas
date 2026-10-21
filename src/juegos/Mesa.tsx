@@ -60,9 +60,19 @@ export function Equipos() {
     hecho((await supabase.from('equipo_miembros').upsert({ perfil_id: perfil, equipo_id: Number(destino) })).error, 'Persona movida.');
   };
 
+  // Pendientes (sorteados sin cuenta): se vinculan con su cuenta cuando entran con Discord
+  const vincular = async (pendiente: number, perfil: string) => {
+    if (!perfil) return;
+    const { data, error } = await supabase.rpc('vincular_pendiente', { p_pendiente: pendiente, p_perfil: perfil });
+    hecho(error ?? (data ? { message: String(data) } : null), 'Cuenta vinculada: ya es integrante del equipo.');
+  };
+  const quitarPendiente = async (id: number) => hecho((await supabase.from('equipo_pendientes').delete().eq('id', id)).error, 'Pendiente quitado.');
+  const sinCuenta = equipos.flatMap((q) => q.pendientes ?? []).length;
+
   if (!activado) return <p class="aviso atencion">{NO_ACTIVADO}</p>;
   return (
     <>
+      {sinCuenta > 0 && <p class="aviso atencion">{sinCuenta} {sinCuenta === 1 ? 'persona sorteada todavía no tiene' : 'personas sorteadas todavía no tienen'} cuenta. Cuando entren con Discord, elige su cuenta en "Vincular con…" dentro de su equipo. Mientras tanto no se les pueden crear duelos.</p>}
       <p>Equipos de 3 al azar. El staff se reparte primero para que quede distribuido. Después del sorteo puedes mover gente, cambiar nombres o armar reemplazos.</p>
       <Mensaje aviso={aviso} />
       <div class="fila">
@@ -89,9 +99,19 @@ export function Equipos() {
                   </li>
                 );
               })}
-              {q.miembros.length === 0 && <li class="tenue">Sin integrantes</li>}
+              {(q.pendientes ?? []).map((x) => (
+                <li key={`p${x.id}`} class="pendiente">
+                  <span>{x.es_capitan ? '⭐ ' : ''}{x.nombre}<em class="sin-cuenta"> sin cuenta</em></span>
+                  <select aria-label={`Vincular a ${x.nombre} con su cuenta`} value="" onChange={(e) => vincular(x.id, e.currentTarget.value)}>
+                    <option value="">Vincular con…</option>
+                    {sueltos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                  </select>
+                  <Confirmar texto="Quitar" alConfirmar={() => quitarPendiente(x.id)} />
+                </li>
+              ))}
+              {q.miembros.length === 0 && !(q.pendientes ?? []).length && <li class="tenue">Sin integrantes</li>}
             </ul>
-            <span class={`chico ${q.miembros.length === 3 ? 'tenue' : 'alerta'}`}>{q.miembros.length} de 3</span>
+            <span class={`chico ${q.miembros.length + (q.pendientes?.length ?? 0) === 3 ? 'tenue' : 'alerta'}`}>{q.miembros.length + (q.pendientes?.length ?? 0)} de 3{q.pendientes?.length ? ` (${q.pendientes.length} sin cuenta)` : ''}</span>
             <Confirmar texto="Borrar equipo" alConfirmar={() => borrar(q.id)} />
           </div>
         ))}
