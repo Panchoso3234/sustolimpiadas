@@ -1,11 +1,15 @@
--- Las Sustolimpiadas · avisos automáticos en Discord (opcional)
--- Publica en un canal de Discord, a través de un webhook, cuando alguien le quita el récord del día a otra persona,
--- cuando se cierra un duelo y cuando alguien llega a los niveles 10, 20 y 30 del pase de temporada.
--- Pasos: 1) activar la extensión pg_net (Database → Extensions); 2) ejecutar este archivo en el SQL Editor;
--- 3) guardar la dirección del webhook con la línea del final (reemplazando el texto entre comillas).
--- La dirección queda en una tabla sin permisos de lectura: nadie la puede ver desde el sitio.
+-- Las Sustolimpiadas · avisos automáticos en Discord
+-- El sitio publica solo en un canal de tu servidor (a través de un webhook):
+--   📣 cuando se crea un cruce (un mensaje con los duelos, los juegos y el plazo, mencionando a cada jugador);
+--   ⚔️ cuando se cierra un duelo oficial de la liga (quién ganó y cuántos puntos se llevó);
+--   ⏰ cada día a las 12:00: qué duelos vencen hoy o mañana y quién todavía no juega (mencionándolos);
+--   🎃 cuando alguien llega al nivel 10, 20 o 30 del pase.
+-- Además, cada noche a las 00:05 se cierran solos los duelos vencidos (antes solo pasaba al abrir la Tabla oficial).
+-- Requisitos: extensiones pg_net y pg_cron activadas (Database → Extensions). Se puede volver a ejecutar sin problema.
+-- La dirección del webhook queda en una tabla que nadie puede leer desde el sitio.
 
 create extension if not exists pg_net with schema extensions;
+create extension if not exists pg_cron;
 
 create table if not exists public.secretos (clave text primary key, valor text not null);
 alter table public.secretos enable row level security; -- sin políticas: solo la leen las funciones de aquí abajo
@@ -53,67 +57,120 @@ insert into public.nombres_juegos (id, nombre) values
   ('escobas', 'Carrera de Escobas')
 on conflict (id) do update set nombre = excluded.nombre;
 
--- Manda un mensaje al canal (si no hay webhook guardado, no hace nada)
+-- Manda un mensaje al canal. Las menciones (<@id>) avisan a la persona en Discord.
 create or replace function public.avisar_discord(p_texto text) returns void
 language plpgsql security definer set search_path = '' as $$
 declare v_url text;
 begin
   select valor into v_url from public.secretos where clave = 'discord_webhook';
   if v_url is null or v_url not like 'https://discord.com/api/webhooks/%' then return; end if;
-  perform net.http_post(url := v_url, body := jsonb_build_object('content', left(p_texto, 1900), 'allowed_mentions', jsonb_build_object('parse', '[]'::jsonb)));
+  perform net.http_post(url := v_url, body := jsonb_build_object('content', left(p_texto, 1990), 'allowed_mentions', jsonb_build_object('parse', jsonb_build_array('users'))));
 end; $$;
 revoke all on function public.avisar_discord(text) from public, anon, authenticated;
 
--- Récord del día robado: la marca nueva supera a la mejor del día de otra persona
-create or replace function public.aviso_record() returns trigger
-language plpgsql security definer set search_path = '' as $$
-declare v_previo record; v_nombre text; v_juego text;
-begin
-  select m.perfil_id, m.puntaje, p.nombre into v_previo from public.marcas m join public.perfiles p on p.id = m.perfil_id
-   where m.juego = new.juego and m.fecha = new.fecha and m.id <> new.id order by m.puntaje desc limit 1;
-  if v_previo is null or new.puntaje <= v_previo.puntaje or v_previo.perfil_id = new.perfil_id then return new; end if;
-  select nombre into v_nombre from public.perfiles where id = new.perfil_id;
-  select coalesce((select nombre from public.nombres_juegos where id = new.juego), new.juego) into v_juego;
-  perform public.avisar_discord(format('🏆 **%s** le quitó el récord del día de **%s** a %s: **%s** puntos (antes %s). ¿Quién se lo quita? https://panchoso3234.github.io/sustolimpiadas/#/juegos/%s', v_nombre, v_juego, v_previo.nombre, new.puntaje, v_previo.puntaje, new.juego));
-  return new;
-end; $$;
-drop trigger if exists aviso_record on public.marcas;
-create trigger aviso_record after insert on public.marcas for each row execute function public.aviso_record();
+-- Cómo nombrar a alguien en Discord: su mención si entró con Discord, o su nombre
+create or replace function public.mencion(p_uid uuid) returns text
+language sql stable security definer set search_path = '' as $$
+  select coalesce((select '<@' || i.provider_id || '>' from auth.identities i where i.user_id = p_uid and i.provider = 'discord' limit 1),
+                  (select '**' || nombre || '**' from public.perfiles where id = p_uid), 'alguien');
+$$;
+revoke all on function public.mencion(uuid) from public, anon, authenticated;
 
--- Duelo cerrado (diferido o en vivo oficial)
+create or replace function public.nombre_juego(p_id text) returns text
+language sql stable security definer set search_path = '' as $$
+  select coalesce((select nombre from public.nombres_juegos where id = p_id), p_id);
+$$;
+
+create or replace function public.nombre_equipo(p_uid uuid) returns text
+language sql stable security definer set search_path = '' as $$
+  select q.nombre from public.equipo_miembros m join public.equipos q on q.id = m.equipo_id where m.perfil_id = p_uid;
+$$;
+
+-- El aviso viejo de "récord del día robado" ya no corresponde (lo individual no suma a la liga)
+drop trigger if exists aviso_record on public.marcas;
+
+-- 📣 Cruce creado: se crean los 15 duelos de una vez, así que se avisa una sola vez por cruce
+create or replace function public.aviso_cruce() returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare v_cruce smallint; v_plazo date; v_juegos text; v_lineas text;
+begin
+  for v_cruce in select distinct cruce from nuevos where oficial and cruce is not null loop
+    select max(plazo) into v_plazo from nuevos where cruce = v_cruce;
+    select string_agg(distinct public.nombre_juego(juego), ', ') into v_juegos from nuevos where cruce = v_cruce;
+    select string_agg(public.mencion(a_perfil) || ' vs ' || public.mencion(b_perfil) || ' — ' || public.nombre_juego(juego), E'\n' order by id) into v_lineas
+      from nuevos where cruce = v_cruce;
+    perform public.avisar_discord(format(E'📣 **¡Cruce %s creado!** Juegos: **%s**.\n⏰ Plazo: hasta el %s a las 23:59 (hora de Chile). Cada duelo es al mejor de 3.\n%s\n👉 Juégalo en el sitio: Juegos → Versus 1v1. ¡No jugar son 0 puntos para ti y tu equipo!',
+      v_cruce, v_juegos, to_char(v_plazo, 'DD/MM'), v_lineas));
+  end loop;
+  return null;
+end; $$;
+drop trigger if exists aviso_cruce on public.enfrentamientos;
+create trigger aviso_cruce after insert on public.enfrentamientos referencing new table as nuevos for each statement execute function public.aviso_cruce();
+
+-- ⚔️ Duelo oficial de la liga cerrado
 create or replace function public.aviso_duelo() returns trigger
 language plpgsql security definer set search_path = '' as $$
-declare v_a text; v_b text; v_juego text;
+declare v_mult numeric; v_gana uuid; v_pierde uuid; v_juego text; v_texto text;
 begin
-  if new.estado <> 'cerrado' or old.estado = 'cerrado' then return new; end if;
-  if new.modo = '1v1' then
-    select nombre into v_a from public.perfiles where id = new.a_perfil; select nombre into v_b from public.perfiles where id = new.b_perfil;
+  if new.estado <> 'cerrado' or old.estado = 'cerrado' or not new.oficial or new.cruce is null or new.modo <> '1v1' then return new; end if;
+  select coalesce((valor -> 'multiplicadores' ->> (new.jornada - 1))::numeric, 1) into v_mult from public.ajustes where clave = 'puntos';
+  v_mult := coalesce(v_mult, 1);
+  v_juego := public.nombre_juego(new.juego);
+  if new.no_jugo = 'ambos' then
+    v_texto := format('⚔️ Cruce %s · %s: %s y %s no jugaron (0 puntos para los dos).', new.cruce, v_juego, public.mencion(new.a_perfil), public.mencion(new.b_perfil));
+  elsif new.ganador = 'empate' then
+    v_texto := format('⚔️ Cruce %s · %s: **empate** entre %s y %s (%s-%s). +%s para cada uno.', new.cruce, v_juego, public.mencion(new.a_perfil), public.mencion(new.b_perfil), new.puntos_a, new.puntos_b, round(6 * v_mult, 2));
   else
-    select nombre into v_a from public.equipos where id = new.a_equipo; select nombre into v_b from public.equipos where id = new.b_equipo;
+    v_gana := case when new.ganador = 'a' then new.a_perfil else new.b_perfil end;
+    v_pierde := case when new.ganador = 'a' then new.b_perfil else new.a_perfil end;
+    v_texto := format('⚔️ Cruce %s · %s: %s le ganó a %s %s. **+%s** para %s%s',
+      new.cruce, v_juego, public.mencion(v_gana), public.mencion(v_pierde),
+      case when new.no_jugo is not null then '(no se presentó)' else format('%s-%s', greatest(new.puntos_a, new.puntos_b), least(new.puntos_a, new.puntos_b)) end,
+      round(10 * v_mult, 2), coalesce(public.nombre_equipo(v_gana), 'su equipo'),
+      case when new.no_jugo is not null then '.' else format(' (y +%s para %s).', round(3 * v_mult, 2), coalesce(public.nombre_equipo(v_pierde), 'el otro equipo')) end);
   end if;
-  select coalesce((select nombre from public.nombres_juegos where id = new.juego), new.juego) into v_juego;
-  perform public.avisar_discord(case new.ganador
-    when 'empate' then format('⚔️ Duelo %s en **%s**: **%s** y **%s** empataron %s a %s.', new.modo, v_juego, v_a, v_b, new.puntos_a, new.puntos_b)
-    when 'a' then format('⚔️ Duelo %s%s en **%s**: **%s** le ganó a %s, %s a %s.', new.modo, case when new.oficial then ' oficial' else '' end, v_juego, v_a, v_b, new.puntos_a, new.puntos_b)
-    else format('⚔️ Duelo %s%s en **%s**: **%s** le ganó a %s, %s a %s.', new.modo, case when new.oficial then ' oficial' else '' end, v_juego, v_b, v_a, new.puntos_b, new.puntos_a) end);
+  perform public.avisar_discord(v_texto);
   return new;
 end; $$;
 drop trigger if exists aviso_duelo on public.enfrentamientos;
 create trigger aviso_duelo after update on public.enfrentamientos for each row execute function public.aviso_duelo();
 
--- Niveles 10, 20 y 30 del pase de temporada
+-- 🎃 Niveles 10, 20 y 30 del pase
 create or replace function public.aviso_nivel() returns trigger
 language plpgsql security definer set search_path = '' as $$
-declare v_nombre text; v_meta integer;
+declare v_meta integer;
 begin
   select max(m) into v_meta from unnest(array[10, 20, 30]) m where m > coalesce(case when tg_op = 'UPDATE' then old.nivel end, 1) and m <= new.nivel;
   if v_meta is null then return new; end if;
-  select nombre into v_nombre from public.perfiles where id = new.perfil_id;
-  perform public.avisar_discord(format('🎃 **%s** llegó al **nivel %s** del pase de temporada. %s', v_nombre, v_meta, case v_meta when 30 then '¡Pase completo! 👑' when 20 then '¡Ya tiene la Torre a la vista!' else '¡Va con todo!' end));
+  perform public.avisar_discord(format('🎃 %s llegó al **nivel %s** del pase de temporada. %s', public.mencion(new.perfil_id), v_meta, case v_meta when 30 then '¡Pase completo! 👑' when 20 then '¡Ya ve la torre de campeón!' else '¡Va con todo!' end));
   return new;
 end; $$;
 drop trigger if exists aviso_nivel on public.vitrinas;
 create trigger aviso_nivel after insert or update of nivel on public.vitrinas for each row execute function public.aviso_nivel();
 
--- 3) Guardar la dirección del webhook (pega la tuya entre las comillas y ejecuta solo esta línea):
--- insert into public.secretos (clave, valor) values ('discord_webhook', 'https://discord.com/api/webhooks/...') on conflict (clave) do update set valor = excluded.valor;
+-- ⏰ Recordatorio diario: duelos de la liga que vencen hoy o mañana y quién todavía no completa sus rondas
+create or replace function public.recordatorio_cruces() returns void
+language plpgsql security definer set search_path = '' as $$
+declare v_hoy date := (now() at time zone 'America/Santiago')::date; v_dia date; v_lineas text;
+begin
+  foreach v_dia in array array[v_hoy, v_hoy + 1] loop
+    select string_agg(format('• %s — %s (%s/%s rondas)', public.mencion(x.perfil), public.nombre_juego(x.juego), x.hechas, x.rondas), E'\n') into v_lineas
+    from (
+      select e.juego, e.rondas, l.perfil,
+        (select count(*) from public.enfrentamiento_marcas m where m.enfrentamiento_id = e.id and m.perfil_id = l.perfil and m.terminado) as hechas
+      from public.enfrentamientos e
+      cross join lateral (values (e.a_perfil), (e.b_perfil)) as l(perfil)
+      where e.oficial and e.estado = 'pendiente' and e.plazo = v_dia and e.modo = '1v1'
+    ) x where x.hechas < x.rondas;
+    if v_lineas is not null then
+      perform public.avisar_discord(format(E'⏰ **%s** vencen duelos de la liga (a las 23:59). Todavía les falta jugar:\n%s\nJuegos → Versus 1v1. ¡No jugar son 0 puntos!',
+        case when v_dia = v_hoy then '¡HOY' || '!' else 'Mañana' end, v_lineas));
+    end if;
+  end loop;
+end; $$;
+revoke all on function public.recordatorio_cruces() from public, anon, authenticated;
+
+-- Tareas automáticas (hora UTC; Chile está en UTC-3): recordatorio a las 12:00 y cierre de vencidos a las 00:05
+select cron.unschedule(jobname) from cron.job where jobname in ('recordatorio-cruces', 'cerrar-vencidos');
+select cron.schedule('recordatorio-cruces', '0 15 * * *', 'select public.recordatorio_cruces()');
+select cron.schedule('cerrar-vencidos', '5 3 * * *', 'select public.cerrar_vencidos()');
