@@ -777,3 +777,5 @@ body.foto .tren-poderes { display: none; }
 .liga-borrador .tabla td { font-size: .9rem; }
 .tabla tr.zona-final td { background: #6fd6b41a; }
 .tabla tr.zona-final td:first-child { box-shadow: inset 4px 0 0 var(--alga); }
+.tabla td.acciones { display: flex; flex-wrap: wrap; gap: 6px; }
+.boton.peligro { background: var(--sangre); border-color: var(--sangre); color: #fff; }

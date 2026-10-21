@@ -28,6 +28,8 @@ export function Admin() {
   const [perfiles, setPerfiles] = useState<Perfil[]>([]);
   const [personajes, setPersonajes] = useState<Record<string, { nombre: string; frase: string }>>({});
   const [porBorrar, setPorBorrar] = useState('');
+  const [cuentaPorBorrar, setCuentaPorBorrar] = useState('');
+  const [aviso, setAviso] = useState('');
   const [error, setError] = useState('');
 
   const cargar = async () => {
@@ -61,6 +63,18 @@ export function Admin() {
     cargar();
   };
 
+  // Borrar la cuenta entera: también pide dos toques, y avisa qué se pierde
+  const borrarCuenta = async (p: Perfil) => {
+    if (cuentaPorBorrar !== p.id) return setCuentaPorBorrar(p.id);
+    setCuentaPorBorrar('');
+    setError(''); setAviso('');
+    const { data, error: e } = await supabase.rpc('borrar_cuenta', { p_uid: p.id });
+    if (e) setError(e.message.includes('borrar_cuenta') ? 'Falta ejecutar supabase/etapa-4.sql en Supabase.' : e.message);
+    else if (data) setError(String(data));
+    else setAviso(`Cuenta de ${p.nombre} borrada.`);
+    cargar();
+  };
+
   return (
     <div class={`pagina${seccion === 'sorteo' ? ' pagina-ancha' : ''}`}>
       <div class="sigla">Mesa de control</div>
@@ -76,7 +90,9 @@ export function Admin() {
       {seccion === 'personas' && <>
       <h1>Personas inscritas</h1>
       <p>Marca como staff a quienes juegan la Fase 1 pero no pasan a la Arena ni ganan premios. Si un nombre o una frase no corresponde, puedes borrar ese personaje; la persona podrá crear otro.</p>
+      <p class="chico tenue"><b>Borrar cuenta</b> elimina a la persona del torneo por completo: su perfil, personaje, marcas, equipo, vitrina y <b>los duelos donde jugaba</b> (también se le quitan al rival). Si vuelve a entrar con Discord, empieza de cero. No se puede deshacer.</p>
       {error && <p class="aviso error">{error}</p>}
+      {aviso && <p class="aviso ok">{aviso}</p>}
       <div class="tabla-caja">
         <table class="tabla">
           <thead><tr><th>Discord</th><th>Rol</th><th>Personaje</th><th>Frase</th><th></th></tr></thead>
@@ -93,7 +109,10 @@ export function Admin() {
                   </td>
                   <td>{pj ? pj.nombre : <span class="tenue">Sin personaje</span>}</td>
                   <td>{pj?.frase}</td>
-                  <td>{pj && <button class="boton" onClick={() => borrarPersonaje(p.id)}>{porBorrar === p.id ? 'Confirmar borrado' : 'Borrar personaje'}</button>}</td>
+                  <td class="acciones">
+                    {pj && <button class="boton" onClick={() => borrarPersonaje(p.id)}>{porBorrar === p.id ? 'Confirmar borrado' : 'Borrar personaje'}</button>}
+                    {p.id !== sesion.usuarioId && p.rol !== 'admin' && <button class={`boton${cuentaPorBorrar === p.id ? ' peligro' : ''}`} onBlur={() => setCuentaPorBorrar('')} onClick={() => borrarCuenta(p)}>{cuentaPorBorrar === p.id ? `¿Borrar a ${p.nombre}? Toca otra vez` : 'Borrar cuenta'}</button>}
+                  </td>
                 </tr>
               );
             })}

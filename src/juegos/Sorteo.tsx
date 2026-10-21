@@ -8,6 +8,8 @@ import * as V from './duelos';
 // El avance queda guardado en el navegador (si se recarga, sigue donde iba) y al final se guarda en el torneo.
 
 export const CAPITANES = ['Vale', 'Rigo', 'Pancho', 'Leona', 'Tsuki', 'Astrea', 'Baal', 'Never'];
+/** Capitanes cuyo nombre de Discord no se parece al suyo. */
+const ALIAS: Record<string, string[]> = { Never: ['ODIO A MOMOKA'] };
 const COLORES = ['#ff9a2e', '#8a5ce6', '#2fae86', '#ef5565', '#3fa3dc', '#e85aa2', '#7ab33c', '#ffd23c', '#5a6acf', '#c94a6a', '#3fb8b0', '#d9653b'];
 const MEMORIA = 'susto.sorteo';
 
@@ -16,7 +18,8 @@ interface Estado { equipos: EquipoSorteo[]; capitanes: string[]; historial: { pe
 interface Item { id: string; texto: string; color: string }
 
 /** Coincidencia flexible entre el nombre de Discord y el del capitán ("Pancho 🎃" sirve para "Pancho"). */
-const parecido = (nombre: string, buscado: string) => nombre.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().includes(buscado.toLowerCase());
+const limpio = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const parecido = (nombre: string, buscado: string) => [buscado, ...(ALIAS[buscado] ?? [])].some((b) => limpio(nombre).includes(limpio(b)));
 
 // ───────── La ruleta ─────────
 function Ruleta({ titulo, items, girar, alTerminar, elegido }: { titulo: string; items: Item[]; girar: number; alTerminar(i: number): void; elegido: string | null }) {
