@@ -5,8 +5,8 @@ import { VERSUS, juegoPorId, nombreVersus } from './catalogo';
 import * as V from './duelos';
 import { CRUCES, calendarioDeEquipos, jornadaDe } from './liga';
 
-// Mesa de control · Liga: los 11 cruces del todos contra todos. Para cada cruce se sortean 3 juegos (sin repetir en la
-// jornada) y quién enfrenta a quién dentro de cada par de equipos; al confirmar se crean los duelos oficiales
+// Mesa de control · Liga: los 11 cruces del todos contra todos. Para cada cruce se sortea un juego distinto para cada duelo
+// (primero los menos jugados en la liga) y quién enfrenta a quién dentro de cada par de equipos; al confirmar se crean los duelos oficiales
 // (mejor de 3, con plazo hasta el último día del cruce).
 
 const RONDAS = 3;
@@ -44,37 +44,39 @@ export function MesaLiga() {
     setBorrador(null);
     cargar();
   };
-  /** Sortea juegos (sin repetir los ya usados en la misma jornada) y rivales dentro de cada par de equipos. */
+  /** Todos los juegos de duelo al azar, pero primero los que menos se han jugado en la liga (así van rotando todos). */
+  const juegosPorUso = (excluir: string[] = []) => {
+    const uso = (j: string) => duelos.filter((d) => d.cruce && d.juego === j).length;
+    return V.mezclar(juegosDuelo().filter((j) => !excluir.includes(j))).sort((a, b) => uso(a) - uso(b));
+  };
+  /** Sortea rivales dentro de cada par de equipos y un juego distinto para cada duelo del cruce (hay más juegos que duelos). */
   const preparar = (n: number, juegosFijos?: string[]) => {
-    const jornada = jornadaDe(CRUCES[n - 1].desde);
-    const usados = new Set(duelos.filter((d) => d.cruce && jornadaDe(CRUCES[d.cruce - 1]?.desde ?? '') === jornada).map((d) => d.juego));
-    const disponibles = juegosDuelo().filter((j) => !usados.has(j));
-    const juegos = juegosFijos ?? V.mezclar(disponibles.length >= 3 ? disponibles : juegosDuelo()).slice(0, 3);
+    const juegos = juegosFijos ?? juegosPorUso();
     const lista: Borrador['duelos'] = [];
-    for (const [ea, eb] of calendario[n - 1]?.parejas ?? []) {
+    (calendario[n - 1]?.parejas ?? []).forEach(([ea, eb], k) => {
       const qa = alineacion(equipos.find((q) => q.id === ea)?.miembros ?? []), qb = alineacion(equipos.find((q) => q.id === eb)?.miembros ?? []);
-      for (let i = 0; i < Math.min(qa.length, qb.length, 3); i++) lista.push({ a: qa[i], b: qb[i], juego: juegos[i % juegos.length], equipos: [ea, eb] });
-    }
+      // Cada enfrentamiento tiene 3 casillas de juego reservadas (también las de quienes aún no tienen cuenta)
+      for (let i = 0; i < Math.min(qa.length, qb.length, 3); i++) lista.push({ a: qa[i], b: qb[i], juego: juegos[(k * 3 + i) % juegos.length], equipos: [ea, eb] });
+    });
     setBorrador({ cruce: n, juegos, duelos: lista });
     setAviso(null);
   };
   /** Duelos que le faltan a un cruce ya creado (alguien se vinculó tarde): se agregan sin tocar los que existen. */
   const faltantes = (n: number): Borrador['duelos'] => {
-    const hechos = delCruce(n), juegos = [...new Set(hechos.map((d) => d.juego))], lista: Borrador['duelos'] = [];
+    const hechos = delCruce(n), juegos = juegosPorUso(hechos.map((d) => d.juego)), lista: Borrador['duelos'] = [];
     const ocupados = new Set(hechos.flatMap((d) => [d.a_perfil, d.b_perfil]));
     for (const [ea, eb] of calendario[n - 1]?.parejas ?? []) {
       const ma = equipos.find((q) => q.id === ea)?.miembros ?? [], mb = equipos.find((q) => q.id === eb)?.miembros ?? [];
       const dePareja = hechos.filter((d) => (ma.includes(d.a_perfil!) && mb.includes(d.b_perfil!)) || (mb.includes(d.a_perfil!) && ma.includes(d.b_perfil!)));
       const qa = alineacion(ma.filter((id) => !ocupados.has(id))), qb = alineacion(mb.filter((id) => !ocupados.has(id)));
-      const libres = juegos.filter((j) => !dePareja.some((d) => d.juego === j));
-      for (let i = 0; i < Math.min(qa.length, qb.length, 3 - dePareja.length); i++) lista.push({ a: qa[i], b: qb[i], juego: libres[i] ?? juegos[i % juegos.length], equipos: [ea, eb] });
+      for (let i = 0; i < Math.min(qa.length, qb.length, 3 - dePareja.length); i++) lista.push({ a: qa[i], b: qb[i], juego: juegos.shift() ?? juegosDuelo()[0], equipos: [ea, eb] });
     }
     return lista;
   };
   const completar = (n: number) => {
     const lista = faltantes(n);
     if (!lista.length) return setAviso({ texto: `Al cruce ${n} no le falta ningún duelo (o sus rivales siguen sin cuenta).`, ok: true });
-    setBorrador({ cruce: n, juegos: [...new Set(delCruce(n).map((d) => d.juego))], duelos: lista });
+    setBorrador({ cruce: n, juegos: lista.map((d) => d.juego), duelos: lista });
     setAviso(null);
   };
   const crear = async () => {
@@ -98,7 +100,7 @@ export function MesaLiga() {
       {borrador && (
         <section class="bloque liga-borrador">
           <h2>Cruce {borrador.cruce} · {delCruce(borrador.cruce).length ? 'duelos que faltan' : 'vista previa'}</h2>
-          <p>Juegos: {borrador.juegos.map((j, i) => <b key={j}>{i ? ' · ' : ''}Duelo {i + 1}: {nombreVersus('1v1', j)}</b>)}</p>
+          <p>{new Set(borrador.duelos.map((d) => d.juego)).size} juegos distintos en {borrador.duelos.length} duelos.</p>
           {(() => {
             // Quienes siguen sin cuenta no pueden tener duelos: su duelo falta hasta que se vinculen
             const ids = new Set((calendario[borrador.cruce - 1]?.parejas ?? []).flat()), faltan = equipos.filter((q) => ids.has(q.id)).flatMap((q) => (q.pendientes ?? []).map((x) => `${x.nombre} (${q.nombre})`));
