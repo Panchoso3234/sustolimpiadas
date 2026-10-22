@@ -1,9 +1,12 @@
--- Las Sustolimpiadas · 21 de octubre: completar los equipos y rehacer los cruces
+-- Las Sustolimpiadas · 22 de octubre: completar los equipos y rehacer los cruces
 -- 1) Guarda el capitán (staff) de los equipos 1 al 8, según la foto de los equipos oficiales.
--- 2) Crea el Equipo 10 (3 personas) y el Equipo 11 (4 personas) con quienes faltaban (sorteo al azar).
+-- 2) Crea el Equipo 10 y el Equipo 11, de 4 personas cada uno (sorteo al azar; Hurona dejó el torneo):
+--      Equipo 10: GiyuuSilly, Monti, o_Maty_o (con cuenta) y Junior (sin cuenta)
+--      Equipo 11: Insterstellarglow, Bubu, el_Gato e Izuki (sin cuenta)
 --    Quienes todavía no entran al sitio quedan "sin cuenta": se vinculan en Mesa → Equipos cuando entren.
--- 3) Borra los duelos del cruce 1 que se crearon con 9 equipos (ninguno se había jugado).
--- Se ejecuta UNA vez en Supabase → SQL Editor → New query → Run.
+--    En los equipos de 4 juegan 3 duelos por cruce y va rotando quién descansa.
+-- 3) Borra los 12 duelos del cruce 1 que se crearon con 9 equipos (ninguno se había jugado).
+-- Se ejecuta UNA vez en Supabase → SQL Editor → New query → Run. Si se ejecuta de nuevo, no duplica nada.
 
 do $$
 declare e10 bigint; e11 bigint;
@@ -15,20 +18,21 @@ begin
                                   ('Equipo 5', 'Tsuki'), ('Equipo 6', 'El Leona Tactico'), ('Equipo 7', 'Baalbierth.'), ('Equipo 8', 'Astrea'))
      and exists (select 1 from public.equipo_miembros m where m.perfil_id = p.id and m.equipo_id = q.id);
 
-  -- 2) Equipos nuevos (si ya existen, no se duplican)
-  if exists (select 1 from public.equipos where nombre in ('Equipo 10', 'Equipo 11')) then
-    raise notice 'El Equipo 10 o el 11 ya existían: no se crearon de nuevo.';
-  else
-    insert into public.equipos (nombre) values ('Equipo 10') returning id into e10;
-    insert into public.equipos (nombre) values ('Equipo 11') returning id into e11;
-    -- Equipo 10: GiyuuSilly, Monti (con cuenta) y Maty (sin cuenta)
-    insert into public.equipo_miembros (perfil_id, equipo_id)
-      select id, e10 from public.perfiles where nombre in ('GiyuuSilly', 'Monti')
-      on conflict (perfil_id) do update set equipo_id = excluded.equipo_id;
-    insert into public.equipo_pendientes (equipo_id, nombre) values (e10, 'Maty');
-    -- Equipo 11: Hurona, Insterstellarglow, Bubu y el_Gato (los cuatro sin cuenta todavía)
-    insert into public.equipo_pendientes (equipo_id, nombre) values (e11, 'Hurona'), (e11, 'Insterstellarglow'), (e11, 'Bubu'), (e11, 'el_Gato');
-  end if;
+  -- 2) Equipos nuevos (si ya existen, se usan los que hay)
+  select id into e10 from public.equipos where nombre = 'Equipo 10';
+  if e10 is null then insert into public.equipos (nombre) values ('Equipo 10') returning id into e10; end if;
+  select id into e11 from public.equipos where nombre = 'Equipo 11';
+  if e11 is null then insert into public.equipos (nombre) values ('Equipo 11') returning id into e11; end if;
+
+  insert into public.equipo_miembros (perfil_id, equipo_id)
+    select id, e10 from public.perfiles where nombre in ('GiyuuSilly', 'Monti', 'o_Maty_o')
+    on conflict (perfil_id) do update set equipo_id = excluded.equipo_id;
+
+  -- Sin cuenta todavía (y fuera Hurona, que dejó el torneo)
+  delete from public.equipo_pendientes where equipo_id in (e10, e11);
+  insert into public.equipo_pendientes (equipo_id, nombre) values
+    (e10, 'Junior'),
+    (e11, 'Insterstellarglow'), (e11, 'Bubu'), (e11, 'el_Gato'), (e11, 'Izuki');
 
   -- 3) Borrar los duelos de los cruces creados hasta ahora (se vuelven a crear con los 11 equipos)
   delete from public.enfrentamientos where oficial and cruce is not null;
