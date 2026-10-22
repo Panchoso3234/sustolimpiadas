@@ -3,7 +3,7 @@ import { fechaChile } from '../nucleo/azar';
 import { supabase } from '../nucleo/supabase';
 import { VERSUS, juegoPorId, nombreVersus } from './catalogo';
 import * as V from './duelos';
-import { CRUCES, calendarioLiga, jornadaDe } from './liga';
+import { CRUCES, calendarioDeEquipos, jornadaDe } from './liga';
 
 // Mesa de control · Liga: los 11 cruces del todos contra todos. Para cada cruce se sortean 3 juegos (sin repetir en la
 // jornada) y quién enfrenta a quién dentro de cada par de equipos; al confirmar se crean los duelos oficiales
@@ -24,7 +24,7 @@ export function MesaLiga() {
   };
   useEffect(() => { cargar(); }, []);
 
-  const ordenados = [...equipos].sort((a, b) => a.id - b.id), calendario = calendarioLiga(ordenados.map((q) => q.id));
+  const calendario = calendarioDeEquipos(equipos);
   const nombreEquipo = (id: number) => equipos.find((q) => q.id === id)?.nombre ?? '¿?';
   const nombre = (id: string) => personas.find((p) => p.id === id)?.nombre ?? 'Participante';
   const delCruce = (n: number) => duelos.filter((d) => d.cruce === n);
@@ -58,6 +58,25 @@ export function MesaLiga() {
     setBorrador({ cruce: n, juegos, duelos: lista });
     setAviso(null);
   };
+  /** Duelos que le faltan a un cruce ya creado (alguien se vinculó tarde): se agregan sin tocar los que existen. */
+  const faltantes = (n: number): Borrador['duelos'] => {
+    const hechos = delCruce(n), juegos = [...new Set(hechos.map((d) => d.juego))], lista: Borrador['duelos'] = [];
+    const ocupados = new Set(hechos.flatMap((d) => [d.a_perfil, d.b_perfil]));
+    for (const [ea, eb] of calendario[n - 1]?.parejas ?? []) {
+      const ma = equipos.find((q) => q.id === ea)?.miembros ?? [], mb = equipos.find((q) => q.id === eb)?.miembros ?? [];
+      const dePareja = hechos.filter((d) => (ma.includes(d.a_perfil!) && mb.includes(d.b_perfil!)) || (mb.includes(d.a_perfil!) && ma.includes(d.b_perfil!)));
+      const qa = alineacion(ma.filter((id) => !ocupados.has(id))), qb = alineacion(mb.filter((id) => !ocupados.has(id)));
+      const libres = juegos.filter((j) => !dePareja.some((d) => d.juego === j));
+      for (let i = 0; i < Math.min(qa.length, qb.length, 3 - dePareja.length); i++) lista.push({ a: qa[i], b: qb[i], juego: libres[i] ?? juegos[i % juegos.length], equipos: [ea, eb] });
+    }
+    return lista;
+  };
+  const completar = (n: number) => {
+    const lista = faltantes(n);
+    if (!lista.length) return setAviso({ texto: `Al cruce ${n} no le falta ningún duelo (o sus rivales siguen sin cuenta).`, ok: true });
+    setBorrador({ cruce: n, juegos: [...new Set(delCruce(n).map((d) => d.juego))], duelos: lista });
+    setAviso(null);
+  };
   const crear = async () => {
     if (!borrador) return;
     setCreando(true);
@@ -78,7 +97,7 @@ export function MesaLiga() {
       {aviso && <p class={`aviso ${aviso.ok ? 'ok' : 'error'}`}>{aviso.texto}</p>}
       {borrador && (
         <section class="bloque liga-borrador">
-          <h2>Cruce {borrador.cruce} · vista previa</h2>
+          <h2>Cruce {borrador.cruce} · {delCruce(borrador.cruce).length ? 'duelos que faltan' : 'vista previa'}</h2>
           <p>Juegos: {borrador.juegos.map((j, i) => <b key={j}>{i ? ' · ' : ''}Duelo {i + 1}: {nombreVersus('1v1', j)}</b>)}</p>
           {(() => {
             // Quienes siguen sin cuenta no pueden tener duelos: su duelo falta hasta que se vinculen
@@ -90,8 +109,8 @@ export function MesaLiga() {
             <tbody>{borrador.duelos.map((d, i) => <tr key={i}><td class="tenue chico">{nombreEquipo(d.equipos[0])} vs {nombreEquipo(d.equipos[1])}</td><td><b>{nombre(d.a)}</b> vs <b>{nombre(d.b)}</b></td><td>{nombreVersus('1v1', d.juego)}</td></tr>)}</tbody>
           </table></div>
           <div class="fila">
-            <button class="boton" onClick={() => preparar(borrador.cruce)}>🎡 Sortear otros juegos</button>
-            <button class="boton" onClick={() => preparar(borrador.cruce, borrador.juegos)}>🔀 Sortear otros rivales</button>
+            {!delCruce(borrador.cruce).length && <><button class="boton" onClick={() => preparar(borrador.cruce)}>🎡 Sortear otros juegos</button>
+            <button class="boton" onClick={() => preparar(borrador.cruce, borrador.juegos)}>🔀 Sortear otros rivales</button></>}
             <button class="boton principal" disabled={creando} onClick={crear}>{creando ? 'Creando…' : `Crear los ${borrador.duelos.length} duelos`}</button>
             <button class="boton" onClick={() => setBorrador(null)}>Cancelar</button>
           </div>
@@ -110,6 +129,7 @@ export function MesaLiga() {
               {hechos.length
                 ? <span class="chico">{cerrados} de {hechos.length} duelos cerrados · {[...new Set(hechos.map((d) => nombreVersus('1v1', d.juego)))].join(', ')}</span>
                 : <button class="boton" onClick={() => preparar(i + 1)}>Preparar cruce {i + 1}</button>}
+              {hechos.length > 0 && <button class="boton" onClick={() => completar(i + 1)}>➕ Agregar duelos que faltan</button>}
               {hechos.length > 0 && <BotonDoble texto={`Borrar el cruce ${i + 1}`} alConfirmar={() => borrarCruces(i + 1)} />}
             </li>
           );

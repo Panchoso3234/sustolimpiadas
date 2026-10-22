@@ -61,6 +61,9 @@ export function calendarioLiga<T>(equipos: T[]): { parejas: [T, T][]; descansa: 
   return rondas;
 }
 
+/** El calendario oficial: equipos del más nuevo al más antiguo, así el último equipo armado (Equipo 11, sin cuentas todavía) descansa en el cruce 1. */
+export const calendarioDeEquipos = (equipos: { id: number }[]) => calendarioLiga([...equipos].sort((a, b) => b.id - a.id).map((q) => q.id));
+
 /** Si un duelo cuenta para la tabla oficial: oficial, creado desde el inicio y ya cerrado. */
 export const cuentaParaLaLiga = (e: Enfrentamiento) => e.oficial && e.modo === '1v1' && fechaChile(Date.parse(e.creado)) >= INICIO && e.estado === 'cerrado' && !!e.ganador;
 

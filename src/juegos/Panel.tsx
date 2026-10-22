@@ -3,7 +3,7 @@ import { fechaChile } from '../nucleo/azar';
 import { supabase } from '../nucleo/supabase';
 import { TOPES, juegoPorId, nombreVersus } from './catalogo';
 import * as V from './duelos';
-import { CRUCES, FIN, INICIO, JORNADAS, calcularLiga, calendarioLiga, cruceDe, cuentaParaLaLiga } from './liga';
+import { CRUCES, FIN, INICIO, JORNADAS, calcularLiga, calendarioDeEquipos, cruceDe, cuentaParaLaLiga } from './liga';
 import { PUNTOS_BASE, leerPuntos, type Puntos } from './puntos';
 
 // Mesa de control · Planificación (el calendario completo de la liga con lo que toca hacer cada día) y
@@ -52,7 +52,7 @@ export function Planificacion({ publico = false }: { publico?: boolean }) {
   for (let f = inicioGrilla; f <= sumar(FIN, 6 - diaSemana(FIN)); f = sumar(f, 1)) dias.push(f);
   const cruceDelDia = (f: string) => CRUCES.find((c) => f >= c.desde && f <= c.hasta);
   const jornadaDelDia = (f: string) => JORNADAS.find((j) => f >= j.desde && f <= j.hasta);
-  const ordenados = datos ? [...datos.equipos].sort((a, b) => a.id - b.id) : [], cal = calendarioLiga(ordenados.map((q) => q.id));
+  const cal = calendarioDeEquipos(datos?.equipos ?? []);
   const nombreEquipo = (id: number) => datos?.equipos.find((q) => q.id === id)?.nombre ?? '¿?';
   const proximas = [...lista].filter(([f]) => f >= hoy).sort(([a], [b]) => a.localeCompare(b)).slice(0, 6);
   return (
