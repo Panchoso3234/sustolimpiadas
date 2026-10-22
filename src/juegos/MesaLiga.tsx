@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import { fechaChile } from '../nucleo/azar';
+import { supabase } from '../nucleo/supabase';
 import { VERSUS, juegoPorId, nombreVersus } from './catalogo';
 import * as V from './duelos';
 import { CRUCES, calendarioLiga, jornadaDe } from './liga';
@@ -29,6 +30,20 @@ export function MesaLiga() {
   const delCruce = (n: number) => duelos.filter((d) => d.cruce === n);
   const hoy = fechaChile(Date.now());
 
+  /** Quiénes juegan por un equipo: en orden al azar, pero si son 4, primero los que menos duelos de liga llevan (así rota quién descansa). */
+  const alineacion = (miembros: string[]) => {
+    const jugados = (id: string) => duelos.filter((d) => d.cruce && (d.a_perfil === id || d.b_perfil === id)).length;
+    return V.mezclar(miembros).sort((x, y) => jugados(x) - jugados(y));
+  };
+  /** Borra los duelos de un cruce (o de todos): para rehacerlo si hubo un error o cambiaron los equipos. */
+  const borrarCruces = async (n: number | null) => {
+    let consulta = supabase.from('enfrentamientos').delete().eq('oficial', true);
+    consulta = n === null ? consulta.not('cruce', 'is', null) : consulta.eq('cruce', n);
+    const { error } = await consulta;
+    setAviso(error ? { texto: error.message, ok: false } : { texto: n === null ? 'Se borraron todos los duelos de los cruces. Ya puedes crearlos de nuevo.' : `Se borraron los duelos del cruce ${n}. Puedes volver a prepararlo.`, ok: true });
+    setBorrador(null);
+    cargar();
+  };
   /** Sortea juegos (sin repetir los ya usados en la misma jornada) y rivales dentro de cada par de equipos. */
   const preparar = (n: number, juegosFijos?: string[]) => {
     const jornada = jornadaDe(CRUCES[n - 1].desde);
@@ -37,7 +52,7 @@ export function MesaLiga() {
     const juegos = juegosFijos ?? V.mezclar(disponibles.length >= 3 ? disponibles : juegosDuelo()).slice(0, 3);
     const lista: Borrador['duelos'] = [];
     for (const [ea, eb] of calendario[n - 1]?.parejas ?? []) {
-      const qa = V.mezclar(equipos.find((q) => q.id === ea)?.miembros ?? []), qb = V.mezclar(equipos.find((q) => q.id === eb)?.miembros ?? []);
+      const qa = alineacion(equipos.find((q) => q.id === ea)?.miembros ?? []), qb = alineacion(equipos.find((q) => q.id === eb)?.miembros ?? []);
       for (let i = 0; i < Math.min(qa.length, qb.length, 3); i++) lista.push({ a: qa[i], b: qb[i], juego: juegos[i % juegos.length], equipos: [ea, eb] });
     }
     setBorrador({ cruce: n, juegos, duelos: lista });
@@ -82,6 +97,8 @@ export function MesaLiga() {
           </div>
         </section>
       )}
+      {duelos.some((d) => d.cruce) && <div class="fila"><BotonDoble texto="Borrar todos los cruces creados" alConfirmar={() => borrarCruces(null)} /><span class="chico tenue">Borra los duelos de los cruces (también los ya jugados, y sus puntos). Úsalo si cambian los equipos.</span></div>}
+      {equipos.some((q) => q.miembros.length + (q.pendientes?.length ?? 0) > 3) && <p class="chico tenue">Hay equipos de 4: en cada cruce juegan 3 y descansa uno, rotando (juegan primero los que menos duelos llevan).</p>}
       <ol class="liga-cruces">
         {calendario.map((r, i) => {
           const c = CRUCES[i], hechos = delCruce(i + 1), cerrados = hechos.filter((d) => d.estado === 'cerrado').length, ahora = c && hoy >= c.desde && hoy <= c.hasta;
@@ -93,10 +110,17 @@ export function MesaLiga() {
               {hechos.length
                 ? <span class="chico">{cerrados} de {hechos.length} duelos cerrados · {[...new Set(hechos.map((d) => nombreVersus('1v1', d.juego)))].join(', ')}</span>
                 : <button class="boton" onClick={() => preparar(i + 1)}>Preparar cruce {i + 1}</button>}
+              {hechos.length > 0 && <BotonDoble texto={`Borrar el cruce ${i + 1}`} alConfirmar={() => borrarCruces(i + 1)} />}
             </li>
           );
         })}
       </ol>
     </div>
   );
+}
+
+/** Botón que pide un segundo toque antes de hacer algo que no se puede deshacer. */
+function BotonDoble({ texto, alConfirmar }: { texto: string; alConfirmar(): void }) {
+  const [armado, setArmado] = useState(false);
+  return <button class={`boton${armado ? ' peligro' : ''}`} onBlur={() => setArmado(false)} onClick={() => { if (armado) { setArmado(false); alConfirmar(); } else setArmado(true); }}>{armado ? `¿Seguro? ${texto}` : texto}</button>;
 }

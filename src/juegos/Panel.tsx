@@ -43,8 +43,11 @@ function tareas(): Map<string, string[]> {
 }
 
 // ───────── Planificación ─────────
-export function Planificacion() {
-  const datos = useDatos(), hoy = fechaChile(Date.now()), lista = tareas();
+/** `publico`: la versión para todos (pestaña Calendario del portal), sin las tareas del organizador. */
+export function Planificacion({ publico = false }: { publico?: boolean }) {
+  const datos = useDatos(), hoy = fechaChile(Date.now()), todas = tareas();
+  // En la versión pública solo quedan los hitos que le importan a todos
+  const lista: Map<string, string[]> = publico ? new Map([...todas].map(([f, ts]): [string, string[]] => [f, ts.filter((t) => /^(🎡|👻|🏁|✖️)/.test(t)).map((t) => t.replace('anunciar el nuevo multiplicador', 'sube el multiplicador').replace(': anunciar a los 12 de la Arena', ': se conocen los 12 de la Arena').replace('en vivo', ''))]).filter(([, ts]) => ts.length)) : todas;
   const inicioGrilla = sumar(INICIO, -diaSemana(INICIO)), dias: string[] = [];
   for (let f = inicioGrilla; f <= sumar(FIN, 6 - diaSemana(FIN)); f = sumar(f, 1)) dias.push(f);
   const cruceDelDia = (f: string) => CRUCES.find((c) => f >= c.desde && f <= c.hasta);
@@ -54,11 +57,12 @@ export function Planificacion() {
   const proximas = [...lista].filter(([f]) => f >= hoy).sort(([a], [b]) => a.localeCompare(b)).slice(0, 6);
   return (
     <div class="plan">
+      {publico && cruceDe(hoy) && <p class="aviso ok">{hoy < cruceDe(hoy)!.desde ? `El cruce ${cruceDe(hoy)!.n} parte el ${bonita(cruceDe(hoy)!.desde)}.` : `Ahora: cruce ${cruceDe(hoy)!.n}, hasta el ${bonita(cruceDe(hoy)!.hasta)} a las 23:59.`} Tus duelos están en Versus 1v1 (o en En vivo, si quieren jugarlo conectados).</p>}
       <p><b>11 cruces</b>, <b>2 por semana</b> (miércoles a sábado y domingo a martes), del <b>{bonita(INICIO)}</b> al <b>{bonita(FIN)}</b>. Cada persona juega <b>1 o 2 duelos por semana</b> (al mejor de 3). Cuatro jornadas con multiplicador: J1 ×1 (cruces 1-3), J2 ×1,25 (4-6), J3 ×1,5 (7-9) y J4 ×2 (10-11). La Arena va después, en la fecha que anuncies.</p>
-      <section class="bloque">
+      {!publico && <section class="bloque">
         <h2>Lo que viene</h2>
         <ul class="plan-tareas">{proximas.map(([f, ts]) => <li key={f} class={f === hoy ? 'hoy' : ''}><b>{f === hoy ? 'Hoy' : bonita(f)}</b><span>{ts.join(' · ')}</span></li>)}</ul>
-      </section>
+      </section>}
       <div class="plan-grilla" role="grid" aria-label="Calendario de la liga">
         {DIAS.map((d) => <div key={d} class="plan-cabeza">{d}</div>)}
         {dias.map((f) => {
@@ -80,13 +84,15 @@ export function Planificacion() {
             {CRUCES.map((c, i) => {
               const hechos = datos?.duelos.filter((d) => d.cruce === c.n) ?? [], cerrados = hechos.filter((d) => d.estado === 'cerrado').length;
               const j = JORNADAS.find((x) => x.cruces.includes(c.n))!, r = cal[i];
-              const estado = !hechos.length ? (hoy > c.hasta ? '⚠️ No se creó' : hoy >= c.desde ? '⚠️ Falta crearlo' : 'Por crear') : cerrados === hechos.length ? `✅ Terminado (${cerrados})` : `${hoy > c.hasta ? '⏰ Vencido' : hoy >= c.desde ? '▶ En curso' : 'Creado'} · ${cerrados}/${hechos.length} cerrados`;
+              const estado = publico
+                ? (!hechos.length ? (hoy > c.hasta ? '—' : hoy >= c.desde ? 'Se anuncia pronto' : 'Por jugar') : cerrados === hechos.length ? '✅ Terminado' : `${hoy >= c.desde ? '▶ En curso' : 'Anunciado'} · ${cerrados}/${hechos.length} duelos jugados`)
+                : !hechos.length ? (hoy > c.hasta ? '⚠️ No se creó' : hoy >= c.desde ? '⚠️ Falta crearlo' : 'Por crear') : cerrados === hechos.length ? `✅ Terminado (${cerrados})` : `${hoy > c.hasta ? '⏰ Vencido' : hoy >= c.desde ? '▶ En curso' : 'Creado'} · ${cerrados}/${hechos.length} cerrados`;
               return (
                 <tr key={c.n} class={hoy >= c.desde && hoy <= c.hasta ? 'zona-final' : ''}>
                   <td><span class="plan-punto" style={`background:${COLOR_CRUCE[i]}`} /> <b>{c.n}</b></td>
                   <td class="chico">{bonita(c.desde)} → {bonita(c.hasta)}</td>
                   <td>J{j.n} ×{bonito(datos?.puntos.multiplicadores[j.n - 1] ?? 1)}</td>
-                  <td class="chico">{r ? <>{r.parejas.map(([a, b]) => `${nombreEquipo(a)} vs ${nombreEquipo(b)}`).join(' · ')}{r.descansa != null ? <span class="tenue"> · descansa {nombreEquipo(r.descansa)}</span> : null}</> : <span class="tenue">Se arma con los equipos</span>}{hechos.length ? <div class="tenue">Juegos: {[...new Set(hechos.map((d) => nombreVersus('1v1', d.juego)))].join(', ')}</div> : null}</td>
+                  <td class="chico">{r ? <>{r.parejas.map(([a, b]) => `${nombreEquipo(a)} vs ${nombreEquipo(b)}`).join(' · ')}{r.descansa != null ? <span class="tenue"> · descansa {nombreEquipo(r.descansa)}</span> : null}</> : <span class="tenue">Se arma cuando estén los equipos</span>}{hechos.length ? <div class="tenue">Juegos: {[...new Set(hechos.map((d) => nombreVersus('1v1', d.juego)))].join(', ')}</div> : null}</td>
                   <td class="chico">{estado}</td>
                 </tr>
               );

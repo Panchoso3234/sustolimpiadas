@@ -13,7 +13,8 @@ const ALIAS: Record<string, string[]> = { Never: ['ODIO A MOMOKA'] };
 const COLORES = ['#ff9a2e', '#8a5ce6', '#2fae86', '#ef5565', '#3fa3dc', '#e85aa2', '#7ab33c', '#ffd23c', '#5a6acf', '#c94a6a', '#3fb8b0', '#d9653b'];
 const MEMORIA = 'susto.sorteo';
 
-interface EquipoSorteo { nombre: string; capitan: string | null; miembros: string[] }
+/** `id`: equipo ya guardado en el torneo (modo continuar); `fijos`: sus integrantes ya guardados; `cupo`: 3 o 4. */
+interface EquipoSorteo { nombre: string; capitan: string | null; miembros: string[]; id?: number; fijos?: string[]; cupo?: number }
 /** `extras`: participantes agregados a mano que todavía no tienen cuenta (su id empieza con "pend-"). */
 interface Estado { equipos: EquipoSorteo[]; capitanes: string[]; historial: { persona: string; equipo: number }[]; extras?: Extra[] }
 interface Extra { id: string; nombre: string }
@@ -102,7 +103,8 @@ export function Sorteo() {
   const [auto, setAuto] = useState(false);
   const pantalla = useRef<HTMLDivElement>(null), restantes = useRef(0); // cuántas personas quedan (para el giro seguido)
 
-  useEffect(() => { V.listarPersonas().then(setPersonas); }, []);
+  const [guardados, setGuardados] = useState<V.Equipo[]>([]);
+  useEffect(() => { V.listarPersonas().then(setPersonas); V.listarEquipos().then(setGuardados); }, []);
   // Recuperar un sorteo a medias
   useEffect(() => { try { const g = JSON.parse(localStorage.getItem(MEMORIA) ?? 'null'); if (g?.equipos) setEstado(g); } catch { /* nada */ } }, []);
   useEffect(() => { if (estado) try { localStorage.setItem(MEMORIA, JSON.stringify(estado)); } catch { /* sin almacenamiento */ } }, [estado]);
@@ -114,17 +116,29 @@ export function Sorteo() {
     setEstado({ capitanes, historial: [], extras: nuevos, equipos: Array.from({ length: cuantos }, (_, i) => ({ nombre: `Equipo ${i + 1}`, capitan: null, miembros: [] })) });
     setSale({ p: null, e: null }); setPersona(null); setFase('persona');
   };
+  /** Continuar: los equipos guardados quedan fijos (con sus integrantes y pendientes) y se sortea solo a quien falta. */
+  const continuar = (nuevos: Extra[]) => {
+    const enDb: Extra[] = guardados.flatMap((q) => (q.pendientes ?? []).map((x) => ({ id: `pend-db-${x.id}`, nombre: x.nombre })));
+    const equipos: EquipoSorteo[] = guardados.map((q) => { const fijos = [...q.miembros, ...(q.pendientes ?? []).map((x) => `pend-db-${x.id}`)]; return { id: q.id, nombre: q.nombre, capitan: q.capitan ?? null, miembros: fijos, fijos }; });
+    const sueltos = personas.filter((x) => !guardados.some((q) => q.miembros.includes(x.id))).length + nuevos.length;
+    // Equipos nuevos para quien falta: de a 3; si sobra 1, el último queda con cupo de 4 (si sobran 2, un equipo de 2)
+    const conCuatro = sueltos % 3 === 1 && sueltos > 3, extra = conCuatro ? Math.floor(sueltos / 3) : Math.ceil(sueltos / 3);
+    for (let i = 0; i < extra; i++) equipos.push({ nombre: `Equipo ${equipos.length + 1}`, capitan: null, miembros: [], cupo: conCuatro && i === extra - 1 ? 4 : 3 });
+    setEstado({ capitanes: [], historial: [], extras: [...enDb, ...nuevos], equipos });
+    setSale({ p: null, e: null }); setPersona(null); setFase('persona');
+  };
   if (!personas.length) return <p class="tenue">Cargando inscritos…</p>;
   if (!estado) {
     const sugeridos = personas.filter((p) => CAPITANES.some((c) => parecido(p.nombre, c))).map((p) => p.id);
-    return <Preparar personas={personas} sugeridos={sugeridos} alEmpezar={preparar} />;
+    return <Preparar personas={personas} sugeridos={sugeridos} alEmpezar={preparar} guardados={guardados} alContinuar={continuar} />;
   }
 
   const ubicados = new Set(estado.equipos.flatMap((q) => q.miembros));
   const capitanesPendientes = estado.capitanes.filter((id) => !ubicados.has(id));
   const enCapitanes = capitanesPendientes.length > 0;
   const pendientes = enCapitanes ? capitanesPendientes : todos.map((p) => p.id).filter((id) => !ubicados.has(id) && !estado.capitanes.includes(id));
-  const cupo = (q: EquipoSorteo) => (enCapitanes ? !q.capitan : q.miembros.length < 3);
+  const cupo = (q: EquipoSorteo) => (enCapitanes ? !q.capitan : q.miembros.length < (q.cupo ?? 3));
+  const modoContinuar = estado.equipos.some((q) => q.id);
   const equiposLibres = estado.equipos.map((q, i) => ({ q, i })).filter(({ q }) => cupo(q));
   const terminado = !pendientes.length || !equiposLibres.length;
   const itemsP: Item[] = pendientes.map((id, i) => ({ id, texto: nombre(id), color: COLORES[i % COLORES.length] }));
@@ -154,7 +168,7 @@ export function Sorteo() {
   const deshacer = () => {
     const ultimo = estado.historial[estado.historial.length - 1];
     if (!ultimo || fase.startsWith('girando')) return;
-    setEstado({ ...estado, historial: estado.historial.slice(0, -1), equipos: estado.equipos.map((q, i) => (i !== ultimo.equipo ? q : { ...q, miembros: q.miembros.filter((x) => x !== ultimo.persona), capitan: q.capitan === ultimo.persona ? null : q.capitan, nombre: q.capitan === ultimo.persona ? `Equipo ${i + 1}` : q.nombre })) });
+    setEstado({ ...estado, historial: estado.historial.slice(0, -1), equipos: estado.equipos.map((q, i) => (i !== ultimo.equipo ? q : { ...q, miembros: q.miembros.filter((x) => x !== ultimo.persona), capitan: q.capitan === ultimo.persona ? null : q.capitan, nombre: q.capitan === ultimo.persona && !q.id ? `Equipo ${i + 1}` : q.nombre })) });
     setPersona(null); setSale({ p: null, e: null }); setFase('persona');
   };
   // A mitad del sorteo: sumar a alguien que llegó tarde (si faltan cupos, se agrega un equipo)
@@ -164,8 +178,26 @@ export function Sorteo() {
     while (equipos.length < Math.ceil(total / 3)) equipos.push({ nombre: `Equipo ${equipos.length + 1}`, capitan: null, miembros: [] });
     setEstado({ ...estado, extras: [...extras, extra], equipos });
   };
+  const agregarEquipo = () => setEstado({ ...estado, equipos: [...estado.equipos, { nombre: `Equipo ${estado.equipos.length + 1}`, capitan: null, miembros: [] }] });
+  const cambiarCupo = (i: number) => setEstado({ ...estado, equipos: estado.equipos.map((q, k) => (k === i ? { ...q, cupo: (q.cupo ?? 3) === 3 ? 4 : 3 } : q)) });
   const renombrar = (i: number, nombreNuevo: string) => setEstado({ ...estado, equipos: estado.equipos.map((q, k) => (k === i ? { ...q, nombre: nombreNuevo.slice(0, 30) || q.nombre } : q)) });
 
+  /** Continuar: no se borra nada; se agregan los equipos nuevos y los integrantes nuevos de cada equipo. */
+  const guardarCambios = async () => {
+    setAviso(null);
+    const nuevosEquipos = estado.equipos.filter((q) => !q.id && q.miembros.length);
+    const r = nuevosEquipos.length ? await supabase.from('equipos').insert(nuevosEquipos.map((q) => ({ nombre: q.nombre }))).select('id') : { data: [], error: null };
+    if (r.error || !r.data) return setAviso({ texto: r.error?.message ?? 'No se pudieron crear los equipos nuevos.', ok: false });
+    const idDe = (q: EquipoSorteo) => q.id ?? (r.data as { id: number }[])[nuevosEquipos.indexOf(q)]?.id;
+    const nuevos = (q: EquipoSorteo) => q.miembros.filter((x) => !(q.fijos ?? []).includes(x));
+    const filas = estado.equipos.flatMap((q) => nuevos(q).filter((x) => !esPendiente(x)).map((perfil_id) => ({ perfil_id, equipo_id: idDe(q) })));
+    const m = filas.length ? await supabase.from('equipo_miembros').insert(filas) : { error: null };
+    if (m.error) return setAviso({ texto: m.error.message, ok: false });
+    const sinCuenta = estado.equipos.flatMap((q) => nuevos(q).filter(esPendiente).map((x) => ({ equipo_id: idDe(q), nombre: nombre(x), es_capitan: false })));
+    const pend = sinCuenta.length ? await supabase.from('equipo_pendientes').insert(sinCuenta) : { error: null };
+    if (pend.error) return setAviso({ texto: pend.error.message, ok: false });
+    setAviso({ texto: `¡Listo! ${nuevosEquipos.length} equipos nuevos y ${filas.length + sinCuenta.length} integrantes agregados. Los equipos que ya estaban no se tocaron.${sinCuenta.length ? ` ${sinCuenta.length} quedaron sin cuenta: vincúlalos en Equipos cuando entren.` : ''}`, ok: true });
+  };
   const guardar = async () => {
     setAviso(null);
     const borrar = await supabase.from('equipos').delete().gt('id', 0);
@@ -197,6 +229,7 @@ export function Sorteo() {
           <button class="boton" onClick={deshacer} disabled={!estado.historial.length || fase.startsWith('girando')}>Deshacer</button>
           <button class="boton" onClick={completa}>Pantalla completa</button>
           <AgregarNombre alAgregar={agregar} />
+          <button class="boton" onClick={agregarEquipo} disabled={fase.startsWith('girando')}>+ Agregar equipo</button>
         </div>
       </div>
       <div class="sorteo-cuerpo">
@@ -213,12 +246,13 @@ export function Sorteo() {
             <div key={i} class={`sorteo-equipo${sale.e === q.nombre ? ' recien' : ''}`} style={`--color:${COLORES[i % COLORES.length]}`}>
               <input class="texto" value={q.nombre} aria-label={`Nombre del equipo ${i + 1}`} onChange={(e) => renombrar(i, e.currentTarget.value)} />
               <ol>
-                {[0, 1, 2].map((k) => {
+                {Array.from({ length: Math.max(q.cupo ?? 3, q.miembros.length) }, (_, k) => k).map((k) => {
                   const id = q.miembros[k];
-                  return <li key={k} class={id ? 'ocupado' : ''}>{id ? <>{q.capitan === id && <span title="Capitán (staff)">⭐ </span>}{nombre(id)}{q.capitan === id && <em> capitán</em>}{esPendiente(id) && <em class="sin-cuenta"> sin cuenta</em>}</> : <span class="tenue">libre</span>}</li>;
+                  return <li key={k} class={id ? 'ocupado' : ''}>{id ? <>{q.capitan === id && <span title="Capitán (staff)">⭐ </span>}{nombre(id)}{q.capitan === id && <em> capitán</em>}{esPendiente(id) && <em class="sin-cuenta"> sin cuenta</em>}{(q.fijos ?? []).includes(id) && <em> ya estaba</em>}</> : <span class="tenue">libre</span>}</li>;
                 })}
               </ol>
-              {!q.capitan && !enCapitanes && <span class="chico tenue">Sin staff: pueden pasar los 3</span>}
+              {!q.capitan && !enCapitanes && <span class="chico tenue">Sin staff: pueden pasar todos</span>}
+              {!fase.startsWith('girando') && <button class="boton quitar" onClick={() => cambiarCupo(i)} title="Un equipo de 4 juega igual 3 duelos por cruce: va rotando quién descansa">Cupo de {q.cupo ?? 3} → {(q.cupo ?? 3) === 3 ? 4 : 3}</button>}
             </div>
           ))}
         </div>
@@ -226,9 +260,9 @@ export function Sorteo() {
       {terminado && (
         <div class="sorteo-final">
           {pendientes.length > 0 && <p class="aviso atencion">Quedaron sin equipo (no alcanzaron los cupos): {pendientes.map(nombre).join(', ')}.</p>}
-          <p>Al guardar se reemplazan los equipos que haya en el torneo por estos (los duelos 1v1 no se tocan).</p>
+          <p>{modoContinuar ? 'Al guardar se agregan los equipos nuevos y los integrantes nuevos; los equipos que ya estaban no se borran.' : 'Al guardar se reemplazan los equipos que haya en el torneo por estos (los duelos 1v1 no se tocan).'}</p>
           <div class="fila">
-            <ConfirmarBoton texto="Guardar equipos en el torneo" alConfirmar={guardar} />
+            {modoContinuar ? <ConfirmarBoton texto="Guardar los equipos nuevos" alConfirmar={guardarCambios} /> : <ConfirmarBoton texto="Guardar equipos en el torneo" alConfirmar={guardar} />}
             <ConfirmarBoton texto="Empezar el sorteo de nuevo" alConfirmar={() => { try { localStorage.removeItem(MEMORIA); } catch { /* nada */ } setEstado(null); }} />
           </div>
         </div>
@@ -244,7 +278,7 @@ function ConfirmarBoton({ texto, alConfirmar }: { texto: string; alConfirmar(): 
 }
 
 /** Antes de girar: confirmar quiénes son los capitanes (vienen marcados los que se llaman como el staff). */
-function Preparar({ personas, sugeridos, alEmpezar }: { personas: V.Persona[]; sugeridos: string[]; alEmpezar(capitanes: string[], extras: Extra[]): void }) {
+function Preparar({ personas, sugeridos, alEmpezar, guardados, alContinuar }: { personas: V.Persona[]; sugeridos: string[]; alEmpezar(capitanes: string[], extras: Extra[]): void; guardados: V.Equipo[]; alContinuar(extras: Extra[]): void }) {
   const [capitanes, setCapitanes] = useState<string[]>(sugeridos);
   const [extras, setExtras] = useState<Extra[]>([]);
   const todos = [...personas, ...extras], total = todos.length;
@@ -263,7 +297,14 @@ function Preparar({ personas, sugeridos, alEmpezar }: { personas: V.Persona[]; s
         {todos.map((p) => <button key={p.id} class={`chip-persona${capitanes.includes(p.id) ? ' capitan' : ''}${esPendiente(p.id) ? ' sin-cuenta' : ''}`} onClick={() => setCapitanes((c) => (c.includes(p.id) ? c.filter((x) => x !== p.id) : [...c, p.id]))}>{capitanes.includes(p.id) ? '⭐ ' : ''}{p.nombre}{esPendiente(p.id) ? ' (sin cuenta)' : ''}</button>)}
       </div>
       {extras.length > 0 && <p class="chico">Agregados a mano (toca para quitar): {extras.map((x) => <button key={x.id} class="boton quitar" title="Quitar" onClick={() => { setExtras((l) => l.filter((y) => y.id !== x.id)); setCapitanes((c) => c.filter((y) => y !== x.id)); }}>{x.nombre} ✕</button>)}</p>}
-      <button class="boton principal grande" onClick={() => alEmpezar(capitanes, extras)}>Empezar el sorteo ({capitanes.length} capitanes)</button>
+      {guardados.length > 0 && (
+        <div class="sorteo-agregar-bloque">
+          <b>Ya hay {guardados.length} equipos guardados en el torneo.</b>
+          <p class="chico">Para sumar a quien quedó afuera sin tocar esos equipos, usa <b>Continuar</b>: se sortea solo a quien no tiene equipo ({personas.filter((x) => !guardados.some((q) => q.miembros.includes(x.id))).length + extras.length} personas, contando los agregados a mano) entre equipos nuevos.</p>
+          <button class="boton principal grande" onClick={() => alContinuar(extras)}>Continuar con los {guardados.length} equipos guardados</button>
+        </div>
+      )}
+      <button class={`boton grande${guardados.length ? '' : ' principal'}`} onClick={() => alEmpezar(capitanes, extras)}>{guardados.length ? 'Sorteo desde cero (reemplaza los equipos)' : `Empezar el sorteo (${capitanes.length} capitanes)`}</button>
     </div>
   );
 }

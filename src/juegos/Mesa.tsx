@@ -66,6 +66,7 @@ export function Equipos() {
     const { data, error } = await supabase.rpc('vincular_pendiente', { p_pendiente: pendiente, p_perfil: perfil });
     hecho(error ?? (data ? { message: String(data) } : null), 'Cuenta vinculada: ya es integrante del equipo.');
   };
+  const ponerCapitan = async (equipo: number, perfil: string) => hecho((await supabase.from('equipos').update({ capitan: perfil || null }).eq('id', equipo)).error, perfil ? 'Capitán guardado.' : 'El equipo quedó sin capitán.');
   const quitarPendiente = async (id: number) => hecho((await supabase.from('equipo_pendientes').delete().eq('id', id)).error, 'Pendiente quitado.');
   const sinCuenta = equipos.flatMap((q) => q.pendientes ?? []).length;
 
@@ -111,7 +112,13 @@ export function Equipos() {
               ))}
               {q.miembros.length === 0 && !(q.pendientes ?? []).length && <li class="tenue">Sin integrantes</li>}
             </ul>
-            <span class={`chico ${q.miembros.length + (q.pendientes?.length ?? 0) === 3 ? 'tenue' : 'alerta'}`}>{q.miembros.length + (q.pendientes?.length ?? 0)} de 3{q.pendientes?.length ? ` (${q.pendientes.length} sin cuenta)` : ''}</span>
+            <label class="chico">⭐ Capitán (staff: no pasa a la final)
+              <select value={q.capitan ?? ''} onChange={(e) => ponerCapitan(q.id, e.currentTarget.value)}>
+                <option value="">Sin capitán (pueden pasar todos)</option>
+                {q.miembros.map((id) => <option key={id} value={id}>{nombreDe(id)}</option>)}
+              </select>
+            </label>
+            <span class={`chico ${q.miembros.length + (q.pendientes?.length ?? 0) >= 3 ? 'tenue' : 'alerta'}`}>{q.miembros.length + (q.pendientes?.length ?? 0)} de 3{q.pendientes?.length ? ` (${q.pendientes.length} sin cuenta)` : ''}</span>
             <Confirmar texto="Borrar equipo" alConfirmar={() => borrar(q.id)} />
           </div>
         ))}
