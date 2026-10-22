@@ -121,9 +121,10 @@ export function Sorteo() {
     const enDb: Extra[] = guardados.flatMap((q) => (q.pendientes ?? []).map((x) => ({ id: `pend-db-${x.id}`, nombre: x.nombre })));
     const equipos: EquipoSorteo[] = guardados.map((q) => { const fijos = [...q.miembros, ...(q.pendientes ?? []).map((x) => `pend-db-${x.id}`)]; return { id: q.id, nombre: q.nombre, capitan: q.capitan ?? null, miembros: fijos, fijos }; });
     const sueltos = personas.filter((x) => !guardados.some((q) => q.miembros.includes(x.id))).length + nuevos.length;
-    // Equipos nuevos para quien falta: de a 3; si sobra 1, el último queda con cupo de 4 (si sobran 2, un equipo de 2)
-    const conCuatro = sueltos % 3 === 1 && sueltos > 3, extra = conCuatro ? Math.floor(sueltos / 3) : Math.ceil(sueltos / 3);
-    for (let i = 0; i < extra; i++) equipos.push({ nombre: `Equipo ${equipos.length + 1}`, capitan: null, miembros: [], cupo: conCuatro && i === extra - 1 ? 4 : 3 });
+    // Equipos nuevos para quien falta: de a 3, y los que sobran suben a los últimos equipos (cupo de 4), así nadie queda en un equipo de 2
+    let extra = Math.floor(sueltos / 3), sobran = sueltos - extra * 3;
+    if (sobran > extra) { extra++; sobran = 0; } // no alcanzan los cupos de 4: un equipo más (el último queda corto)
+    for (let i = 0; i < extra; i++) equipos.push({ nombre: `Equipo ${equipos.length + 1}`, capitan: null, miembros: [], cupo: 3 + (i >= extra - sobran ? 1 : 0) });
     setEstado({ capitanes: [], historial: [], extras: [...enDb, ...nuevos], equipos });
     setSale({ p: null, e: null }); setPersona(null); setFase('persona');
   };
@@ -252,6 +253,7 @@ export function Sorteo() {
                 })}
               </ol>
               {!q.capitan && !enCapitanes && <span class="chico tenue">Sin staff: pueden pasar todos</span>}
+              {!q.id && !q.miembros.length && !fase.startsWith('girando') && <button class="boton quitar" onClick={() => setEstado({ ...estado, equipos: estado.equipos.filter((_, k) => k !== i) })}>Quitar equipo</button>}
               {!fase.startsWith('girando') && <button class="boton quitar" onClick={() => cambiarCupo(i)} title="Un equipo de 4 juega igual 3 duelos por cruce: va rotando quién descansa">Cupo de {q.cupo ?? 3} → {(q.cupo ?? 3) === 3 ? 4 : 3}</button>}
             </div>
           ))}
