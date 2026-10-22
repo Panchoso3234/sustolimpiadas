@@ -2,9 +2,9 @@ import { fechaChile } from '../nucleo/azar';
 import type { Persona, Equipo, Enfrentamiento } from './duelos';
 import { puntosVersus, type Puntos } from './puntos';
 
-// La liga del torneo (desde el 21 de octubre de 2026). 11 equipos de 3: 8 con un capitán del staff y 3 solo de participantes.
-// Todos contra todos en 11 cruces (dos por semana, hasta el 28 de noviembre): en cada cruce se juegan 5 enfrentamientos de equipo contra equipo (3 duelos 1v1,
-// al mejor de 3) y descansa un equipo. La tabla oficial suma SOLO duelos oficiales creados desde el inicio:
+// La liga del torneo (desde el 21 de octubre de 2026). 12 equipos de 3: 8 con un capitán del staff y 4 solo de participantes.
+// Todos contra todos en 11 cruces (dos por semana, hasta el 28 de noviembre): en cada cruce se juegan 6 enfrentamientos de equipo contra equipo (3 duelos 1v1,
+// al mejor de 3); con 12 equipos nadie descansa. La tabla oficial suma SOLO duelos oficiales creados desde el inicio:
 //  · cada duelo: ganar 10, empatar 6, perder 3 y no jugar 0, por el multiplicador de la jornada; van al jugador y a su equipo;
 //  · bono de cruce: +5 (por el multiplicador) al equipo que gana 2 de los 3 duelos de su enfrentamiento.
 // A la final (12 lugares) pasan los participantes de los 4 mejores equipos, sin el staff, y se completa con el mejor
@@ -61,7 +61,7 @@ export function calendarioLiga<T>(equipos: T[]): { parejas: [T, T][]; descansa: 
   return rondas;
 }
 
-/** El calendario oficial: equipos del más nuevo al más antiguo, así el último equipo armado (Equipo 11, sin cuentas todavía) descansa en el cruce 1. */
+/** El calendario oficial: equipos del más nuevo al más antiguo (con 12 equipos nadie descansa; con impares, descansa primero el más nuevo). */
 export const calendarioDeEquipos = (equipos: { id: number }[]) => calendarioLiga([...equipos].sort((a, b) => b.id - a.id).map((q) => q.id));
 
 /** Si un duelo cuenta para la tabla oficial: oficial, creado desde el inicio y ya cerrado. */

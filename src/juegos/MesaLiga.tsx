@@ -93,7 +93,7 @@ export function MesaLiga() {
   return (
     <div class="liga-mesa">
       <p>Todos contra todos: {equipos.length} equipos en {calendario.length} cruces. En cada cruce se juegan {calendario[0]?.parejas.length ?? 0} enfrentamientos de equipo contra equipo (3 duelos 1v1 al mejor de {RONDAS}){calendario[0]?.descansa != null ? ' y descansa un equipo' : ''}. Los duelos se crean como oficiales, con plazo hasta el último día del cruce.</p>
-      {calendario.length !== CRUCES.length && <p class="aviso atencion">Con {equipos.length} equipos salen {calendario.length} cruces, pero el calendario tiene {CRUCES.length} fechas. Lo ideal son 11 equipos (33 personas).</p>}
+      {calendario.length !== CRUCES.length && <p class="aviso atencion">Con {equipos.length} equipos salen {calendario.length} cruces, pero el calendario tiene {CRUCES.length} fechas. Lo ideal son 11 o 12 equipos.</p>}
       {aviso && <p class={`aviso ${aviso.ok ? 'ok' : 'error'}`}>{aviso.texto}</p>}
       {borrador && (
         <section class="bloque liga-borrador">
@@ -117,7 +117,6 @@ export function MesaLiga() {
         </section>
       )}
       {duelos.some((d) => d.cruce) && <div class="fila"><BotonDoble texto="Borrar todos los cruces creados" alConfirmar={() => borrarCruces(null)} /><span class="chico tenue">Borra los duelos de los cruces (también los ya jugados, y sus puntos). Úsalo si cambian los equipos.</span></div>}
-      {equipos.some((q) => q.miembros.length + (q.pendientes?.length ?? 0) > 3) && <p class="chico tenue">Hay equipos de 4: en cada cruce juegan 3 y descansa uno, rotando (juegan primero los que menos duelos llevan).</p>}
       <ol class="liga-cruces">
         {calendario.map((r, i) => {
           const c = CRUCES[i], hechos = delCruce(i + 1), cerrados = hechos.filter((d) => d.estado === 'cerrado').length, ahora = c && hoy >= c.desde && hoy <= c.hasta;

@@ -13,8 +13,8 @@ const ALIAS: Record<string, string[]> = { Never: ['ODIO A MOMOKA'] };
 const COLORES = ['#ff9a2e', '#8a5ce6', '#2fae86', '#ef5565', '#3fa3dc', '#e85aa2', '#7ab33c', '#ffd23c', '#5a6acf', '#c94a6a', '#3fb8b0', '#d9653b'];
 const MEMORIA = 'susto.sorteo';
 
-/** `id`: equipo ya guardado en el torneo (modo continuar); `fijos`: sus integrantes ya guardados; `cupo`: 3 o 4. */
-interface EquipoSorteo { nombre: string; capitan: string | null; miembros: string[]; id?: number; fijos?: string[]; cupo?: number }
+/** `id`: equipo ya guardado en el torneo (modo continuar); `fijos`: sus integrantes ya guardados. Todos los equipos son de 3. */
+interface EquipoSorteo { nombre: string; capitan: string | null; miembros: string[]; id?: number; fijos?: string[] }
 /** `extras`: participantes agregados a mano que todavía no tienen cuenta (su id empieza con "pend-"). */
 interface Estado { equipos: EquipoSorteo[]; capitanes: string[]; historial: { persona: string; equipo: number }[]; extras?: Extra[] }
 interface Extra { id: string; nombre: string }
@@ -121,10 +121,8 @@ export function Sorteo() {
     const enDb: Extra[] = guardados.flatMap((q) => (q.pendientes ?? []).map((x) => ({ id: `pend-db-${x.id}`, nombre: x.nombre })));
     const equipos: EquipoSorteo[] = guardados.map((q) => { const fijos = [...q.miembros, ...(q.pendientes ?? []).map((x) => `pend-db-${x.id}`)]; return { id: q.id, nombre: q.nombre, capitan: q.capitan ?? null, miembros: fijos, fijos }; });
     const sueltos = personas.filter((x) => !guardados.some((q) => q.miembros.includes(x.id))).length + nuevos.length;
-    // Equipos nuevos para quien falta: de a 3, y los que sobran suben a los últimos equipos (cupo de 4), así nadie queda en un equipo de 2
-    let extra = Math.floor(sueltos / 3), sobran = sueltos - extra * 3;
-    if (sobran > extra) { extra++; sobran = 0; } // no alcanzan los cupos de 4: un equipo más (el último queda corto)
-    for (let i = 0; i < extra; i++) equipos.push({ nombre: `Equipo ${equipos.length + 1}`, capitan: null, miembros: [], cupo: 3 + (i >= extra - sobran ? 1 : 0) });
+    // Equipos nuevos de 3 para quien falta
+    for (let i = 0; i < Math.ceil(sueltos / 3); i++) equipos.push({ nombre: `Equipo ${equipos.length + 1}`, capitan: null, miembros: [] });
     setEstado({ capitanes: [], historial: [], extras: [...enDb, ...nuevos], equipos });
     setSale({ p: null, e: null }); setPersona(null); setFase('persona');
   };
@@ -138,7 +136,7 @@ export function Sorteo() {
   const capitanesPendientes = estado.capitanes.filter((id) => !ubicados.has(id));
   const enCapitanes = capitanesPendientes.length > 0;
   const pendientes = enCapitanes ? capitanesPendientes : todos.map((p) => p.id).filter((id) => !ubicados.has(id) && !estado.capitanes.includes(id));
-  const cupo = (q: EquipoSorteo) => (enCapitanes ? !q.capitan : q.miembros.length < (q.cupo ?? 3));
+  const cupo = (q: EquipoSorteo) => (enCapitanes ? !q.capitan : q.miembros.length < 3);
   const modoContinuar = estado.equipos.some((q) => q.id);
   const equiposLibres = estado.equipos.map((q, i) => ({ q, i })).filter(({ q }) => cupo(q));
   const terminado = !pendientes.length || !equiposLibres.length;
@@ -180,7 +178,6 @@ export function Sorteo() {
     setEstado({ ...estado, extras: [...extras, extra], equipos });
   };
   const agregarEquipo = () => setEstado({ ...estado, equipos: [...estado.equipos, { nombre: `Equipo ${estado.equipos.length + 1}`, capitan: null, miembros: [] }] });
-  const cambiarCupo = (i: number) => setEstado({ ...estado, equipos: estado.equipos.map((q, k) => (k === i ? { ...q, cupo: (q.cupo ?? 3) === 3 ? 4 : 3 } : q)) });
   const renombrar = (i: number, nombreNuevo: string) => setEstado({ ...estado, equipos: estado.equipos.map((q, k) => (k === i ? { ...q, nombre: nombreNuevo.slice(0, 30) || q.nombre } : q)) });
 
   /** Continuar: no se borra nada; se agregan los equipos nuevos y los integrantes nuevos de cada equipo. */
@@ -250,14 +247,13 @@ export function Sorteo() {
             <div key={i} class={`sorteo-equipo${sale.e === q.nombre ? ' recien' : ''}`} style={`--color:${COLORES[i % COLORES.length]}`}>
               <input class="texto" value={q.nombre} aria-label={`Nombre del equipo ${i + 1}`} onChange={(e) => renombrar(i, e.currentTarget.value)} />
               <ol>
-                {Array.from({ length: Math.max(q.cupo ?? 3, q.miembros.length) }, (_, k) => k).map((k) => {
+                {Array.from({ length: Math.max(3, q.miembros.length) }, (_, k) => k).map((k) => {
                   const id = q.miembros[k];
                   return <li key={k} class={id ? 'ocupado' : ''}>{id ? <>{q.capitan === id && <span title="Capitán (staff)">⭐ </span>}{nombre(id)}{q.capitan === id && <em> capitán</em>}{esPendiente(id) && <em class="sin-cuenta"> sin cuenta</em>}{(q.fijos ?? []).includes(id) && <em> ya estaba</em>}</> : <span class="tenue">libre</span>}</li>;
                 })}
               </ol>
               {!q.capitan && !enCapitanes && <span class="chico tenue">Sin staff: pueden pasar todos</span>}
               {!q.id && !q.miembros.length && !fase.startsWith('girando') && <button class="boton quitar" onClick={() => setEstado({ ...estado, equipos: estado.equipos.filter((_, k) => k !== i) })}>Quitar equipo</button>}
-              {!fase.startsWith('girando') && <button class="boton quitar" onClick={() => cambiarCupo(i)} title="Un equipo de 4 juega igual 3 duelos por cruce: va rotando quién descansa">Cupo de {q.cupo ?? 3} → {(q.cupo ?? 3) === 3 ? 4 : 3}</button>}
             </div>
           ))}
         </div>
