@@ -89,7 +89,7 @@ export function MesaLiga() {
     cargar();
   };
 
-  if (!equipos.length) return <p class="aviso atencion">Primero arma los equipos (pestaña Sorteo de equipos).</p>;
+  if (!equipos.length) return <p class="aviso atencion">Primero arma los equipos (pestaña Equipos).</p>;
   return (
     <div class="liga-mesa">
       <p>Todos contra todos: {equipos.length} equipos en {calendario.length} cruces. En cada cruce se juegan {calendario[0]?.parejas.length ?? 0} enfrentamientos de equipo contra equipo (3 duelos 1v1 al mejor de {RONDAS}){calendario[0]?.descansa != null ? ' y descansa un equipo' : ''}. Los duelos se crean como oficiales, con plazo hasta el último día del cruce.</p>
