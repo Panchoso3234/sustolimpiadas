@@ -51,8 +51,9 @@ export function miniatura(a: Aspecto, k: keyof Aspecto, i: number, tipo: Encuadr
   const clave = tipo + JSON.stringify(b);
   let url = guardadas.get(clave);
   if (!url) {
-    if (guardadas.size > 500) guardadas.clear();
-    url = foto(b, 96, tipo).then((c) => c.toDataURL());
+    if (guardadas.size > 500) { for (const vieja of guardadas.values()) vieja.then(URL.revokeObjectURL, () => undefined); guardadas.clear(); }
+    // toBlob no traba la página mientras codifica (toDataURL sí, y en Firefox se notaba con decenas de miniaturas)
+    url = foto(b, 96, tipo).then((c) => new Promise<string>((listo, error) => c.toBlob((blob) => (blob ? listo(URL.createObjectURL(blob)) : error(new Error('sin imagen'))))));
     guardadas.set(clave, url);
   }
   return url;

@@ -3,7 +3,8 @@ import type { Escenario } from './reflejos/motor';
 
 // Controles compartidos por los juegos donde se maneja al personaje (carreras y arena):
 //  · teclado: flechas o WASD para moverse, Espacio para la acción (saltar o embestir), Shift o C para agacharse;
-//  · pantalla táctil o mouse: arrastrar desde cualquier punto hace de palanca, y hay un botón para la acción.
+//  · pantalla táctil o mouse: arrastrar desde cualquier punto hace de palanca, y hay un botón para la acción;
+//  · control (gamepad): palanca izquierda o cruceta para moverse, A / R1 / R2 para la acción y B / X / L1 / L2 para el segundo botón.
 
 export interface Mando {
   /** Dirección pedida, cada eje entre -1 y 1. `z` negativo es "hacia el fondo". */
@@ -60,16 +61,30 @@ export function crearMando(e: Escenario, caja: HTMLElement, etiqueta: string, ag
     caja.appendChild(b2);
   }
 
+  // Control: se lee en cada consulta (la API no avisa los cambios); el borde de la acción se detecta aquí
+  let padAccion = false, padAbajo = false, padX = 0, padZ = 0;
+  const leerControl = () => {
+    const pad = typeof navigator.getGamepads === 'function' ? [...navigator.getGamepads()].find((p) => p?.connected) : null;
+    if (!pad) { padAccion = padAbajo = false; padX = padZ = 0; return; }
+    const b = (i: number) => !!pad.buttons[i]?.pressed, zona = (v = 0) => (Math.abs(v) < 0.18 ? 0 : v);
+    padX = Math.max(-1, Math.min(1, zona(pad.axes[0]) + (b(15) ? 1 : 0) - (b(14) ? 1 : 0)));
+    padZ = Math.max(-1, Math.min(1, zona(pad.axes[1]) + (b(13) ? 1 : 0) - (b(12) ? 1 : 0)));
+    const ahora = b(0) || b(5) || b(7);
+    if (ahora && !padAccion) accion = true;
+    padAccion = ahora;
+    padAbajo = b(1) || b(2) || b(4) || b(6);
+  };
   const eje = (i: 0 | 1) => {
-    let v = 0;
+    leerControl();
+    let v = i === 0 ? padX : padZ;
     for (const k of pulsadas) v += TECLAS[k][i];
     return Math.max(-1, Math.min(1, v + (palanca ? (i === 0 ? palanca.x : palanca.z) : 0)));
   };
   return {
     get x() { return eje(0); },
     get z() { return eje(1); },
-    get pulsada() { return apretada; },
-    get agachado() { return abajo || botonAbajo; },
-    tomarAccion() { const si = accion; accion = false; return si; },
+    get pulsada() { leerControl(); return apretada || padAccion; },
+    get agachado() { leerControl(); return abajo || botonAbajo || padAbajo; },
+    tomarAccion() { leerControl(); const si = accion; accion = false; return si; },
   };
 }

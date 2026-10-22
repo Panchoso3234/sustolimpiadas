@@ -100,6 +100,10 @@ export function Creador() {
     return () => { visor.current?.destruir(); visor.current = null; };
   }, []);
 
+  // El modelo se rearma solo cuando cambia la apariencia (antes también al escribir el nombre o la frase: cada letra
+  // volvía a leer el avatar entero y en Firefox se trababa)
+  const claveAspecto = JSON.stringify(p.apariencia);
+  useEffect(() => { try { localStorage.setItem(BORRADOR, JSON.stringify(p)); } catch { /* sin almacenamiento */ } }, [p]);
   useEffect(() => {
     let vigente = true;
     crearKenney(p.apariencia).then((k) => {
@@ -109,10 +113,9 @@ export function Creador() {
       visor.current?.poner(k.grupo);
       setRanuras(k.ranuras);
     }).catch(() => setAviso({ tipo: 'error', texto: 'No se pudieron cargar los modelos del personaje. Revisa tu conexión y recarga la página.' }));
-    try { localStorage.setItem(BORRADOR, JSON.stringify(p)); } catch { /* sin almacenamiento */ }
     const espera = setTimeout(() => setParaMinis(p.apariencia), 300);
     return () => { vigente = false; clearTimeout(espera); };
-  }, [p]);
+  }, [claveAspecto]);
 
   useEffect(() => { actual.current?.animar(pose); }, [pose]);
 

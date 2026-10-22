@@ -164,8 +164,15 @@ export async function crear(c: Contexto): Promise<Partida> {
       const v = Math.hypot(b.vx, b.vz);
       if (v > 0) { const nv = Math.max(0, v - (ROCE + v * FRENO * 0.12) * dt); b.vx *= nv / v; b.vz *= nv / v; }
       b.x += b.vx * dt; b.z += b.vz * dt;
-      const boca = TRONERAS.find(([tx, tz]) => Math.hypot(b.x - tx, b.z - tz) < BOCA + RADIO * 0.6);
-      if (boca) { if (Math.hypot(b.x - boca[0], b.z - boca[1]) < BOCA) embocar(b); continue; }
+      // Tronera: cerca de la boca no hay banda, y la bola cae cuando su centro pasa el borde del hoyo (antes había que
+      // llegar casi al centro y muchas que se veían adentro rebotaban). La boca además la encamina un poco hacia el hoyo.
+      const boca = TRONERAS.find(([tx, tz]) => Math.hypot(b.x - tx, b.z - tz) < BOCA + RADIO);
+      if (boca) {
+        const dx = boca[0] - b.x, dz = boca[1] - b.z, d = Math.hypot(dx, dz);
+        if (d < BOCA + RADIO * 0.35) { embocar(b); continue; }
+        if (b.vx * dx + b.vz * dz > 0) { b.vx += (dx / d) * 2.5 * dt; b.vz += (dz / d) * 2.5 * dt; }
+        continue;
+      }
       const mx = ANCHO / 2 - RADIO, mz = FONDO / 2 - RADIO;
       if (Math.abs(b.x) > mx) { b.x = Math.sign(b.x) * mx; b.vx *= -BANDA; if (Math.abs(b.vx) > 1) e.sonido.tono(200, 0.04, { tipo: 'triangle', vol: 0.06 }); }
       if (Math.abs(b.z) > mz) { b.z = Math.sign(b.z) * mz; b.vz *= -BANDA; if (Math.abs(b.vz) > 1) e.sonido.tono(200, 0.04, { tipo: 'triangle', vol: 0.06 }); }

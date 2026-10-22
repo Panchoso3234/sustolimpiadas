@@ -40,7 +40,39 @@ function leerPaleta(): Promise<ImageData> {
 }
 
 export interface Ranura { id: string; parte: 'cabeza' | 'cuerpo'; color: string }
-const hsl = { h: 0, s: 0, l: 0 }, hslNuevo = { h: 0, s: 0, l: 0 };
+const hsl = { h: 0, s: 0, l: 0 };
+
+/** Lo que sale de leer la paleta para una malla: no cambia, así que se calcula una vez por modelo y se reutiliza. */
+interface Analisis { grupos: string[]; base: Float32Array; luz: Float32Array; ranuras: { id: string; color: string }[]; brillo: Map<string, number> }
+const analisis = new WeakMap<THREE.BufferGeometry, Analisis>();
+
+function analizar(geo: THREE.BufferGeometry, datos: ImageData, parte: Ranura['parte']): Analisis {
+  const uv = geo.attributes.uv, c = new THREE.Color(), base = new Float32Array(uv.count * 3), luz = new Float32Array(uv.count);
+  const lado = (v: number, n: number) => Math.min(n - 1, Math.floor((((v % 1) + 1) % 1) * n));
+  const porVertice: string[] = [], hexes: string[] = [], cuentas = new Map<string, Map<string, number>>();
+  for (let i = 0; i < uv.count; i++) {
+    const px = lado(uv.getX(i), datos.width), py = lado(uv.getY(i), datos.height), k = (py * datos.width + px) * 4;
+    const hex = `#${[datos.data[k], datos.data[k + 1], datos.data[k + 2]].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+    // La paleta de Kenney es una grilla: cada columna (y franja de 4 filas) es un color con sus luces y sombras
+    const grupo = `${parte}|c${Math.floor((px * 16) / datos.width)}b${Math.floor((py * 4) / datos.height)}`;
+    porVertice.push(grupo); hexes.push(hex);
+    const cuenta = cuentas.get(grupo) ?? new Map<string, number>();
+    cuenta.set(hex, (cuenta.get(hex) ?? 0) + 1);
+    cuentas.set(grupo, cuenta);
+    c.set(hex);
+    base[i * 3] = c.r; base[i * 3 + 1] = c.g; base[i * 3 + 2] = c.b;
+    luz[i] = c.getHSL(hsl, THREE.SRGBColorSpace).l;
+  }
+  const ranuras: Analisis['ranuras'] = [], brillo = new Map<string, number>(); // color más usado de cada grupo: es el que se muestra y se cambia
+  for (const [grupo, cuenta] of cuentas) {
+    const hex = [...cuenta.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    ranuras.push({ id: grupo, color: hex });
+    brillo.set(grupo, c.set(hex).getHSL(hsl, THREE.SRGBColorSpace).l);
+  }
+  const a = { grupos: porVertice, base, luz, ranuras, brillo };
+  analisis.set(geo, a);
+  return a;
+}
 
 /**
  * Pasa los colores de la paleta a cada vértice. Los tonos parecidos de una misma parte (por ejemplo las luces y
@@ -48,34 +80,16 @@ const hsl = { h: 0, s: 0, l: 0 }, hslNuevo = { h: 0, s: 0, l: 0 };
  */
 function pintar(malla: THREE.SkinnedMesh, datos: ImageData, cambios: Record<string, string>, ranuras: Ranura[]) {
   const parte = malla.name === 'head-mesh' ? 'cabeza' : 'cuerpo';
-  const geo = malla.geometry.clone(), uv = geo.attributes.uv, colores = new Float32Array(uv.count * 3), c = new THREE.Color(), nuevo = new THREE.Color();
-  const lado = (v: number, n: number) => Math.min(n - 1, Math.floor((((v % 1) + 1) % 1) * n));
-  const porVertice: string[] = [], grupos = new Map<string, Map<string, number>>();
-  for (let i = 0; i < uv.count; i++) {
-    const px = lado(uv.getX(i), datos.width), py = lado(uv.getY(i), datos.height), k = (py * datos.width + px) * 4;
-    const hex = `#${[datos.data[k], datos.data[k + 1], datos.data[k + 2]].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
-    // La paleta de Kenney es una grilla: cada columna (y franja de 4 filas) es un color con sus luces y sombras
-    const grupo = `${parte}|c${Math.floor((px * 16) / datos.width)}b${Math.floor((py * 4) / datos.height)}`;
-    porVertice.push(`${grupo}|${hex}`);
-    const cuenta = grupos.get(grupo) ?? new Map<string, number>();
-    cuenta.set(hex, (cuenta.get(hex) ?? 0) + 1);
-    grupos.set(grupo, cuenta);
-  }
-  const principal = new Map<string, string>(); // color más usado de cada grupo: es el que se muestra y se cambia
-  for (const [grupo, cuenta] of grupos) {
-    const hex = [...cuenta.entries()].sort((a, b) => b[1] - a[1])[0][0];
-    principal.set(grupo, hex);
-    ranuras.push({ id: grupo, parte, color: hex });
-  }
-  porVertice.forEach((clave, i) => {
-    const corte = clave.lastIndexOf('|'), grupo = clave.slice(0, corte), elegido = cambios[grupo];
-    c.set(clave.slice(corte + 1));
-    if (elegido) {
-      c.getHSL(hsl, THREE.SRGBColorSpace);
-      const brilloBase = nuevo.set(principal.get(grupo)!).getHSL({ h: 0, s: 0, l: 0 }, THREE.SRGBColorSpace).l;
-      nuevo.set(elegido).getHSL(hslNuevo, THREE.SRGBColorSpace);
-      c.setHSL(hslNuevo.h, hslNuevo.s, Math.min(0.97, Math.max(0.03, hslNuevo.l + hsl.l - brilloBase)), THREE.SRGBColorSpace);
-    }
+  const a = analisis.get(malla.geometry) ?? analizar(malla.geometry, datos, parte);
+  for (const r of a.ranuras) ranuras.push({ ...r, parte });
+  const geo = malla.geometry.clone(), colores = a.base.slice(), c = new THREE.Color();
+  // El tono elegido de cada ranura cambiada, una sola vez (antes se recalculaba en cada vértice)
+  const elegidos = new Map<string, { h: number; s: number; l: number }>();
+  for (const [grupo, color] of Object.entries(cambios)) if (a.brillo.has(grupo)) elegidos.set(grupo, c.set(color).getHSL({ h: 0, s: 0, l: 0 }, THREE.SRGBColorSpace));
+  if (elegidos.size) a.grupos.forEach((grupo, i) => {
+    const elegido = elegidos.get(grupo);
+    if (!elegido) return;
+    c.setHSL(elegido.h, elegido.s, Math.min(0.97, Math.max(0.03, elegido.l + a.luz[i] - a.brillo.get(grupo)!)), THREE.SRGBColorSpace);
     colores[i * 3] = c.r; colores[i * 3 + 1] = c.g; colores[i * 3 + 2] = c.b;
   });
   geo.setAttribute('color', new THREE.BufferAttribute(colores, 3));

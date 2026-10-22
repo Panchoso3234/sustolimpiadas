@@ -119,14 +119,22 @@ export async function crear(c: Contexto): Promise<Partida> {
   let ronda = 0, estacion = 0, bola = 0, inicioRonda = 0, pausaHasta = 0, listoHasta = 0, cargando = false, carga = 0, desde = 0, puntos = 0, aciertos = 0, tiros = 0, racha = 0, siguienteRonda = 0, empezado = false, terminado = false;
   let rack: Clase[] = [];
   const balones: Balon[] = [];
-  const aroX = (t: number) => (ronda === RONDAS - 1 ? Math.sin((t - inicioRonda) * 0.9) * 1.7 : 0);
+  // En la ronda final el aro va de lado a lado (quieto durante la pausa antes de que empiece, para que no salte)
+  const aroX = (t: number) => (ronda === RONDAS - 1 && !siguienteRonda ? Math.sin((t - inicioRonda) * 0.9) * 1.7 : 0);
   const posicion = () => { const [a, d] = ESTACIONES[estacion]; return { x: Math.sin(a) * d, z: ARO_Z + Math.cos(a) * d }; };
-  /** La fuerza justa (de 0 a 1) para encestar desde la estación actual, al aro donde está ahora. */
-  const ideal = (t: number) => {
-    const p = posicion(), d = Math.hypot(aroX(t) - p.x, ARO_Z - p.z), dh = ALTO_ARO - MANO;
-    const v = Math.sqrt((G * d * d) / (2 * Math.cos(ANGULO) ** 2 * (d * Math.tan(ANGULO) - dh)));
-    return (v - vMin) / (vMax - vMin);
+  /** Adónde hay que tirar y con qué velocidad: al lugar donde estará el aro cuando llegue el balón (en la ronda final se mueve). */
+  const objetivo = (t: number) => {
+    const p = posicion(), dh = ALTO_ARO - MANO;
+    let x = aroX(t), d = 0, v = 0;
+    for (let i = 0; i < 4; i++) {
+      d = Math.hypot(x - p.x, ARO_Z - p.z);
+      v = Math.sqrt((G * d * d) / (2 * Math.cos(ANGULO) ** 2 * (d * Math.tan(ANGULO) - dh)));
+      x = aroX(t + d / (v * Math.cos(ANGULO))); // tiempo de vuelo hasta el aro
+    }
+    return { x, v };
   };
+  /** La fuerza justa (de 0 a 1) para encestar desde la estación actual. */
+  const ideal = (t: number) => (objetivo(t).v - vMin) / (vMax - vMin);
   const armarRack = () => {
     rack = Array.from({ length: POR_ESTACION }, (_, i) => (i === POR_ESTACION - 1 ? 'dinero' : ronda === 1 && r() < 0.3 ? 'oro' : 'normal'));
     for (const m of enCarro) carro.remove(m);
@@ -150,7 +158,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (bola >= POR_ESTACION || t < listoHasta || t < pausaHasta) return;
     // Cerca de la fuerza justa, la mano corrige un poco (como en los juegos de básquet); lejos, no
     const justo = ideal(t), error = carga - justo, p = Math.abs(error) < ZONA ? justo + error * 0.4 : carga;
-    const v = vMin + p * (vMax - vMin), pos = posicion(), dirAng = Math.atan2(aroX(t) - pos.x, ARO_Z - pos.z);
+    const v = vMin + p * (vMax - vMin), pos = posicion(), dirAng = Math.atan2(objetivo(t).x - pos.x, ARO_Z - pos.z);
     const clase = rack[bola], malla = new THREE.Mesh(geoBola, clase === 'dinero' ? new THREE.MeshStandardMaterial({ map: rayas }) : pelo(clase));
     e.escena.add(malla);
     carro.remove(enCarro[bola]);
