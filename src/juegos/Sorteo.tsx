@@ -216,6 +216,8 @@ export function Sorteo() {
     if (pend.error) return setAviso({ texto: `Equipos guardados, pero no los ${sinCuenta.length} sin cuenta: falta ejecutar supabase/etapa-5.sql (${pend.error.message}).`, ok: false });
     setAviso({ texto: `¡Listo! ${ids.length} equipos guardados en el torneo.${sinCuenta.length ? ` ${sinCuenta.length} quedaron pendientes de cuenta: vincúlalos en la pestaña Equipos cuando entren.` : ''}${sinCapitan ? ' Falta ejecutar supabase/etapa-3.sql para guardar quién es capitán.' : ''}`, ok: !sinCapitan });
   };
+  // Descarta el sorteo guardado en este navegador (sin tocar la base): vuelve a la pantalla de inicio con los datos de hoy
+  const descartar = () => { try { localStorage.removeItem(MEMORIA); } catch { /* nada */ } setEstado(null); setAviso(null); V.listarPersonas().then(setPersonas); V.listarEquipos().then(setGuardados); };
   const completa = () => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); else pantalla.current?.requestFullscreen().catch(() => {}); };
 
   return (
@@ -231,6 +233,7 @@ export function Sorteo() {
           <button class="boton" onClick={completa}>Pantalla completa</button>
           <AgregarNombre alAgregar={agregar} />
           <button class="boton" onClick={agregarEquipo} disabled={fase.startsWith('girando')}>+ Agregar equipo</button>
+          <ConfirmarBoton texto="Descartar este sorteo" alConfirmar={descartar} />
         </div>
       </div>
       <div class="sorteo-cuerpo">
@@ -265,7 +268,7 @@ export function Sorteo() {
           <p>{modoContinuar ? 'Al guardar se agregan los equipos nuevos y los integrantes nuevos; los equipos que ya estaban no se borran.' : 'Al guardar se reemplazan los equipos que haya en el torneo por estos (los duelos 1v1 no se tocan).'}</p>
           <div class="fila">
             {modoContinuar ? <ConfirmarBoton texto="Guardar los equipos nuevos" alConfirmar={guardarCambios} /> : <ConfirmarBoton texto="Guardar equipos en el torneo" alConfirmar={guardar} />}
-            <ConfirmarBoton texto="Empezar el sorteo de nuevo" alConfirmar={() => { try { localStorage.removeItem(MEMORIA); } catch { /* nada */ } setEstado(null); }} />
+            <ConfirmarBoton texto="Empezar el sorteo de nuevo" alConfirmar={descartar} />
           </div>
         </div>
       )}
