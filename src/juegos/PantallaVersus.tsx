@@ -134,7 +134,7 @@ export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; pres
 
             <section class="bloque">
               <h2>Mis enfrentamientos</h2>
-              {modo === '1v1' && <p class="tenue chico">Para jugarlos en vivo, ve a <a href="#/juegos/vivo">En vivo → 1v1</a>. Aquí se juegan a tu hora.</p>}
+              {modo === '1v1' && <p class="tenue chico">Elige cómo jugar cada uno: <b>Jugar en vivo</b> si tu rival está conectado ahora, o la ronda a tu hora (diferido). Los dos cuentan igual para la tabla.</p>}
               {!pendientes.length && <p class="tenue">No tienes enfrentamientos pendientes.</p>}
               <ul class="duelos">
                 {pendientes.map(({ e, lado }) => {
@@ -143,7 +143,10 @@ export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; pres
                     <li key={e.id}>
                       <span class="quienes"><b>{nombreVersus(e.modo, e.juego)}</b><span>contra {nombre(e, otro(lado))} · {e.oficial ? `jornada ${e.jornada}` : 'amistoso'} · {V.fechaCorta(e.plazo) === 'sin plazo' ? 'sin plazo' : `hasta el ${V.fechaCorta(e.plazo)}`}</span></span>
                       {hechas < total
-                        ? <a class="boton principal" href={`#/juegos/duelo/${e.id}`}>{total > 1 ? `Jugar ronda ${hechas + 1} de ${total}` : 'Jugar mi turno'}</a>
+                        ? <span class="fila">
+                            {seJuegaEnVivo(e) && <a class="boton" href={`#/juegos/vivo/enf-${e.id}`}>Jugar en vivo</a>}
+                            <a class="boton principal" href={`#/juegos/duelo/${e.id}`}>{total > 1 ? `Jugar ronda ${hechas + 1} de ${total}` : 'Jugar mi turno'}</a>
+                          </span>
                         : <span class="tenue chico">Ya jugaste. Falta {e.modo === '1v1' ? 'tu rival' : 'el resto'}.</span>}
                     </li>
                   );
