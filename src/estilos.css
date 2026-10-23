@@ -807,3 +807,75 @@ em.sin-cuenta { font-style: normal; font-size: .72rem; color: var(--sangre); mar
 .dash-top li span { display: inline-block; min-width: 60%; }
 .tabla tr.alerta td { color: var(--sangre); }
 @media (max-width: 700px) { .dash-dos { grid-template-columns: 1fr; } .plan-dia { min-height: 60px; font-size: .68rem; padding: 3px; } .plan-tareas li { grid-template-columns: 1fr; gap: 2px; } }
+/* Bestiario: batallas de criaturas */
+.bestias { position: absolute; inset: 0; pointer-events: none; z-index: 2; color: #2b2b3a; }
+.bestias button { font: inherit; }
+.b-caja { position: absolute; min-width: min(260px, 40vw); padding: 8px 14px 10px; border: 3px solid #2b2b3a; border-radius: 14px 14px 14px 4px; background: #fdfbf2; box-shadow: 0 4px 0 rgba(20, 20, 40, .3); opacity: 0; transition: opacity .3s, transform .3s; }
+.b-rival { left: 3%; top: 64px; transform: translateX(-30px); }
+.b-mia { right: 3%; bottom: 150px; transform: translateX(30px); border-radius: 14px 14px 4px 14px; }
+.b-caja.visible { opacity: 1; transform: none; }
+.b-nombre { display: flex; align-items: center; gap: 7px; font-weight: 800; font-size: clamp(.95rem, 2vw, 1.15rem); }
+.b-nombre small { font-weight: 700; color: #5a5a6a; }
+.b-nombre em { padding: 0 6px; border-radius: 6px; color: #fff; font-style: normal; font-size: .72rem; }
+.b-tipos { display: flex; gap: 4px; margin: 3px 0 5px; }
+.b-tipo { display: inline-block; padding: 1px 8px; border-radius: 99px; color: #fff; font-size: .68rem; font-weight: 700; text-shadow: 0 1px 1px rgba(0, 0, 0, .35); }
+.b-vida { display: flex; align-items: center; gap: 6px; }
+.b-vida span { padding: 0 5px; border-radius: 5px; background: #f2a43a; color: #fff; font-size: .68rem; font-weight: 800; }
+.b-vida i { flex: 1; height: 11px; border: 2px solid #2b2b3a; border-radius: 99px; background: #4a4a5a; overflow: hidden; }
+.b-vida b { display: block; height: 100%; background: #3fd06a; transition: background .3s; }
+.b-numeros { margin-top: 2px; text-align: right; font-weight: 800; font-size: .95rem; }
+.b-equipo { display: flex; gap: 4px; margin-top: 4px; }
+.b-equipo i { width: 11px; height: 11px; border-radius: 50%; border: 2px solid #2b2b3a; background: linear-gradient(#e8423a 50%, #fff 50%); }
+.b-equipo i.mal { background: linear-gradient(#f2c22c 50%, #fff 50%); }
+.b-equipo i.fuera { background: #8a8a96; opacity: .6; }
+.b-abajo { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 10px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); pointer-events: auto; }
+.b-abajo.oculto { display: none; }
+.b-texto { flex: 1; min-height: 92px; padding: 14px 18px; border: 4px solid #efe6c8; border-radius: 14px; background: #2b3f63; color: #fff; font-weight: 600; font-size: clamp(.95rem, 2.3vw, 1.3rem); line-height: 1.35; box-shadow: 0 4px 0 rgba(20, 20, 40, .35); }
+.b-menu { display: grid; grid-template-columns: repeat(var(--columnas, 2), minmax(0, 1fr)); gap: 6px; width: min(48%, 560px); align-content: start; }
+.b-menu:empty { display: none; }
+.b-opcion { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 42px; padding: 7px 12px 7px 24px; border: 3px solid #2b2b3a; border-radius: 10px; background: #fdfbf2; color: #2b2b3a; font-weight: 800; font-size: clamp(.85rem, 1.9vw, 1.05rem); text-align: left; cursor: pointer; }
+.b-opcion.foco { border-color: #ff9a2e; background: #fff1cc; }
+.b-opcion.foco::before { content: '▶'; position: absolute; left: 7px; color: #ff7a1a; font-size: .8rem; }
+.b-opcion:disabled { opacity: .45; cursor: default; }
+.b-opcion small { width: 100%; font-weight: 600; font-size: .74rem; color: #5a5a6a; }
+.b-opcion > span { padding: 0 7px; border-radius: 99px; color: #fff; font-size: .66rem; }
+.b-opcion u { text-decoration: none; padding: 0 6px; border-radius: 6px; font-size: .66rem; color: #fff; }
+.b-opcion u.muy { background: #2fae5a; }
+.b-opcion u.poco { background: #c27a2a; }
+.b-opcion u.nulo { background: #6a6a7a; }
+.b-volver { grid-column: 1 / -1; min-height: 34px; justify-content: center; background: #e8e2d0; }
+.b-panel { position: absolute; inset: 58px 0 58px; display: none; justify-content: space-between; gap: 2%; padding: 8px 2% 12px; pointer-events: auto; }
+.b-panel.visible { display: flex; }
+.b-lista, .b-ficha { width: 33%; max-height: 100%; box-sizing: border-box; overflow: auto; padding: 12px 14px; border: 3px solid #2b2b3a; border-radius: 14px; background: rgba(253, 251, 242, .96); box-shadow: 0 4px 0 rgba(20, 20, 40, .3); }
+.b-lista h2 { margin: 0; font-size: 1.25rem; }
+.b-lista h2 small { color: #ff7a1a; }
+.b-lista p { margin: 4px 0 10px; font-size: .85rem; }
+.b-opciones { display: grid; grid-template-columns: repeat(var(--columnas, 2), minmax(0, 1fr)); gap: 6px; }
+.b-opcion.elegido { background: #d8f5df; border-color: #2fae5a; }
+.b-marca { position: absolute; right: 6px; top: 4px; width: 20px; height: 20px; border-radius: 50%; background: #2fae5a; color: #fff; font-size: .75rem; text-align: center; line-height: 20px; }
+.b-especial { background: #e8f0ff; }
+.b-listo { grid-column: 1 / -1; justify-content: center; background: #ffd23c; }
+.b-ficha header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.b-ficha header b { color: #8a8a9a; font-size: .8rem; }
+.b-ficha h3 { margin: 0; width: 100%; font-size: 1.4rem; }
+.b-ficha p { margin: 6px 0; font-size: .86rem; line-height: 1.35; }
+.b-evo { color: #6a5a8a; font-weight: 700; }
+.b-stats { display: grid; grid-template-columns: auto 1fr 30px; align-items: center; gap: 3px 8px; margin: 8px 0; font-size: .78rem; font-weight: 700; }
+.b-stats i { height: 8px; border-radius: 99px; background: #e2dccb; overflow: hidden; }
+.b-stats b { display: block; height: 100%; }
+.b-stats em { font-style: normal; text-align: right; }
+.b-ataques { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 5px; }
+.b-ataques li { padding: 5px 8px; border-radius: 8px; background: #f2ecda; font-size: .78rem; }
+.b-ataques li > span { padding: 0 6px; margin-right: 6px; border-radius: 99px; color: #fff; font-size: .64rem; }
+.b-ataques li small { margin-left: 6px; color: #6a6a7a; }
+.b-ataques p { margin: 2px 0 0; font-size: .74rem; }
+.b-bestiario .b-ficha { order: 2; }
+.b-bestiario .b-nav { order: 1; align-self: flex-end; width: min(420px, 40%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+@media (max-width: 760px), (max-height: 480px) {
+  .b-mia { bottom: 112px; }
+  .b-texto { min-height: 70px; padding: 9px 12px; }
+  .b-menu { width: 52%; }
+  .b-opcion { min-height: 34px; padding: 4px 8px 4px 20px; }
+  .b-lista, .b-ficha { width: 40%; }
+  .b-panel { inset: 50px 0 54px; }
+}
