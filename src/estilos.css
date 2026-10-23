@@ -497,14 +497,52 @@ body.foto .defensa-barra { display: none; }
 .triples-medidor .perfecto { background: #ffd23c; }
 .triples-medidor .nivel { bottom: 0; height: 0; background: linear-gradient(#ff9a2e, #ffd23c); opacity: .85; mix-blend-mode: screen; }
 body.foto .triples-medidor { display: none; }
-/* Cocina Caótica: pedidos arriba */
-.cocina-pedidos { position: absolute; top: 52px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; pointer-events: none; z-index: 2; max-width: calc(100% - 20px); }
-.cocina-pedido { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; min-width: 76px; padding: 4px 8px 8px; border-radius: 10px; background: rgba(255, 248, 230, .95); color: #2a1d10; font-size: .72rem; line-height: 1.15; text-align: center; }
-.cocina-pedido b { font-size: 1.5rem; }
-.cocina-pedido small { font-size: .95rem; }
-.cocina-pedido i { position: absolute; left: 0; bottom: 0; height: 5px; background: #3fae6a; }
-.cocina-pedido.apuro i { background: #e8423a; }
-.cocina-pedido.apuro { animation: avatar-triste .4s infinite; }
+/* Cocina Caótica: pedidos arriba, lo que hace la acción, estado de las estaciones, guía y hora punta */
+.cocina-pedidos { position: absolute; top: 104px; left: 10px; display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; gap: 8px; pointer-events: none; z-index: 2; max-height: calc(100% - 180px); }
+.cocina-pedido { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; width: 168px; box-sizing: border-box; padding: 10px 9px 7px; border-radius: 12px; background: rgba(255, 248, 230, .96); color: #2a1d10; font-size: .78rem; line-height: 1.15; text-align: center; box-shadow: 0 4px 0 rgba(42, 29, 16, .35); animation: cocina-entra .35s ease-out; transition: transform .35s, opacity .35s; }
+.cocina-pedido > i { position: absolute; left: 0; top: 0; height: 6px; background: #3fae6a; transition: background .3s; }
+.cocina-pedido .cab { display: flex; align-items: center; gap: 5px; }
+.cocina-pedido .cab b { font-size: 1.7rem; font-weight: 400; }
+.cocina-pedido .cab span { flex: 1; font-weight: 700; text-align: left; }
+.cocina-pedido .cab em { font-style: normal; font-weight: 700; color: #9a6a10; font-size: .72rem; }
+.cocina-pedido ul { display: flex; gap: 4px; margin: 5px 0 0; padding: 0; list-style: none; }
+.cocina-pedido li { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 30px; padding: 2px 3px; border-radius: 8px; background: #efe3c6; font-size: 1.15rem; }
+.cocina-pedido li small { font-size: .62rem; line-height: 1; }
+.cocina-pedido li.hecho { background: #bff0cc; }
+.cocina-pedido li.hecho::after { content: '✓'; position: absolute; right: -3px; top: -5px; width: 14px; height: 14px; border-radius: 50%; background: #3fae6a; color: #fff; font-size: .62rem; line-height: 14px; }
+.cocina-pedido.completo { outline: 3px solid #3fe07a; }
+.cocina-pedido.apuro { animation: cocina-apuro .5s infinite; }
+.cocina-pedido.servido { transform: translateX(60px) scale(1.1); opacity: 0; background: #bff0cc; }
+.cocina-pedido.perdido { transform: translateX(-40px) rotate(-6deg); opacity: 0; background: #ffc9c9; }
+@keyframes cocina-entra { from { transform: translateX(-60px) scale(.8); opacity: 0; } }
+@keyframes cocina-apuro { 50% { transform: rotate(-2.5deg); } }
+.cocina-accion { position: absolute; transform: translate(-50%, -100%); padding: 6px 13px; border-radius: 99px; background: rgba(255, 227, 107, .96); color: #2a1d10; font-weight: 700; font-size: clamp(.85rem, 2.2vw, 1.05rem); white-space: nowrap; pointer-events: none; opacity: 0; z-index: 2; box-shadow: 0 3px 0 rgba(42, 29, 16, .4); transition: opacity .12s; }
+.cocina-accion.visible { opacity: 1; }
+.cocina-accion.no { background: rgba(255, 214, 214, .95); color: #7a1f1f; font-weight: 600; }
+.cocina-estado { position: absolute; transform: translate(-50%, -100%); display: none; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; z-index: 1; }
+.cocina-estado.visible { display: flex; }
+.cocina-estado b { font-size: clamp(1.1rem, 2.6vw, 1.5rem); font-weight: 700; color: #fff; text-shadow: 0 2px 0 #14203a; }
+.cocina-estado span { display: block; width: clamp(54px, 7vw, 80px); height: 11px; border-radius: 99px; background: rgba(20, 32, 58, .8); border: 2px solid rgba(255, 255, 255, .85); overflow: hidden; }
+.cocina-estado span i { display: block; height: 100%; width: 0; background: #3fe07a; }
+.cocina-estado.alerta b { animation: cocina-alerta .35s infinite alternate; }
+@keyframes cocina-alerta { to { transform: scale(1.35); } }
+.cocina-guia { position: absolute; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); max-width: 44%; padding: 9px 18px; border-radius: 14px; background: rgba(20, 32, 58, .9); border: 2px solid var(--luna); color: var(--hueso); font-weight: 600; text-align: center; pointer-events: none; opacity: 0; transition: opacity .2s; z-index: 2; }
+.cocina-guia.visible { opacity: 1; }
+.cocina-guia::before { content: 'Primer pedido · '; color: var(--luna); }
+.cocina-punta { position: absolute; right: 12px; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); transform-origin: right center; padding: 6px 14px; border-radius: 99px; background: #e8423a; color: #fff; font-family: var(--display); font-size: clamp(.85rem, 2vw, 1.05rem); pointer-events: none; opacity: 0; z-index: 2; }
+.cocina-punta.visible { opacity: 1; animation: cocina-latido .45s infinite alternate; }
+@keyframes cocina-latido { to { transform: scale(1.12); } }
+body.foto .cocina-guia, body.foto .cocina-accion { display: none; }
+@media (prefers-reduced-motion: reduce) { .cocina-pedido, .cocina-pedido.apuro, .cocina-estado.alerta b, .cocina-punta.visible { animation: none; } }
+.cocina-pedidos.compacta { gap: 5px; }
+.cocina-pedidos.compacta .cocina-pedido { width: 100px; padding: 8px 4px 4px; }
+.cocina-pedidos.compacta .cab b { font-size: 1.3rem; }
+.cocina-pedidos.compacta .cab span { display: none; }
+.cocina-pedidos.compacta li { min-width: 22px; font-size: .9rem; }
+@media (max-width: 760px), (max-height: 480px) {
+  .cocina-pedidos { top: 60px; max-height: calc(100% - 120px); }
+  .cocina-guia { max-width: 58%; font-size: .85rem; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+}
 .mando-accion.segunda { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); background: rgba(255, 176, 46, .85); padding: 12px 18px; font-size: .95rem; }
 .camara-boton { position: absolute; right: 12px; top: 56px; padding: 5px 12px; font-size: .86rem; background: rgba(28, 44, 77, .88); z-index: 5; }
 body.foto .camara-boton, body.foto .mando-accion { display: none; }
