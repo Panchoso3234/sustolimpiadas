@@ -57,7 +57,7 @@ export function crearEscenario(caja: HTMLElement, encuadre: Encuadre) {
 
   const FOV = 40, camara = new THREE.PerspectiveCamera(FOV, 1, 0.5, 400);
   const centro = new THREE.Vector3(...encuadre.centro);
-  let distancia = 1, acerca = 1;
+  let distancia = 1, acerca = 1, alMedir: ((w: number, h: number) => void) | null = null;
   const ubicar = () => {
     const d = distancia * acerca;
     camara.position.set(centro.x, centro.y + Math.sin(encuadre.inclinacion) * d, centro.z + Math.cos(encuadre.inclinacion) * d);
@@ -69,6 +69,7 @@ export function crearEscenario(caja: HTMLElement, encuadre: Encuadre) {
     // En pantallas grandes se dibuja a menos píxeles (unos 1,1 millones) y el navegador lo agranda: en una gráfica integrada se nota mucho más la fluidez que la nitidez
     render.setPixelRatio(Math.min(window.devicePixelRatio, liviano ? 0.75 : ajustesPartida.vivo ? 1 : 1.5, Math.sqrt((liviano ? 0.5e6 : 1.1e6) / (w * h))));
     render.setSize(w, h);
+    alMedir?.(w, h);
     camara.aspect = w / h;
     const media = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
     distancia = Math.max(encuadre.alto / 2 / media, encuadre.ancho / 2 / (media * camara.aspect));
@@ -162,10 +163,12 @@ export function crearEscenario(caja: HTMLElement, encuadre: Encuadre) {
       camara.position.x += (Math.random() - 0.5) * temblor;
       camara.position.y += (Math.random() - 0.5) * temblor;
       temblor *= Math.pow(0.002, dt);
-      render.render(escena, camara);
+      dibujar();
       camara.position.copy(camaraQuieta);
-    } else render.render(escena, camara);
+    } else dibujar();
   };
+  // Un juego puede dibujar con su propio postproceso (ver `usarDibujo`); si no, se dibuja directo
+  let dibujar = () => render.render(escena, camara);
   const cuadro = () => { if (!vivo) return; paso(); requestAnimationFrame(cuadro); };
   requestAnimationFrame(cuadro);
 
@@ -173,7 +176,9 @@ export function crearEscenario(caja: HTMLElement, encuadre: Encuadre) {
   const suelo = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
   const api = {
-    escena, camara, lienzo, sonido, reloj,
+    escena, camara, lienzo, sonido, reloj, render, liviano,
+    /** Reemplaza el dibujo de cada cuadro (por ejemplo, con postproceso) y avisa los cambios de tamaño. */
+    usarDibujo(f: () => void, medida: (w: number, h: number) => void) { dibujar = f; alMedir = medida; medida(caja.clientWidth, caja.clientHeight); },
     hud: {
       tiempo(texto: string) { if (elTiempo.textContent !== texto) elTiempo.textContent = texto; },
       puntos(n: number) { const texto = `${n} pts`; if (elPuntos.textContent !== texto) elPuntos.textContent = texto; },

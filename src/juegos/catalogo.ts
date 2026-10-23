@@ -123,7 +123,7 @@ export const JUEGOS: Juego[] = [
 ];
 
 /** Juegos que en celular se ven mucho mejor de lado: avisan al partir si el teléfono está parado. */
-export const HORIZONTALES = new Set(['catapulta', 'billar', 'karts', 'tiro', 'defensa', 'cocina', 'triples', 'escobas']);
+export const HORIZONTALES = new Set(['catapulta', 'billar', 'karts', 'tiro', 'defensa', 'cocina', 'triples', 'escobas', 'bestias']);
 
 export const juegoPorId = (id: string) => JUEGOS.find((x) => x.id === id);
 

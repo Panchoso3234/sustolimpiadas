@@ -1,11 +1,17 @@
 import * as THREE from 'three';
 import { generador } from '../../nucleo/azar';
+import { supabase } from '../../nucleo/supabase';
 import type { Contexto, Partida } from '../marco';
 import { mat } from '../punteria/fisica';
-import { crearEscenario } from '../reflejos/motor';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { crearEscenario, sombra } from '../reflejos/motor';
 import { ATAQUES, ELEGIBLES, ESPECIES, INICIALES, TIPOS, eficacia, especie, formaANivel, nivelEvolucion, type EstadoAlterado, type Stat, type Tipo } from './bestiasDatos';
 import { elegirAccion, elegirReemplazo, type Nivel } from './bestiasIA';
-import { animarBestia, crearBestia, type Bestia } from './bestiasModelo';
+import { crearEfectos } from './bestiasEfectos';
+import { animarBestia, crearBestia, sacudir, type Bestia } from './bestiasModelo';
 import { acciones, activo, ataqueDe, cambiar, necesitaCambio, nuevoCombate, resolverTurno, tipos, type Accion, type Combate, type Evento, type Miembro, type Texto } from './bestiasNucleo';
 
 // Bestiario: batallas de criaturas al estilo clásico, de frente. Eliges 3 criaturas de 6 sorteadas y subes una torre de
@@ -21,7 +27,8 @@ const RIVALES: { nombre: string; nivel: Nivel; jefe?: boolean }[] = [
 ];
 const STAT: Record<Stat, string> = { at: 'El Ataque', def: 'La Defensa', ate: 'El Ataque Esp.', dfe: 'La Defensa Esp.', vel: 'La Velocidad' };
 const SIGLA: Record<EstadoAlterado, [string, string]> = { quemado: ['QUE', '#ee8130'], paralizado: ['PAR', '#d8b020'], dormido: ['DOR', '#8a8a9a'], envenenado: ['ENV', '#a33ea1'], toxico: ['TOX', '#7a1a8a'], congelado: ['CON', '#5ab8d8'] };
-const chip = (t: Tipo) => `<span class="b-tipo" style="background:${TIPOS[t].color}">${TIPOS[t].nombre}</span>`;
+const ICONO: Record<Tipo, string> = { normal: '●', fuego: '🔥', agua: '💧', planta: '🌿', electrico: '⚡', hielo: '❄️', lucha: '👊', veneno: '☠️', tierra: '⛰️', volador: '🪶', psiquico: '🔮', bicho: '🐛', roca: '🪨', fantasma: '👻', dragon: '🐉' };
+const chip = (t: Tipo) => `<span class="b-tipo" style="background:${TIPOS[t].color}">${ICONO[t]} ${TIPOS[t].nombre}</span>`;
 const P_JUGADOR = new THREE.Vector3(-1.95, 0, 1.25), P_RIVAL = new THREE.Vector3(1.95, 0, -1.6), P_VITRINA = new THREE.Vector3(0.25, 0, 0.6);
 
 export async function crear(c: Contexto): Promise<Partida> {
@@ -30,25 +37,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   const aceleracion = import.meta.env.DEV ? Math.max(1, Number(parametros.get('rapido')) || 1) : 1;
   const r = generador(`${c.semilla}|bestias`);
 
-  // ── El escenario: cielo, pasto, cerros, árboles, nubes y las dos plataformas ──
-  const cielo = document.createElement('canvas'); cielo.width = 2; cielo.height = 256;
-  const gc = cielo.getContext('2d')!, grad = gc.createLinearGradient(0, 0, 0, 256);
-  grad.addColorStop(0, '#5fb4ec'); grad.addColorStop(0.6, '#bfe6ff'); grad.addColorStop(1, '#f2fbff'); gc.fillStyle = grad; gc.fillRect(0, 0, 2, 256);
-  const texCielo = new THREE.CanvasTexture(cielo); texCielo.colorSpace = THREE.SRGBColorSpace; e.escena.background = texCielo;
-  const pasto = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshLambertMaterial({ color: '#8fd06a' })); pasto.rotation.x = -Math.PI / 2; e.escena.add(pasto);
-  const camino = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 60), new THREE.MeshLambertMaterial({ color: '#d8c890' })); camino.rotation.x = -Math.PI / 2; camino.rotation.z = 0.5; camino.position.set(0, 0.005, -8); e.escena.add(camino);
-  for (const [x, z, s, col] of [[-9, -16, 6, '#6ab84a'], [-2, -20, 8, '#5aa83e'], [8, -17, 7, '#72c052'], [15, -22, 9, '#5aa83e']] as [number, number, number, string][]) { const cerro = new THREE.Mesh(new THREE.SphereGeometry(s, 24, 12), new THREE.MeshLambertMaterial({ color: col })); cerro.scale.y = 0.45; cerro.position.set(x, 0, z); e.escena.add(cerro); }
-  for (const [x, z] of [[-6.5, -5], [-7.5, -2], [6.8, -6], [7.6, -3.2], [-5.2, -8], [5.4, -9]]) {
-    const tronco = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.8, 8), mat('#8a5a38')); tronco.position.set(x, 0.4, z);
-    const copa = new THREE.Mesh(new THREE.SphereGeometry(0.75, 12, 10), mat('#4a9a3a')); copa.position.set(x, 1.25, z); copa.scale.y = 1.15;
-    e.escena.add(tronco, copa);
-  }
-  const nubes: THREE.Group[] = [];
-  for (let i = 0; i < 5; i++) {
-    const n = new THREE.Group();
-    for (let k = 0; k < 4; k++) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.6 + (k % 2) * 0.3, 12, 8), new THREE.MeshBasicMaterial({ color: '#ffffff' })); b.position.set(k * 0.7 - 1, (k % 2) * 0.3, 0); n.add(b); }
-    n.position.set(-14 + i * 7, 6 + (i % 3), -18 - (i % 2) * 4); e.escena.add(n); nubes.push(n);
-  }
+  // ── Las dos plataformas y la vitrina (el escenario de fondo lo arma bestiasEfectos) ──
   const plataforma = (p: THREE.Vector3, ancho: number) => {
     const g = new THREE.Group();
     const tierra = new THREE.Mesh(new THREE.CylinderGeometry(ancho, ancho * 0.92, 0.16, 32), mat('#b0905a')); tierra.position.y = -0.06;
@@ -62,25 +51,77 @@ export async function crear(c: Contexto): Promise<Partida> {
   // ── La interfaz: cuadros de vida, cuadro de texto, menú y paneles ──
   const raiz = document.createElement('div'); raiz.className = 'bestias'; c.caja.appendChild(raiz);
   raiz.innerHTML = `
-    <div class="b-caja b-rival"><div class="b-nombre"></div><div class="b-tipos"></div><div class="b-vida"><span>PS</span><i><b></b></i></div><div class="b-equipo"></div></div>
-    <div class="b-caja b-mia"><div class="b-nombre"></div><div class="b-tipos"></div><div class="b-vida"><span>PS</span><i><b></b></i></div><div class="b-numeros"></div><div class="b-equipo"></div></div>
+    <div class="b-caja b-rival"><div class="b-nombre"></div><div class="b-tipos"></div><div class="b-vida"><span>PS</span><i><u></u><b></b></i></div><div class="b-equipo"></div></div>
+    <div class="b-caja b-mia"><div class="b-nombre"></div><div class="b-tipos"></div><div class="b-vida"><span>PS</span><i><u></u><b></b></i></div><div class="b-numeros"></div><div class="b-equipo"></div></div>
     <div class="b-abajo"><div class="b-texto"></div><div class="b-menu"></div></div>
-    <div class="b-panel"></div>`;
+    <div class="b-panel"></div>
+    <div class="b-herramientas"><button data-h="vel" title="Velocidad de los textos y animaciones">x1</button><button data-h="tipos">Tabla de tipos</button><button data-h="log">Historial</button></div>
+    <div class="b-hoja"></div>`;
   const $ = (s: string) => raiz.querySelector<HTMLElement>(s)!;
   const cajas = [$('.b-mia'), $('.b-rival')], elTexto = $('.b-texto'), elMenu = $('.b-menu'), panel = $('.b-panel'), abajo = $('.b-abajo');
 
   // ── Animaciones con promesas: `await animar(seg, k => ...)` ──
-  const velocidad = aceleracion;
+  let velocidad = aceleracion;
+  try { if (localStorage.getItem('susto.bestias.vel') === '2') velocidad = aceleracion * 2; } catch { /* sin almacenamiento */ }
   let vivo = true;
   const tareas: { t: number; dur: number; f: (k: number) => void; listo: () => void }[] = [];
   const animar = (dur: number, f: (k: number) => void = () => {}) => new Promise<void>((listo) => tareas.push({ t: 0, dur, f, listo }));
   const esperar = (seg: number) => animar(seg);
+  let escalaTiempo = 1;
+  const fx = crearEfectos(e, animar);
+  fx.escenario(0);
+  // Resplandor para el fuego, los rayos y los orbes (en equipos lentos se dibuja directo)
+  let composer: EffectComposer | null = null;
+  if (!e.liviano && !(import.meta.env.DEV && parametros.has('sinbrillo'))) {
+    composer = new EffectComposer(e.render, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 2 }));
+    composer.addPass(new RenderPass(e.escena, e.camara));
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.5, 0.45, 0.88);
+    composer.addPass(bloom); composer.addPass(new OutputPass());
+    e.usarDibujo(() => composer!.render(), (w, h) => { composer!.setPixelRatio(e.render.getPixelRatio()); composer!.setSize(w, h); });
+  }
+  // Calidad automática: si en los primeros segundos el juego va lento, se apaga el resplandor y se dibuja directo
+  let medidos = 0, tiempoMedido = 0;
+  const revisarRendimiento = (dt: number) => {
+    if (!composer || medidos > 150 || (import.meta.env.DEV && parametros.has('brillo'))) return;
+    if (dt > 0 && dt < 0.5) { medidos++; tiempoMedido += dt; }
+    if (medidos === 150 && tiempoMedido / medidos > 1 / 40) { composer.dispose(); composer = null; e.usarDibujo(() => e.render.render(e.escena, e.camara), () => {}); }
+  };
+  // La cámara se mueve suave hacia donde pasa la acción
+  const foco = { x: 0, y: 0.95, z: 0, a: 1 }, camaraYa = { ...foco };
+  const enfocar = (x = 0, y = 0.95, z = 0, a = 1) => Object.assign(foco, { x, y, z, a });
+  const sombras = [sombra(0.55), sombra(0.55)];
+  for (const sm of sombras) { (sm.material as THREE.MeshBasicMaterial).color.set('#1a1a10'); e.escena.add(sm); }
+  const vidaFantasma = [1, 1];
+
+  // ── Herramientas: velocidad x2, tabla de tipos e historial del combate ──
+  const hoja = $('.b-hoja'), historial: string[] = [];
+  const botonVel = raiz.querySelector<HTMLButtonElement>('[data-h="vel"]')!;
+  const pintarVel = () => { botonVel.textContent = velocidad > aceleracion ? '⏩ x2' : '▶ x1'; };
+  pintarVel();
+  const TODOS = Object.keys(TIPOS) as Tipo[];
+  const abrirHoja = (que: 'tipos' | 'log') => {
+    hoja.innerHTML = que === 'tipos'
+      ? `<h3>Tabla de tipos <small>ataque ↓ contra defensa →</small></h3><div class="b-tabla" style="--n:${TODOS.length}"><span></span>${TODOS.map((t) => `<span class="b-cab" style="background:${TIPOS[t].color}" title="${TIPOS[t].nombre}">${ICONO[t]}</span>`).join('')}${TODOS.map((a) => `<span class="b-cab" style="background:${TIPOS[a].color}">${ICONO[a]} ${TIPOS[a].nombre}</span>${TODOS.map((d) => { const x = eficacia(a, [d]); return `<span class="b-ef${x === 2 ? ' muy' : x === 0 ? ' nulo' : x < 1 ? ' poco' : ''}">${x === 2 ? '2' : x === 0 ? '0' : x < 1 ? '½' : ''}</span>`; }).join('')}`).join('')}</div><p>2 = muy eficaz · ½ = poco eficaz · 0 = no afecta. Los ataques del mismo tipo que la criatura pegan x1,5.</p>`
+      : `<h3>Historial del combate</h3><ol>${historial.slice(-40).map((x) => `<li>${x}</li>`).join('') || '<li>Todavía no pasa nada.</li>'}</ol>`;
+    hoja.insertAdjacentHTML('beforeend', '<button class="boton">Cerrar</button>');
+    hoja.classList.add('visible');
+    if (que === 'log') { const ol = hoja.querySelector('ol'); ol?.lastElementChild?.scrollIntoView({ block: 'end' }); }
+  };
+  const cerrarHoja = () => hoja.classList.remove('visible');
+  hoja.addEventListener('click', (ev) => { if ((ev.target as HTMLElement).tagName === 'BUTTON' || ev.target === hoja) cerrarHoja(); });
+  raiz.querySelector('.b-herramientas')!.addEventListener('click', (ev) => {
+    const h = (ev.target as HTMLElement).closest('button')?.dataset.h;
+    if (h === 'vel') { velocidad = velocidad > aceleracion ? aceleracion : aceleracion * 2; try { localStorage.setItem('susto.bestias.vel', velocidad > aceleracion ? '2' : '1'); } catch { /* sin almacenamiento */ } pintarVel(); }
+    else if (h === 'tipos' || h === 'log') abrirHoja(h);
+  });
 
   // ── Entrada: teclado, toque y control; los menús escuchan aquí ──
+  let escenaActual = 0;
   let alTeclear: ((k: string) => void) | null = null, apurar = false, agotado = false, cerrarMenu: (() => void) | null = null;
   e.escuchar(window, 'keydown', (ev) => {
     const k = ev.key === ' ' ? 'Enter' : ev.key.length === 1 ? ev.key.toLowerCase() : ev.key;
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape', 'w', 'a', 's', 'd', 'Backspace'].includes(k)) ev.preventDefault();
+    if (hoja.classList.contains('visible')) { if (k === 'Escape' || k === 'Enter') cerrarHoja(); return; }
     if (k === 'Enter') apurar = true;
     alTeclear?.({ w: 'ArrowUp', s: 'ArrowDown', a: 'ArrowLeft', d: 'ArrowRight', Backspace: 'Escape' }[k] ?? k);
   });
@@ -98,7 +139,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   };
 
   /** Un menú de botones: flechas para moverse, Enter para elegir, Esc para volver (si se puede). */
-  const menu = <T,>(opciones: { html: string; valor: T; no?: boolean; clase?: string }[], columnas: number, volver: boolean, donde: HTMLElement = elMenu): Promise<T | null> => new Promise((listo) => {
+  const menu = <T,>(opciones: { html: string; valor: T; no?: boolean; clase?: string; info?: string }[], columnas: number, volver: boolean, donde: HTMLElement = elMenu): Promise<T | null> => new Promise((listo) => {
     donde.innerHTML = '';
     donde.style.setProperty('--columnas', String(columnas));
     let foco = Math.max(0, opciones.findIndex((o) => !o.no));
@@ -109,7 +150,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       donde.appendChild(b); return b;
     });
     if (volver) { const b = document.createElement('button'); b.className = 'b-opcion b-volver'; b.textContent = '← Volver'; b.addEventListener('click', (ev) => { ev.stopPropagation(); fin(null); }); donde.appendChild(b); }
-    const marcar = () => botones.forEach((b, i) => b.classList.toggle('foco', i === foco));
+    const marcar = () => { botones.forEach((b, i) => b.classList.toggle('foco', i === foco)); const inf = opciones[foco]?.info; if (inf) elTexto.textContent = inf; };
     const fin = (v: T | null) => { alTeclear = null; cerrarMenu = null; donde.innerHTML = ''; listo(v); };
     cerrarMenu = () => fin(null);
     const elegir = (i: number) => { e.sonido.tono(988, 0.05, { tipo: 'square', vol: 0.05 }); fin(opciones[i].valor); };
@@ -123,6 +164,8 @@ export async function crear(c: Contexto): Promise<Partida> {
 
   /** Escribe un mensaje letra por letra; sigue solo (o antes con Enter / un toque). */
   const decir = async (texto: string, pausa = 0.75) => {
+    if (pausa > 0 || !historial.length || historial[historial.length - 1] !== texto) historial.push(texto);
+    if (historial.length > 120) historial.shift();
     elTexto.textContent = '';
     let mostrado = 0;
     await new Promise<void>((listo) => {
@@ -131,7 +174,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       tarea.f = () => {
         const cps = 55 * (apurar ? 4 : 1);
         const meta = Math.min(texto.length, Math.floor(tarea.t * cps));
-        if (meta !== mostrado) { mostrado = meta; elTexto.textContent = texto.slice(0, meta); }
+        if (meta !== mostrado) { if (!apurar && Math.floor(meta / 3) !== Math.floor(mostrado / 3) && /\w/.test(texto[meta - 1] ?? '')) e.sonido.tono(1300 + (meta % 5) * 40, 0.012, { tipo: 'square', vol: 0.012 }); mostrado = meta; elTexto.textContent = texto.slice(0, meta); }
         if (meta >= texto.length && tarea.t * cps >= texto.length + pausa * cps / (apurar ? 3 : 1)) { tarea.dur = 0; listo(); }
       };
     });
@@ -152,7 +195,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     // Tu criatura mira hacia la rival (se ve de espaldas); la rival te mira a ti
     const hacia = lado === 0 ? P_RIVAL : P_JUGADOR;
     b.grupo.rotation.y = lado === 0 ? Math.atan2(hacia.x - p.x, hacia.z - p.z) + 0.3 : -0.45;
-    if (lado === 0) b.grupo.scale.setScalar(1.15);
+    if (lado === 0) b.grupo.scale.setScalar(c.caja.clientWidth / Math.max(1, c.caja.clientHeight) < 1.6 ? 0.92 : 1.15);
     e.escena.add(b.grupo); modelos[lado] = b; enEscena[lado] = n;
     return b;
   };
@@ -168,13 +211,15 @@ export async function crear(c: Contexto): Promise<Partida> {
     e.sonido.tono(f * 1.25, 0.22, { tipo: 'sawtooth', vol: 0.05, hasta: f * 0.8, cuando: ctx + 0.13 });
   };
 
-  /** Aparece con un destello y un saltito. */
+  /** Aparece en un destello, cae desde arriba y aterriza aplastándose un poco. */
   const entrar = async (lado: number, n: number) => {
-    const b = poner(lado, n), s = b.grupo.scale.x;
+    const b = poner(lado, n), s = b.grupo.scale.x, y0 = b.grupo.position.y;
     e.chispas(b.grupo.position.x, 0.6, b.grupo.position.z, ['#ffffff', '#ffe36b', TIPOS[especie(n).tipos[0]].color], 22, 3.5);
     grito(n);
-    await animar(0.45, (k) => { b.grupo.scale.setScalar(s * Math.min(1, k * 1.2)); b.grupo.position.y = Math.sin(k * Math.PI) * 0.35; });
-    b.grupo.position.y = 0;
+    await animar(0.5, (k) => { b.grupo.scale.setScalar(s * Math.min(1, 0.3 + k * 1.4)); b.grupo.position.y = y0 + (1 - k * k) * 0.9; });
+    b.grupo.position.y = y0; b.pose.estira = -0.22; sacudir(b, 1);
+    fx.onda(new THREE.Vector3(b.grupo.position.x, 0.08, b.grupo.position.z), '#ffffff', 1.4, 0.4);
+    await esperar(0.12); b.pose.estira = 0;
   };
   const salir = async (ladoMotor: number) => {
     const lado = S(ladoMotor), b = modelos[lado];
@@ -210,30 +255,36 @@ export async function crear(c: Contexto): Promise<Partida> {
     await animar(Math.min(0.9, 0.25 + Math.abs(hasta - desde) * 1.2), (k) => { vidaMostrada[S(lado)] = desde + (hasta - desde) * k; pintarVida(lado); });
   };
 
-  // ── Efectos de ataque: embestida (físico) o un proyectil del color de su tipo (especial) ──
-  const proyectil = async (desde: number, tipo: Tipo) => {
-    const a = (S(desde) === 0 ? P_JUGADOR : P_RIVAL).clone().setY(0.7), b = (S(desde) === 0 ? P_RIVAL : P_JUGADOR).clone().setY(0.7);
-    const bola = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), new THREE.MeshBasicMaterial({ color: TIPOS[tipo].color }));
-    const halo = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 10), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.45 }));
-    bola.add(halo); e.escena.add(bola);
-    await animar(0.42, (k) => { bola.position.lerpVectors(a, b, k); bola.position.y += Math.sin(k * Math.PI) * 0.6; bola.scale.setScalar(0.8 + Math.sin(k * 30) * 0.15); if (Math.random() < 0.5) e.chispas(bola.position.x, bola.position.y, bola.position.z, [TIPOS[tipo].color], 1, 0.8); });
-    bola.removeFromParent();
-    e.chispas(b.x, b.y, b.z, [TIPOS[tipo].color, '#ffffff'], 20, 3.2);
+  // ── Ataques: los especiales con su efecto por tipo; los físicos toman impulso, corren e impactan ──
+  const centroDe = (lugar: number) => { const m = modelos[lugar], base = lugar === 0 ? P_JUGADOR : P_RIVAL; return base.clone().setY(m ? m.alto * m.grupo.scale.y * 0.55 : 0.7); };
+  const especial = async (lado: number, tipo: Tipo, falla: boolean) => {
+    const m = modelos[S(lado)], a = centroDe(S(lado)), b = centroDe(1 - S(lado));
+    if (falla) b.add(new THREE.Vector3(1.2, 0.4, 0.6));
+    if (m) { m.pose.estira = 0.15; m.pose.inclina = -0.12; }
+    e.sonido.tono(700, 0.3, { tipo: 'sawtooth', vol: 0.05, hasta: 300 });
+    await fx.especial(tipo, a, b);
+    if (m) { m.pose.estira = 0; m.pose.inclina = 0; }
   };
-  const embestida = async (lado: number) => {
+  const embestida = async (lado: number, tipo: Tipo, falla: boolean) => {
     const m = modelos[S(lado)];
     if (!m) return;
-    const p0 = m.grupo.position.clone(), destino = (S(lado) === 0 ? P_RIVAL : P_JUGADOR).clone().lerp(p0, 0.55);
-    await animar(0.32, (k) => m.grupo.position.lerpVectors(p0, destino, Math.sin(k * Math.PI)));
-    m.grupo.position.copy(p0);
+    const p0 = m.grupo.position.clone(), objetivo = S(lado) === 0 ? P_RIVAL : P_JUGADOR, destino = objetivo.clone().lerp(p0, falla ? 0.4 : 0.55);
+    m.pose.estira = -0.2; m.pose.inclina = 0.15; await esperar(0.14);
+    m.pose.estira = 0.18; m.pose.inclina = 0.3;
+    await animar(0.18, (k) => m.grupo.position.lerpVectors(p0, destino, k * k));
+    if (!falla) fx.impacto(tipo, centroDe(1 - S(lado)), tipo === 'lucha');
+    await animar(0.22, (k) => m.grupo.position.lerpVectors(destino, p0, k));
+    m.grupo.position.copy(p0); m.pose.estira = 0; m.pose.inclina = 0;
   };
   const recibir = async (lado: number, fuerte: boolean) => {
     const m = modelos[S(lado)];
     if (!m) return;
     if (fuerte) e.temblar(0.35);
     e.sonido.ruido(0.14, fuerte ? 0.2 : 0.12); e.sonido.tono(fuerte ? 160 : 120, 0.12, { tipo: 'square', vol: 0.08, hasta: 60 });
-    await animar(0.5, (k) => { m.grupo.visible = Math.floor(k * 8) % 2 === 0; });
-    m.grupo.visible = true;
+    const p0 = m.grupo.position.clone(), atras = p0.clone().sub(S(lado) === 0 ? P_RIVAL : P_JUGADOR).setY(0).normalize().multiplyScalar(fuerte ? 0.35 : 0.2);
+    sacudir(m, fuerte ? 1.6 : 1); m.pose.estira = -0.15;
+    await animar(0.5, (k) => { m.grupo.visible = k > 0.75 || Math.floor(k * 8) % 2 === 0; m.grupo.position.copy(p0).addScaledVector(atras, Math.sin(Math.min(1, k * 1.5) * Math.PI)); });
+    m.grupo.visible = true; m.grupo.position.copy(p0); m.pose.estira = 0;
   };
 
   /** Cuenta un evento del combate: texto, animación y cuadros. */
@@ -247,19 +298,28 @@ export async function crear(c: Contexto): Promise<Partida> {
   };
   const ESTADO_TEXTO: Record<EstadoAlterado, string> = { quemado: 'se quemó', paralizado: 'está paralizado. Quizás no pueda moverse', dormido: 'se durmió', envenenado: 'fue envenenado', toxico: 'fue gravemente envenenado', congelado: 'quedó congelado' };
   let eficaces = 0, criticos = 0;
-  const contar = async (ev: Evento) => {
+  const FALLA = new Set(['falla', 'noAfecta', 'seProtegio']);
+  const contar = async (ev: Evento, sig?: Evento) => {
     switch (ev.t) {
       case 'ataque': {
         const at = ev.ataque === 'forcejeo' ? null : ATAQUES[ev.ataque], tipo = at?.tipo ?? 'normal';
         await decir(`¡${nombre(ev.lado)} usó ${at?.nombre ?? 'Forcejeo'}!`, 0.25);
-        if (at?.cat === 'estado') { const m = modelos[S(ev.lado)]; if (m) { e.chispas(m.grupo.position.x, 0.8, m.grupo.position.z, [TIPOS[tipo].color, '#ffffff'], 14, 2.2); e.sonido.tono(520, 0.2, { tipo: 'triangle', vol: 0.08, hasta: 900 }); } await esperar(0.35); }
-        else if (at?.cat === 'especial') { e.sonido.tono(700, 0.3, { tipo: 'sawtooth', vol: 0.05, hasta: 300 }); await proyectil(ev.lado, tipo); }
-        else await embestida(ev.lado);
+        const falla = sig?.t === 'texto' && FALLA.has(sig.clave);
+        // La cámara se acerca un poco a la acción
+        const pa = S(ev.lado) === 0 ? P_JUGADOR : P_RIVAL; enfocar(pa.x * 0.18, 0.95, pa.z * 0.18, 0.94);
+        if (at?.cat === 'estado') { const m = modelos[S(ev.lado)]; if (m) { m.pose.estira = 0.12; fx.estallido(centroDe(S(ev.lado)), [TIPOS[tipo].color, '#ffffff'], 18, 2.2, 0.22); e.sonido.tono(520, 0.2, { tipo: 'triangle', vol: 0.08, hasta: 900 }); } await esperar(0.35); if (m) m.pose.estira = 0; }
+        else if (at?.cat === 'especial') await especial(ev.lado, tipo, falla);
+        else await embestida(ev.lado, tipo, falla);
+        enfocar();
         break;
       }
       case 'daño': {
         if (ev.propio === 'estado') await decir(`¡${nombre(ev.lado)} sufre por ${activo(combate!, ev.lado).estado === 'quemado' ? 'la quemadura' : 'el veneno'}!`, 0.2);
+        const blanco = modelos[S(ev.lado)], cb = centroDe(S(ev.lado));
+        if (ev.critico) { escalaTiempo = 0.35; enfocar(cb.x * 0.5, 0.85, cb.z * 0.5, 0.8); fx.destello('#ffffff', 0.45); }
+        if (blanco && ev.ps > 0) e.flotante(`-${ev.ps}`, cb.x, cb.y + 0.6, cb.z, ev.critico || ev.efic > 1 ? 'mal' : '');
         await Promise.all([recibir(ev.lado, ev.efic > 1 || ev.critico), vidaHacia(ev.lado)]);
+        if (ev.critico) { escalaTiempo = 1; enfocar(); }
         if (ev.propio === 'rebote') await decir(`¡${nombre(ev.lado)} también se hizo daño!`);
         if (ev.critico) { await decir('¡Un golpe crítico!'); if (S(ev.lado) === 1) criticos++; }
         if (!ev.propio && ev.efic > 1) { await decir('¡Es muy eficaz!'); if (S(ev.lado) === 1) eficaces++; }
@@ -271,7 +331,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       case 'confusion': await decir(`¡${nombre(ev.lado)} se confundió!`); break;
       case 'stat': {
         const m = modelos[S(ev.lado)];
-        if (m && !ev.tope) { for (let i = 0; i < 6; i++) e.chispas(m.grupo.position.x + (Math.random() - 0.5) * 0.6, ev.cambio > 0 ? 0.2 : 1.4, m.grupo.position.z, [ev.cambio > 0 ? '#ff8a3a' : '#5a8aff'], 1, 1.2); e.sonido.tono(ev.cambio > 0 ? 400 : 700, 0.25, { tipo: 'triangle', vol: 0.07, hasta: ev.cambio > 0 ? 800 : 350 }); }
+        if (m && !ev.tope) { fx.aura(m.grupo.position, ev.cambio > 0); e.sonido.tono(ev.cambio > 0 ? 400 : 700, 0.25, { tipo: 'triangle', vol: 0.07, hasta: ev.cambio > 0 ? 800 : 350 }); }
         await decir(ev.tope ? `¡${STAT[ev.stat]} de ${nombre(ev.lado)} no puede ${ev.cambio > 0 ? 'subir' : 'bajar'} más!` : `¡${STAT[ev.stat]} de ${nombre(ev.lado)} ${ev.cambio > 0 ? 'subió' : 'bajó'}${Math.abs(ev.cambio) >= 2 ? ' mucho' : ''}!`);
         break;
       }
@@ -286,7 +346,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       }
       case 'debilitado': {
         const m = modelos[S(ev.lado)];
-        if (m) { grito(activo(combate!, ev.lado).n, 0.6); const y0 = m.grupo.position.y; await animar(0.55, (k) => { m.grupo.position.y = y0 - k * 1.2; m.grupo.scale.y = m.grupo.scale.x * (1 - k * 0.6); }); m.grupo.removeFromParent(); modelos[S(ev.lado)] = null; }
+        if (m) { grito(activo(combate!, ev.lado).n, 0.6); sacudir(m, 1.5); const y0 = m.grupo.position.y, lado2 = S(ev.lado) === 0 ? -1 : 1; await animar(0.8, (k) => { m.grupo.rotation.z = lado2 * Math.min(1, k * 1.6) * 1.35; m.grupo.position.y = y0 - Math.max(0, k - 0.55) * 2.2; }); fx.estallido(new THREE.Vector3(m.grupo.position.x, 0.2, m.grupo.position.z), ['#d8cdb2', '#ffffff'], 12, 1.2, 0.3); m.grupo.removeFromParent(); modelos[S(ev.lado)] = null; }
         pintarCaja(ev.lado);
         await decir(`¡${nombre(ev.lado)} se debilitó!`);
         break;
@@ -295,7 +355,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       case 'fin': break;
     }
   };
-  const contarTodo = async (evs: Evento[]) => { for (const ev of evs) { if (!vivo) return; await contar(ev); } };
+  const contarTodo = async (evs: Evento[]) => { for (const [i, ev] of evs.entries()) { if (!vivo) return; await contar(ev, evs[i + 1]); } };
 
   // ── Menús del turno ──
   const menuAtaques = async (): Promise<Accion | null> => {
@@ -304,7 +364,8 @@ export async function crear(c: Contexto): Promise<Partida> {
     return menu(especie(yo.n).ataques.map((id, i) => {
       const at = ataqueDe(yo, i), ef = at.cat === 'estado' ? -1 : eficacia(at.tipo, tipos(el));
       const pista = ef < 0 ? '' : ef === 0 ? '<u class="nulo">No afecta</u>' : ef > 1 ? '<u class="muy">Muy eficaz</u>' : ef < 1 ? '<u class="poco">Poco eficaz</u>' : '';
-      return { html: `<strong>${at.nombre}</strong><span style="background:${TIPOS[at.tipo].color}">${TIPOS[at.tipo].nombre}</span><small>PP ${yo.pp[i]}/${at.pp}</small>${pista}`, valor: { tipo: 'atacar', i } as Accion, no: yo.pp[i] <= 0, clase: 'b-ataque' };
+      const info = `${at.nombre}: ${at.cat === 'estado' ? 'de estado' : `${at.cat === 'fisico' ? 'físico' : 'especial'}, poder ${at.poder}`}${at.precision ? `, precisión ${at.precision} %` : ', nunca falla'}${at.prioridad ? ', golpea primero' : ''}. ${at.texto}`;
+      return { html: `<strong>${at.nombre}</strong><span style="background:${TIPOS[at.tipo].color}">${ICONO[at.tipo]} ${TIPOS[at.tipo].nombre}</span><small>PP ${yo.pp[i]}/${at.pp}</small>${pista}`, valor: { tipo: 'atacar', i } as Accion, no: yo.pp[i] <= 0, clase: 'b-ataque', info };
     }), 2, true);
   };
   const menuEquipo = async (forzado: boolean): Promise<number | null> => {
@@ -337,7 +398,20 @@ export async function crear(c: Contexto): Promise<Partida> {
   // ── Criaturas vistas (se guardan en este navegador): las que no has visto salen en el Bestiario como silueta ──
   const VISTAS = 'susto.bestias.vistas';
   const vistas = new Set<number>((() => { try { return JSON.parse(localStorage.getItem(VISTAS) ?? '[]') as number[]; } catch { return []; } })());
-  const marcarVista = (n: number) => { if (vistas.has(n)) return; vistas.add(n); try { localStorage.setItem(VISTAS, JSON.stringify([...vistas])); } catch { /* sin almacenamiento */ } };
+  let cuenta: string | null = null, guardarCuenta = 0;
+  const subirVistas = () => { if (cuenta) supabase.from('bestiario_vistas').upsert({ perfil_id: cuenta, vistas: [...vistas].sort((a, b) => a - b), actualizado: new Date().toISOString() }).then(() => {}, () => {}); };
+  const marcarVista = (n: number) => { if (vistas.has(n)) return; vistas.add(n); try { localStorage.setItem(VISTAS, JSON.stringify([...vistas])); } catch { /* sin almacenamiento */ } clearTimeout(guardarCuenta); guardarCuenta = window.setTimeout(subirVistas, 1500); };
+  // Al abrir: se juntan las vistas de la cuenta con las de este navegador (si la tabla no existe todavía, queda solo local)
+  supabase.auth.getSession().then(async ({ data }) => {
+    cuenta = data.session?.user.id ?? null;
+    if (!cuenta) return;
+    const { data: fila, error } = await supabase.from('bestiario_vistas').select('vistas').eq('perfil_id', cuenta).maybeSingle();
+    if (error) { cuenta = null; return; }
+    const antes = vistas.size;
+    for (const n of (fila?.vistas as number[] | undefined) ?? []) if (n >= 1 && n <= ESPECIES.length) vistas.add(n);
+    try { localStorage.setItem(VISTAS, JSON.stringify([...vistas])); } catch { /* sin almacenamiento */ }
+    if (!fila || vistas.size !== antes || (fila.vistas as number[]).length !== vistas.size) subirVistas();
+  }, () => {});
   /** Pinta una criatura entera de un color (silueta blanca al evolucionar, negra si no la has visto) o la devuelve a sus colores. */
   const BLANCO = new THREE.MeshBasicMaterial({ color: '#ffffff' }), NEGRO = new THREE.MeshBasicMaterial({ color: '#1a1626' });
   const silueta = (b: Bestia, m: THREE.Material | null) => b.grupo.traverse((o) => {
@@ -358,15 +432,23 @@ export async function crear(c: Contexto): Promise<Partida> {
       <ul class="b-ataques">${sp.ataques.map((id) => { const at = ATAQUES[id]; return `<li><span style="background:${TIPOS[at.tipo].color}">${TIPOS[at.tipo].nombre}</span><strong>${at.nombre}</strong><small>${at.cat === 'estado' ? 'Estado' : `${at.cat === 'fisico' ? 'Físico' : 'Especial'} · ${at.poder}`}${at.precision ? ` · ${at.precision}%` : ''}</small><p>${at.texto}</p></li>`; }).join('')}</ul>`;
   };
   const bestiario = async (desde: number) => {
-    let n = desde;
+    let n = desde, filtro = -1;
     panel.className = 'b-panel visible b-bestiario';
+    // Con un filtro, solo se recorren las criaturas vistas de ese tipo
+    const pasa = (x: number) => filtro < 0 || (vistas.has(x) && especie(x).tipos.includes(TODOS[filtro]));
     for (;;) {
       verEnVitrina(n);
       if (!vistas.has(n) && enVitrina) silueta(enVitrina, NEGRO);
       panel.innerHTML = `<div class="b-ficha"><p class="b-vistas">Vistas: ${vistas.size} / ${ESPECIES.length}</p>${fichaHTML(n)}</div><div class="b-nav"></div>`;
-      const v = await menu([{ html: '◀ Anterior', valor: -1 }, { html: `${n} / ${ESPECIES.length}`, valor: 0 }, { html: 'Siguiente ▶', valor: 1 }], 3, true, panel.querySelector<HTMLElement>('.b-nav')!);
+      const v = await menu([{ html: '◀ Anterior', valor: -1 }, { html: `${n} / ${ESPECIES.length}`, valor: 0 }, { html: 'Siguiente ▶', valor: 1 }, { html: filtro < 0 ? 'Filtro: todos los tipos' : `Filtro: ${ICONO[TODOS[filtro]]} ${TIPOS[TODOS[filtro]].nombre}`, valor: 2, clase: 'b-filtro' }], 3, true, panel.querySelector<HTMLElement>('.b-nav')!);
       if (v === null) return;
-      n = ((n - 1 + v + ESPECIES.length) % ESPECIES.length) + 1;
+      if (v === 2) {
+        // Siguiente tipo que tenga alguna criatura vista
+        for (let i = 0; i <= TODOS.length; i++) { filtro = filtro + 1 >= TODOS.length ? -1 : filtro + 1; if (filtro < 0 || ESPECIES.some((x) => pasa(x.n))) break; }
+        if (!pasa(n)) n = ESPECIES.find((x) => pasa(x.n))?.n ?? n;
+        continue;
+      }
+      for (let i = 0; i < ESPECIES.length; i++) { n = ((n - 1 + v + ESPECIES.length) % ESPECIES.length) + 1; if (v === 0 || pasa(n)) break; }
       if (v !== 0 && vistas.has(n)) grito(n);
     }
   };
@@ -447,6 +529,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     combate.lados[1].pociones = numCombate >= 3 ? 1 : 0; combate.lados[1].curas = 0;
     eficaces = 0; criticos = 0;
     modo(true);
+    escenaActual = numCombate; fx.escenario(escenaActual);
     for (const caja of cajas) caja.classList.remove('visible');
     e.hud.tiempo(`Rival ${numCombate + 1} / ${COMBATES}`); e.hud.extra(rival.nombre);
     await decir(rival.jefe ? '¡La Guardiana del Cielo te espera en la cima de la torre! Una criatura legendaria baja de las nubes…' : `¡${rival.nombre} quiere combatir!`);
@@ -484,6 +567,8 @@ export async function crear(c: Contexto): Promise<Partida> {
       e.hud.puntos(puntos);
       e.sonido.bien(); [523, 659, 784, 1046].forEach((f, i) => e.sonido.tono(f, 0.2, { tipo: 'square', vol: 0.06, cuando: (e.sonido.ctx?.currentTime ?? 0) + i * 0.12 }));
       e.flotante(`+${premio}`, 0, 2.2, 0, 'oro');
+      const ganadora = modelos[0];
+      if (ganadora) for (let i = 0; i < 2; i++) { ganadora.pose.estira = -0.2; await esperar(0.1); ganadora.pose.estira = 0.2; sacudir(ganadora, 0.6); await animar(0.35, (k) => { ganadora.grupo.position.y = Math.sin(k * Math.PI) * 0.4; }); ganadora.grupo.position.y = 0; ganadora.pose.estira = 0; }
       await decir(rival.jefe ? `¡Venciste a la criatura legendaria y a la Guardiana del Cielo! Ganas ${premio} puntos.` : `¡Derrotaste a ${rival.nombre}! Ganas ${premio} puntos.`, 1.2);
     } else if (!rendido) await decir('¡Ya no te quedan criaturas! Fin de la torre.', 1.2);
     for (const lado of [0, 1]) { modelos[lado]?.grupo.removeFromParent(); modelos[lado] = null; }
@@ -546,14 +631,16 @@ export async function crear(c: Contexto): Promise<Partida> {
     // El mismo sorteo para los dos: 8 criaturas en su última etapa, al Nv. 50
     const sorteo = [...ELEGIBLES].sort(() => r() - 0.5).slice(0, 8);
     const mio: Historial = { equipo: [], acciones: [], reemplazos: [] }, remotos: Record<LadoVivo, Historial | null> = { a: null, b: null };
-    const enviar = () => { if (yoL) v.enviar('mundo', { equipo: mio.equipo, acciones: mio.acciones, reemplazos: mio.reemplazos }); };
+    const GUARDADO = `susto.bestias.vivo.${c.semilla}.${yoL}`;
+    if (yoL) try { const g = JSON.parse(sessionStorage.getItem(GUARDADO) ?? 'null') as Record<string, unknown> | null; if (g && historialValido(g, sorteo)) Object.assign(mio, { equipo: g.equipo, acciones: g.acciones, reemplazos: g.reemplazos }); } catch { /* sin almacenamiento */ }
+    const enviar = () => { if (!yoL) return; v.enviar('mundo', { equipo: mio.equipo, acciones: mio.acciones, reemplazos: mio.reemplazos }); try { sessionStorage.setItem(GUARDADO, JSON.stringify(mio)); } catch { /* sin almacenamiento */ } };
     v.alRecibir((tipo, d, lado) => { if (tipo === 'mundo' && lado && lado !== yoL && historialValido(d, sorteo)) { const prev = remotos[lado]; if (!prev || d.acciones.length >= prev.acciones.length) remotos[lado] = { equipo: d.equipo, acciones: d.acciones, reemplazos: d.reemplazos }; } });
     reloj = window.setInterval(enviar, v.directo() ? 400 : 900);
     const de = (l: LadoVivo): Historial | null => (l === yoL ? mio : remotos[l]);
     e.hud.extra(`${v.nombres.a} vs ${v.nombres.b}`);
 
-    // 1. Equipos
-    if (yoL) {
+    // 1. Equipos (si recargué la página, ya lo tenía elegido)
+    if (yoL && mio.equipo.length !== 3) {
       const parar = cuentaAtras(EQUIPO_SEG);
       mio.equipo = await elegirEquipoVivo(sorteo);
       parar(); enviar();
@@ -564,6 +651,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     combate = nuevoCombate(`${c.semilla}|vivo`, de('a')!.equipo, de('b')!.equipo);
     for (const n of [...de('a')!.equipo, ...de('b')!.equipo]) marcarVista(n);
     modo(true);
+    escenaActual = Math.floor(r() * 5); fx.escenario(escenaActual);
     for (const caja of cajas) caja.classList.remove('visible');
     await decir(`¡Comienza el duelo! ${v.nombres.a} contra ${v.nombres.b}.`, 0.6);
     for (const lado of [1 - YO, YO]) {
@@ -574,12 +662,50 @@ export async function crear(c: Contexto): Promise<Partida> {
     }
     musica = true;
     const usados = [0, 0];
+    /** Reemplazos pendientes: primero elijo el mío (si me toca y no lo tenía ya), después se aplican los dos en orden. */
+    const reemplazar = async (narrar: boolean) => {
+      const necesitan = [0, 1].filter((lado) => necesitaCambio(combate!, lado));
+      if (yoL && necesitan.includes(YO) && mio.reemplazos.length <= usados[YO]) {
+        await decir('¡Elige a tu siguiente criatura!', 0);
+        const parar = cuentaAtras(REEMPLAZO_SEG);
+        const a = piloto ? elegirReemplazo(combate!, YO) : await menuEquipo(true);
+        parar();
+        mio.reemplazos.push(a ?? elegirReemplazo(combate!, YO)); enviar();
+      }
+      for (const lado of necesitan) {
+        const l: LadoVivo = lado === 0 ? 'a' : 'b';
+        if ((de(l)?.reemplazos.length ?? 0) <= usados[lado]) await decir(l === yoL ? '…' : `${v.nombres[l]} elige su siguiente criatura…`, 0);
+        await hastaQue(() => (de(l)?.reemplazos.length ?? 0) > usados[lado]);
+        if (!vivo) return;
+        const evs: Evento[] = [];
+        cambiar(combate!, lado, de(l)!.reemplazos[usados[lado]++], evs);
+        if (narrar) await contarTodo(evs);
+      }
+    };
+    let refrescar = false;
     // 2. Turnos
     while (combate.ganador === null && vivo) {
-      const t = combate.turno + 1;
-      // Un espectador que entró tarde (o va atrás) ve la narración más rápido hasta alcanzar el turno en curso
-      atrasado = !yoL && Math.min(de('a')?.acciones.length ?? 0, de('b')?.acciones.length ?? 0) > t;
-      if (yoL) {
+      const t = combate.turno + 1, largoA = de('a')?.acciones.length ?? 0, largoB = de('b')?.acciones.length ?? 0;
+      // Ponerse al día sin narrar: el espectador que va dos turnos atrás o el jugador que recargó la página
+      const silencioso = Math.min(largoA, largoB) >= t && (yoL ? mio.acciones.length > t : Math.min(largoA, largoB) > t + 1);
+      if (silencioso) {
+        resolverTurno(combate, [de('a')!.acciones[t - 1], de('b')!.acciones[t - 1]]);
+        if (combate.ganador === null) {
+          // Los reemplazos que ya están en los historiales se aplican; si falta alguno, se sigue narrando desde aquí
+          for (const lado of [0, 1].filter((x) => necesitaCambio(combate!, x))) { const h = de(lado === 0 ? 'a' : 'b'); if (h && h.reemplazos.length > usados[lado]) cambiar(combate, lado, h.reemplazos[usados[lado]++], []); }
+        }
+        refrescar = true;
+        continue;
+      }
+      if (refrescar) {
+        // Después de ponerse al día: la escena y los cuadros muestran el combate como va
+        refrescar = false;
+        for (const lado of [0, 1]) { const x = activo(combate, lado); modelos[S(lado)]?.grupo.removeFromParent(); modelos[S(lado)] = null; if (x.ps > 0) poner(lado, x.n); vidaMostrada[S(lado)] = x.ps / x.max; pintarCaja(lado); cajas[S(lado)].classList.add('visible'); }
+      }
+      if ([0, 1].some((x) => necesitaCambio(combate!, x))) { await reemplazar(true); continue; }
+      // Un espectador que va un poco atrás ve la narración más rápido hasta alcanzar el turno en curso
+      atrasado = !yoL && Math.min(largoA, largoB) > t;
+      if (yoL && !mio.acciones[t - 1]) {
         const parar = cuentaAtras(TURNO_SEG);
         const accion = await turnoJugador();
         parar();
@@ -591,24 +717,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       if (!vivo) return;
       await contarTodo(resolverTurno(combate, [de('a')!.acciones[t - 1], de('b')!.acciones[t - 1]]));
       if (combate.ganador !== null) break;
-      // Reemplazos: primero elijo el mío (si me toca), después se aplican los dos en orden
-      const necesitan = [0, 1].filter((lado) => necesitaCambio(combate!, lado));
-      if (yoL && necesitan.includes(YO)) {
-        await decir('¡Elige a tu siguiente criatura!', 0);
-        const parar = cuentaAtras(REEMPLAZO_SEG);
-        const a = piloto ? elegirReemplazo(combate, YO) : await menuEquipo(true);
-        parar();
-        mio.reemplazos.push(a ?? elegirReemplazo(combate, YO)); enviar();
-      }
-      for (const lado of necesitan) {
-        const l: LadoVivo = lado === 0 ? 'a' : 'b';
-        if ((de(l)?.reemplazos.length ?? 0) <= usados[lado]) await decir(l === yoL ? '…' : `${v.nombres[l]} elige su siguiente criatura…`, 0);
-        await hastaQue(() => (de(l)?.reemplazos.length ?? 0) > usados[lado]);
-        if (!vivo) return;
-        const evs: Evento[] = [];
-        cambiar(combate, lado, de(l)!.reemplazos[usados[lado]++], evs);
-        await contarTodo(evs);
-      }
+      await reemplazar(true);
     }
     musica = false;
     if (!vivo || combate.ganador === null) return;
@@ -618,6 +727,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     const pGanador = 3000 + vivas * 1000 + Math.round(vida * 1000), pPerdedor = Math.round((1 - vida) * 2500) + Lp.equipo.filter((l) => l.ps > 0).length * 100;
     e.sonido.bien();
     await decir(yoL ? (YO === g ? `¡Ganaste el duelo contra ${v.nombres[otroL]}!` : `${ganador} ganó el duelo. ¡Buen combate!`) : `¡${ganador} gana el duelo!`, 1.2);
+    if (yoL) try { sessionStorage.removeItem(GUARDADO); } catch { /* sin almacenamiento */ }
     if (yoL && !terminado) {
       terminado = true;
       e.detener();
@@ -655,23 +765,43 @@ export async function crear(c: Contexto): Promise<Partida> {
 
   // ── Cada cuadro ──
   let paso = -1;
-  const BAJO = [131, 131, 156, 175, 131, 131, 196, 175], ARPEGIO = [523, 659, 784, 659];
+  const TEMAS: [number[], number[]][] = [
+    [[131, 131, 156, 175, 131, 131, 196, 175], [523, 659, 784, 659]], [[147, 147, 165, 196, 147, 147, 220, 196], [587, 740, 880, 740]],
+    [[110, 110, 131, 147, 110, 110, 165, 147], [440, 523, 659, 523]], [[98, 98, 117, 131, 98, 98, 147, 131], [392, 466, 587, 466]],
+    [[123, 123, 147, 165, 123, 165, 185, 220], [494, 622, 740, 988]],
+  ];
   e.alCuadro((t, dt) => {
     leerControl();
-    const k = Math.min(dt, 0.1) * velocidad * (apurar ? 2 : 1) * (piloto ? 3 : 1) * (atrasado ? 4 : 1);
+    revisarRendimiento(dt);
+    const k = Math.min(dt, 0.1) * velocidad * (apurar ? 2 : 1) * (piloto ? 3 : 1) * (atrasado ? 4 : 1) * escalaTiempo;
     for (let i = tareas.length - 1; i >= 0; i--) {
       const x = tareas[i];
       x.t += k;
       x.f(Math.min(1, x.t / x.dur));
       if (x.t >= x.dur) { tareas.splice(i, 1); x.listo(); }
     }
+    fx.actualizar(k);
     for (const [i, m] of modelos.entries()) if (m) animarBestia(m, t, i * 1.3);
     if (enVitrina) { animarBestia(enVitrina, t); enVitrina.grupo.rotation.y = Math.sin(t * 0.6) * 0.6; }
-    for (const [i, n] of nubes.entries()) n.position.x = ((n.position.x + dt * (0.3 + i * 0.05) + 20) % 40) - 20;
-    // Música de batalla: bajo y arpegio en ocho pasos
-    if (musica && e.sonido.ctx) {
-      const s = Math.floor(t / 0.16);
-      if (s !== paso) { paso = s; const f = BAJO[Math.floor(s / 4) % 8]; if (s % 2 === 0) e.sonido.tono(f, 0.14, { tipo: 'triangle', vol: 0.06 }); e.sonido.tono(ARPEGIO[s % 4] * (Math.floor(s / 32) % 2 ? 1.122 : 1), 0.08, { tipo: 'square', vol: 0.016 }); }
+    // Cámara suave
+    const ck = 1 - Math.exp(-4 * Math.min(dt, 0.1));
+    camaraYa.x += (foco.x - camaraYa.x) * ck; camaraYa.y += (foco.y - camaraYa.y) * ck; camaraYa.z += (foco.z - camaraYa.z) * ck; camaraYa.a += (foco.a - camaraYa.a) * ck;
+    e.enfocar(camaraYa.x, camaraYa.y, camaraYa.z, camaraYa.a);
+    // Sombras bajo las criaturas, estados que se ven y la vida que baja con retraso
+    for (let lugar = 0; lugar < 2; lugar++) {
+      const m = modelos[lugar], sm = sombras[lugar];
+      sm.visible = !!m && m.grupo.visible;
+      if (m) { const alto = m.alto * m.grupo.scale.y, y = m.grupo.position.y + (m.flota ? m.alto * 0.2 : 0); sm.position.set(m.grupo.position.x, 0.06, m.grupo.position.z); sm.scale.setScalar(alto * 0.75 / (1 + Math.max(0, y) * 1.5)); }
+      const lado = lugar === 0 ? YO : 1 - YO, luchador = combate ? activo(combate, lado) : null;
+      const visible = !!m && !!luchador && luchador.n === enEscena[lugar] && luchador.ps > 0;
+      fx.estados(lugar, visible ? luchador!.estado : null, visible && luchador!.confusion > 0, visible ? m!.grupo.position : null, m ? m.alto * m.grupo.scale.y : 1, k);
+      if (vidaFantasma[lugar] > vidaMostrada[lugar]) vidaFantasma[lugar] = Math.max(vidaMostrada[lugar], vidaFantasma[lugar] - k * 0.45); else vidaFantasma[lugar] = vidaMostrada[lugar];
+      const u = cajas[lugar].querySelector<HTMLElement>('.b-vida u'); if (u) u.style.width = `${Math.max(0, vidaFantasma[lugar]) * 100}%`;
+    }
+    // Música: tema de batalla según el escenario; en los menús, una versión tranquila
+    if (e.sonido.ctx && !terminado) {
+      const [bajo, arpegio] = TEMAS[escenaActual % 5], ritmo = musica ? 0.16 : 0.3, s2 = Math.floor(t / ritmo);
+      if (s2 !== paso) { paso = s2; const f = bajo[Math.floor(s2 / 4) % 8]; if (s2 % 2 === 0) e.sonido.tono(f, musica ? 0.14 : 0.25, { tipo: 'triangle', vol: musica ? 0.06 : 0.035 }); if (musica || s2 % 2 === 1) e.sonido.tono(arpegio[s2 % 4] * (Math.floor(s2 / 32) % 2 ? 1.122 : 1), 0.08, { tipo: musica ? 'square' : 'sine', vol: musica ? 0.016 : 0.02 }); }
     }
   });
 
@@ -688,6 +818,14 @@ export async function crear(c: Contexto): Promise<Partida> {
     const v = new THREE.Vector3();
     e.alCuadro(() => { e.camara.position.set(0, 2.7, 8.2); e.camara.lookAt(0, 0.75, 0); for (const [el, p] of etiquetas) { v.copy(p).project(e.camara); el.style.left = `${(v.x * 0.5 + 0.5) * 100}%`; el.style.top = `${(-v.y * 0.5 + 0.5) * 100 + 1}%`; } });
   }
+  // Escena de combate para fotografiar escenarios y ataques (solo en desarrollo): "?efectos=1" y window.__efectos
+  if (import.meta.env.DEV && parametros.has('efectos')) {
+    (window as unknown as Record<string, unknown>).__efectos = {
+      armar(a: number, b: number, escena: number) { modo(true); escenaActual = escena; fx.escenario(escena); poner(0, a); poner(1, b); abajo.classList.add('oculto'); },
+      ataque(tipo: Tipo) { const de = centroDe(0), a = centroDe(1); fx.especial(tipo, de, a); },
+      estado(estado: EstadoAlterado | null) { combate = nuevoCombate('x', [enEscena[0]], [enEscena[1]]); activo(combate, 1).estado = estado; },
+    };
+  }
   // Retrato de una sola criatura en primer plano (solo en desarrollo): "?retrato=1" y window.__retrato(n)
   if (import.meta.env.DEV && parametros.has('retrato')) {
     for (const p of [...plataformas, vitrina]) p.visible = false;
@@ -703,10 +841,10 @@ export async function crear(c: Contexto): Promise<Partida> {
     (window as unknown as Record<string, unknown>).__retrato = mostrar;
     e.alCuadro((t) => { if (!actual) return; animarBestia(actual, t); const a = actual.alto; e.camara.position.set(0, a * 0.75 + 0.15, a * 2.3 + 0.6); e.camara.lookAt(0, a * 0.5, 0); });
   }
-  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__bestias = () => ({ puntos, numCombate, ganados, terminado, combate: combate ? { turno: combate.turno, ganador: combate.ganador, yo: activo(combate, 0).n, el: activo(combate, 1).n, ps: combate.lados.map((L) => L.equipo.map((l) => l.ps)).join('|') } : null, texto: elTexto.textContent, ver: verEnVitrina });
+  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__bestias = () => ({ tri: e.render.info.render.triangles, llamadas: e.render.info.render.calls, puntos, numCombate, ganados, terminado, combate: combate ? { turno: combate.turno, ganador: combate.ganador, yo: activo(combate, 0).n, el: activo(combate, 1).n, ps: combate.lados.map((L) => L.equipo.map((l) => l.ps)).join('|') } : null, texto: elTexto.textContent, ver: verEnVitrina });
 
   return {
-    empezar() { e.empezar(); if (c.vivo) enVivo(); else if (!parametros.has('galeria') && !parametros.has('retrato')) jugar(); },
-    destruir() { vivo = false; clearInterval(reloj); e.destruir(); },
+    empezar() { e.empezar(); if (c.vivo) enVivo(); else if (!parametros.has('galeria') && !parametros.has('retrato') && !parametros.has('efectos')) jugar(); },
+    destruir() { vivo = false; clearInterval(reloj); composer?.dispose(); e.destruir(); },
   };
 }

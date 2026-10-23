@@ -148,9 +148,10 @@ function usarObjeto(c: Combate, lado: number, cual: 'pocion' | 'cura', ev: Event
   }
 }
 
-function curar(c: Combate, lado: number, cuanto: number, ev: Evento[]) {
+/** `callado`: al drenar con la vida llena no se avisa nada (el ataque sí hizo daño). */
+function curar(c: Combate, lado: number, cuanto: number, ev: Evento[], callado = false) {
   const yo = activo(c, lado), ps = Math.min(cuanto, yo.max - yo.ps);
-  if (ps <= 0) { ev.push({ t: 'texto', lado, clave: 'sinEfecto' }); return; }
+  if (ps <= 0) { if (!callado) ev.push({ t: 'texto', lado, clave: 'sinEfecto' }); return; }
   yo.ps += ps;
   ev.push({ t: 'cura', lado, ps });
 }
@@ -252,7 +253,7 @@ function usarAtaque(c: Combate, lado: number, i: number, ev: Evento[]) {
   danar(c, rival, dano, ev, { efic, critico });
   const hecho = antes - el.ps;
   if (el.estado === 'congelado' && at.tipo === 'fuego' && el.ps > 0) { el.estado = null; ev.push({ t: 'texto', lado: rival, clave: 'descongela' }); }
-  if (ef?.drena && yo.ps > 0) curar(c, lado, Math.max(1, Math.floor(hecho * ef.drena)), ev);
+  if (ef?.drena && yo.ps > 0) curar(c, lado, Math.max(1, Math.floor(hecho * ef.drena)), ev, true);
   if (ef?.rebote && yo.ps > 0) danar(c, lado, Math.max(1, Math.floor(hecho * ef.rebote)), ev, { efic: 1, critico: false, propio: 'rebote' });
   // Efectos secundarios (con su probabilidad)
   if (ef && (ef.estado || ef.confusion || ef.retroceso || ef.stats)) {
