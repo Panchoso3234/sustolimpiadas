@@ -11,9 +11,9 @@ import { CRUCES, calendarioDeEquipos, jornadaDe } from './liga';
 
 const RONDAS = 3;
 /** Juegos que sirven para un duelo 1v1 en diferido. */
-// Juegos nuevos que todavía no entran a los cruces (se sacan de aquí cuando Pancho los apruebe para la liga)
-const FUERA_DE_LA_LIGA = new Set(['bloques']);
-const juegosDuelo = () => VERSUS.filter((t) => t.modo === '1v1' && t.base && !t.vivo && juegoPorId(t.base)?.listo && !FUERA_DE_LA_LIGA.has(t.base)).map((t) => t.base!);
+// Juegos que entran a la liga recién desde un cruce (los nuevos, cuando el cruce en curso ya estaba armado)
+const DESDE_CRUCE: Record<string, number> = { bloques: 2 };
+const juegosDuelo = (cruce: number) => VERSUS.filter((t) => t.modo === '1v1' && t.base && !t.vivo && juegoPorId(t.base)?.listo && (DESDE_CRUCE[t.base] ?? 1) <= cruce).map((t) => t.base!);
 
 interface Borrador { cruce: number; juegos: string[]; duelos: { a: string; b: string; juego: string; equipos: [number, number] }[] }
 
@@ -47,13 +47,13 @@ export function MesaLiga() {
     cargar();
   };
   /** Todos los juegos de duelo al azar, pero primero los que menos se han jugado en la liga (así van rotando todos). */
-  const juegosPorUso = (excluir: string[] = []) => {
+  const juegosPorUso = (cruce: number, excluir: string[] = []) => {
     const uso = (j: string) => duelos.filter((d) => d.cruce && d.juego === j).length;
-    return V.mezclar(juegosDuelo().filter((j) => !excluir.includes(j))).sort((a, b) => uso(a) - uso(b));
+    return V.mezclar(juegosDuelo(cruce).filter((j) => !excluir.includes(j))).sort((a, b) => uso(a) - uso(b));
   };
   /** Sortea rivales dentro de cada par de equipos y un juego distinto para cada duelo del cruce (hay más juegos que duelos). */
   const preparar = (n: number, juegosFijos?: string[]) => {
-    const juegos = juegosFijos ?? juegosPorUso();
+    const juegos = juegosFijos ?? juegosPorUso(n);
     const lista: Borrador['duelos'] = [];
     (calendario[n - 1]?.parejas ?? []).forEach(([ea, eb], k) => {
       const qa = alineacion(equipos.find((q) => q.id === ea)?.miembros ?? []), qb = alineacion(equipos.find((q) => q.id === eb)?.miembros ?? []);
@@ -65,13 +65,13 @@ export function MesaLiga() {
   };
   /** Duelos que le faltan a un cruce ya creado (alguien se vinculó tarde): se agregan sin tocar los que existen. */
   const faltantes = (n: number): Borrador['duelos'] => {
-    const hechos = delCruce(n), juegos = juegosPorUso(hechos.map((d) => d.juego)), lista: Borrador['duelos'] = [];
+    const hechos = delCruce(n), juegos = juegosPorUso(n, hechos.map((d) => d.juego)), lista: Borrador['duelos'] = [];
     const ocupados = new Set(hechos.flatMap((d) => [d.a_perfil, d.b_perfil]));
     for (const [ea, eb] of calendario[n - 1]?.parejas ?? []) {
       const ma = equipos.find((q) => q.id === ea)?.miembros ?? [], mb = equipos.find((q) => q.id === eb)?.miembros ?? [];
       const dePareja = hechos.filter((d) => (ma.includes(d.a_perfil!) && mb.includes(d.b_perfil!)) || (mb.includes(d.a_perfil!) && ma.includes(d.b_perfil!)));
       const qa = alineacion(ma.filter((id) => !ocupados.has(id))), qb = alineacion(mb.filter((id) => !ocupados.has(id)));
-      for (let i = 0; i < Math.min(qa.length, qb.length, 3 - dePareja.length); i++) lista.push({ a: qa[i], b: qb[i], juego: juegos.shift() ?? juegosDuelo()[0], equipos: [ea, eb] });
+      for (let i = 0; i < Math.min(qa.length, qb.length, 3 - dePareja.length); i++) lista.push({ a: qa[i], b: qb[i], juego: juegos.shift() ?? juegosDuelo(n)[0], equipos: [ea, eb] });
     }
     return lista;
   };
