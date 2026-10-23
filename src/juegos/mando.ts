@@ -22,7 +22,8 @@ const TECLAS: Record<string, [number, number]> = {
   ArrowLeft: [-1, 0], a: [-1, 0], ArrowRight: [1, 0], d: [1, 0], ArrowUp: [0, -1], w: [0, -1], ArrowDown: [0, 1], s: [0, 1],
 };
 
-export function crearMando(e: Escenario, caja: HTMLElement, etiqueta: string, agacharse?: string): Mando {
+/** `palancaConMouse: false`: el clic del mouse no hace de palanca (el juego dirige con el cursor, como Serpientes). */
+export function crearMando(e: Escenario, caja: HTMLElement, etiqueta: string, agacharse?: string, { palancaConMouse = true } = {}): Mando {
   const pulsadas = new Set<string>();
   let palanca: { x0: number; y0: number; x: number; z: number } | null = null, accion = false, apretada = false, abajo = false, botonAbajo = false;
 
@@ -35,7 +36,7 @@ export function crearMando(e: Escenario, caja: HTMLElement, etiqueta: string, ag
   e.escuchar(window, 'keyup', (ev) => { if (ev.key === ' ') apretada = false; if (ev.key === 'Shift' || ev.key.toLowerCase() === 'c') abajo = false; pulsadas.delete(ev.key.length === 1 ? ev.key.toLowerCase() : ev.key); });
   e.escuchar(window, 'blur', () => { pulsadas.clear(); abajo = false; });
 
-  e.escuchar(e.lienzo, 'pointerdown', (ev) => { palanca = { x0: ev.clientX, y0: ev.clientY, x: 0, z: 0 }; e.lienzo.setPointerCapture(ev.pointerId); });
+  e.escuchar(e.lienzo, 'pointerdown', (ev) => { if (!palancaConMouse && ev.pointerType === 'mouse') return; palanca = { x0: ev.clientX, y0: ev.clientY, x: 0, z: 0 }; e.lienzo.setPointerCapture(ev.pointerId); });
   e.escuchar(e.lienzo, 'pointermove', (ev) => {
     if (!palanca) return;
     const s = 55 / sensibilidad(), dx = (ev.clientX - palanca.x0) / s, dz = (ev.clientY - palanca.y0) / s, largo = Math.max(1, Math.hypot(dx, dz));
@@ -62,11 +63,15 @@ export function crearMando(e: Escenario, caja: HTMLElement, etiqueta: string, ag
   }
 
   // Control: se lee en cada consulta (la API no avisa los cambios); el borde de la acción se detecta aquí
-  let padAccion = false, padAbajo = false, padX = 0, padZ = 0;
+  // El control cuenta recién cuando alguien lo usa de verdad (un botón o la palanca a fondo): uno conectado y olvidado,
+  // con la palanca un poco descentrada, ya no maneja solo
+  let padAccion = false, padAbajo = false, padX = 0, padZ = 0, padActivo = false;
   const leerControl = () => {
     const pad = typeof navigator.getGamepads === 'function' ? [...navigator.getGamepads()].find((p) => p?.connected) : null;
     if (!pad) { padAccion = padAbajo = false; padX = padZ = 0; return; }
-    const b = (i: number) => !!pad.buttons[i]?.pressed, zona = (v = 0) => (Math.abs(v) < 0.18 ? 0 : v);
+    const b = (i: number) => !!pad.buttons[i]?.pressed, zona = (v = 0) => (Math.abs(v) < 0.25 ? 0 : v);
+    padActivo ||= pad.buttons.some((x) => x.pressed) || pad.axes.some((v) => Math.abs(v) > 0.6);
+    if (!padActivo) return;
     padX = Math.max(-1, Math.min(1, zona(pad.axes[0]) + (b(15) ? 1 : 0) - (b(14) ? 1 : 0)));
     padZ = Math.max(-1, Math.min(1, zona(pad.axes[1]) + (b(13) ? 1 : 0) - (b(12) ? 1 : 0)));
     const ahora = b(0) || b(5) || b(7);
