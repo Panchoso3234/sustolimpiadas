@@ -65,7 +65,7 @@ interface Tiro { x: number; z: number; y: number; desde: { x: number; z: number 
 
 export async function crear(c: Contexto): Promise<Partida> {
   const e = crearEscenario(c.caja, { ancho: AN + 2, alto: FO * Math.sin(1.05) + 3.4, centro: [0, 0, 0.4], inclinacion: 1.05, sinPlaya: true });
-  cielo(e.escena, '#bfe8ff', '#e8f7ff');
+  cielo(e.escena, '#140b24', '#4a1a26', '#2e1338'); // atardecer rojo y morado: el prado es lo único con luz
   const r = generador(`${c.semilla}|defensa`), fuerza = 1 + (c.nivel - 1) * 0.12;
 
   // ── El camino: puntos y largo de cada tramo ──
@@ -100,14 +100,45 @@ export async function crear(c: Contexto): Promise<Partida> {
   const base = new THREE.Mesh(new THREE.BoxGeometry(AN + 1, 0.6, FO + 1), mat('#6a4a2e'));
   base.position.y = -0.62;
   e.escena.add(pasto, base);
-  const suelo = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), mat('#8fd06c'));
+  const suelo = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), mat('#22291e'));
   suelo.rotation.x = -Math.PI / 2; suelo.position.y = -0.9;
   e.escena.add(suelo);
   const fin = puntos[puntos.length - 1], inicio = centro(0, 1);
   const portal = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.14, 8, 24), new THREE.MeshBasicMaterial({ color: '#b46cff' }));
   portal.position.set(inicio.x - CELDA * 0.6, 0.7, inicio.z); portal.rotation.y = Math.PI / 2;
   e.escena.add(portal);
-  await bosque(e.escena, 'pueblo', 'tree', alrededor(r, 26, AN + 1, FO + 1, 1.2, 5, [1.2, 2.2]).map((p) => ({ ...p, y: -0.9 }))).catch(() => null);
+  // ── Afuera del prado: foso oscuro, bosque muerto, ruinas, tumbas, antorchas, neblina y murciélagos ──
+  const decorEntorno = new THREE.Object3D();
+  const foso = new THREE.Mesh(new THREE.PlaneGeometry(AN + 5.5, FO + 5.5), new THREE.MeshStandardMaterial({ color: '#241236', roughness: 0.15, metalness: 0.4, emissive: '#3a1260', emissiveIntensity: 0.25 }));
+  foso.rotation.x = -Math.PI / 2; foso.position.y = -0.87;
+  e.escena.add(foso);
+  // Lo alto va a los costados y al fondo: del lado de la cámara taparía el prado
+  const fuera = (cuantos: number, desde: number, hasta: number, alto: [number, number], alFrente = false) => alrededor(r, cuantos, AN + 1, FO + 1, desde, hasta, alto).filter((p) => alFrente || p.z < FO / 2 - 1).map((p) => ({ ...p, y: -0.9 }));
+  const sombrio = (g: THREE.Group | null) => g?.traverse((x) => { const m = x as THREE.Mesh; if (m.isMesh) m.material = [m.material].flat().map((mm) => { const c2 = (mm as THREE.MeshStandardMaterial).clone(); c2.color?.multiplyScalar(0.45); return c2; })[0]; });
+  await Promise.all([
+    bosque(e.escena, 'naturaleza', 'tree_thin_dark', fuera(26, 3.4, 9, [2.4, 3.6])).then(sombrio),
+    bosque(e.escena, 'naturaleza', 'tree_default_dark', fuera(20, 5, 12, [2.6, 3.8])).then(sombrio),
+    bosque(e.escena, 'naturaleza', 'tree_pineTallD', fuera(22, 8, 18, [4.5, 6.5])).then(sombrio),
+    bosque(e.escena, 'naturaleza', 'stump_oldTall', fuera(10, 2.6, 6, [0.6, 1])).then(sombrio),
+    bosque(e.escena, 'naturaleza', 'rock_largeA', fuera(16, 2.6, 9, [0.7, 1.2])).then(sombrio),
+    bosque(e.escena, 'naturaleza', 'statue_columnDamaged', fuera(6, 3, 7, [1.6, 2.6])),
+    bosque(e.escena, 'naturaleza', 'mushroom_redTall', fuera(14, 2.6, 5, [0.5, 0.9], true)),
+    // Ruinas que flanquean el portal por donde entran las babosas
+    bosque(e.escena, 'naturaleza', 'statue_columnDamaged', [-1.5, 1.5].map((dz) => ({ x: -AN / 2 - 1.4, z: centro(0, 1).z + dz, alto: 2.4, y: -0.9 }))),
+    bosque(e.escena, 'naturaleza', 'statue_obelisk', [{ x: -AN / 2 - 2.6, z: centro(0, 1).z - 3.2, alto: 3.2, y: -0.9 }]),
+  ].map((p) => p.catch(() => null)));
+  // Tumbas: lápidas un poco torcidas entre los árboles
+  const lapidas = new THREE.InstancedMesh(new THREE.BoxGeometry(0.5, 0.75, 0.14), mat('#6d6a78'), 12), cruces = new THREE.InstancedMesh(new THREE.BoxGeometry(0.12, 0.7, 0.12), mat('#55525e'), 12);
+  fuera(12, 2.4, 6, [1, 1], true).forEach((p, i) => {
+    decorEntorno.position.set(p.x, -0.55, p.z); decorEntorno.rotation.set((r() - 0.5) * 0.3, p.giro ?? 0, (r() - 0.5) * 0.25); decorEntorno.updateMatrix();
+    (i % 3 ? lapidas : cruces).setMatrixAt(i, decorEntorno.matrix);
+  });
+  e.escena.add(lapidas, cruces);
+  // Montañas oscuras de fondo
+  const sierra = new THREE.InstancedMesh(new THREE.ConeGeometry(1, 1, 5), new THREE.MeshLambertMaterial({ color: '#1a1226', flatShading: true }), 18);
+  for (let i = 0; i < 18; i++) { const a = (i / 18) * Math.PI * 2, alto = 14 + r() * 16; decorEntorno.position.set(Math.cos(a) * 70, alto / 2 - 1, Math.sin(a) * 55); decorEntorno.rotation.set(0, r() * 6, 0); decorEntorno.scale.set(alto * 0.9, alto, alto * 0.9); decorEntorno.updateMatrix(); sierra.setMatrixAt(i, decorEntorno.matrix); }
+  e.escena.add(sierra);
+  decorEntorno.scale.setScalar(1);
   // Flores en el pasto, piedritas al borde del camino y una cerca de madera alrededor
   const decor = new THREE.Object3D(), tonoDecor = new THREE.Color();
   const flores = new THREE.InstancedMesh(new THREE.SphereGeometry(0.07, 6, 4), new THREE.MeshLambertMaterial(), 140);
@@ -120,13 +151,15 @@ export async function crear(c: Contexto): Promise<Partida> {
   }
   flores.count = nf; piedras.count = np;
   e.escena.add(flores, piedras);
-  const cerca = new THREE.InstancedMesh(new THREE.BoxGeometry(0.12, 0.55, 0.12), mat('#8a5a38'), 80);
+  const cerca = new THREE.InstancedMesh(new THREE.BoxGeometry(0.12, 0.55, 0.12), mat('#4a3424'), 80), puas = new THREE.InstancedMesh(new THREE.ConeGeometry(0.07, 0.25, 4), mat('#3a3a44'), 80);
   let nc = 0;
   for (let i = 0; i <= COLS; i += 1) for (const z of [-FO / 2 - 0.35, FO / 2 + 0.35]) { decor.position.set(-AN / 2 + i * CELDA, 0.1, z); decor.rotation.set(0, 0, 0); decor.scale.setScalar(1); decor.updateMatrix(); cerca.setMatrixAt(nc++, decor.matrix); }
   for (let i = 1; i < FILAS; i++) for (const x of [-AN / 2 - 0.35, AN / 2 + 0.35]) { decor.position.set(x, 0.1, -FO / 2 + i * CELDA); decor.updateMatrix(); if (nc < 80) cerca.setMatrixAt(nc++, decor.matrix); }
   cerca.count = nc;
-  e.escena.add(cerca);
-  for (const [w, d, x, z] of [[AN + 0.7, 0.06, 0, -FO / 2 - 0.35], [AN + 0.7, 0.06, 0, FO / 2 + 0.35], [0.06, FO + 0.7, -AN / 2 - 0.35, 0], [0.06, FO + 0.7, AN / 2 + 0.35, 0]]) for (const y of [0.18, 0.32]) { const tabla = new THREE.Mesh(new THREE.BoxGeometry(w, 0.07, d), mat('#a0703c')); tabla.position.set(x, y, z); e.escena.add(tabla); }
+  for (let i = 0; i < nc; i++) { cerca.getMatrixAt(i, decor.matrix); decor.matrix.decompose(decor.position, decor.quaternion, decor.scale); decor.position.y += 0.4; decor.updateMatrix(); puas.setMatrixAt(i, decor.matrix); }
+  puas.count = nc;
+  e.escena.add(cerca, puas);
+  for (const [w, d, x, z] of [[AN + 0.7, 0.06, 0, -FO / 2 - 0.35], [AN + 0.7, 0.06, 0, FO / 2 + 0.35], [0.06, FO + 0.7, -AN / 2 - 0.35, 0], [0.06, FO + 0.7, AN / 2 + 0.35, 0]]) for (const y of [0.18, 0.32]) { const tabla = new THREE.Mesh(new THREE.BoxGeometry(w, 0.07, d), mat('#5a3a26')); tabla.position.set(x, y, z); e.escena.add(tabla); }
   const texNube = (() => { const c2 = document.createElement('canvas'); c2.width = c2.height = 64; const g2 = c2.getContext('2d')!, gr = g2.createRadialGradient(32, 32, 4, 32, 32, 32); gr.addColorStop(0, 'rgba(0,30,0,0.22)'); gr.addColorStop(1, 'rgba(0,30,0,0)'); g2.fillStyle = gr; g2.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c2); })();
   const nubes = [0, 1, 2].map((i) => { const n = new THREE.Mesh(new THREE.PlaneGeometry(7, 4.5), new THREE.MeshBasicMaterial({ map: texNube, transparent: true, depthWrite: false })); n.rotation.x = -Math.PI / 2; n.position.set(-AN / 2 + i * 9, 0.08, -3 + i * 3); e.escena.add(n); return n; });
 
@@ -150,6 +183,41 @@ export async function crear(c: Contexto): Promise<Partida> {
   sombraCastillo.position.set(fin.x + CELDA * 0.9, 0.04, fin.z);
   e.escena.add(castillo, sombraCastillo);
   let golpeCastillo = 0;
+
+  // Antorchas en las esquinas y al medio de la cerca: el fuego titila y da luz cálida
+  const llamas: THREE.Mesh[] = [];
+  const matLlama = new THREE.MeshBasicMaterial({ color: '#ff8a2a' }), matNucleo = new THREE.MeshBasicMaterial({ color: '#ffe08a' });
+  for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, -1], [0, 1]]) {
+    const px = x * (AN / 2 + 0.6), pz = z * (FO / 2 + 0.6);
+    const palo = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 1.5, 6), mat('#2a1d14')); palo.position.set(px, 0.1, pz);
+    const cuenco = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.12, 0.18, 8), mat('#3a3a44')); cuenco.position.set(px, 0.9, pz);
+    const llama = new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.5, 7), matLlama); llama.position.set(px, 1.2, pz);
+    const nucleo = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.3, 6), matNucleo); nucleo.position.set(0, -0.08, 0); llama.add(nucleo);
+    e.escena.add(palo, cuenco, llama); llamas.push(llama);
+  }
+  const luces = [new THREE.PointLight('#ff9a3c', 7, 9, 1.6), new THREE.PointLight('#ff9a3c', 7, 9, 1.6)];
+  luces[0].position.set(-AN / 2 - 0.6, 1.6, -FO / 2 - 0.6); luces[1].position.set(AN / 2 + 0.6, 1.6, -FO / 2 - 0.6);
+  // El portal: un remolino morado que gira, con su propia luz
+  const remolino = (() => { const c2 = document.createElement('canvas'); c2.width = c2.height = 128; const g2 = c2.getContext('2d')!; const gr = g2.createRadialGradient(64, 64, 4, 64, 64, 64); gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.25, '#d9a8ff'); gr.addColorStop(0.7, '#5a1a9a'); gr.addColorStop(1, 'rgba(40,0,80,0)'); g2.fillStyle = gr; g2.fillRect(0, 0, 128, 128); g2.strokeStyle = 'rgba(20,0,40,0.55)'; g2.lineWidth = 6; for (let i = 0; i < 4; i++) { g2.beginPath(); for (let a = 0; a < 5; a += 0.1) { const rr = a * 11; g2.lineTo(64 + Math.cos(a + i * 1.57) * rr, 64 + Math.sin(a + i * 1.57) * rr); } g2.stroke(); } return new THREE.CanvasTexture(c2); })();
+  const vortice = new THREE.Mesh(new THREE.CircleGeometry(0.58, 32), new THREE.MeshBasicMaterial({ map: remolino, transparent: true, side: THREE.DoubleSide, depthWrite: false }));
+  vortice.position.copy(portal.position); vortice.rotation.y = Math.PI / 2;
+  portal.scale.setScalar(1.25); vortice.scale.setScalar(1.25);
+  const luzPortal = new THREE.PointLight('#b46cff', 6, 7, 1.5); luzPortal.position.set(portal.position.x + 0.4, 1, portal.position.z);
+  e.escena.add(vortice, luzPortal, ...luces);
+  // Neblina morada que se arrastra alrededor del prado
+  const texNiebla = (() => { const c2 = document.createElement('canvas'); c2.width = c2.height = 64; const g2 = c2.getContext('2d')!, gr = g2.createRadialGradient(32, 32, 2, 32, 32, 32); gr.addColorStop(0, 'rgba(170,120,220,0.35)'); gr.addColorStop(1, 'rgba(170,120,220,0)'); g2.fillStyle = gr; g2.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c2); })();
+  const nieblas = Array.from({ length: 9 }, (_, i) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(9, 6), new THREE.MeshBasicMaterial({ map: texNiebla, transparent: true, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.userData.a = (i / 9) * Math.PI * 2; m.userData.y = -0.5 + (i % 3) * 0.12; e.escena.add(m); return m; });
+  // Murciélagos que dan vueltas sobre el bosque
+  const matAla = new THREE.MeshBasicMaterial({ color: '#0d0a14', side: THREE.DoubleSide });
+  const murcielagos = Array.from({ length: 6 }, (_, i) => {
+    const g2 = new THREE.Group(), cuerpo = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 5), matAla);
+    const alas = [-1, 1].map((lado) => { const ala = new THREE.Mesh(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0.1), new THREE.Vector3(lado * 0.5, 0.05, -0.05), new THREE.Vector3(0, 0, -0.15)]), matAla); g2.add(ala); return ala; });
+    g2.add(cuerpo); e.escena.add(g2);
+    return { g: g2, alas, a: (i / 6) * Math.PI * 2, radio: 1.1 + (i % 3) * 0.12, alto: 4 + (i % 2) * 1.5, vel: 0.25 + (i % 3) * 0.08 };
+  });
+  // Niebla de distancia: lo lejano se pierde en morado (el prado queda nítido)
+  const distancia = e.camara.position.length();
+  e.escena.fog = new THREE.Fog('#2a1430', distancia + 6, distancia + 48);
 
   // ── Babosas: un cuerpo blando con ojos, su barra de vida y lo que la distingue (casco, escudo, cruz, crías) ──
   const geoCuerpo = new THREE.SphereGeometry(1, 14, 10), geoOjo = new THREE.SphereGeometry(0.22, 8, 6), geoPupila = new THREE.SphereGeometry(0.11, 6, 5);
@@ -543,6 +611,18 @@ export async function crear(c: Contexto): Promise<Partida> {
   e.hud.puntos(0);
   e.alCuadro((t, dt) => {
     portal.rotation.z += dt * 2;
+    vortice.rotation.z -= dt * 1.6;
+    luzPortal.intensity = 5 + Math.sin(t * 5) * 1.5;
+    llamas.forEach((l, i) => { const f = 1 + Math.sin(t * 17 + i * 3) * 0.12 + Math.sin(t * 29 + i) * 0.08; l.scale.set(1, f, 1); });
+    luces.forEach((l, i) => { l.intensity = 6.5 + Math.sin(t * 13 + i * 2) * 1 + Math.sin(t * 31 + i) * 0.6; });
+    for (const m of nieblas) { m.userData.a += dt * 0.03; m.position.set(Math.cos(m.userData.a) * (AN / 2 + 4.5), m.userData.y, Math.sin(m.userData.a) * (FO / 2 + 4)); }
+    for (const b of murcielagos) {
+      b.a += dt * b.vel;
+      b.g.position.set(Math.cos(b.a) * (AN / 2 + 3) * b.radio, b.alto + Math.sin(t * 2 + b.a) * 0.4, Math.sin(b.a) * (FO / 2 + 3) * b.radio);
+      b.g.rotation.y = -b.a;
+      const aleteo = Math.sin(t * 18 + b.a * 5) * 0.8;
+      b.alas[0].rotation.z = aleteo; b.alas[1].rotation.z = -aleteo;
+    }
     if (Math.floor(t * 6) !== Math.floor((t - dt) * 6)) e.chispas(portal.position.x, portal.position.y, portal.position.z, ['#b46cff', '#e0c3ff'], 2, 1.2);
     for (const nube of nubes) { nube.position.x += dt * 0.6; if (nube.position.x > AN / 2 + 5) nube.position.x = -AN / 2 - 5; }
     bandera.rotation.y = Math.sin(t * 3) * 0.3;
