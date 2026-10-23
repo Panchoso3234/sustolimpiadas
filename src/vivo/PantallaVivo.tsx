@@ -138,7 +138,7 @@ export function Vivo({ codigo, mirar = false }: { codigo: string; mirar?: boolea
             <img class="foto" src={`${import.meta.env.BASE_URL}juegos/${id}.png`} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             <h3>{j.nombre}</h3>
             <p>{j.idea}</p>
-            <span class="pie"><span class="premia">{formato === 'dividida' ? 'Pantalla dividida' : formato === 'turnos' ? 'Por turnos' : id === 'bloques' ? 'Cara a cara' : 'Mismo mundo'}</span><button class="boton principal" onClick={() => crear(id)}>Crear sala</button></span>
+            <span class="pie"><span class="premia">{formato === 'dividida' ? 'Pantalla dividida' : formato === 'turnos' ? 'Por turnos' : id === 'bloques' || id === 'bestias' ? 'Cara a cara' : 'Mismo mundo'}</span><button class="boton principal" onClick={() => crear(id)}>Crear sala</button></span>
           </div>
         ); })}
         {Object.values(TABLEROS).map((r) => (

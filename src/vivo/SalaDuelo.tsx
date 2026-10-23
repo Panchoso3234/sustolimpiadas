@@ -30,6 +30,7 @@ const MUNDOS: Record<string, () => Promise<CrearJuego>> = {
   sumo: () => import('./mundo/sumo').then((m) => m.sumo),
   tanques: () => import('./mundo/tanques').then((m) => m.tanques),
   bloques: () => import('./mundo/bloques').then((m) => m.bloques),
+  bestias: () => import('../juegos/arcade/bestias').then((m) => m.crear),
 };
 /** El personaje de otra persona (o uno sorteado, si no tiene o es invitado). */
 async function aspectoDeOtro(id: string): Promise<Aspecto> {
@@ -303,14 +304,14 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
 
   return (
     <div class="vivo duelo-vivo">
-      <div class="sigla">{oficial ? `En vivo · oficial · ronda ${p.partida} de ${oficial.e.rondas}` : `En vivo · amistoso · sala ${codigo}`} · {formato === 'dividida' ? 'pantalla dividida' : formato === 'turnos' ? 'por turnos' : juego === 'bloques' ? 'cara a cara' : 'mismo mundo'}</div>
+      <div class="sigla">{oficial ? `En vivo · oficial · ronda ${p.partida} de ${oficial.e.rondas}` : `En vivo · amistoso · sala ${codigo}`} · {formato === 'dividida' ? 'pantalla dividida' : formato === 'turnos' ? 'por turnos' : juego === 'bloques' || juego === 'bestias' ? 'cara a cara' : 'mismo mundo'}</div>
       {aviso && <p class="aviso atencion">{aviso}</p>}
       <h1>{ficha.nombre}</h1>
       <div class="fila vivo-cabecera">
         <span class="vivo-ojo" title="Personas mirando">👁 {reparto.espectadores.length}</span>
         {!asientos && !soyJugador && sentados.length < 2 && !oficial && <button class="boton principal vivo-quiero" onClick={() => sala.current?.quiero('jugar')}>Quiero jugar</button>}
       </div>
-      {!asientos && <p class="tenue">{juego === 'bloques' ? 'Cara a cara: cada uno su tablero, lado a lado. Cada línea que completas le manda lápidas a tu rival; gana quien lo llena hasta arriba (o el mejor puntaje a los 3 minutos).' : formato === 'mundo' ? 'Los dos en la misma arena, contra bots que atacan a ambos. Gana el mejor puntaje.' : formato === 'dividida' ? 'Los dos juegan al mismo tiempo el mismo desafío, cada uno su partida, y ven la pantalla del otro. Gana el mejor puntaje.' : 'Por turnos: primero juega uno mientras el otro mira, y después al revés, con el mismo desafío. Gana el mejor puntaje.'} {ficha.controles}</p>}
+      {!asientos && <p class="tenue">{juego === 'bestias' ? 'Cara a cara por turnos: los dos eligen 3 criaturas del mismo sorteo y combaten de frente, Nv. 50. Cada turno tiene 30 segundos (si se acaba, la máquina elige por ti). Gana quien deja sin criaturas al otro.' : juego === 'bloques' ? 'Cara a cara: cada uno su tablero, lado a lado. Cada línea que completas le manda lápidas a tu rival; gana quien lo llena hasta arriba (o el mejor puntaje a los 3 minutos).' : formato === 'mundo' ? 'Los dos en la misma arena, contra bots que atacan a ambos. Gana el mejor puntaje.' : formato === 'dividida' ? 'Los dos juegan al mismo tiempo el mismo desafío, cada uno su partida, y ven la pantalla del otro. Gana el mejor puntaje.' : 'Por turnos: primero juega uno mientras el otro mira, y después al revés, con el mismo desafío. Gana el mejor puntaje.'} {ficha.controles}</p>}
       <ul class="vivo-gente">
         {sentados.map((id, i) => <li key={id} class="juega"><b>{nombre(id)}{id === yo.id ? ' (tú)' : ''}</b><span class="tenue chico">{(asientos ? asientos.indexOf(id) : i) === 0 ? 'Azul' : 'Rojo'}{!asientos ? (presentes.some((x) => x.id === id && x.listo === p.partida) ? ' · listo' : ' · esperando') : presentes.some((x) => x.id === id) ? '' : ' · desconectado'}</span></li>)}
       </ul>

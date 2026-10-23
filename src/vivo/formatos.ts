@@ -31,5 +31,6 @@ export const DUELOS: Record<string, Formato> = {
   calabazas: 'turnos',
   sumo: 'mundo',
   tanques: 'mundo',
+  bestias: 'mundo', // cara a cara por turnos: cada uno elige su equipo y las acciones se juntan por turno
   bloques: 'mundo', // cara a cara: cada uno su tablero, lado a lado, y las líneas le mandan basura al otro
 };
