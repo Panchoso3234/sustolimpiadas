@@ -460,18 +460,33 @@ export async function crear(c: Contexto): Promise<Partida> {
     for (const p of [...plataformas, vitrina]) p.visible = false;
     abajo.classList.add('oculto');
     const pagina = Math.max(1, Number(parametros.get('galeria')) || 1) - 1, etiquetas: [HTMLElement, THREE.Vector3][] = [];
-    ESPECIES.slice(pagina * 10, pagina * 10 + 10).forEach((sp, i) => {
-      const b = crearBestia(sp.n), p = new THREE.Vector3(((i % 5) - 2) * 1.75, 0, i < 5 ? -1.2 : 1.1);
-      b.grupo.position.copy(p); b.grupo.rotation.y = 0.35; b.grupo.scale.setScalar(Math.min(1.1, 1.45 / b.alto)); e.escena.add(b.grupo); e.alCuadro((t) => animarBestia(b, t, i));
+    ESPECIES.slice(pagina * 6, pagina * 6 + 6).forEach((sp, i) => {
+      const b = crearBestia(sp.n), p = new THREE.Vector3(((i % 3) - 1) * 3.1, 0, i < 3 ? -1.6 : 1.5);
+      b.grupo.position.copy(p); b.grupo.rotation.y = 0.45; b.grupo.scale.setScalar(Math.min(1.15, 1.45 / b.alto)); e.escena.add(b.grupo); e.alCuadro((t) => animarBestia(b, t, i));
       const el = document.createElement('div'); el.className = 'b-tipo'; el.style.cssText = `position:absolute;transform:translate(-50%,0);background:${TIPOS[sp.tipos[0]].color};font-size:.9rem`; el.textContent = `${sp.n}. ${sp.nombre}`; raiz.appendChild(el); etiquetas.push([el, p]);
     });
     const v = new THREE.Vector3();
-    e.alCuadro(() => { e.camara.position.set(0, 3.0, 7.4); e.camara.lookAt(0, 0.55, -0.2); for (const [el, p] of etiquetas) { v.copy(p).project(e.camara); el.style.left = `${(v.x * 0.5 + 0.5) * 100}%`; el.style.top = `${(-v.y * 0.5 + 0.5) * 100 + 1}%`; } });
+    e.alCuadro(() => { e.camara.position.set(0, 2.7, 8.2); e.camara.lookAt(0, 0.75, 0); for (const [el, p] of etiquetas) { v.copy(p).project(e.camara); el.style.left = `${(v.x * 0.5 + 0.5) * 100}%`; el.style.top = `${(-v.y * 0.5 + 0.5) * 100 + 1}%`; } });
+  }
+  // Retrato de una sola criatura en primer plano (solo en desarrollo): "?retrato=1" y window.__retrato(n)
+  if (import.meta.env.DEV && parametros.has('retrato')) {
+    for (const p of [...plataformas, vitrina]) p.visible = false;
+    abajo.classList.add('oculto');
+    let actual: Bestia | null = null, giro = 0.5;
+    const etiqueta = document.createElement('div'); etiqueta.className = 'b-tipo'; etiqueta.style.cssText = 'position:absolute;left:12px;top:70px;font-size:1.1rem;padding:4px 12px'; raiz.appendChild(etiqueta);
+    const mostrar = (n: number, angulo = 0.5) => {
+      actual?.grupo.removeFromParent();
+      actual = crearBestia(n); giro = angulo; actual.grupo.rotation.y = giro; e.escena.add(actual.grupo);
+      const sp = especie(n); etiqueta.textContent = `${n}. ${sp.nombre}`; etiqueta.style.background = TIPOS[sp.tipos[0]].color;
+    };
+    mostrar(Number(parametros.get('retrato')) || 1);
+    (window as unknown as Record<string, unknown>).__retrato = mostrar;
+    e.alCuadro((t) => { if (!actual) return; animarBestia(actual, t); const a = actual.alto; e.camara.position.set(0, a * 0.75 + 0.15, a * 2.3 + 0.6); e.camara.lookAt(0, a * 0.5, 0); });
   }
   if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__bestias = () => ({ puntos, numCombate, ganados, terminado, combate: combate ? { turno: combate.turno, ganador: combate.ganador, yo: activo(combate, 0).n, el: activo(combate, 1).n } : null, texto: elTexto.textContent, ver: verEnVitrina });
 
   return {
-    empezar() { e.empezar(); if (!parametros.has('galeria')) jugar(); },
+    empezar() { e.empezar(); if (!parametros.has('galeria') && !parametros.has('retrato')) jugar(); },
     destruir() { vivo = false; e.destruir(); },
   };
 }
