@@ -1,4 +1,4 @@
-// Lluvia de Bloques en vivo: dos jugadores (con el piloto de prueba) y un espectador.
+// TETRIX en vivo: dos jugadores (con el piloto de prueba) y un espectador.
 // node pruebas/bloquesVivo.mjs [foto.png]  (con el servidor de desarrollo en el puerto 5173)
 import { abrir, esperar, hasta, limpiarPerfiles } from './navegador.mjs';
 

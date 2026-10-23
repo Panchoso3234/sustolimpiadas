@@ -4,7 +4,7 @@ import { ALTO, ANCHO, OCULTAS, basuraPendiente, caerYa, comprimir, descomprimir,
 import { crearControles, crearFondo, crearSonidos, crearTableroVisual } from '../../juegos/arcade/bloquesVista';
 import { entre, num, type Lado } from './red';
 
-// Lluvia de Bloques en vivo, cara a cara: los dos tableros lado a lado (el tuyo a la izquierda) y del mismo tamaño.
+// TETRIX en vivo, cara a cara: los dos tableros lado a lado (el tuyo a la izquierda) y del mismo tamaño.
 // Cada uno juega su tablero en su navegador (sin demora al mover) y manda su estado unas 10 veces por segundo; el rival
 // y los espectadores lo dibujan. Las líneas que completas le mandan filas de basura (lápidas) al rival: se cuenta el
 // total mandado, así un mensaje perdido no hace perder ataques. Gana quien hace que el otro se llene hasta arriba (KO);

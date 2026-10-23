@@ -1,4 +1,4 @@
-// Prueba el núcleo de Lluvia de Bloques sin navegador: node pruebas/bloques.mjs
+// Prueba el núcleo de TETRIX sin navegador: node pruebas/bloques.mjs
 import { patadas, ANCHO, ALTO, OCULTAS, nuevo, celdas, mover, girar, bajar, caerYa, guardar, recibir, paso, sombra, basuraPendiente, comprimir, descomprimir, asentar } from '../src/juegos/arcade/bloquesNucleo.ts';
 
 let malos = 0;

@@ -1,6 +1,6 @@
 import { ALTO, ANCHO, celdas, type Estado, type Pieza } from './bloquesNucleo';
 
-// Un jugador de máquina para Lluvia de Bloques (solo para pruebas: el piloto y el rival de práctica en vivo). Prueba
+// Un jugador de máquina para TETRIX (solo para pruebas: el piloto y el rival de práctica en vivo). Prueba
 // todos los giros y columnas y elige la jugada que deja el tablero más bajo, parejo y sin huecos.
 
 const cabe = (t: number[], p: Pieza) => celdas(p).every(([x, y]) => x >= 0 && x < ANCHO && y < ALTO && (y < 0 || t[y * ANCHO + x] === 0));

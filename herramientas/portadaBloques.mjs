@@ -1,4 +1,4 @@
-// Portada de Lluvia de Bloques (public/juegos/bloques.png, 640 × 360), dibujada en un lienzo.
+// Portada de TETRIX (public/juegos/bloques.png, 640 × 360), dibujada en un lienzo.
 // Con el sitio corriendo: node herramientas/portadaBloques.mjs
 import { writeFileSync } from 'node:fs';
 import { abrir, limpiarPerfiles } from '../pruebas/navegador.mjs';

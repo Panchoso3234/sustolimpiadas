@@ -4,7 +4,7 @@ import { mejorJugada } from './bloquesIA';
 import { ALTO, OCULTAS, basuraPendiente, caerYa, guardar, girar, hechizar, mover, nuevo, paso, sombra, type Asiento, type Estado } from './bloquesNucleo';
 import { crearControles, crearFondo, crearSonidos, crearTableroVisual } from './bloquesVista';
 
-// Lluvia de Bloques, modo individual (también es la ronda del 1v1 diferido): 3 minutos para hacer el mejor puntaje con
+// TETRIX, modo individual (también es la ronda del 1v1 diferido): 3 minutos para hacer el mejor puntaje con
 // las piezas de la semilla del día. Hay piezas especiales (bomba, calabaza y fantasma), eventos de Halloween que se
 // anuncian antes (niebla, viento y lluvia de lápidas), la barra del hechizo (8 s sin gravedad y puntos al doble) y un
 // desafío del día con bono.

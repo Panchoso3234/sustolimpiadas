@@ -1,4 +1,4 @@
-// Lluvia de Bloques: el núcleo, sin dependencias (se prueba con node: pruebas/bloques.mjs). Un tablero de 10 × 20 (más 2
+// TETRIX: el núcleo, sin dependencias (se prueba con node: pruebas/bloques.mjs). Un tablero de 10 × 20 (más 2
 // filas ocultas arriba) donde caen piezas de 4 bloques que se giran y encajan para completar líneas. Todo lo que depende
 // del azar sale de la semilla: dos jugadores con la misma semilla reciben las mismas piezas, especiales, eventos y basura.
 // El estado es un objeto plano (sirve para mandarlo por la red en el modo en vivo).

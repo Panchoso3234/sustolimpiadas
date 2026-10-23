@@ -4,11 +4,11 @@ import { esDaltonico } from '../../nucleo/preferencias';
 import type { Escenario } from '../reflejos/motor';
 import { ALTO, ANCHO, OCULTAS, celdas, type Especial, type Pieza } from './bloquesNucleo';
 
-// Lluvia de Bloques: cómo se dibuja un tablero (lo usan el modo individual y el en vivo, donde hay dos lado a lado) y
+// TETRIX: cómo se dibuja un tablero (lo usan el modo individual y el en vivo, donde hay dos lado a lado) y
 // los controles (teclado, pantalla táctil y control). Cada tipo de bloque es una malla de instancias con su propio
 // dibujo en la cara, así se distinguen también sin colores (modo daltónico).
 
-export const NOMBRE = 'Lluvia de Bloques';
+export const NOMBRE = 'TETRIX';
 /** Colores propios (no los de ningún juego conocido): violeta, calabaza, poción, rosa, vela, azul noche y hueso. */
 const COLORES = ['', '#9a6bff', '#ff8a2a', '#3fe07a', '#ff5a8a', '#ffd23c', '#4aa8ff', '#e8e2d0', '#5a5866', '#ff7a1e'];
 const COLORES_DALTONICO = ['', '#0072b2', '#e69f00', '#009e73', '#cc79a7', '#f0e442', '#56b4e9', '#ffffff', '#555555', '#d55e00'];
