@@ -43,6 +43,8 @@ export interface Contexto {
   vivo?: ContextoVivo;
   /** Jugando contra el líder del día: su recorrido grabado (la semilla ya es la suya). */
   fantasma?: Fantasma;
+  /** Partida de práctica (no se guarda): los juegos pueden ser más amables, como reaparecer una vez. */
+  practica?: boolean;
 }
 
 /** Lo que la sala le avisa a los motores para la partida que parte (shortcut: un valor compartido; basta porque hay una sola partida a la vez). */

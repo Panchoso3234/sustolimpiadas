@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { supabase } from '../nucleo/supabase';
 import { fechaChile } from '../nucleo/azar';
-import { JUEGOS, TOPES, VERSUS, juegoPorId, nombreVersus } from './catalogo';
+import { DUDOSA, JUEGOS, TOPES, VERSUS, juegoPorId, nombreVersus } from './catalogo';
 import { borrarMarca, marcasDelDia, type MarcaSuelta } from './marcas';
 import { PUNTOS_BASE, guardarPuntos, leerPuntos, type Puntos } from './puntos';
 import * as V from './duelos';
@@ -295,7 +295,7 @@ export function Marcas() {
     setAviso(error ? { texto: error, ok: false } : { texto: 'Marca borrada.', ok: true });
     cargar();
   };
-  const dudosas = (lista ?? []).filter((m) => m.puntaje > (TOPES[m.juego] ?? Infinity)).length;
+  const dudosas = (lista ?? []).filter((m) => m.puntaje > (DUDOSA[m.juego] ?? TOPES[m.juego] ?? Infinity)).length;
   return (
     <>
       <p>Los puntajes se calculan en el navegador de cada jugador, así que una marca imposible es señal de trampa o de un error del juego. Aquí ves todas las partidas del día; las que pasan el máximo razonable de su juego salen marcadas.</p>
@@ -315,12 +315,12 @@ export function Marcas() {
           <thead><tr><th>Quién</th><th>Juego</th><th>Puntaje</th><th>Resumen de la partida</th><th></th></tr></thead>
           <tbody>
             {(lista ?? []).map((m) => {
-              const dudosa = m.puntaje > (TOPES[m.juego] ?? Infinity);
+              const dudosa = m.puntaje > (DUDOSA[m.juego] ?? TOPES[m.juego] ?? Infinity);
               return (
                 <tr key={m.id} class={dudosa ? 'dudosa' : ''}>
                   <td>{m.nombre}</td>
                   <td>{juegoPorId(m.juego)?.nombre ?? m.juego}</td>
-                  <td><b>{m.puntaje}</b>{dudosa && <span class="alerta"> · sobre {TOPES[m.juego]}</span>}</td>
+                  <td><b>{m.puntaje}</b>{dudosa && <span class="alerta"> · sobre {DUDOSA[m.juego] ?? TOPES[m.juego]}</span>}</td>
                   <td class="tenue chico">{JSON.stringify(m.detalle).slice(0, 110)}</td>
                   <td><Confirmar texto="Borrar" alConfirmar={() => borrar(m.id)} /></td>
                 </tr>

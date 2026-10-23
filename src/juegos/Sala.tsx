@@ -179,7 +179,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
       ajustesPartida.pausable = !reto; // en un enfrentamiento el reloj no se detiene al cambiar de pestaña
       ajustesPartida.vivo = ajustesPartida.foto = false;
       const nueva = await crear({
-        caja: caja.current, semilla, aspecto, nivel: reto?.nivel ?? jornadaDe(fecha), fantasma: contra.current ?? undefined,
+        caja: caja.current, semilla, aspecto, nivel: reto?.nivel ?? jornadaDe(fecha), fantasma: contra.current ?? undefined, practica: practica.current,
         alTerminar(r) {
           if (mio !== turno.current) return;
           setResultado(r);

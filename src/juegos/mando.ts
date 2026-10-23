@@ -18,6 +18,8 @@ export interface Mando {
   readonly agachado: boolean;
   /** La palanca derecha del control (x, z), o [0, 0] si no se usa. */
   readonly derecha: [number, number];
+  /** Toma la posición actual del dedo como nuevo centro de la palanca: así se encadenan deslizamientos sin levantarlo. */
+  reanclar(): void;
 }
 
 const TECLAS: Record<string, [number, number]> = {
@@ -27,7 +29,7 @@ const TECLAS: Record<string, [number, number]> = {
 /** `palancaConMouse: false`: el clic del mouse no hace de palanca (el juego dirige con el cursor, como Serpientes). */
 export function crearMando(e: Escenario, caja: HTMLElement, etiqueta: string, agacharse?: string, { palancaConMouse = true } = {}): Mando {
   const pulsadas = new Set<string>();
-  let palanca: { x0: number; y0: number; x: number; z: number } | null = null, accion = false, apretada = false, abajo = false, botonAbajo = false;
+  let ultimo = { x: 0, y: 0 }, palanca: { x0: number; y0: number; x: number; z: number } | null = null, accion = false, apretada = false, abajo = false, botonAbajo = false;
 
   e.escuchar(window, 'keydown', (ev) => {
     const k = ev.key.length === 1 ? ev.key.toLowerCase() : ev.key;
@@ -38,9 +40,10 @@ export function crearMando(e: Escenario, caja: HTMLElement, etiqueta: string, ag
   e.escuchar(window, 'keyup', (ev) => { if (ev.key === ' ') apretada = false; if (ev.key === 'Shift' || ev.key.toLowerCase() === 'c') abajo = false; pulsadas.delete(ev.key.length === 1 ? ev.key.toLowerCase() : ev.key); });
   e.escuchar(window, 'blur', () => { pulsadas.clear(); abajo = false; });
 
-  e.escuchar(e.lienzo, 'pointerdown', (ev) => { if (!palancaConMouse && ev.pointerType === 'mouse') return; palanca = { x0: ev.clientX, y0: ev.clientY, x: 0, z: 0 }; e.lienzo.setPointerCapture(ev.pointerId); });
+  e.escuchar(e.lienzo, 'pointerdown', (ev) => { if (!palancaConMouse && ev.pointerType === 'mouse') return; ultimo = { x: ev.clientX, y: ev.clientY }; palanca = { x0: ev.clientX, y0: ev.clientY, x: 0, z: 0 }; e.lienzo.setPointerCapture(ev.pointerId); });
   e.escuchar(e.lienzo, 'pointermove', (ev) => {
     if (!palanca) return;
+    ultimo = { x: ev.clientX, y: ev.clientY };
     const s = 55 / sensibilidad(), dx = (ev.clientX - palanca.x0) / s, dz = (ev.clientY - palanca.y0) / s, largo = Math.max(1, Math.hypot(dx, dz));
     palanca.x = dx / largo;
     palanca.z = dz / largo;
@@ -95,5 +98,6 @@ export function crearMando(e: Escenario, caja: HTMLElement, etiqueta: string, ag
     get agachado() { leerControl(); return abajo || botonAbajo || padAbajo; },
     get derecha(): [number, number] { leerControl(); return [padRX, padRZ]; },
     tomarAccion() { leerControl(); const si = accion; accion = false; return si; },
+    reanclar() { if (palanca) palanca = { x0: ultimo.x, y0: ultimo.y, x: 0, z: 0 }; },
   };
 }

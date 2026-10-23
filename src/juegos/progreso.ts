@@ -108,7 +108,7 @@ export const costoNivel = (n: number) => 120 + 30 * (n - 1);
 export interface Experiencia { total: number; nivel: number; enNivel: number; paraSubir: number; desglose: [string, number][] }
 
 export function experiencia(d: Datos, cuantosLogros: number): Experiencia {
-  // Cada partida: 10 más hasta 30 según qué tan cerca del tope quedó. Se cuentan hasta 15 por juego al día (para que no
+  // Cada partida: 10 más hasta 30 según qué tan cerca del tope quedó; sobre el tope sigue sumando, cada vez menos (hasta 20 más). Se cuentan hasta 15 por juego al día (para que no
   // convenga repetir lo mismo sin parar).
   const vistas = new Map<string, number>();
   let partidas = 0;
@@ -117,7 +117,8 @@ export function experiencia(d: Datos, cuantosLogros: number): Experiencia {
     vistas.set(clave, ya + 1);
     if (ya >= 15) continue;
     const tope = TOPES[x.juego];
-    partidas += 10 + (tope ? Math.min(30, Math.round((30 * Math.max(0, x.puntaje)) / tope)) : 10);
+    const cerca = Math.max(0, x.puntaje) / (tope || 1);
+    partidas += 10 + (!tope ? 10 : cerca <= 1 ? Math.round(30 * cerca) : 30 + Math.min(20, Math.round(10 * Math.log2(cerca))));
   }
   const dias = new Set(d.marcas.map((x) => x.fecha)).size * 20, juegos = new Set(d.marcas.map((x) => x.juego)).size * 40;
   const cerrados = d.duelos.filter((x) => x.e.estado === 'cerrado'), duelos = cerrados.length * 15 + cerrados.filter((x) => x.e.ganador === x.lado).length * 60;
