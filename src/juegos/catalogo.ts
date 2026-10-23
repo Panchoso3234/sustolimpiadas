@@ -20,7 +20,7 @@ export interface Juego {
 export const TOPES: Record<string, number> = {
   rodillos: 2000, puertas: 2000, huevo: 3400, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, torre: 2400, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2800, parejas: 1000, buscaconchas: 1800, luces: 1800,
   cartero: 1000, cofre: 1300, palabra: 1000, totem: 1000, catapulta: 2800, bolos: 750, minigolf: 1000,
-  karts: 2300, tren: 9000, tanques: 16000, bombas: 4200, agujero: 14000, serpientes: 5000, defensa: 10000, museo: 5000, tiro: 9000, cocina: 6000, billar: 8000, triples: 9000, calabazas: 3500, laberinto: 9000, escobas: 4000,
+  karts: 2300, tren: 9000, tanques: 16000, bombas: 4200, agujero: 14000, serpientes: 5000, defensa: 10000, museo: 5000, tiro: 9000, cocina: 6000, billar: 8000, triples: 9000, calabazas: 3500, laberinto: 9000, escobas: 4000, bloques: 120000,
 };
 
 export const MOTORES: Record<Motor, { nombre: string; color: string }> = {
@@ -116,6 +116,8 @@ export const JUEGOS: Juego[] = [
     'Muévete con las flechas, WASD, la palanca del control o arrastrando el dedo; tu linterna alumbra hacia donde caminas y la flecha amarilla del suelo apunta a la vela más cercana (morada: a la salida). Junta las velas (+50, con combo si las juntas seguidas); con todas, la reja morada se abre y pasas al piso siguiente (+300, más si lo haces rápido y sin perder vidas). La linterna se gasta: las pilas verdes la recargan. Un toque de Espacio (o del botón Linterna) lanza un destello corto; manteniéndolo, uno cargado que llega más lejos. Los destellos asustan a los fantasmas que ves (se ponen azules): si tocas uno asustado, lo espantas. Fantasmas: Errante, Cazador (ojos rojos, rápido), Atraviesamuros (verde, cruza paredes), Chillón (avisa a los demás) y la Dama de Blanco (solo la asusta el destello cargado). Objetos: reloj (+15 s), botas, amuleto (aguanta un toque), llave (abre la reja con el 70 % de las velas) y mapa. Ojo con las telarañas (frenan) y las tablas que crujen (atraen fantasmas); algunos muros esconden pasadizos. 3 vidas y 2 minutos y medio; las vidas que te queden al final suman.'),
   j(38, 'escobas', 'Carrera de Escobas', 'G', 'Una carrera en escoba de noche por un valle embrujado contra tres brujas: pasa por los aros, junta dulces, esquiva árboles secos y murciélagos y llega primero al castillo.', 'Reflejos y trazada',
     'La escoba vuela sola hacia adelante. Muévete a los lados con las flechas, A/D o arrastrando el dedo, y sube o baja con arriba/abajo, W/S o arrastrando hacia arriba y abajo. Cada aro suma 50 y cada tres aros cargas una calabaza de turbo (hasta 3): úsala con Espacio o el botón Turbo. Los dulces suman 10. Los árboles secos y las bandadas de murciélagos te frenan. Al llegar suman el puesto (600, 400, 250 o 120) y un bono por tiempo.'),
+  j(39, 'bloques', 'Lluvia de Bloques', 'G', 'Piezas de cuatro bloques caen en un caldero embrujado: gíralas, encájalas y completa líneas. Con bombas, calabazas, piezas fantasma, eventos de Halloween y un hechizo. En vivo, cada línea le manda lápidas al rival.', 'Rapidez y planificación',
+    'Mueve con ← → (o arrastrando el dedo), gira con ↑ o X (a la derecha), Z (a la izquierda) y A (media vuelta); ↓ baja rápido y Espacio la deja caer de una (o desliza rápido hacia abajo). C o Shift guarda una pieza para después. La sombra blanca muestra dónde caerá. Completar líneas suma (1, 2, 3 o 4 a la vez: el cuádruple vale mucho) y encadenarlas da combos; meter la pieza T girando en un hueco cerrado es un Giro maestro. La barra violeta se llena con líneas: con E activas el Hechizo (8 s sin gravedad y puntos al doble). Piezas especiales: la bomba rompe un cuadro de 3 × 3, la calabaza rellena su fila y la fantasma atraviesa bloques. Se anuncian eventos: niebla, viento y lluvia de lápidas. Tienes 3 minutos; cumple el desafío del día para un bono. En celular hay botones abajo; con control, la cruceta mueve, A y B giran y el gatillo deja caer.'),
 ];
 
 /** Juegos que en celular se ven mucho mejor de lado: avisan al partir si el teléfono está parado. */
@@ -160,6 +162,7 @@ export const VERSUS: TipoVersus[] = [
   v('1v1', 'calabazas-duelo', 'Duelo de Calabazas', 'Por turnos, las mismas piezas en el mismo orden: gana la torre más alta.', 'calabazas'),
   v('1v1', 'laberinto-duelo', 'Laberinto en Paralelo', 'El mismo laberinto y los mismos fantasmas: gana quien llega más lejos.', 'laberinto'),
   v('1v1', 'escobas-duelo', 'Duelo de Escobas', 'El mismo valle y las mismas brujas: gana quien hace más puntos.', 'escobas'),
+  v('1v1', 'bloques-duelo', 'Duelo de Bloques', 'Las mismas piezas para los dos; en vivo, cada línea le manda lápidas al rival.', 'bloques'),
   v('1v1', 'torre-duelo', 'Duelo de Torres', 'El mismo ritmo para los dos; gana la torre más alta.', 'torre'),
   v('3v3', 'cocos-equipo', 'Cosecha en Equipo', 'Cada integrante atrapa cocos; se suman los tres.', 'cocos'),
   v('3v3', 'eco-cadena', 'Eco en Cadena', 'La misma secuencia para los seis; suma hasta dónde llegó cada uno.', 'eco'),

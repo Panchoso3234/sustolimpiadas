@@ -11,7 +11,9 @@ import { CRUCES, calendarioDeEquipos, jornadaDe } from './liga';
 
 const RONDAS = 3;
 /** Juegos que sirven para un duelo 1v1 en diferido. */
-const juegosDuelo = () => VERSUS.filter((t) => t.modo === '1v1' && t.base && !t.vivo && juegoPorId(t.base)?.listo).map((t) => t.base!);
+// Juegos nuevos que todavía no entran a los cruces (se sacan de aquí cuando Pancho los apruebe para la liga)
+const FUERA_DE_LA_LIGA = new Set(['bloques']);
+const juegosDuelo = () => VERSUS.filter((t) => t.modo === '1v1' && t.base && !t.vivo && juegoPorId(t.base)?.listo && !FUERA_DE_LA_LIGA.has(t.base)).map((t) => t.base!);
 
 interface Borrador { cruce: number; juegos: string[]; duelos: { a: string; b: string; juego: string; equipos: [number, number] }[] }
 

@@ -31,4 +31,5 @@ export const DUELOS: Record<string, Formato> = {
   calabazas: 'turnos',
   sumo: 'mundo',
   tanques: 'mundo',
+  bloques: 'mundo', // cara a cara: cada uno su tablero, lado a lado, y las líneas le mandan basura al otro
 };
