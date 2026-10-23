@@ -215,7 +215,12 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
       nueva.empezar();
     } catch (e) {
       if (mio !== turno.current) return;
-      setMotivo(reto && e instanceof Error ? e.message : '');
+      console.error(e);
+      const texto = e instanceof Error ? e.message : String(e);
+      // Una versión nueva del sitio: los archivos viejos ya no existen (la página se recarga sola, ver main.tsx)
+      if (/dynamically imported module|Importing a module script failed|Failed to fetch/i.test(texto)) setMotivo('Hay una versión nueva del sitio. Recarga la página (Ctrl+F5 o desliza hacia abajo en el celular) y vuelve a intentar.');
+      else if (/WebGL|context/i.test(texto)) setMotivo('Tu navegador no pudo abrir los gráficos 3D. Cierra otras pestañas con juegos, activa la aceleración por hardware o prueba con otro navegador.');
+      else setMotivo(reto ? texto : '');
       setFase('error');
     }
   };

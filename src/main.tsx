@@ -13,6 +13,14 @@ import { Progreso } from './Progreso';
 import { Creador } from './personaje/Creador';
 import './nucleo/preferencias';
 
+// Si se publicó una versión nueva mientras la página estaba abierta, los archivos de los juegos cambian de nombre y la
+// pestaña vieja ya no los encuentra ("No se pudo cargar el juego"). Se recarga sola una vez para traer la versión nueva.
+window.addEventListener('vite:preloadError', (ev) => {
+  try { if (Date.now() - Number(sessionStorage.getItem('susto.recarga') ?? 0) < 60000) return; sessionStorage.setItem('susto.recarga', String(Date.now())); } catch { return; }
+  ev.preventDefault();
+  location.reload();
+});
+
 const RUTAS = [
   { ruta: 'isla', titulo: 'Isla' },
   { ruta: 'personaje', titulo: 'Mi personaje' },
