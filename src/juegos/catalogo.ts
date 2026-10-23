@@ -126,7 +126,9 @@ export const juegoPorId = (id: string) => JUEGOS.find((x) => x.id === id);
 /** Tipos de enfrentamiento. Con `base`, se juega en diferido sobre ese juego individual; sin `base`, necesita juego en vivo. */
 export interface TipoVersus { id: string; modo: '1v1' | '3v3'; nombre: string; idea: string; base?: string; /** Se juega solo en vivo (sala `enf-<id>`). */ vivo?: boolean }
 
-const v = (modo: '1v1' | '3v3', id: string, nombre: string, idea: string, base?: string, vivo = false): TipoVersus => ({ id, modo, nombre, idea, base, vivo });
+// Los duelos 1v1 de un juego individual se llaman igual que el juego (antes tenían nombre propio y se confundían)
+const v = (modo: '1v1' | '3v3', id: string, nombre: string, idea: string, base?: string, vivo = false): TipoVersus =>
+  ({ id, modo, nombre: (modo === '1v1' && base && !vivo && juegoPorId(base)?.nombre) || nombre, idea, base, vivo });
 
 export const VERSUS: TipoVersus[] = [
   v('1v1', 'duelo-tinta', 'Duelo de Tinta', 'Las mismas palabras tramposas para los dos: gana quien acierta más sin caer.', 'tinta'),

@@ -3,37 +3,37 @@
 -- 2) Mensaje 2, al final: los duelos que faltan porque alguien todavía no entra a la web (para que estén al tanto).
 -- Si después se agregan duelos con "➕ Agregar duelos que faltan", el aviso dice "nuevos duelos" (no "cruce creado")
 -- y vuelve a listar los que siguen faltando.
--- También deja los nombres de los juegos igual que en la web (Versus 1v1). Se puede volver a ejecutar sin problema.
+-- También deja los nombres de los juegos igual que en la web (el nombre del juego, también en los duelos). Se puede volver a ejecutar sin problema.
 
 insert into public.nombres_juegos (id, nombre) values
-  ('tinta', 'Duelo de Tinta'),
-  ('cangrejos', 'Cangrejos a Dos Manos'),
-  ('numeros', 'Carrera de Números'),
-  ('eco', 'Duelo de Ecos'),
-  ('cocos', 'Duelo de Cocos'),
-  ('parejas', 'Parejas cara a cara'),
-  ('bolos', 'Bolos cara a cara'),
-  ('totem', 'Tiro al Tótem por turnos'),
-  ('cofre', 'El Cofre o la Ola en duelo'),
-  ('cartero', 'Carteros rivales'),
-  ('minigolf', 'Minigolf mano a mano'),
-  ('sumo', 'Sumo de Balsas 1v1'),
-  ('karts', 'Duelo de Karts'),
-  ('tren', 'Fuga en Paralelo'),
-  ('tanques', 'Duelo de Tanques'),
-  ('bombas', 'Duelo de Bombas'),
-  ('agujero', 'Duelo de Agujeros'),
-  ('defensa', 'Duelo de Castillos'),
-  ('museo', 'Ladrones Rivales'),
-  ('tiro', 'Duelo de Pistoleros'),
-  ('cocina', 'Duelo de Chefs'),
-  ('billar', 'Mesa contra Mesa'),
-  ('triples', 'Duelo de Triples'),
-  ('serpientes', 'Duelo de Serpientes'),
-  ('calabazas', 'Duelo de Calabazas'),
-  ('laberinto', 'Laberinto en Paralelo'),
-  ('escobas', 'Duelo de Escobas'),
-  ('torre', 'Duelo de Torres')
+  ('tinta', 'Tinta Tramposa'),
+  ('cangrejos', 'Mata-Cangrejos'),
+  ('numeros', 'Cazanúmeros'),
+  ('eco', 'Eco del Templo'),
+  ('cocos', 'Cocos al Vuelo'),
+  ('parejas', 'Parejas del Arrecife'),
+  ('bolos', 'Bolos de Coco'),
+  ('totem', 'Tiro al Tótem'),
+  ('cofre', 'El Cofre o la Ola'),
+  ('cartero', 'Ruta del Cartero'),
+  ('minigolf', 'Minigolf del Volcán'),
+  ('sumo', 'Sumo de Balsas'),
+  ('karts', 'Gran Premio'),
+  ('tren', 'Fuga del Tren'),
+  ('tanques', 'Tanques de Juguete'),
+  ('bombas', 'Bombas'),
+  ('agujero', 'Agujero Negro'),
+  ('defensa', 'Defensa de la Torre'),
+  ('museo', 'Ladrón del Museo'),
+  ('tiro', 'Galería de Tiro'),
+  ('cocina', 'Cocina Caótica'),
+  ('billar', 'Billar'),
+  ('triples', 'Triples'),
+  ('serpientes', 'Serpientes'),
+  ('calabazas', 'Torre de Calabazas'),
+  ('laberinto', 'Laberinto Embrujado'),
+  ('escobas', 'Carrera de Escobas'),
+  ('torre', 'Torre Tambaleante')
 on conflict (id) do update set nombre = excluded.nombre;
 
 -- Los duelos que le faltan a un cruce: en cada enfrentamiento ya armado, se juntan los que no tienen duelo de cada lado
