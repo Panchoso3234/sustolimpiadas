@@ -6,8 +6,10 @@ import { ATAQUES, FORCEJEO, eficacia, especie, type Ataque, type EstadoAlterado,
 // lista de eventos que la vista cuenta y anima en orden.
 
 export const NIVEL = 50;
+/** Una criatura del equipo: su número (al nivel 50) o su número y su nivel. */
+export type Miembro = number | { n: number; nivel: number };
 export interface Luchador {
-  n: number; ps: number; max: number; stats: Record<Stat, number>; etapas: Record<Stat, number>;
+  n: number; nivel: number; ps: number; max: number; stats: Record<Stat, number>; etapas: Record<Stat, number>;
   estado: EstadoAlterado | null; sueno: number; toxico: number; confusion: number; pp: number[];
 }
 export interface Lado { equipo: Luchador[]; activo: number; pociones: number; curas: number; protegido: boolean; protecciones: number; retrocede: boolean; actuo: boolean }
@@ -29,17 +31,17 @@ export type Texto = 'falla' | 'noAfecta' | 'seProtegio' | 'protege' | 'retrocede
   | 'confundido' | 'sinConfusion' | 'seGolpea' | 'sinEfecto' | 'yaTiene' | 'pocion' | 'cura' | 'forcejeo' | 'sinPP' | 'curaEstado';
 
 /** Estadísticas al nivel 50 (como con el máximo de potencial y sin entrenamiento extra). */
-export const calcular = (n: number) => {
-  const b = especie(n).base, otro = (v: number) => Math.floor(((2 * v + 31) * NIVEL) / 100) + 5;
-  return { ps: Math.floor(((2 * b.ps + 31) * NIVEL) / 100) + NIVEL + 10, stats: { at: otro(b.at), def: otro(b.def), ate: otro(b.ate), dfe: otro(b.dfe), vel: otro(b.vel) } };
+export const calcular = (n: number, nivel = NIVEL) => {
+  const b = especie(n).base, otro = (v: number) => Math.floor(((2 * v + 31) * nivel) / 100) + 5;
+  return { ps: Math.floor(((2 * b.ps + 31) * nivel) / 100) + nivel + 10, stats: { at: otro(b.at), def: otro(b.def), ate: otro(b.ate), dfe: otro(b.dfe), vel: otro(b.vel) } };
 };
-const nuevoLuchador = (n: number): Luchador => {
-  const c = calcular(n);
-  return { n, ps: c.ps, max: c.ps, stats: c.stats, etapas: { at: 0, def: 0, ate: 0, dfe: 0, vel: 0 }, estado: null, sueno: 0, toxico: 0, confusion: 0, pp: especie(n).ataques.map((id) => ATAQUES[id].pp) };
+const nuevoLuchador = (m: Miembro): Luchador => {
+  const n = typeof m === 'number' ? m : m.n, nivel = typeof m === 'number' ? NIVEL : m.nivel, c = calcular(n, nivel);
+  return { n, nivel, ps: c.ps, max: c.ps, stats: c.stats, etapas: { at: 0, def: 0, ate: 0, dfe: 0, vel: 0 }, estado: null, sueno: 0, toxico: 0, confusion: 0, pp: especie(n).ataques.map((id) => ATAQUES[id].pp) };
 };
 const hash = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
-export function nuevoCombate(semilla: string, a: number[], b: number[], objetos = { pociones: 2, curas: 1 }): Combate {
-  const lado = (eq: number[]): Lado => ({ equipo: eq.map(nuevoLuchador), activo: 0, pociones: objetos.pociones, curas: objetos.curas, protegido: false, protecciones: 0, retrocede: false, actuo: false });
+export function nuevoCombate(semilla: string, a: Miembro[], b: Miembro[], objetos = { pociones: 2, curas: 1 }): Combate {
+  const lado = (eq: Miembro[]): Lado => ({ equipo: eq.map(nuevoLuchador), activo: 0, pociones: objetos.pociones, curas: objetos.curas, protegido: false, protecciones: 0, retrocede: false, actuo: false });
   return { lados: [lado(a), lado(b)], turno: 0, azar: hash(semilla), ganador: null };
 }
 /** Número al azar entre 0 y 1 (mulberry32 con el estado dentro del combate, así se puede copiar y repetir). */
@@ -64,7 +66,7 @@ export function calcularDano(atacante: Luchador, defensor: Luchador, at: Ataque,
   const A = fisico ? (critico ? Math.max(efectiva(atacante, 'at'), atacante.stats.at) : efectiva(atacante, 'at')) : (critico ? Math.max(efectiva(atacante, 'ate'), atacante.stats.ate) : efectiva(atacante, 'ate'));
   const D = fisico ? (critico ? Math.min(efectiva(defensor, 'def'), defensor.stats.def) : efectiva(defensor, 'def')) : (critico ? Math.min(efectiva(defensor, 'dfe'), defensor.stats.dfe) : efectiva(defensor, 'dfe'));
   const poder = at.efecto?.dobleSiEstado && defensor.estado ? at.poder * 2 : at.poder;
-  let d = Math.floor(Math.floor((Math.floor((2 * NIVEL) / 5 + 2) * poder * A) / D) / 50) + 2;
+  let d = Math.floor(Math.floor((Math.floor((2 * atacante.nivel) / 5 + 2) * poder * A) / D) / 50) + 2;
   if (critico) d = Math.floor(d * 1.5);
   d = Math.floor((d * aleatorio) / 100);
   if (at !== FORCEJEO && tipos(atacante).includes(at.tipo)) d = Math.floor(d * 1.5);

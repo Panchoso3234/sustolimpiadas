@@ -165,6 +165,8 @@ export interface Especie {
   n: number; nombre: string; tipos: Tipo[];
   base: { ps: number } & Record<Stat, number>;
   ataques: string[]; etapa: 1 | 2 | 3; evoluciona?: number; legendaria?: boolean;
+  /** Nivel al que evoluciona (si falta: 30 desde la primera etapa y 45 desde la segunda). */
+  nivelEvo?: number;
   descripcion: string; forma: Forma;
 }
 
@@ -187,8 +189,8 @@ export const ESPECIES: Especie[] = [
   e(12, 'Pío', ['normal', 'volador'], [40, 45, 40, 35, 35, 56], ['picotazo', 'tornado', 'ataqueRapido', 'malicioso'], 1, 13, 'Pajarito de plaza. Siempre anda en bandada y pía al amanecer.', f('ave', 0.62, '#c8915a', '#f5e0c0', '#f0a030', 'tiernos', ['pico', 'alas-plumas'])),
   e(13, 'Gorrazo', ['normal', 'volador'], [63, 60, 55, 50, 50, 71], ['ataqueAla', 'ataqueRapido', 'malicioso', 'respiro'], 2, 14, 'Defiende su territorio con picotazos. Su cresta se eriza cuando se enoja.', f('ave', 0.95, '#b07840', '#f0dcc0', '#f0a030', 'feroces', ['pico', 'alas-plumas', 'cresta'])),
   e(14, 'Halconcio', ['normal', 'volador'], [83, 95, 75, 60, 70, 101], ['aveBrava', 'golpeCuerpo', 'ataqueRapido', 'respiro'], 3, undefined, 'Rey del cielo. Ve a su presa desde lo alto y cae en picada a toda velocidad.', f('ave', 1.45, '#6a4428', '#f4efe4', '#d9a020', 'feroces', ['cabeza-clara', 'pico-gancho', 'alas-plumas', 'cola-plumas'])),
-  e(15, 'Orugita', ['bicho'], [45, 30, 35, 20, 20, 45], ['placaje', 'hiloPegajoso', 'picadura', 'proteccion'], 1, 16, 'Oruga glotona. Come el triple de su peso en hojas cada día.', f('oruga', 0.62, '#a6c83a', '#f0f0a0', '#ffd23c', 'tiernos', ['antenas', 'manchas'])),
-  e(16, 'Capullón', ['bicho'], [50, 20, 55, 25, 25, 30], ['fortaleza', 'picadura', 'hiloPegajoso', 'placaje'], 2, 17, 'Se queda quieto dentro de su capullo duro mientras se prepara para cambiar.', f('capullo', 0.8, '#c8b048', '#e8d890', '#8a7a30', 'serenos', [])),
+  { ...e(15, 'Orugita', ['bicho'], [45, 30, 35, 20, 20, 45], ['placaje', 'hiloPegajoso', 'picadura', 'proteccion'], 1, 16, 'Oruga glotona. Come el triple de su peso en hojas cada día.', f('oruga', 0.62, '#a6c83a', '#f0f0a0', '#ffd23c', 'tiernos', ['antenas', 'manchas'])), nivelEvo: 22 },
+  { ...e(16, 'Capullón', ['bicho'], [50, 20, 55, 25, 25, 30], ['fortaleza', 'picadura', 'hiloPegajoso', 'placaje'], 2, 17, 'Se queda quieto dentro de su capullo duro mientras se prepara para cambiar.', f('capullo', 0.8, '#c8b048', '#e8d890', '#8a7a30', 'serenos', [])), nivelEvo: 32 },
   e(17, 'Vitralis', ['bicho', 'psiquico'], [60, 45, 50, 90, 80, 70], ['zumbido', 'psiquico', 'somnifero', 'danzaAleteo'], 3, undefined, 'Sus alas son transparentes como vitral. El polvo que sueltan hace dormir.', f('mariposa', 1.0, '#8a6ad0', '#c8b8f0', '#a0f0ff', 'tiernos', ['antenas', 'alas-cristal'])),
   e(18, 'Armadito', ['tierra'], [50, 75, 85, 20, 30, 40], ['aranazo', 'disparoLodo', 'fortaleza', 'lanzarrocas'], 1, 19, 'Vive en zonas secas. Se hace bolita para protegerse y rodar.', f('cuadrupedo', 0.75, '#d8b060', '#f5e0b0', '#a07a40', 'tiernos', ['hocico-fino', 'placas', 'orejas-puntas', 'garras'])),
   e(19, 'Rodamuro', ['tierra', 'roca'], [75, 100, 110, 45, 55, 65], ['terremoto', 'rocaAfilada', 'avalancha', 'pulimento'], 2, undefined, 'Sus placas son duras como roca. Al rodar abre túneles en la montaña.', f('cuadrupedo', 1.25, '#a88a50', '#e0c890', '#7a7a84', 'feroces', ['hocico-fino', 'placas', 'espinas-lomo', 'orejas-puntas', 'garras'])),
@@ -205,6 +207,12 @@ export const ESPECIES: Especie[] = [
   e(30, 'Nubradón', ['dragon', 'volador'], [100, 110, 90, 120, 100, 90], ['cometaDragon', 'vendaval', 'lanzallamas', 'respiro'], 1, undefined, 'Legendario. Duerme sobre las nubes y su rugido trae tormentas de verano.', f('serpiente', 2.2, '#6f55d8', '#e8e8ff', '#ffffff', 'feroces', ['hocico-largo', 'cuernos', 'melena', 'nubes', 'bigotes-dragon']), true),
 ];
 export const especie = (n: number) => ESPECIES[n - 1];
+
+export const nivelEvolucion = (sp: Especie) => sp.nivelEvo ?? (sp.etapa === 1 ? 30 : 45);
+/** La forma que tiene una línea a cierto nivel: evoluciona en cadena mientras alcance el nivel. */
+export function formaANivel(n: number, nivel: number) { let x = especie(n); while (x.evoluciona && nivel >= nivelEvolucion(x)) x = especie(x.evoluciona); return x.n; }
+/** Las primeras etapas (y las que no evolucionan): con ellas se sube la torre. */
+export const INICIALES = ESPECIES.filter((x) => x.etapa === 1 && !x.legendaria).map((x) => x.n);
 
 /** Las que se pueden elegir para combatir: las de su última etapa (y las sin evolución), menos la legendaria. */
 export const ELEGIBLES = ESPECIES.filter((x) => !x.evoluciona && !x.legendaria).map((x) => x.n);

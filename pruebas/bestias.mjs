@@ -60,6 +60,13 @@ c = N.nuevoCombate('inmune', [n('Farolín')], [n('Volcadrac')]);
 ev = N.resolverTurno(c, [{ tipo: 'atacar', i: 2 }, { tipo: 'atacar', i: 3 }]);
 ver('los de Fuego no se queman', N.activo(c, 1).estado === null);
 
+// Niveles y evoluciones: la línea de fuego evoluciona en el Nv. 30 y en el 45; la oruga, antes; las sueltas no cambian
+ver('evoluciones por nivel', D.formaANivel(1, 18) === 1 && D.formaANivel(1, 30) === 2 && D.formaANivel(1, 50) === 3 && D.formaANivel(15, 26) === 16 && D.formaANivel(15, 34) === 17 && D.formaANivel(24, 99) === 24);
+ver('13 crías para empezar la torre (sin la legendaria)', D.INICIALES.length === 13 && !D.INICIALES.some((x) => D.especie(x).legendaria));
+const bajo = N.nuevoCombate('nv', [{ n: 1, nivel: 18 }], [{ n: 4, nivel: 18 }]), alto = N.nuevoCombate('nv', [{ n: 1, nivel: 50 }], [{ n: 4, nivel: 50 }]);
+const dBajo = N.calcularDano(bajo.lados[0].equipo[0], bajo.lados[1].equipo[0], D.ATAQUES.aranazo, false, 100).dano, dAlto = N.calcularDano(alto.lados[0].equipo[0], alto.lados[1].equipo[0], D.ATAQUES.aranazo, false, 100).dano;
+ver('el nivel cuenta en PS y daño', bajo.lados[0].equipo[0].max < alto.lados[0].equipo[0].max && dBajo < dAlto, `PS ${bajo.lados[0].equipo[0].max} vs ${alto.lados[0].equipo[0].max}`);
+
 // Balance: con la IA normal de los dos lados, ninguna criatura elegible gana casi siempre o casi nunca
 const victorias = Object.fromEntries(D.ELEGIBLES.map((x) => [x, [0, 0]]));
 for (let s = 0; s < 400; s++) {

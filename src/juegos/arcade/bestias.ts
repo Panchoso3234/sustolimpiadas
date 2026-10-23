@@ -3,17 +3,22 @@ import { generador } from '../../nucleo/azar';
 import type { Contexto, Partida } from '../marco';
 import { mat } from '../punteria/fisica';
 import { crearEscenario } from '../reflejos/motor';
-import { ATAQUES, ELEGIBLES, ESPECIES, TIPOS, eficacia, especie, type EstadoAlterado, type Stat, type Tipo } from './bestiasDatos';
+import { ATAQUES, ESPECIES, INICIALES, TIPOS, eficacia, especie, formaANivel, nivelEvolucion, type EstadoAlterado, type Stat, type Tipo } from './bestiasDatos';
 import { elegirAccion, elegirReemplazo, type Nivel } from './bestiasIA';
 import { animarBestia, crearBestia, type Bestia } from './bestiasModelo';
-import { NIVEL, acciones, activo, ataqueDe, cambiar, necesitaCambio, nuevoCombate, resolverTurno, tipos, type Accion, type Combate, type Evento, type Texto } from './bestiasNucleo';
+import { acciones, activo, ataqueDe, cambiar, necesitaCambio, nuevoCombate, resolverTurno, tipos, type Accion, type Combate, type Evento, type Miembro, type Texto } from './bestiasNucleo';
 
 // Bestiario: batallas de criaturas al estilo clásico, de frente. Eliges 3 criaturas de 6 sorteadas y subes una torre de
 // rivales cada vez más listos. Tu criatura de espaldas abajo a la izquierda y la rival de frente arriba a la derecha,
 // sus cuadros de vida, el cuadro de texto y el menú Luchar / Equipo / Objetos.
 
-const COMBATES = 3;
-const RIVALES: { nombre: string; nivel: Nivel }[] = [{ nombre: 'Excursionista Toño', nivel: 'facil' }, { nombre: 'Domadora Ema', nivel: 'normal' }, { nombre: 'Maestro Bruno', nivel: 'dificil' }];
+const COMBATES = 5, NIVEL_INICIAL = 18, SUBE = 8, TUTORIAL = 'susto.bestias.tutorial';
+/** Cuántos niveles menos que tu equipo traen los rivales (como en los juegos clásicos, la torre se puede ganar). */
+const DESVENTAJA = [4, 4, 3, 2, 1];
+const RIVALES: { nombre: string; nivel: Nivel; jefe?: boolean }[] = [
+  { nombre: 'Excursionista Toño', nivel: 'facil' }, { nombre: 'Pescadora Ema', nivel: 'facil' }, { nombre: 'Domador Bruno', nivel: 'normal' },
+  { nombre: 'Científica Lía', nivel: 'dificil' }, { nombre: 'Guardiana del Cielo', nivel: 'dificil', jefe: true },
+];
 const STAT: Record<Stat, string> = { at: 'El Ataque', def: 'La Defensa', ate: 'El Ataque Esp.', dfe: 'La Defensa Esp.', vel: 'La Velocidad' };
 const SIGLA: Record<EstadoAlterado, [string, string]> = { quemado: ['QUE', '#ee8130'], paralizado: ['PAR', '#d8b020'], dormido: ['DOR', '#8a8a9a'], envenenado: ['ENV', '#a33ea1'], toxico: ['TOX', '#7a1a8a'], congelado: ['CON', '#5ab8d8'] };
 const chip = (t: Tipo) => `<span class="b-tipo" style="background:${TIPOS[t].color}">${TIPOS[t].nombre}</span>`;
@@ -181,7 +186,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   const pintarCaja = (lado: number) => {
     if (!combate) return;
     const yo = activo(combate, lado), sp = especie(yo.n), caja = cajas[lado];
-    caja.querySelector('.b-nombre')!.innerHTML = `${sp.nombre} <small>Nv.${NIVEL}</small>${yo.estado ? ` <em style="background:${SIGLA[yo.estado][1]}">${SIGLA[yo.estado][0]}</em>` : ''}`;
+    caja.querySelector('.b-nombre')!.innerHTML = `${sp.nombre} <small>Nv.${yo.nivel}</small>${yo.estado ? ` <em style="background:${SIGLA[yo.estado][1]}">${SIGLA[yo.estado][0]}</em>` : ''}`;
     caja.querySelector('.b-tipos')!.innerHTML = sp.tipos.map(chip).join('');
     caja.querySelector('.b-equipo')!.innerHTML = combate.lados[lado].equipo.map((l) => `<i class="${l.ps > 0 ? (l.estado ? 'mal' : 'bien') : 'fuera'}"></i>`).join('');
     pintarVida(lado);
@@ -270,6 +275,7 @@ export async function crear(c: Contexto): Promise<Partida> {
         await decir(ev.lado === 0 ? `¡Adelante, ${especie(n).nombre}!` : `¡${RIVALES[numCombate].nombre} envió a ${especie(n).nombre}!`, 0.2);
         vidaMostrada[ev.lado] = L.equipo[ev.a].ps / L.equipo[ev.a].max; pintarCaja(ev.lado);
         await entrar(ev.lado, n);
+        marcarVista(n);
         break;
       }
       case 'debilitado': {
@@ -320,13 +326,26 @@ export async function crear(c: Contexto): Promise<Partida> {
     }
   };
 
+  // ── Criaturas vistas (se guardan en este navegador): las que no has visto salen en el Bestiario como silueta ──
+  const VISTAS = 'susto.bestias.vistas';
+  const vistas = new Set<number>((() => { try { return JSON.parse(localStorage.getItem(VISTAS) ?? '[]') as number[]; } catch { return []; } })());
+  const marcarVista = (n: number) => { if (vistas.has(n)) return; vistas.add(n); try { localStorage.setItem(VISTAS, JSON.stringify([...vistas])); } catch { /* sin almacenamiento */ } };
+  /** Pinta una criatura entera de un color (silueta blanca al evolucionar, negra si no la has visto) o la devuelve a sus colores. */
+  const BLANCO = new THREE.MeshBasicMaterial({ color: '#ffffff' }), NEGRO = new THREE.MeshBasicMaterial({ color: '#1a1626' });
+  const silueta = (b: Bestia, m: THREE.Material | null) => b.grupo.traverse((o) => {
+    const x = o as THREE.Mesh;
+    if (!x.isMesh) return;
+    if (m) { x.userData.original ??= x.material; x.material = m; } else if (x.userData.original) x.material = x.userData.original;
+  });
+
   // ── Elegir equipo y Bestiario ──
   const fichaHTML = (n: number) => {
     const sp = especie(n), total = Object.values(sp.base).reduce((s, v) => s + v, 0), barras = [['PS', sp.base.ps], ['Ataque', sp.base.at], ['Defensa', sp.base.def], ['At. Esp.', sp.base.ate], ['Def. Esp.', sp.base.dfe], ['Velocidad', sp.base.vel]] as [string, number][];
     const previa = ESPECIES.find((x) => x.evoluciona === n);
+    if (!vistas.has(n)) return `<header><b>N.º ${String(n).padStart(3, '0')}</b><h3>???</h3></header><p>Todavía no has visto esta criatura. Sube la torre para descubrirla: aparecen en los equipos rivales y al evolucionar.</p>`;
     return `<header><b>N.º ${String(n).padStart(3, '0')}</b><h3>${sp.nombre}</h3>${sp.tipos.map(chip).join('')}</header>
       <p>${sp.descripcion}</p>
-      <p class="b-evo">${sp.legendaria ? 'Criatura legendaria' : `${previa ? `Evoluciona de ${previa.nombre}` : 'Primera etapa'}${sp.evoluciona ? ` · evoluciona a ${especie(sp.evoluciona).nombre}` : ' · etapa final'}`}</p>
+      <p class="b-evo">${sp.legendaria ? 'Criatura legendaria' : !previa && !sp.evoluciona ? 'No evoluciona' : `${previa ? `Evoluciona de ${previa.nombre}` : 'Primera etapa'}${sp.evoluciona ? ` · evoluciona a ${vistas.has(sp.evoluciona) ? especie(sp.evoluciona).nombre : '???'} en el Nv. ${nivelEvolucion(sp)}` : ' · etapa final'}`}</p>
       <div class="b-stats">${barras.map(([k, v]) => `<span>${k}</span><i><b style="width:${Math.min(100, (v / 140) * 100)}%;background:${v >= 100 ? '#3fd06a' : v >= 70 ? '#f2c22c' : '#ee8130'}"></b></i><em>${v}</em>`).join('')}<span>Total</span><i></i><em>${total}</em></div>
       <ul class="b-ataques">${sp.ataques.map((id) => { const at = ATAQUES[id]; return `<li><span style="background:${TIPOS[at.tipo].color}">${TIPOS[at.tipo].nombre}</span><strong>${at.nombre}</strong><small>${at.cat === 'estado' ? 'Estado' : `${at.cat === 'fisico' ? 'Físico' : 'Especial'} · ${at.poder}`}${at.precision ? ` · ${at.precision}%` : ''}</small><p>${at.texto}</p></li>`; }).join('')}</ul>`;
   };
@@ -335,26 +354,28 @@ export async function crear(c: Contexto): Promise<Partida> {
     panel.className = 'b-panel visible b-bestiario';
     for (;;) {
       verEnVitrina(n);
-      panel.innerHTML = `<div class="b-ficha">${fichaHTML(n)}</div><div class="b-nav"></div>`;
+      if (!vistas.has(n) && enVitrina) silueta(enVitrina, NEGRO);
+      panel.innerHTML = `<div class="b-ficha"><p class="b-vistas">Vistas: ${vistas.size} / ${ESPECIES.length}</p>${fichaHTML(n)}</div><div class="b-nav"></div>`;
       const v = await menu([{ html: '◀ Anterior', valor: -1 }, { html: `${n} / ${ESPECIES.length}`, valor: 0 }, { html: 'Siguiente ▶', valor: 1 }], 3, true, panel.querySelector<HTMLElement>('.b-nav')!);
       if (v === null) return;
       n = ((n - 1 + v + ESPECIES.length) % ESPECIES.length) + 1;
-      if (v !== 0) grito(n);
+      if (v !== 0 && vistas.has(n)) grito(n);
     }
   };
   const elegirEquipo = async (): Promise<number[]> => {
-    const sorteo = [...ELEGIBLES].sort(() => r() - 0.5).slice(0, 6), elegidos: number[] = [];
+    const sorteo = [...INICIALES].sort(() => r() - 0.5).slice(0, 6), elegidos: number[] = [];
+    for (const n of sorteo) marcarVista(n);
     if (piloto) return sorteo.slice(0, 3);
     abajo.classList.add('oculto');
     let foco = sorteo[0];
     for (;;) {
       panel.className = 'b-panel visible b-elegir';
       verEnVitrina(foco);
-      panel.innerHTML = `<div class="b-lista"><h2>Elige tu equipo <small>${elegidos.length} / 3</small></h2><p>El primero que elijas sale a combatir. Te esperan ${COMBATES} rivales cada vez más difíciles.</p><div class="b-opciones"></div></div><div class="b-ficha">${fichaHTML(foco)}</div>`;
+      panel.innerHTML = `<div class="b-lista"><h2>Elige tu equipo <small>${elegidos.length} / 3</small></h2><p>Empiezan en el Nv. ${NIVEL_INICIAL} y suben de nivel con cada victoria: así evolucionan. El primero que elijas sale a combatir. Te esperan ${COMBATES} rivales y, al final, una criatura legendaria.</p><div class="b-opciones"></div></div><div class="b-ficha">${fichaHTML(foco)}</div>`;
       const opciones = [
         ...sorteo.map((n) => ({ html: `<strong>${especie(n).nombre}</strong>${especie(n).tipos.map(chip).join('')}${elegidos.includes(n) ? `<b class="b-marca">${elegidos.indexOf(n) + 1}</b>` : ''}`, valor: n, clase: elegidos.includes(n) ? 'elegido' : '' })),
-        { html: '<strong>Ver Bestiario (30)</strong>', valor: -1, clase: 'b-especial' },
-        { html: elegidos.length === 3 ? '<strong>¡A combatir!</strong>' : '<strong>Elige 3</strong>', valor: -2, no: elegidos.length !== 3, clase: 'b-listo' },
+        { html: `<strong>Ver Bestiario (${vistas.size}/${ESPECIES.length})</strong>`, valor: -1, clase: 'b-especial' },
+        { html: elegidos.length === 3 ? '<strong>¡A la torre!</strong>' : '<strong>Elige 3</strong>', valor: -2, no: elegidos.length !== 3, clase: 'b-listo' },
       ];
       const donde = panel.querySelector<HTMLElement>('.b-opciones')!;
       const p = menu(opciones, 2, false, donde);
@@ -373,45 +394,89 @@ export async function crear(c: Contexto): Promise<Partida> {
   };
 
   // ── La torre ──
-  let puntos = 0, numCombate = 0, ganados = 0, rendido = false, terminado = false, musica = false;
+  let puntos = 0, numCombate = 0, ganados = 0, evoluciones = 0, rendido = false, terminado = false, musica = false;
   const modo = (combatiendo: boolean) => {
     vitrina.visible = !combatiendo; for (const p of plataformas) p.visible = combatiendo;
     for (const caja of cajas) caja.classList.toggle('visible', combatiendo);
   };
-  const pelear = async (equipo: number[]) => {
-    const rival = RIVALES[numCombate], pool = ELEGIBLES.filter((n) => !equipo.includes(n) || r() < 0.3), suyo: number[] = [];
-    while (suyo.length < 3) { const n = pool[Math.floor(r() * pool.length)]; if (!suyo.includes(n)) suyo.push(n); }
+  /** La evolución clásica: la silueta blanca alterna entre la forma vieja y la nueva cada vez más rápido y aparece la nueva. */
+  const evolucionar = async (de: number, a: number) => {
+    modo(false);
+    verEnVitrina(de);
+    const viejo = enVitrina!, nuevo = crearBestia(a);
+    nuevo.grupo.position.copy(P_VITRINA); nuevo.grupo.scale.setScalar(Math.min(1.4, 1.7 / nuevo.alto)); nuevo.grupo.visible = false; e.escena.add(nuevo.grupo);
+    await decir(`¿Eh? ¡${especie(de).nombre} está evolucionando!`, 0.5);
+    silueta(viejo, BLANCO); silueta(nuevo, BLANCO);
+    let ultimo = -1;
+    await animar(3.4, (k) => {
+      const cambios = Math.floor(k * k * 26);
+      viejo.grupo.visible = cambios % 2 === 0; nuevo.grupo.visible = !viejo.grupo.visible;
+      if (cambios !== ultimo) { ultimo = cambios; e.sonido.tono(400 + cambios * 30, 0.08, { tipo: 'triangle', vol: 0.06 }); if (cambios % 3 === 0) e.chispas(P_VITRINA.x, 0.9, P_VITRINA.z, ['#ffffff', '#fff2a0'], 6, 2.5); }
+      if (enVitrina) animarBestia(nuevo, k * 3);
+    });
+    viejo.grupo.removeFromParent(); nuevo.grupo.visible = true; enVitrina = nuevo;
+    await animar(0.4, (k) => { if (k > 0.5) silueta(nuevo, null); });
+    silueta(nuevo, null);
+    e.chispas(P_VITRINA.x, 1, P_VITRINA.z, ['#ffffff', '#ffe36b', TIPOS[especie(a).tipos[0]].color], 40, 4.5); grito(a);
+    [523, 659, 784, 1046, 1318].forEach((f, i) => e.sonido.tono(f, 0.22, { tipo: 'square', vol: 0.05, cuando: (e.sonido.ctx?.currentTime ?? 0) + i * 0.11 }));
+    marcarVista(a); evoluciones++;
+    await decir(`¡Felicidades! Tu ${especie(de).nombre} evolucionó a ${especie(a).nombre}.`, 1);
+    await decir(`${especie(a).nombre} aprendió ${especie(a).ataques.filter((id) => !especie(de).ataques.includes(id)).map((id) => ATAQUES[id].nombre).join(', ') || 'nuevos movimientos'}.`, 0.8);
+    nuevo.grupo.removeFromParent(); enVitrina = null;
+  };
+  /** El equipo del rival: tres líneas sorteadas, en la forma que les toca a su nivel (la jefa trae a la legendaria). */
+  const equipoRival = (nivel: number, jefe: boolean): Miembro[] => {
+    const bases: number[] = [];
+    while (bases.length < (jefe ? 2 : 3)) { const n = INICIALES[Math.floor(r() * INICIALES.length)]; if (!bases.includes(n)) bases.push(n); }
+    const suyo: Miembro[] = bases.map((n) => ({ n: formaANivel(n, nivel), nivel }));
+    if (jefe) suyo.push({ n: ESPECIES.find((x) => x.legendaria)!.n, nivel: nivel + 3 });
+    return suyo;
+  };
+  const pelear = async (equipo: { n: number; nivel: number }[]) => {
+    const rival = RIVALES[numCombate], nivel = equipo[0].nivel - DESVENTAJA[numCombate], suyo = equipoRival(nivel, !!rival.jefe), azarIA = generador(`${c.semilla}|ia|${numCombate}`);
     combate = nuevoCombate(`${c.semilla}|torre|${numCombate}`, equipo, suyo);
+    // Los rivales traen menos objetos: ninguno al principio y una Poción los dos últimos
+    combate.lados[1].pociones = numCombate >= 3 ? 1 : 0; combate.lados[1].curas = 0;
     eficaces = 0; criticos = 0;
     modo(true);
     for (const caja of cajas) caja.classList.remove('visible');
     e.hud.tiempo(`Rival ${numCombate + 1} / ${COMBATES}`); e.hud.extra(rival.nombre);
-    await decir(`¡${rival.nombre} quiere combatir!`);
+    await decir(rival.jefe ? '¡La Guardiana del Cielo te espera en la cima de la torre! Una criatura legendaria baja de las nubes…' : `¡${rival.nombre} quiere combatir!`);
+    const primera = (suyo[0] as { n: number }).n;
     vidaMostrada[1] = 1; pintarCaja(1); cajas[1].classList.add('visible');
-    await decir(`¡${rival.nombre} envió a ${especie(suyo[0]).nombre}!`, 0.2); await entrar(1, suyo[0]);
+    await decir(`¡${rival.nombre} envió a ${especie(primera).nombre}!`, 0.2); await entrar(1, primera); marcarVista(primera);
     vidaMostrada[0] = 1; pintarCaja(0); cajas[0].classList.add('visible');
-    await decir(`¡Adelante, ${especie(equipo[0]).nombre}!`, 0.2); await entrar(0, equipo[0]);
+    await decir(`¡Adelante, ${especie(equipo[0].n).nombre}!`, 0.2); await entrar(0, equipo[0].n);
+    // Tutorial (solo la primera vez en este navegador)
+    let tutorial = false;
+    try { tutorial = numCombate === 0 && !piloto && !localStorage.getItem(TUTORIAL); } catch { /* sin almacenamiento */ }
+    if (tutorial) {
+      await decir('Consejo: en tu turno elige Luchar y un ataque. Cada ataque tiene su tipo y el menú te avisa si es muy eficaz contra el rival.', 1.2);
+      await decir('Los ataques del mismo tipo que tu criatura pegan más fuerte. Si te toca un rival difícil, cambia de criatura en Equipo.', 1.2);
+      await decir('Las Pociones curan la mitad de la vida. ¡Ganar hace subir de nivel a tu equipo y así evoluciona!', 1.2);
+      try { localStorage.setItem(TUTORIAL, '1'); } catch { /* sin almacenamiento */ }
+    }
     musica = true;
     while (combate.ganador === null && vivo && !rendido) {
       const mia = await turnoJugador();
       if (rendido) break;
-      const suya = elegirAccion(combate, 1, rival.nivel);
+      const suya = elegirAccion(combate, 1, rival.nivel, azarIA);
       elMenu.innerHTML = '';
       await contarTodo(resolverTurno(combate, [mia, suya]));
       if (combate.ganador !== null) break;
-      if (necesitaCambio(combate, 1)) { const evs: Evento[] = []; cambiar(combate, 1, elegirReemplazo(combate, 1), evs); await contarTodo(evs); }
+      if (necesitaCambio(combate, 1)) { const evs: Evento[] = []; cambiar(combate, 1, elegirReemplazo(combate, 1), evs); await contarTodo(evs); marcarVista(activo(combate, 1).n); }
       if (necesitaCambio(combate, 0)) { await decir('¡Elige a tu siguiente criatura!', 0); const a = piloto ? elegirReemplazo(combate, 0) : await menuEquipo(true); const evs: Evento[] = []; cambiar(combate, 0, a ?? elegirReemplazo(combate, 0), evs); await contarTodo(evs); }
     }
     musica = false;
     const gane = combate.ganador === 0 && !rendido;
     if (gane) {
       const L = combate.lados[0], vivas = L.equipo.filter((l) => l.ps > 0), vida = vivas.reduce((s, l) => s + l.ps / l.max, 0) / 3;
-      const premio = 1000 + vivas.length * 250 + Math.round(vida * 300) + Math.max(0, 20 - combate.turno) * 15 + eficaces * 20 + criticos * 10;
+      const premio = 1000 + vivas.length * 250 + Math.round(vida * 300) + Math.max(0, 20 - combate.turno) * 15 + eficaces * 20 + criticos * 10 + (rival.jefe ? 2000 : 0);
       puntos += premio; ganados++;
       e.hud.puntos(puntos);
       e.sonido.bien(); [523, 659, 784, 1046].forEach((f, i) => e.sonido.tono(f, 0.2, { tipo: 'square', vol: 0.06, cuando: (e.sonido.ctx?.currentTime ?? 0) + i * 0.12 }));
       e.flotante(`+${premio}`, 0, 2.2, 0, 'oro');
-      await decir(`¡Derrotaste a ${rival.nombre}! Ganas ${premio} puntos.`, 1.2);
+      await decir(rival.jefe ? `¡Venciste a la criatura legendaria y a la Guardiana del Cielo! Ganas ${premio} puntos.` : `¡Derrotaste a ${rival.nombre}! Ganas ${premio} puntos.`, 1.2);
     } else if (!rendido) await decir('¡Ya no te quedan criaturas! Fin de la torre.', 1.2);
     for (const lado of [0, 1]) { modelos[lado]?.grupo.removeFromParent(); modelos[lado] = null; }
     return gane;
@@ -420,14 +485,19 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (terminado) return;
     terminado = true;
     e.detener();
-    c.alTerminar({ puntaje: puntos, lineas: [['Rivales vencidos', `${ganados} / ${COMBATES}`], ['Resultado', ganados === COMBATES ? '¡Torre superada!' : rendido ? 'Te rendiste' : 'Te derrotaron']], detalle: { ganados } });
+    c.alTerminar({ puntaje: puntos, lineas: [['Rivales vencidos', `${ganados} / ${COMBATES}`], ['Evoluciones', String(evoluciones)], ['Resultado', ganados === COMBATES ? '¡Torre superada!' : rendido ? 'Te rendiste' : 'Te derrotaron']], detalle: { ganados, evoluciones } });
   };
   const jugar = async () => {
     modo(false);
-    const equipo = await elegirEquipo();
+    const equipo = (await elegirEquipo()).map((n) => ({ n, nivel: NIVEL_INICIAL }));
     for (numCombate = 0; numCombate < COMBATES && vivo && !rendido; numCombate++) {
-      if (numCombate > 0) await decir('Tu equipo descansó y está como nuevo. ¡Siguiente rival!', 0.8);
       if (!(await pelear(equipo))) break;
+      if (numCombate === COMBATES - 1) break;
+      // Después de cada victoria: el equipo sube de nivel, descansa y las que alcanzan su nivel evolucionan
+      for (const m of equipo) m.nivel += SUBE;
+      await decir(`¡Tu equipo subió al Nv. ${equipo[0].nivel} y descansó!`, 0.8);
+      for (const m of equipo) { const forma = formaANivel(m.n, m.nivel); if (forma !== m.n) { await evolucionar(m.n, forma); m.n = forma; } }
+      await decir(RIVALES[numCombate + 1].jefe ? 'Queda la cima de la torre…' : '¡Siguiente rival!', 0.5);
     }
     if (ganados === COMBATES) { puntos += 1500; e.hud.puntos(puntos); await decir('¡Superaste la torre completa! +1500 puntos.', 1.5); }
     terminar();

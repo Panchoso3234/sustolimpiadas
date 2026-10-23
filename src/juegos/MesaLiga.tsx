@@ -12,7 +12,8 @@ import { CRUCES, calendarioDeEquipos, jornadaDe } from './liga';
 const RONDAS = 3;
 /** Juegos que sirven para un duelo 1v1 en diferido. */
 // Juegos que entran a la liga recién desde un cruce (los nuevos, cuando el cruce en curso ya estaba armado)
-const DESDE_CRUCE: Record<string, number> = { bloques: 2 };
+// bestias: fuera de la liga hasta que Pancho decida desde qué cruce entra
+const DESDE_CRUCE: Record<string, number> = { bloques: 2, bestias: 99 };
 const juegosDuelo = (cruce: number) => VERSUS.filter((t) => t.modo === '1v1' && t.base && !t.vivo && juegoPorId(t.base)?.listo && (DESDE_CRUCE[t.base] ?? 1) <= cruce).map((t) => t.base!);
 
 interface Borrador { cruce: number; juegos: string[]; duelos: { a: string; b: string; juego: string; equipos: [number, number] }[] }

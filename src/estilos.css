@@ -869,6 +869,7 @@ em.sin-cuenta { font-style: normal; font-size: .72rem; color: var(--sangre); mar
 .b-ataques li > span { padding: 0 6px; margin-right: 6px; border-radius: 99px; color: #fff; font-size: .64rem; }
 .b-ataques li small { margin-left: 6px; color: #6a6a7a; }
 .b-ataques p { margin: 2px 0 0; font-size: .74rem; }
+.b-vistas { grid-column: 1 / -1; margin: 0; padding: 4px 10px; border-radius: 99px; background: rgba(253, 251, 242, .92); font-weight: 800; text-align: center; }
 .b-bestiario .b-ficha { order: 2; }
 .b-bestiario .b-nav { order: 1; align-self: flex-end; width: min(420px, 40%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 @media (max-width: 760px), (max-height: 480px) {
