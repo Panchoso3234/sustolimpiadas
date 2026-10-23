@@ -11,7 +11,7 @@ import { crearEscenario, sombra } from '../reflejos/motor';
 import { ATAQUES, ELEGIBLES, ESPECIES, INICIALES, TIPOS, eficacia, especie, formaANivel, nivelEvolucion, type EstadoAlterado, type Stat, type Tipo } from './bestiasDatos';
 import { elegirAccion, elegirReemplazo, type Nivel } from './bestiasIA';
 import { crearEfectos } from './bestiasEfectos';
-import { animarBestia, crearBestia, sacudir, type Bestia } from './bestiasModelo';
+import { animarBestia, crearBestia, precargar, sacudir, type Bestia } from './bestiasModelo';
 import { acciones, activo, ataqueDe, cambiar, necesitaCambio, nuevoCombate, resolverTurno, tipos, type Accion, type Combate, type Evento, type Miembro, type Texto } from './bestiasNucleo';
 
 // Bestiario: batallas de criaturas al estilo clásico, de frente. Eliges 3 criaturas de 6 sorteadas y subes una torre de
@@ -55,7 +55,8 @@ export async function crear(c: Contexto): Promise<Partida> {
     <div class="b-caja b-mia"><div class="b-nombre"></div><div class="b-tipos"></div><div class="b-vida"><span>PS</span><i><u></u><b></b></i></div><div class="b-numeros"></div><div class="b-equipo"></div></div>
     <div class="b-abajo"><div class="b-texto"></div><div class="b-menu"></div></div>
     <div class="b-panel"></div>
-    <div class="b-herramientas"><button data-h="vel" title="Velocidad de los textos y animaciones">x1</button><button data-h="tipos">Tabla de tipos</button><button data-h="log">Historial</button></div>
+    <div class="b-herramientas"><button data-h="vel" title="Velocidad de los textos y animaciones">x1</button><button data-h="consejo" title="Consejo">💡<span> Consejo</span></button><button data-h="tipos" title="Tabla de tipos">📊<span> Tipos</span></button><button data-h="log" title="Historial">📜<span> Historial</span></button><button data-h="op" title="Opciones">⚙<span> Opciones</span></button></div>
+    <div class="b-reacciones"></div><div class="b-reloj"><i></i></div><div class="b-vs"></div><div class="b-resumen"></div>
     <div class="b-hoja"></div>`;
   const $ = (s: string) => raiz.querySelector<HTMLElement>(s)!;
   const cajas = [$('.b-mia'), $('.b-rival')], elTexto = $('.b-texto'), elMenu = $('.b-menu'), panel = $('.b-panel'), abajo = $('.b-abajo');
@@ -69,13 +70,14 @@ export async function crear(c: Contexto): Promise<Partida> {
   const esperar = (seg: number) => animar(seg);
   let escalaTiempo = 1;
   const fx = crearEfectos(e, animar);
+  fx.vestirPlataformas([...plataformas, vitrina]);
   fx.escenario(0);
   // Resplandor para el fuego, los rayos y los orbes (en equipos lentos se dibuja directo)
   let composer: EffectComposer | null = null;
   if (!e.liviano && !(import.meta.env.DEV && parametros.has('sinbrillo'))) {
     composer = new EffectComposer(e.render, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 2 }));
     composer.addPass(new RenderPass(e.escena, e.camara));
-    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.5, 0.45, 0.88);
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.65, 0.5, 1.15);
     composer.addPass(bloom); composer.addPass(new OutputPass());
     e.usarDibujo(() => composer!.render(), (w, h) => { composer!.setPixelRatio(e.render.getPixelRatio()); composer!.setSize(w, h); });
   }
@@ -92,6 +94,17 @@ export async function crear(c: Contexto): Promise<Partida> {
   const sombras = [sombra(0.55), sombra(0.55)];
   for (const sm of sombras) { (sm.material as THREE.MeshBasicMaterial).color.set('#1a1a10'); e.escena.add(sm); }
   const vidaFantasma = [1, 1];
+  let orbita: { c: THREE.Vector3; t: number } | null = null;
+
+  // ── Opciones de accesibilidad (se guardan en este navegador) ──
+  const op = { grande: false, calma: false, musica: 0.7, efectos: 1, consejo: false };
+  try { Object.assign(op, JSON.parse(localStorage.getItem('susto.bestias.opciones') ?? '{}')); } catch { /* sin almacenamiento */ }
+  const guardarOp = () => { try { localStorage.setItem('susto.bestias.opciones', JSON.stringify(op)); } catch { /* sin almacenamiento */ } };
+  const sonidoOriginal = { tono: e.sonido.tono.bind(e.sonido), ruido: e.sonido.ruido.bind(e.sonido) }, temblarOriginal = e.temblar.bind(e);
+  e.sonido.tono = (f, d, o = {}) => sonidoOriginal.tono(f, d, { ...o, vol: (o.vol ?? 0.3) * op.efectos });
+  e.sonido.ruido = (d, vol = 0.2, cuando) => sonidoOriginal.ruido(d, vol * op.efectos, cuando);
+  e.temblar = (fuerza: number) => { if (!op.calma) temblarOriginal(fuerza); };
+  const tonoMusica = (f: number, d: number, o: { tipo?: OscillatorType; vol?: number }) => sonidoOriginal.tono(f, d, { ...o, vol: (o.vol ?? 0.05) * op.musica });
 
   // ── Herramientas: velocidad x2, tabla de tipos e historial del combate ──
   const hoja = $('.b-hoja'), historial: string[] = [];
@@ -99,7 +112,21 @@ export async function crear(c: Contexto): Promise<Partida> {
   const pintarVel = () => { botonVel.textContent = velocidad > aceleracion ? '⏩ x2' : '▶ x1'; };
   pintarVel();
   const TODOS = Object.keys(TIPOS) as Tipo[];
-  const abrirHoja = (que: 'tipos' | 'log') => {
+  const pintarConsejo = () => raiz.querySelector('[data-h="consejo"]')!.classList.toggle('activo', op.consejo);
+  pintarConsejo();
+  const aplicarOp = () => { raiz.classList.toggle('b-grande', op.grande); fx.calmar(op.calma); };
+  const abrirHoja = (que: 'tipos' | 'log' | 'op') => {
+    if (que === 'op') {
+      hoja.innerHTML = `<h3>Opciones</h3>
+        <label><input type="checkbox" data-op="grande" ${op.grande ? 'checked' : ''}> Texto grande</label>
+        <label><input type="checkbox" data-op="calma" ${op.calma ? 'checked' : ''}> Sin destellos ni temblores</label>
+        <label>Música <input type="range" min="0" max="100" data-op="musica" value="${Math.round(op.musica * 100)}"></label>
+        <label>Efectos <input type="range" min="0" max="100" data-op="efectos" value="${Math.round(op.efectos * 100)}"></label>
+        <button class="boton">Cerrar</button>`;
+      hoja.classList.add('visible');
+      hoja.querySelectorAll('input').forEach((x) => x.addEventListener('input', () => { const k = x.dataset.op as 'grande' | 'calma' | 'musica' | 'efectos'; if (k === 'grande' || k === 'calma') op[k] = x.checked; else op[k] = Number(x.value) / 100; guardarOp(); aplicarOp(); }));
+      return;
+    }
     hoja.innerHTML = que === 'tipos'
       ? `<h3>Tabla de tipos <small>ataque ↓ contra defensa →</small></h3><div class="b-tabla" style="--n:${TODOS.length}"><span></span>${TODOS.map((t) => `<span class="b-cab" style="background:${TIPOS[t].color}" title="${TIPOS[t].nombre}">${ICONO[t]}</span>`).join('')}${TODOS.map((a) => `<span class="b-cab" style="background:${TIPOS[a].color}">${ICONO[a]} ${TIPOS[a].nombre}</span>${TODOS.map((d) => { const x = eficacia(a, [d]); return `<span class="b-ef${x === 2 ? ' muy' : x === 0 ? ' nulo' : x < 1 ? ' poco' : ''}">${x === 2 ? '2' : x === 0 ? '0' : x < 1 ? '½' : ''}</span>`; }).join('')}`).join('')}</div><p>2 = muy eficaz · ½ = poco eficaz · 0 = no afecta. Los ataques del mismo tipo que la criatura pegan x1,5.</p>`
       : `<h3>Historial del combate</h3><ol>${historial.slice(-40).map((x) => `<li>${x}</li>`).join('') || '<li>Todavía no pasa nada.</li>'}</ol>`;
@@ -109,11 +136,20 @@ export async function crear(c: Contexto): Promise<Partida> {
   };
   const cerrarHoja = () => hoja.classList.remove('visible');
   hoja.addEventListener('click', (ev) => { if ((ev.target as HTMLElement).tagName === 'BUTTON' || ev.target === hoja) cerrarHoja(); });
+  queueMicrotask(aplicarOp);
   raiz.querySelector('.b-herramientas')!.addEventListener('click', (ev) => {
     const h = (ev.target as HTMLElement).closest('button')?.dataset.h;
     if (h === 'vel') { velocidad = velocidad > aceleracion ? aceleracion : aceleracion * 2; try { localStorage.setItem('susto.bestias.vel', velocidad > aceleracion ? '2' : '1'); } catch { /* sin almacenamiento */ } pintarVel(); }
-    else if (h === 'tipos' || h === 'log') abrirHoja(h);
+    else if (h === 'tipos' || h === 'log' || h === 'op') abrirHoja(h);
+    else if (h === 'consejo') { op.consejo = !op.consejo; guardarOp(); pintarConsejo(); }
   });
+
+  // Bestiario: arrastrar sobre la escena gira la criatura; la rueda (o pellizcar) acerca
+  let enBestiario = false, giroUsuario: number | null = null, arrastre: number | null = null;
+  e.escuchar(e.lienzo, 'pointerdown', (ev) => { if (enBestiario) arrastre = ev.clientX; });
+  e.escuchar(window, 'pointermove', (ev) => { if (enBestiario && arrastre !== null) { giroUsuario = (giroUsuario ?? 0) + (ev.clientX - arrastre) * 0.012; arrastre = ev.clientX; } });
+  e.escuchar(window, 'pointerup', () => { arrastre = null; });
+  e.escuchar(e.lienzo, 'wheel', (ev) => { if (!enBestiario) return; ev.preventDefault(); foco.a = Math.max(0.55, Math.min(1.2, foco.a + ev.deltaY * 0.001)); foco.x = P_VITRINA.x; foco.z = P_VITRINA.z * 0.5; });
 
   // ── Entrada: teclado, toque y control; los menús escuchan aquí ──
   let escenaActual = 0;
@@ -195,6 +231,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     // Tu criatura mira hacia la rival (se ve de espaldas); la rival te mira a ti
     const hacia = lado === 0 ? P_RIVAL : P_JUGADOR;
     b.grupo.rotation.y = lado === 0 ? Math.atan2(hacia.x - p.x, hacia.z - p.z) + 0.3 : -0.45;
+    b.pose.mira = lado === 0 ? -0.3 : Math.max(-0.6, Math.atan2(P_JUGADOR.x - P_RIVAL.x, P_JUGADOR.z - P_RIVAL.z) + 0.45);
     if (lado === 0) b.grupo.scale.setScalar(c.caja.clientWidth / Math.max(1, c.caja.clientHeight) < 1.6 ? 0.92 : 1.15);
     e.escena.add(b.grupo); modelos[lado] = b; enEscena[lado] = n;
     return b;
@@ -214,12 +251,13 @@ export async function crear(c: Contexto): Promise<Partida> {
   /** Aparece en un destello, cae desde arriba y aterriza aplastándose un poco. */
   const entrar = async (lado: number, n: number) => {
     const b = poner(lado, n), s = b.grupo.scale.x, y0 = b.grupo.position.y;
+    enfocar(b.grupo.position.x * 0.35, 0.9, b.grupo.position.z * 0.35, 0.86); b.pose.aleteo = 2.4;
     e.chispas(b.grupo.position.x, 0.6, b.grupo.position.z, ['#ffffff', '#ffe36b', TIPOS[especie(n).tipos[0]].color], 22, 3.5);
     grito(n);
     await animar(0.5, (k) => { b.grupo.scale.setScalar(s * Math.min(1, 0.3 + k * 1.4)); b.grupo.position.y = y0 + (1 - k * k) * 0.9; });
     b.grupo.position.y = y0; b.pose.estira = -0.22; sacudir(b, 1);
     fx.onda(new THREE.Vector3(b.grupo.position.x, 0.08, b.grupo.position.z), '#ffffff', 1.4, 0.4);
-    await esperar(0.12); b.pose.estira = 0;
+    await esperar(0.12); b.pose.estira = 0; b.pose.aleteo = 1; enfocar();
   };
   const salir = async (ladoMotor: number) => {
     const lado = S(ladoMotor), b = modelos[lado];
@@ -260,21 +298,55 @@ export async function crear(c: Contexto): Promise<Partida> {
   const especial = async (lado: number, tipo: Tipo, falla: boolean) => {
     const m = modelos[S(lado)], a = centroDe(S(lado)), b = centroDe(1 - S(lado));
     if (falla) b.add(new THREE.Vector3(1.2, 0.4, 0.6));
-    if (m) { m.pose.estira = 0.15; m.pose.inclina = -0.12; }
+    if (m) { m.pose.estira = 0.15; m.pose.inclina = -0.12; m.pose.aleteo = 2.6; m.pose.golpe = m.bipedo ? 0.7 : 0; }
     e.sonido.tono(700, 0.3, { tipo: 'sawtooth', vol: 0.05, hasta: 300 });
     await fx.especial(tipo, a, b);
-    if (m) { m.pose.estira = 0; m.pose.inclina = 0; }
+    if (m) { m.pose.estira = 0; m.pose.inclina = 0; m.pose.aleteo = 1; m.pose.golpe = 0; }
   };
-  const embestida = async (lado: number, tipo: Tipo, falla: boolean) => {
+  const embestida = async (lado: number, tipo: Tipo, falla: boolean, id = '') => {
     const m = modelos[S(lado)];
     if (!m) return;
+    if (id === 'terremoto') {
+      const y0 = m.grupo.position.y;
+      m.pose.estira = -0.25; await esperar(0.15); m.pose.estira = 0.25;
+      await animar(0.4, (k) => { m.grupo.position.y = y0 + Math.sin(k * Math.PI) * 0.7; });
+      m.grupo.position.y = y0; m.pose.estira = -0.3; sacudir(m, 1.4); e.temblar(0.7);
+      fx.onda(new THREE.Vector3(m.grupo.position.x, 0.08, m.grupo.position.z), '#c89a50', 3.2, 0.6);
+      if (!falla) fx.impacto('tierra', centroDe(1 - S(lado)), true);
+      await esperar(0.2); m.pose.estira = 0;
+      return;
+    }
     const p0 = m.grupo.position.clone(), objetivo = S(lado) === 0 ? P_RIVAL : P_JUGADOR, destino = objetivo.clone().lerp(p0, falla ? 0.4 : 0.55);
     m.pose.estira = -0.2; m.pose.inclina = 0.15; await esperar(0.14);
-    m.pose.estira = 0.18; m.pose.inclina = 0.3;
+    m.pose.estira = 0.18; m.pose.inclina = 0.3; m.pose.anda = 1; m.pose.aleteo = 2.6;
     await animar(0.18, (k) => m.grupo.position.lerpVectors(p0, destino, k * k));
+    m.pose.golpe = 1;
     if (!falla) fx.impacto(tipo, centroDe(1 - S(lado)), tipo === 'lucha');
-    await animar(0.22, (k) => m.grupo.position.lerpVectors(destino, p0, k));
-    m.grupo.position.copy(p0); m.pose.estira = 0; m.pose.inclina = 0;
+    await animar(0.22, (k) => { m.grupo.position.lerpVectors(destino, p0, k); if (k > 0.4) m.pose.golpe = 0; });
+    m.grupo.position.copy(p0); m.pose.estira = 0; m.pose.inclina = 0; m.pose.anda = 0; m.pose.golpe = 0; m.pose.aleteo = 1;
+  };
+  /** Los ataques de estado tienen su propia animación: danzas que giran, un escudo, curas que brillan, y los que afectan al rival le llegan a él. */
+  const GIRAN = new Set(['danzaEspada', 'danzaDragon', 'danzaAleteo', 'corpulencia', 'agilidad', 'pulimento', 'pazMental', 'desarrollo']);
+  const ataqueDeEstado = async (lado: number, id: string, tipo: Tipo, falla: boolean) => {
+    const m = modelos[S(lado)], c0 = centroDe(S(lado)), at = ATAQUES[id];
+    e.sonido.tono(520, 0.2, { tipo: 'triangle', vol: 0.08, hasta: 900 });
+    if (!m) { await esperar(0.35); return; }
+    if (GIRAN.has(id)) {
+      const giro0 = m.grupo.rotation.y; m.pose.estira = 0.15; m.pose.aleteo = 2.6;
+      await animar(0.6, (k) => { m.grupo.rotation.y = giro0 + k * Math.PI * 2; if (Math.random() < 0.4) fx.emitir(c0.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * 0.8, 0)), new THREE.Vector3(0, 1, 0), TIPOS[tipo].color, 0.16, 0.5); });
+      m.grupo.rotation.y = giro0; m.pose.estira = 0; m.pose.aleteo = 1;
+    } else if (id === 'proteccion') { fx.escudo(c0, m.alto * m.grupo.scale.y * 0.75); await esperar(0.5); }
+    else if (id === 'recuperacion' || id === 'respiro') {
+      const y0 = m.grupo.position.y;
+      fx.estallido(c0, ['#8affb0', '#ffffff'], 22, 1.6, 0.24);
+      await animar(0.5, (k) => { if (id === 'respiro') m.grupo.position.y = y0 + Math.sin(k * Math.PI) * 0.35; m.pose.ojos = 0.5; });
+      m.grupo.position.y = y0; m.pose.ojos = 1;
+    } else if (id === 'refugio' || id === 'fortaleza') { m.pose.estira = -0.2; fx.onda(c0, '#ffffff', 1.4, 0.4, true); await esperar(0.4); m.pose.estira = 0; }
+    else if (at && (at.efecto?.aQuien === 'rival' || at.efecto?.estado || at.efecto?.confusion)) {
+      // Afecta al rival: polvo, onda o rayo que le llega
+      const b = centroDe(1 - S(lado));
+      if (!falla) { m.pose.golpe = m.bipedo ? 0.6 : 0; await fx.especial(tipo, c0, b); m.pose.golpe = 0; } else await esperar(0.3);
+    } else { m.pose.estira = 0.12; fx.estallido(c0, [TIPOS[tipo].color, '#ffffff'], 18, 2.2, 0.22); await esperar(0.35); m.pose.estira = 0; }
   };
   const recibir = async (lado: number, fuerte: boolean) => {
     const m = modelos[S(lado)];
@@ -282,9 +354,9 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (fuerte) e.temblar(0.35);
     e.sonido.ruido(0.14, fuerte ? 0.2 : 0.12); e.sonido.tono(fuerte ? 160 : 120, 0.12, { tipo: 'square', vol: 0.08, hasta: 60 });
     const p0 = m.grupo.position.clone(), atras = p0.clone().sub(S(lado) === 0 ? P_RIVAL : P_JUGADOR).setY(0).normalize().multiplyScalar(fuerte ? 0.35 : 0.2);
-    sacudir(m, fuerte ? 1.6 : 1); m.pose.estira = -0.15;
+    sacudir(m, fuerte ? 1.6 : 1); m.pose.estira = -0.15; m.pose.ojos = 0.3;
     await animar(0.5, (k) => { m.grupo.visible = k > 0.75 || Math.floor(k * 8) % 2 === 0; m.grupo.position.copy(p0).addScaledVector(atras, Math.sin(Math.min(1, k * 1.5) * Math.PI)); });
-    m.grupo.visible = true; m.grupo.position.copy(p0); m.pose.estira = 0;
+    m.grupo.visible = true; m.grupo.position.copy(p0); m.pose.estira = 0; m.pose.ojos = 1;
   };
 
   /** Cuenta un evento del combate: texto, animación y cuadros. */
@@ -298,6 +370,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   };
   const ESTADO_TEXTO: Record<EstadoAlterado, string> = { quemado: 'se quemó', paralizado: 'está paralizado. Quizás no pueda moverse', dormido: 'se durmió', envenenado: 'fue envenenado', toxico: 'fue gravemente envenenado', congelado: 'quedó congelado' };
   let eficaces = 0, criticos = 0;
+  const danoHecho = new Map<number, number>();
   const FALLA = new Set(['falla', 'noAfecta', 'seProtegio']);
   const contar = async (ev: Evento, sig?: Evento) => {
     switch (ev.t) {
@@ -307,15 +380,16 @@ export async function crear(c: Contexto): Promise<Partida> {
         const falla = sig?.t === 'texto' && FALLA.has(sig.clave);
         // La cámara se acerca un poco a la acción
         const pa = S(ev.lado) === 0 ? P_JUGADOR : P_RIVAL; enfocar(pa.x * 0.18, 0.95, pa.z * 0.18, 0.94);
-        if (at?.cat === 'estado') { const m = modelos[S(ev.lado)]; if (m) { m.pose.estira = 0.12; fx.estallido(centroDe(S(ev.lado)), [TIPOS[tipo].color, '#ffffff'], 18, 2.2, 0.22); e.sonido.tono(520, 0.2, { tipo: 'triangle', vol: 0.08, hasta: 900 }); } await esperar(0.35); if (m) m.pose.estira = 0; }
+        if (at?.cat === 'estado') await ataqueDeEstado(ev.lado, ev.ataque, tipo, falla);
         else if (at?.cat === 'especial') await especial(ev.lado, tipo, falla);
-        else await embestida(ev.lado, tipo, falla);
+        else await embestida(ev.lado, tipo, falla, ev.ataque);
         enfocar();
         break;
       }
       case 'daño': {
         if (ev.propio === 'estado') await decir(`¡${nombre(ev.lado)} sufre por ${activo(combate!, ev.lado).estado === 'quemado' ? 'la quemadura' : 'el veneno'}!`, 0.2);
         const blanco = modelos[S(ev.lado)], cb = centroDe(S(ev.lado));
+        if (!ev.propio && S(ev.lado) === 1 && combate) { const quien = activo(combate, YO).n; danoHecho.set(quien, (danoHecho.get(quien) ?? 0) + ev.ps); }
         if (ev.critico) { escalaTiempo = 0.35; enfocar(cb.x * 0.5, 0.85, cb.z * 0.5, 0.8); fx.destello('#ffffff', 0.45); }
         if (blanco && ev.ps > 0) e.flotante(`-${ev.ps}`, cb.x, cb.y + 0.6, cb.z, ev.critico || ev.efic > 1 ? 'mal' : '');
         await Promise.all([recibir(ev.lado, ev.efic > 1 || ev.critico), vidaHacia(ev.lado)]);
@@ -346,7 +420,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       }
       case 'debilitado': {
         const m = modelos[S(ev.lado)];
-        if (m) { grito(activo(combate!, ev.lado).n, 0.6); sacudir(m, 1.5); const y0 = m.grupo.position.y, lado2 = S(ev.lado) === 0 ? -1 : 1; await animar(0.8, (k) => { m.grupo.rotation.z = lado2 * Math.min(1, k * 1.6) * 1.35; m.grupo.position.y = y0 - Math.max(0, k - 0.55) * 2.2; }); fx.estallido(new THREE.Vector3(m.grupo.position.x, 0.2, m.grupo.position.z), ['#d8cdb2', '#ffffff'], 12, 1.2, 0.3); m.grupo.removeFromParent(); modelos[S(ev.lado)] = null; }
+        if (m) { grito(activo(combate!, ev.lado).n, 0.6); m.pose.ojos = 0.1; m.pose.animo = -1; m.grupo.userData.festeja = true; sacudir(m, 1.5); const y0 = m.grupo.position.y, lado2 = S(ev.lado) === 0 ? -1 : 1; await animar(0.8, (k) => { m.grupo.rotation.z = lado2 * Math.min(1, k * 1.6) * 1.35; m.grupo.position.y = y0 - Math.max(0, k - 0.55) * 2.2; }); fx.estallido(new THREE.Vector3(m.grupo.position.x, 0.2, m.grupo.position.z), ['#d8cdb2', '#ffffff'], 12, 1.2, 0.3); m.grupo.removeFromParent(); modelos[S(ev.lado)] = null; }
         pintarCaja(ev.lado);
         await decir(`¡${nombre(ev.lado)} se debilitó!`);
         break;
@@ -361,11 +435,12 @@ export async function crear(c: Contexto): Promise<Partida> {
   const menuAtaques = async (): Promise<Accion | null> => {
     const yo = activo(combate!, YO), el = activo(combate!, 1 - YO);
     if (yo.pp.every((p) => p <= 0)) return { tipo: 'atacar', i: -1 };
+    const sugerido = op.consejo ? elegirAccion(combate!, YO, 'dificil', () => 0.5) : null;
     return menu(especie(yo.n).ataques.map((id, i) => {
       const at = ataqueDe(yo, i), ef = at.cat === 'estado' ? -1 : eficacia(at.tipo, tipos(el));
       const pista = ef < 0 ? '' : ef === 0 ? '<u class="nulo">No afecta</u>' : ef > 1 ? '<u class="muy">Muy eficaz</u>' : ef < 1 ? '<u class="poco">Poco eficaz</u>' : '';
       const info = `${at.nombre}: ${at.cat === 'estado' ? 'de estado' : `${at.cat === 'fisico' ? 'físico' : 'especial'}, poder ${at.poder}`}${at.precision ? `, precisión ${at.precision} %` : ', nunca falla'}${at.prioridad ? ', golpea primero' : ''}. ${at.texto}`;
-      return { html: `<strong>${at.nombre}</strong><span style="background:${TIPOS[at.tipo].color}">${ICONO[at.tipo]} ${TIPOS[at.tipo].nombre}</span><small>PP ${yo.pp[i]}/${at.pp}</small>${pista}`, valor: { tipo: 'atacar', i } as Accion, no: yo.pp[i] <= 0, clase: 'b-ataque', info };
+      return { html: `<strong>${at.nombre}</strong><span style="background:${TIPOS[at.tipo].color}">${ICONO[at.tipo]} ${TIPOS[at.tipo].nombre}</span><small>PP ${yo.pp[i]}/${at.pp}</small>${pista}${sugerido?.tipo === 'atacar' && sugerido.i === i ? '<u class="consejo">⭐ Consejo</u>' : ''}`, valor: { tipo: 'atacar', i } as Accion, no: yo.pp[i] <= 0, clase: 'b-ataque', info };
     }), 2, true);
   };
   const menuEquipo = async (forzado: boolean): Promise<number | null> => {
@@ -379,7 +454,8 @@ export async function crear(c: Contexto): Promise<Partida> {
       // En vivo, si se acabó el tiempo del turno, juega la máquina por ti
       if (agotado) return elegirAccion(combate!, YO, 'normal');
       const L = combate!.lados[YO];
-      await decir(`¿Qué hará ${especie(activo(combate!, YO).n).nombre}?`, 0);
+      const idea = op.consejo ? elegirAccion(combate!, YO, 'dificil', () => 0.5) : null;
+      await decir(idea?.tipo === 'cambiar' ? `Consejo: conviene cambiar a ${especie(combate!.lados[YO].equipo[idea.a].n).nombre}.` : idea?.tipo === 'objeto' ? 'Consejo: conviene usar un objeto.' : `¿Qué hará ${especie(activo(combate!, YO).n).nombre}?`, 0);
       const quiere = await menu([{ html: 'Luchar', valor: 'luchar' }, { html: 'Equipo', valor: 'equipo' }, { html: `Objetos <small>${L.pociones + L.curas}</small>`, valor: 'objetos' }, ...(c.vivo ? [] : [{ html: 'Rendirse', valor: 'rendirse' }])], 2, false);
       if (quiere === 'luchar') { const a = await menuAtaques(); if (a) return a; }
       if (quiere === 'equipo') { const a = await menuEquipo(false); if (a !== null) return { tipo: 'cambiar', a }; }
@@ -400,7 +476,8 @@ export async function crear(c: Contexto): Promise<Partida> {
   const vistas = new Set<number>((() => { try { return JSON.parse(localStorage.getItem(VISTAS) ?? '[]') as number[]; } catch { return []; } })());
   let cuenta: string | null = null, guardarCuenta = 0;
   const subirVistas = () => { if (cuenta) supabase.from('bestiario_vistas').upsert({ perfil_id: cuenta, vistas: [...vistas].sort((a, b) => a - b), actualizado: new Date().toISOString() }).then(() => {}, () => {}); };
-  const marcarVista = (n: number) => { if (vistas.has(n)) return; vistas.add(n); try { localStorage.setItem(VISTAS, JSON.stringify([...vistas])); } catch { /* sin almacenamiento */ } clearTimeout(guardarCuenta); guardarCuenta = window.setTimeout(subirVistas, 1500); };
+  const DONDE = 'susto.bestias.donde', donde: Record<number, string> = (() => { try { return JSON.parse(localStorage.getItem(DONDE) ?? '{}'); } catch { return {}; } })();
+  const marcarVista = (n: number, lugar = '') => { if (lugar && !donde[n]) { donde[n] = lugar; try { localStorage.setItem(DONDE, JSON.stringify(donde)); } catch { /* sin almacenamiento */ } } if (vistas.has(n)) return; vistas.add(n); try { localStorage.setItem(VISTAS, JSON.stringify([...vistas])); } catch { /* sin almacenamiento */ } clearTimeout(guardarCuenta); guardarCuenta = window.setTimeout(subirVistas, 1500); };
   // Al abrir: se juntan las vistas de la cuenta con las de este navegador (si la tabla no existe todavía, queda solo local)
   supabase.auth.getSession().then(async ({ data }) => {
     cuenta = data.session?.user.id ?? null;
@@ -427,21 +504,24 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (!vistas.has(n)) return `<header><b>N.º ${String(n).padStart(3, '0')}</b><h3>???</h3></header><p>Todavía no has visto esta criatura. Sube la torre para descubrirla: aparecen en los equipos rivales y al evolucionar.</p>`;
     return `<header><b>N.º ${String(n).padStart(3, '0')}</b><h3>${sp.nombre}</h3>${sp.tipos.map(chip).join('')}</header>
       <p>${sp.descripcion}</p>
+      ${donde[n] ? `<p class="b-donde">Vista por primera vez: ${donde[n]}</p>` : ''}
       <p class="b-evo">${sp.legendaria ? 'Criatura legendaria' : !previa && !sp.evoluciona ? 'No evoluciona' : `${previa ? `Evoluciona de ${previa.nombre}` : 'Primera etapa'}${sp.evoluciona ? ` · evoluciona a ${vistas.has(sp.evoluciona) ? especie(sp.evoluciona).nombre : '???'} en el Nv. ${nivelEvolucion(sp)}` : ' · etapa final'}`}</p>
       <div class="b-stats">${barras.map(([k, v]) => `<span>${k}</span><i><b style="width:${Math.min(100, (v / 140) * 100)}%;background:${v >= 100 ? '#3fd06a' : v >= 70 ? '#f2c22c' : '#ee8130'}"></b></i><em>${v}</em>`).join('')}<span>Total</span><i></i><em>${total}</em></div>
       <ul class="b-ataques">${sp.ataques.map((id) => { const at = ATAQUES[id]; return `<li><span style="background:${TIPOS[at.tipo].color}">${TIPOS[at.tipo].nombre}</span><strong>${at.nombre}</strong><small>${at.cat === 'estado' ? 'Estado' : `${at.cat === 'fisico' ? 'Físico' : 'Especial'} · ${at.poder}`}${at.precision ? ` · ${at.precision}%` : ''}</small><p>${at.texto}</p></li>`; }).join('')}</ul>`;
   };
   const bestiario = async (desde: number) => {
     let n = desde, filtro = -1;
+    enBestiario = true; giroUsuario = null;
     panel.className = 'b-panel visible b-bestiario';
     // Con un filtro, solo se recorren las criaturas vistas de ese tipo
     const pasa = (x: number) => filtro < 0 || (vistas.has(x) && especie(x).tipos.includes(TODOS[filtro]));
     for (;;) {
       verEnVitrina(n);
+      void precargar([(n % ESPECIES.length) + 1, ((n + ESPECIES.length - 2) % ESPECIES.length) + 1]);
       if (!vistas.has(n) && enVitrina) silueta(enVitrina, NEGRO);
       panel.innerHTML = `<div class="b-ficha"><p class="b-vistas">Vistas: ${vistas.size} / ${ESPECIES.length}</p>${fichaHTML(n)}</div><div class="b-nav"></div>`;
       const v = await menu([{ html: '◀ Anterior', valor: -1 }, { html: `${n} / ${ESPECIES.length}`, valor: 0 }, { html: 'Siguiente ▶', valor: 1 }, { html: filtro < 0 ? 'Filtro: todos los tipos' : `Filtro: ${ICONO[TODOS[filtro]]} ${TIPOS[TODOS[filtro]].nombre}`, valor: 2, clase: 'b-filtro' }], 3, true, panel.querySelector<HTMLElement>('.b-nav')!);
-      if (v === null) return;
+      if (v === null) { enBestiario = false; giroUsuario = null; enfocar(); return; }
       if (v === 2) {
         // Siguiente tipo que tenga alguna criatura vista
         for (let i = 0; i <= TODOS.length; i++) { filtro = filtro + 1 >= TODOS.length ? -1 : filtro + 1; if (filtro < 0 || ESPECIES.some((x) => pasa(x.n))) break; }
@@ -454,7 +534,8 @@ export async function crear(c: Contexto): Promise<Partida> {
   };
   const elegirEquipo = async (): Promise<number[]> => {
     const sorteo = [...INICIALES].sort(() => r() - 0.5).slice(0, 6), elegidos: number[] = [];
-    for (const n of sorteo) marcarVista(n);
+    for (const n of sorteo) marcarVista(n, 'En el sorteo de la torre');
+    void precargar([...sorteo, ...sorteo.map((n) => formaANivel(n, 30)), ...sorteo.map((n) => formaANivel(n, 50))]);
     if (piloto) return sorteo.slice(0, 3);
     abajo.classList.add('oculto');
     let foco = sorteo[0];
@@ -509,7 +590,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     silueta(nuevo, null);
     e.chispas(P_VITRINA.x, 1, P_VITRINA.z, ['#ffffff', '#ffe36b', TIPOS[especie(a).tipos[0]].color], 40, 4.5); grito(a);
     [523, 659, 784, 1046, 1318].forEach((f, i) => e.sonido.tono(f, 0.22, { tipo: 'square', vol: 0.05, cuando: (e.sonido.ctx?.currentTime ?? 0) + i * 0.11 }));
-    marcarVista(a); evoluciones++;
+    marcarVista(a, 'Al evolucionar'); evoluciones++;
     await decir(`¡Felicidades! Tu ${especie(de).nombre} evolucionó a ${especie(a).nombre}.`, 1);
     await decir(`${especie(a).nombre} aprendió ${especie(a).ataques.filter((id) => !especie(de).ataques.includes(id)).map((id) => ATAQUES[id].nombre).join(', ') || 'nuevos movimientos'}.`, 0.8);
     nuevo.grupo.removeFromParent(); enVitrina = null;
@@ -522,9 +603,33 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (jefe) suyo.push({ n: ESPECIES.find((x) => x.legendaria)!.n, nivel: nivel + 3 });
     return suyo;
   };
+  /** Pantalla VS: los dos entrenadores, tu equipo y las pistas del equipo rival (sus tipos), con un barrido de cámara. */
+  const elVs = $('.b-vs'), elResumen = $('.b-resumen');
+  const presentar = async (izq: string, mios: number[], der: string, suyos: number[], ocultar: boolean) => {
+    const fila = (ns: number[], oculto: boolean) => ns.map((n) => `<span>${oculto ? '???' : especie(n).nombre}<small>${especie(n).tipos.map((t) => ICONO[t]).join(' ')}</small></span>`).join('');
+    elVs.innerHTML = `<div class="b-vs-lado"><b>${izq}</b>${fila(mios, false)}</div><strong>VS</strong><div class="b-vs-lado"><b>${der}</b>${fila(suyos, ocultar)}</div>`;
+    elVs.classList.add('visible');
+    camaraYa.x = -4; camaraYa.y = 1.4; camaraYa.z = -2.5; camaraYa.a = 1.35; enfocar();
+    e.sonido.tono(392, 0.2, { tipo: 'square', vol: 0.07 }); e.sonido.tono(523, 0.35, { tipo: 'square', vol: 0.07, cuando: (e.sonido.ctx?.currentTime ?? 0) + 0.18 });
+    await esperar(piloto ? 0.3 : 2.4);
+    elVs.classList.remove('visible');
+  };
+  /** Al ganar: la cámara gira alrededor de la ganadora y se muestra el daño que hizo cada una. */
+  const resumir = async (titulo: string) => {
+    const ganadora = modelos[0];
+    if (ganadora) orbita = { c: ganadora.grupo.position.clone(), t: 0 };
+    const lista = [...danoHecho.entries()].sort((a, b) => b[1] - a[1]);
+    elResumen.innerHTML = `<h3>${titulo}</h3>${lista.map(([n, d], i) => `<p>${i === 0 ? '⭐ ' : ''}<b>${especie(n).nombre}</b> ${d} de daño${i === 0 ? ' · la mejor del combate' : ''}</p>`).join('') || '<p>Sin daño registrado.</p>'}`;
+    elResumen.classList.add('visible');
+    await esperar(piloto ? 0.4 : 2.6);
+    elResumen.classList.remove('visible'); orbita = null;
+  };
+  let revanchaUsada = false, mitad = false;
   const pelear = async (equipo: { n: number; nivel: number }[]) => {
     const rival = RIVALES[numCombate], nivel = equipo[0].nivel - DESVENTAJA[numCombate], suyo = equipoRival(nivel, !!rival.jefe), azarIA = generador(`${c.semilla}|ia|${numCombate}`);
     combate = nuevoCombate(`${c.semilla}|torre|${numCombate}`, equipo, suyo);
+    danoHecho.clear();
+    await precargar(suyo.map((x) => (x as { n: number }).n));
     // Los rivales traen menos objetos: ninguno al principio y una Poción los dos últimos
     combate.lados[1].pociones = numCombate >= 3 ? 1 : 0; combate.lados[1].curas = 0;
     eficaces = 0; criticos = 0;
@@ -532,10 +637,11 @@ export async function crear(c: Contexto): Promise<Partida> {
     escenaActual = numCombate; fx.escenario(escenaActual);
     for (const caja of cajas) caja.classList.remove('visible');
     e.hud.tiempo(`Rival ${numCombate + 1} / ${COMBATES}`); e.hud.extra(rival.nombre);
+    await presentar('Tú', equipo.map((x) => x.n), rival.nombre, suyo.map((x) => (x as { n: number }).n), true);
     await decir(rival.jefe ? '¡La Guardiana del Cielo te espera en la cima de la torre! Una criatura legendaria baja de las nubes…' : `¡${rival.nombre} quiere combatir!`);
     const primera = (suyo[0] as { n: number }).n;
     vidaMostrada[1] = 1; pintarCaja(1); cajas[1].classList.add('visible');
-    await decir(`¡${rival.nombre} envió a ${especie(primera).nombre}!`, 0.2); await entrar(1, primera); marcarVista(primera);
+    await decir(`¡${rival.nombre} envió a ${especie(primera).nombre}!`, 0.2); await entrar(1, primera); marcarVista(primera, `Torre: ${rival.nombre}`);
     vidaMostrada[0] = 1; pintarCaja(0); cajas[0].classList.add('visible');
     await decir(`¡Adelante, ${especie(equipo[0].n).nombre}!`, 0.2); await entrar(0, equipo[0].n);
     // Tutorial (solo la primera vez en este navegador)
@@ -562,14 +668,17 @@ export async function crear(c: Contexto): Promise<Partida> {
     const gane = combate.ganador === 0 && !rendido;
     if (gane) {
       const L = combate.lados[0], vivas = L.equipo.filter((l) => l.ps > 0), vida = vivas.reduce((s, l) => s + l.ps / l.max, 0) / 3;
-      const premio = 1000 + vivas.length * 250 + Math.round(vida * 300) + Math.max(0, 20 - combate.turno) * 15 + eficaces * 20 + criticos * 10 + (rival.jefe ? 2000 : 0);
+      const premio = Math.round((1000 + vivas.length * 250 + Math.round(vida * 300) + Math.max(0, 20 - combate.turno) * 15 + eficaces * 20 + criticos * 10 + (rival.jefe ? 2000 : 0)) * (mitad ? 0.5 : 1));
+      mitad = false;
       puntos += premio; ganados++;
       e.hud.puntos(puntos);
       e.sonido.bien(); [523, 659, 784, 1046].forEach((f, i) => e.sonido.tono(f, 0.2, { tipo: 'square', vol: 0.06, cuando: (e.sonido.ctx?.currentTime ?? 0) + i * 0.12 }));
       e.flotante(`+${premio}`, 0, 2.2, 0, 'oro');
       const ganadora = modelos[0];
+      if (ganadora) { ganadora.grupo.userData.festeja = true; ganadora.pose.animo = 1; ganadora.pose.ojos = 0.55; }
       if (ganadora) for (let i = 0; i < 2; i++) { ganadora.pose.estira = -0.2; await esperar(0.1); ganadora.pose.estira = 0.2; sacudir(ganadora, 0.6); await animar(0.35, (k) => { ganadora.grupo.position.y = Math.sin(k * Math.PI) * 0.4; }); ganadora.grupo.position.y = 0; ganadora.pose.estira = 0; }
-      await decir(rival.jefe ? `¡Venciste a la criatura legendaria y a la Guardiana del Cielo! Ganas ${premio} puntos.` : `¡Derrotaste a ${rival.nombre}! Ganas ${premio} puntos.`, 1.2);
+      await Promise.all([resumir(rival.jefe ? '¡Venciste a la legendaria!' : `¡Derrotaste a ${rival.nombre}!`), decir(rival.jefe ? `¡Venciste a la criatura legendaria y a la Guardiana del Cielo! Ganas ${premio} puntos.` : `¡Derrotaste a ${rival.nombre}! Ganas ${premio} puntos.`, 1.2)]);
+      if (ganadora) { ganadora.grupo.userData.festeja = false; ganadora.pose.ojos = 1; }
     } else if (!rendido) await decir('¡Ya no te quedan criaturas! Fin de la torre.', 1.2);
     for (const lado of [0, 1]) { modelos[lado]?.grupo.removeFromParent(); modelos[lado] = null; }
     return gane;
@@ -584,7 +693,13 @@ export async function crear(c: Contexto): Promise<Partida> {
     modo(false);
     const equipo = (await elegirEquipo()).map((n) => ({ n, nivel: NIVEL_INICIAL }));
     for (numCombate = 0; numCombate < COMBATES && vivo && !rendido; numCombate++) {
-      if (!(await pelear(equipo))) break;
+      let gane = await pelear(equipo);
+      // Revancha: una vez por torre se puede reintentar el combate perdido (vale la mitad)
+      if (!gane && !rendido && !revanchaUsada && vivo) {
+        await decir('¿Quieres la revancha? Puedes reintentar este combate una vez por torre (vale la mitad de puntos).', 0);
+        if (piloto ? false : await menu([{ html: '¡Revancha!', valor: true }, { html: 'Terminar', valor: false }], 2, false)) { revanchaUsada = true; mitad = true; gane = await pelear(equipo); }
+      }
+      if (!gane) break;
       if (numCombate === COMBATES - 1) break;
       // Después de cada victoria: el equipo sube de nivel, descansa y las que alcanzan su nivel evolucionan
       for (const m of equipo) m.nivel += SUBE;
@@ -620,9 +735,10 @@ export async function crear(c: Contexto): Promise<Partida> {
   /** Corre una cuenta regresiva en el marcador; al llegar a cero cierra el menú abierto (y juega la máquina). */
   const cuentaAtras = (seg: number) => {
     agotado = false;
-    const hasta = performance.now() + seg * 1000;
-    const i = window.setInterval(() => { const q = Math.max(0, Math.ceil((hasta - performance.now()) / 1000)); e.hud.tiempo(`${q} s`); if (q <= 0) { agotado = true; cerrarMenu?.(); clearInterval(i); } }, 250);
-    return () => { clearInterval(i); agotado = false; e.hud.tiempo(''); };
+    const hasta = performance.now() + seg * 1000, barra = $('.b-reloj'), relleno = barra.firstElementChild as HTMLElement;
+    barra.classList.add('visible');
+    const i = window.setInterval(() => { const resta = Math.max(0, hasta - performance.now()), q = Math.ceil(resta / 1000); e.hud.tiempo(`${q} s`); relleno.style.width = `${(resta / (seg * 1000)) * 100}%`; relleno.style.background = q > 10 ? '#3fd06a' : q > 5 ? '#f2c22c' : '#e8423a'; if (q <= 0) { agotado = true; cerrarMenu?.(); clearInterval(i); } }, 100);
+    return () => { clearInterval(i); agotado = false; e.hud.tiempo(''); barra.classList.remove('visible'); };
   };
   const enVivo = async () => {
     const v = c.vivo!, yoL: LadoVivo | null = v.rol === 'espectador' ? null : v.rol, otroL: LadoVivo = yoL === 'b' ? 'a' : 'b';
@@ -630,11 +746,26 @@ export async function crear(c: Contexto): Promise<Partida> {
     duenos = yoL ? null : [v.nombres.a, v.nombres.b];
     // El mismo sorteo para los dos: 8 criaturas en su última etapa, al Nv. 50
     const sorteo = [...ELEGIBLES].sort(() => r() - 0.5).slice(0, 8);
+    void precargar(sorteo);
     const mio: Historial = { equipo: [], acciones: [], reemplazos: [] }, remotos: Record<LadoVivo, Historial | null> = { a: null, b: null };
     const GUARDADO = `susto.bestias.vivo.${c.semilla}.${yoL}`;
     if (yoL) try { const g = JSON.parse(sessionStorage.getItem(GUARDADO) ?? 'null') as Record<string, unknown> | null; if (g && historialValido(g, sorteo)) Object.assign(mio, { equipo: g.equipo, acciones: g.acciones, reemplazos: g.reemplazos }); } catch { /* sin almacenamiento */ }
     const enviar = () => { if (!yoL) return; v.enviar('mundo', { equipo: mio.equipo, acciones: mio.acciones, reemplazos: mio.reemplazos }); try { sessionStorage.setItem(GUARDADO, JSON.stringify(mio)); } catch { /* sin almacenamiento */ } };
-    v.alRecibir((tipo, d, lado) => { if (tipo === 'mundo' && lado && lado !== yoL && historialValido(d, sorteo)) { const prev = remotos[lado]; if (!prev || d.acciones.length >= prev.acciones.length) remotos[lado] = { equipo: d.equipo, acciones: d.acciones, reemplazos: d.reemplazos }; } });
+    // Reacciones rápidas (predefinidas, sin chat libre): se ven sobre el cuadro de quien las manda
+    const REACCIONES = ['👏 ¡Bien jugado!', '😮 ¡Uy!', '🔥 ¡Vamos!', '🤝 Buen duelo'];
+    const elReacciones = $('.b-reacciones');
+    let ultimaReaccion = 0;
+    const mostrarReaccion = (lado: LadoVivo, i: number) => {
+      const caja = cajas[S(lado === 'a' ? 0 : 1)], globo = document.createElement('div');
+      globo.className = 'b-globo'; globo.textContent = REACCIONES[i] ?? ''; caja.appendChild(globo);
+      window.setTimeout(() => globo.remove(), 2200);
+    };
+    if (yoL) {
+      elReacciones.innerHTML = REACCIONES.map((x, i) => `<button data-r="${i}">${x}</button>`).join('');
+      elReacciones.classList.add('visible');
+      elReacciones.addEventListener('click', (ev) => { const i = Number((ev.target as HTMLElement).closest('button')?.dataset.r); if (!Number.isInteger(i) || performance.now() - ultimaReaccion < 1500) return; ultimaReaccion = performance.now(); v.enviar('reaccion', { i }); mostrarReaccion(yoL, i); });
+    }
+    v.alRecibir((tipo, d, lado) => { if (tipo === 'reaccion' && lado && lado !== yoL && Number.isInteger(d.i) && (d.i as number) >= 0 && (d.i as number) < REACCIONES.length) { mostrarReaccion(lado, d.i as number); return; } if (tipo === 'mundo' && lado && lado !== yoL && historialValido(d, sorteo)) { const prev = remotos[lado]; if (!prev || d.acciones.length >= prev.acciones.length) remotos[lado] = { equipo: d.equipo, acciones: d.acciones, reemplazos: d.reemplazos }; } });
     reloj = window.setInterval(enviar, v.directo() ? 400 : 900);
     const de = (l: LadoVivo): Historial | null => (l === yoL ? mio : remotos[l]);
     e.hud.extra(`${v.nombres.a} vs ${v.nombres.b}`);
@@ -649,10 +780,11 @@ export async function crear(c: Contexto): Promise<Partida> {
     await hastaQue(() => (de('a')?.equipo.length ?? 0) === 3 && (de('b')?.equipo.length ?? 0) === 3);
     if (!vivo) return;
     combate = nuevoCombate(`${c.semilla}|vivo`, de('a')!.equipo, de('b')!.equipo);
-    for (const n of [...de('a')!.equipo, ...de('b')!.equipo]) marcarVista(n);
+    for (const n of [...de('a')!.equipo, ...de('b')!.equipo]) marcarVista(n, 'Duelo en vivo');
     modo(true);
     escenaActual = Math.floor(r() * 5); fx.escenario(escenaActual);
     for (const caja of cajas) caja.classList.remove('visible');
+    await presentar(v.nombres[yoL ?? 'a'], de(yoL ?? 'a')!.equipo, v.nombres[yoL ? otroL : 'b'], de(yoL ? otroL : 'b')!.equipo, false);
     await decir(`¡Comienza el duelo! ${v.nombres.a} contra ${v.nombres.b}.`, 0.6);
     for (const lado of [1 - YO, YO]) {
       const n = activo(combate, lado).n, quien = lado === 0 ? v.nombres.a : v.nombres.b;
@@ -782,7 +914,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     }
     fx.actualizar(k);
     for (const [i, m] of modelos.entries()) if (m) animarBestia(m, t, i * 1.3);
-    if (enVitrina) { animarBestia(enVitrina, t); enVitrina.grupo.rotation.y = Math.sin(t * 0.6) * 0.6; }
+    if (enVitrina) { animarBestia(enVitrina, t); enVitrina.grupo.rotation.y = giroUsuario ?? Math.sin(t * 0.6) * 0.6; enVitrina.pose.mira = Math.max(-0.6, Math.min(0.6, -enVitrina.grupo.rotation.y * 0.7)); }
     // Cámara suave
     const ck = 1 - Math.exp(-4 * Math.min(dt, 0.1));
     camaraYa.x += (foco.x - camaraYa.x) * ck; camaraYa.y += (foco.y - camaraYa.y) * ck; camaraYa.z += (foco.z - camaraYa.z) * ck; camaraYa.a += (foco.a - camaraYa.a) * ck;
@@ -794,14 +926,17 @@ export async function crear(c: Contexto): Promise<Partida> {
       if (m) { const alto = m.alto * m.grupo.scale.y, y = m.grupo.position.y + (m.flota ? m.alto * 0.2 : 0); sm.position.set(m.grupo.position.x, 0.06, m.grupo.position.z); sm.scale.setScalar(alto * 0.75 / (1 + Math.max(0, y) * 1.5)); }
       const lado = lugar === 0 ? YO : 1 - YO, luchador = combate ? activo(combate, lado) : null;
       const visible = !!m && !!luchador && luchador.n === enEscena[lugar] && luchador.ps > 0;
-      fx.estados(lugar, visible ? luchador!.estado : null, visible && luchador!.confusion > 0, visible ? m!.grupo.position : null, m ? m.alto * m.grupo.scale.y : 1, k);
+      fx.estados(lugar, visible ? luchador!.estado : null, visible && luchador!.confusion > 0, visible ? m!.grupo.position : null, m ? m.medida.clone().multiplyScalar(m.grupo.scale.y) : null, m ? m.grupo.rotation.y : 0, k);
+      if (m && visible && !m.grupo.userData.festeja) { const f = luchador!.ps / luchador!.max; m.pose.animo = f > 0.6 ? 0.25 : f < 0.25 ? -1 : 0; }
+      // Orbitar la cámara alrededor de la ganadora
+      if (orbita && lugar === 1) { orbita.t += Math.min(dt, 0.1) * 0.9; e.camara.position.set(orbita.c.x + Math.sin(orbita.t) * 4.4, 2.1, orbita.c.z + Math.cos(orbita.t) * 4.4); e.camara.lookAt(orbita.c.x, 0.75, orbita.c.z); }
       if (vidaFantasma[lugar] > vidaMostrada[lugar]) vidaFantasma[lugar] = Math.max(vidaMostrada[lugar], vidaFantasma[lugar] - k * 0.45); else vidaFantasma[lugar] = vidaMostrada[lugar];
       const u = cajas[lugar].querySelector<HTMLElement>('.b-vida u'); if (u) u.style.width = `${Math.max(0, vidaFantasma[lugar]) * 100}%`;
     }
     // Música: tema de batalla según el escenario; en los menús, una versión tranquila
     if (e.sonido.ctx && !terminado) {
       const [bajo, arpegio] = TEMAS[escenaActual % 5], ritmo = musica ? 0.16 : 0.3, s2 = Math.floor(t / ritmo);
-      if (s2 !== paso) { paso = s2; const f = bajo[Math.floor(s2 / 4) % 8]; if (s2 % 2 === 0) e.sonido.tono(f, musica ? 0.14 : 0.25, { tipo: 'triangle', vol: musica ? 0.06 : 0.035 }); if (musica || s2 % 2 === 1) e.sonido.tono(arpegio[s2 % 4] * (Math.floor(s2 / 32) % 2 ? 1.122 : 1), 0.08, { tipo: musica ? 'square' : 'sine', vol: musica ? 0.016 : 0.02 }); }
+      if (s2 !== paso) { paso = s2; const f = bajo[Math.floor(s2 / 4) % 8]; if (s2 % 2 === 0) tonoMusica(f, musica ? 0.14 : 0.25, { tipo: 'triangle', vol: musica ? 0.06 : 0.035 }); if (musica || s2 % 2 === 1) tonoMusica(arpegio[s2 % 4] * (Math.floor(s2 / 32) % 2 ? 1.122 : 1), 0.08, { tipo: musica ? 'square' : 'sine', vol: musica ? 0.016 : 0.02 }); }
     }
   });
 
@@ -823,6 +958,9 @@ export async function crear(c: Contexto): Promise<Partida> {
     (window as unknown as Record<string, unknown>).__efectos = {
       armar(a: number, b: number, escena: number) { modo(true); escenaActual = escena; fx.escenario(escena); poner(0, a); poner(1, b); abajo.classList.add('oculto'); },
       ataque(tipo: Tipo) { const de = centroDe(0), a = centroDe(1); fx.especial(tipo, de, a); },
+      vs() { void presentar('Tú', [6, 9, 11], 'Domador Bruno', [3, 21, 28], true); },
+      resumen() { danoHecho.clear(); danoHecho.set(6, 182); danoHecho.set(11, 95); void resumir('¡Derrotaste a Domador Bruno!'); },
+      pose(lugar: number, p: Partial<Bestia['pose']>) { const m = modelos[lugar]; if (m) Object.assign(m.pose, p); },
       estado(estado: EstadoAlterado | null) { combate = nuevoCombate('x', [enEscena[0]], [enEscena[1]]); activo(combate, 1).estado = estado; },
     };
   }

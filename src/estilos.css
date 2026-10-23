@@ -896,5 +896,36 @@ em.sin-cuenta { font-style: normal; font-size: .72rem; color: var(--sangre); mar
 .b-tabla .b-cab { color: #fff; text-shadow: 0 1px 1px rgba(0, 0, 0, .4); justify-content: flex-start; padding: 0 5px; white-space: nowrap; }
 .b-tabla .muy { background: #3fbf6a; color: #fff; } .b-tabla .poco { background: #e8a24a; color: #fff; } .b-tabla .nulo { background: #5a5a6a; color: #fff; }
 .b-filtro { grid-column: 1 / -1; justify-content: center; }
-@media (max-width: 760px), (max-height: 480px) { .b-herramientas { top: 92px; } .b-herramientas button { padding: 2px 8px; font-size: .7rem; } }
+@media (max-width: 760px), (max-height: 480px) { .b-herramientas { top: 50px; right: auto; left: 50%; transform: translateX(-50%); } .b-herramientas button { padding: 2px 8px; font-size: .7rem; } .b-herramientas button span { display: none; } }
 body.foto .b-herramientas { display: none; }
+/* Bestiario 2.1: VS, resumen, tiempo del turno, reacciones, consejo y opciones */
+.b-vs { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%) scale(.9); display: none; align-items: center; gap: 22px; padding: 18px 26px; border: 3px solid #2b2b3a; border-radius: 18px; background: rgba(253, 251, 242, .96); box-shadow: 0 6px 0 rgba(20, 20, 40, .35); z-index: 4; pointer-events: none; }
+.b-vs.visible { display: flex; animation: b-vs-entra .45s ease-out forwards; }
+@keyframes b-vs-entra { from { transform: translate(-50%, -50%) scale(.6); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+.b-vs > strong { font-family: var(--display); font-size: clamp(2rem, 6vw, 3.4rem); color: #e8423a; text-shadow: 0 3px 0 #2b2b3a; }
+.b-vs-lado { display: flex; flex-direction: column; gap: 4px; min-width: 150px; }
+.b-vs-lado b { font-size: 1.1rem; margin-bottom: 4px; }
+.b-vs-lado span { display: flex; justify-content: space-between; gap: 10px; padding: 3px 8px; border-radius: 8px; background: #f2ecda; font-weight: 700; font-size: .88rem; }
+.b-resumen { position: absolute; right: 3%; top: 160px; display: none; flex-direction: column; gap: 4px; min-width: 240px; padding: 12px 16px; border: 3px solid #2b2b3a; border-radius: 14px; background: rgba(253, 251, 242, .96); z-index: 4; pointer-events: none; }
+.b-resumen.visible { display: flex; animation: b-vs-entra .35s ease-out; }
+.b-resumen h3 { margin: 0 0 4px; } .b-resumen p { margin: 0; font-size: .9rem; }
+.b-reloj { position: absolute; left: 12px; right: 12px; bottom: calc(118px + env(safe-area-inset-bottom, 0px)); height: 7px; border-radius: 99px; background: rgba(20, 20, 40, .35); overflow: hidden; display: none; z-index: 3; }
+.b-reloj.visible { display: block; }
+.b-reloj i { display: block; height: 100%; background: #3fd06a; transition: width .1s linear; }
+.b-reacciones { position: absolute; left: 12px; top: 120px; display: none; flex-direction: column; gap: 5px; pointer-events: auto; z-index: 3; }
+.b-reacciones.visible { display: flex; }
+.b-reacciones button { padding: 4px 10px; border: 2px solid #2b2b3a; border-radius: 99px; background: rgba(253, 251, 242, .92); font-weight: 700; font-size: .78rem; cursor: pointer; text-align: left; }
+.b-globo { position: absolute; left: 50%; top: -38px; transform: translateX(-50%); padding: 4px 12px; border: 2px solid #2b2b3a; border-radius: 99px; background: #fff; font-weight: 800; white-space: nowrap; animation: b-vs-entra .25s ease-out; }
+.b-mia .b-globo { top: auto; bottom: calc(100% + 8px); }
+.b-herramientas button.activo { background: #ffe36b; }
+.b-opcion u.consejo { background: #e8a020; }
+.b-donde { color: #2f8a5a; font-weight: 700; }
+.b-hoja label { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+.b-hoja input[type=range] { flex: 1; max-width: 260px; }
+.bestias.b-grande .b-texto { font-size: clamp(1.15rem, 2.9vw, 1.6rem); }
+.bestias.b-grande .b-opcion { font-size: clamp(1rem, 2.3vw, 1.25rem); }
+.bestias.b-grande .b-nombre { font-size: clamp(1.1rem, 2.4vw, 1.35rem); }
+@media (max-width: 760px), (max-height: 480px) { .b-reloj { bottom: calc(88px + env(safe-area-inset-bottom, 0px)); } .b-reacciones { top: 92px; } .b-vs { gap: 10px; padding: 10px 14px; } .b-vs-lado { min-width: 110px; } }
+body.foto .b-reacciones, body.foto .b-reloj { display: none; }
+.b-herramientas button { white-space: nowrap; }
+@media (max-width: 760px) and (orientation: portrait) { .b-herramientas { left: auto; right: 8px; transform: none; gap: 4px; } }

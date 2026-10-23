@@ -28,7 +28,7 @@ export function crearEfectos(e: Escenario, animar: Animar) {
   const material = (color: string, tex: THREE.Texture, suma: boolean) => {
     const k = `${color}${tex.id}${suma}`;
     let m = mats.get(k);
-    if (!m) { m = new THREE.SpriteMaterial({ map: tex, color, transparent: true, depthWrite: false, blending: suma ? THREE.AdditiveBlending : THREE.NormalBlending }); mats.set(k, m); }
+    if (!m) { m = new THREE.SpriteMaterial({ map: tex, color: suma ? new THREE.Color(color).multiplyScalar(2.2) : color, transparent: true, depthWrite: false, blending: suma ? THREE.AdditiveBlending : THREE.NormalBlending }); mats.set(k, m); }
     return m;
   };
   const emitir = (p: THREE.Vector3, v: THREE.Vector3, color: string, tam: number, vida: number, o: { tex?: THREE.Texture; suma?: boolean; crece?: number; gravedad?: number; gira?: number } = {}) => {
@@ -44,8 +44,10 @@ export function crearEfectos(e: Escenario, animar: Animar) {
 
   // Ondas de choque, mallas que caen o se clavan y haces: cada una con su propia actualización
   const tareas: ((dt: number) => boolean)[] = [];
+  /** Hace algo después de unos segundos del reloj del juego. */
+  const despues = (seg: number, f: () => void) => { let t = 0; tareas.push((dt) => { t += dt; if (t < seg) return true; f(); return false; }); };
   const onda = (p: THREE.Vector3, color: string, tam = 1.6, dur = 0.45, vertical = false) => {
-    const m = new THREE.Mesh(new THREE.RingGeometry(0.7, 1, 40), new THREE.MeshBasicMaterial({ color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    const m = new THREE.Mesh(new THREE.RingGeometry(0.7, 1, 40), new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(1.8), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     m.position.copy(p); if (!vertical) m.rotation.x = -Math.PI / 2; else m.lookAt(e.camara.position);
     e.escena.add(m);
     let t = 0;
@@ -74,7 +76,7 @@ export function crearEfectos(e: Escenario, animar: Animar) {
         onda(v3(b.x, 0.08, b.z), c1, 2.2);
         break;
       case 'planta': // hojas que giran en espiral hacia el rival
-        for (let i = 0; i < 14; i++) window.setTimeout(() => emitir(a.clone().add(v3(azar(0.4), azar(0.4), azar(0.4))), u.clone().multiplyScalar(largo * 1.5).add(v3(azar(1.4), 0.6 + azar(0.6), azar(1.4))), i % 2 ? c1 : '#3a9a2a', 0.26, 0.7, { tex: HOJA, suma: false, gira: 9 }), i * 35);
+        for (let i = 0; i < 14; i++) despues(i * 0.035, () => emitir(a.clone().add(v3(azar(0.4), azar(0.4), azar(0.4))), u.clone().multiplyScalar(largo * 1.5).add(v3(azar(1.4), 0.6 + azar(0.6), azar(1.4))), i % 2 ? c1 : '#3a9a2a', 0.26, 0.7, { tex: HOJA, suma: false, gira: 9 }));
         await animar(0.7);
         break;
       case 'electrico': { // un rayo que cae del cielo sobre el rival
@@ -97,7 +99,7 @@ export function crearEfectos(e: Escenario, animar: Animar) {
         await animar(0.8, (k) => { for (let i = 0; i < 3; i++) { const ang = k * 30 + i * 2.1, r = 0.6 - k * 0.2; emitir(v3(b.x + Math.cos(ang) * r, 0.1 + k * 1.6 + i * 0.1, b.z + Math.sin(ang) * r), v3(-Math.sin(ang) * 2, 1, Math.cos(ang) * 2), i % 2 ? c1 : c2, 0.18, 0.35); } });
         break;
       case 'psiquico': { // ondas de color que viajan hacia el rival
-        for (let i = 0; i < 5; i++) window.setTimeout(() => { const m = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.04, 8, 30), new THREE.MeshBasicMaterial({ color: i % 2 ? c1 : c2, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); m.position.copy(a); m.lookAt(b); e.escena.add(m); let t = 0; tareas.push((dt) => { t += dt; const k = t / 0.55; m.position.copy(a.clone().lerp(b, Math.min(1, k))); m.scale.setScalar(1 + k * 2); (m.material as THREE.MeshBasicMaterial).opacity = 1 - k * 0.8; if (k >= 1) { m.removeFromParent(); m.geometry.dispose(); return false; } return true; }); }, i * 90);
+        for (let i = 0; i < 5; i++) despues(i * 0.09, () => { const m = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.04, 8, 30), new THREE.MeshBasicMaterial({ color: new THREE.Color(i % 2 ? c1 : c2).multiplyScalar(2), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); m.position.copy(a); m.lookAt(b); e.escena.add(m); let t = 0; tareas.push((dt) => { t += dt; const k = t / 0.55; m.position.copy(a.clone().lerp(b, Math.min(1, k))); m.scale.setScalar(1 + k * 2); (m.material as THREE.MeshBasicMaterial).opacity = 1 - k * 0.8; if (k >= 1) { m.removeFromParent(); m.geometry.dispose(); return false; } return true; }); });
         await animar(0.9);
         break;
       }
@@ -109,7 +111,7 @@ export function crearEfectos(e: Escenario, animar: Animar) {
         break;
       }
       case 'dragon': { // un haz que sale de la boca
-        const haz = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 1, 14, 1, true), new THREE.MeshBasicMaterial({ color: c1, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+        const haz = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 1, 14, 1, true), new THREE.MeshBasicMaterial({ color: new THREE.Color(c1).multiplyScalar(2.2), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
         e.escena.add(haz);
         await animar(0.6, (k) => { const l = largo * Math.min(1, k * 2.2); haz.position.copy(a).add(u.clone().multiplyScalar(l / 2)); haz.scale.set(1 + Math.sin(k * 40) * 0.25, l, 1 + Math.sin(k * 40) * 0.25); haz.quaternion.setFromUnitVectors(v3(0, 1, 0), u); emitir(a.clone().add(u.clone().multiplyScalar(l * Math.random())), v3(azar(0.8), azar(0.8), azar(0.8)), c2, 0.2, 0.3); });
         haz.removeFromParent(); haz.geometry.dispose();
@@ -138,7 +140,7 @@ export function crearEfectos(e: Escenario, animar: Animar) {
       for (let i = 0; i < 7; i++) { const g = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.02, 0.1), new THREE.MeshBasicMaterial({ color: '#2a1a10' })); const ang = (i / 7) * Math.PI * 2; g.position.set(b.x, 0.03, b.z); g.rotation.y = ang; e.escena.add(g); grietas.push(g); }
       e.temblar(0.6);
       await animar(0.6, (k) => { grietas.forEach((g, i) => { const ang = (i / 7) * Math.PI * 2; g.scale.z = 1 + k * 14; g.position.set(b.x + Math.sin(ang) * k * 0.7, 0.03, b.z + Math.cos(ang) * k * 0.7); }); if (Math.random() < 0.6) emitir(v3(b.x + azar(1.4), 0.1, b.z + azar(1)), v3(azar(1), 1.5 + Math.random(), azar(1)), Math.random() < 0.5 ? c1 : c2, 0.35, 0.6, { suma: false, crece: 1.2, gravedad: -2 }); });
-      window.setTimeout(() => { for (const g of grietas) { g.removeFromParent(); g.geometry.dispose(); } }, 700);
+      despues(0.7, () => { for (const g of grietas) { g.removeFromParent(); g.geometry.dispose(); } });
       return;
     }
     const rocas: { m: THREE.Mesh; vy: number; listo: boolean }[] = [];
@@ -150,24 +152,27 @@ export function crearEfectos(e: Escenario, animar: Animar) {
         if (r.m.position.y <= 0.1) { r.listo = true; r.m.position.y = 0.1; e.temblar(0.18); estallido(r.m.position, [c1, c2], 6, 1.4, 0.18); }
       }
     });
-    window.setTimeout(() => { for (const r of rocas) { r.m.removeFromParent(); r.m.geometry.dispose(); } }, 500);
+    despues(0.5, () => { for (const r of rocas) { r.m.removeFromParent(); r.m.geometry.dispose(); } });
   };
 
   // ── Destello de pantalla (rayos y golpes críticos) ──
   const capa = document.createElement('div');
   capa.style.cssText = 'position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .25s;z-index:1';
   e.lienzo.parentElement?.appendChild(capa);
-  const destello = (color: string, fuerza = 0.5) => { capa.style.transition = 'none'; capa.style.background = color; capa.style.opacity = String(fuerza); requestAnimationFrame(() => { capa.style.transition = 'opacity .35s'; capa.style.opacity = '0'; }); };
+  let calma = false;
+  const destello = (color: string, fuerza = 0.5) => {
+    if (calma) return; capa.style.transition = 'none'; capa.style.background = color; capa.style.opacity = String(fuerza); requestAnimationFrame(() => { capa.style.transition = 'opacity .35s'; capa.style.opacity = '0'; }); };
 
   // ── Estados sobre la criatura (se llama en cada cuadro con su posición y alto) ──
   const hielos: (THREE.Mesh | null)[] = [null, null], estrellas: THREE.Sprite[][] = [[], []], acumulado = [0, 0];
-  const estados = (lugar: number, estado: EstadoAlterado | null, confuso: boolean, centro: THREE.Vector3 | null, alto: number, dt: number) => {
+  const estados = (lugar: number, estado: EstadoAlterado | null, confuso: boolean, centro: THREE.Vector3 | null, medida: THREE.Vector3 | null, giro: number, dt: number) => {
+    const alto = medida?.y ?? 1;
     acumulado[lugar] += dt;
     const tic = (cada: number) => { if (acumulado[lugar] < cada) return false; acumulado[lugar] = 0; return true; };
     // Congelado: una capa de hielo encima
     if (estado === 'congelado' && centro) {
       if (!hielos[lugar]) { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshBasicMaterial({ color: '#bff0ff', transparent: true, opacity: 0.35, depthWrite: false })); e.escena.add(m); hielos[lugar] = m; }
-      hielos[lugar]!.position.set(centro.x, alto * 0.5, centro.z); hielos[lugar]!.scale.set(alto * 0.55, alto * 0.62, alto * 0.55);
+      hielos[lugar]!.position.set(centro.x, alto * 0.5, centro.z); hielos[lugar]!.scale.set((medida?.x ?? 1) * 0.6, alto * 0.6, (medida?.z ?? 1) * 0.6); hielos[lugar]!.rotation.y = giro;
     } else if (hielos[lugar]) { hielos[lugar]!.removeFromParent(); hielos[lugar] = null; }
     // Confundido: estrellitas que giran sobre la cabeza
     if (confuso && centro) {
@@ -180,6 +185,14 @@ export function crearEfectos(e: Escenario, animar: Animar) {
     if (estado === 'dormido' && tic(0.9)) emitir(v3(centro.x + 0.2, alto * 0.95, centro.z), v3(0.25, 0.45, 0), '#d8e8ff', 0.22, 1.6, { tex: ZETA, suma: false, crece: 0.5 });
     if (estado === 'paralizado' && tic(0.3)) for (let i = 0; i < 4; i++) emitir(arriba, v3(azar(3), azar(3), azar(3)), '#ffe23c', 0.12, 0.18);
     if ((estado === 'envenenado' || estado === 'toxico') && tic(0.35)) emitir(arriba, v3(azar(0.2), 0.6, azar(0.2)), estado === 'toxico' ? '#8a2ab0' : '#c060e8', 0.14, 0.8, { tex: BURBUJA, suma: false });
+  };
+  /** Escudo de Protección: una burbuja que aparece y se desvanece. */
+  const escudo = (centro: THREE.Vector3, radio: number) => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color('#8ad8ff').multiplyScalar(1.6), transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
+    m.position.copy(centro); e.escena.add(m);
+    let t = 0;
+    tareas.push((dt) => { t += dt; const k = t / 1.1; m.scale.setScalar(radio * (0.6 + Math.min(1, k * 4) * 0.4)); (m.material as THREE.MeshBasicMaterial).opacity = 0.35 * (k < 0.7 ? 1 : (1 - k) / 0.3); if (k >= 1) { m.removeFromParent(); m.geometry.dispose(); return false; } return true; });
+    onda(centro, '#bff0ff', radio * 1.6, 0.5, true);
   };
   /** Aura que sube (rojo) o baja (azul) al cambiar una estadística. */
   const aura = (centro: THREE.Vector3, sube: boolean) => { onda(v3(centro.x, 0.08, centro.z), sube ? '#ff8a3a' : '#5a8aff', 1.6, 0.6); for (let i = 0; i < 16; i++) emitir(v3(centro.x + azar(0.9), sube ? 0.1 : 1.4, centro.z + azar(0.6)), v3(0, sube ? 1.8 : -1.6, 0), sube ? '#ff8a3a' : '#5a8aff', 0.16, 0.6); };
@@ -209,6 +222,35 @@ export function crearEfectos(e: Escenario, animar: Animar) {
   const luces = e.escena.children.filter((o) => (o as THREE.Light).isLight) as THREE.Light[];
   const cielo = (arriba: string, medio: string, abajo: string) => { const c = document.createElement('canvas'); c.width = 2; c.height = 256; const g = c.getContext('2d')!, gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, arriba); gr.addColorStop(0.6, medio); gr.addColorStop(1, abajo); g.fillStyle = gr; g.fillRect(0, 0, 2, 256); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
   const NOMBRES = ['Pradera', 'Playa', 'Bosque', 'Cueva de cristal', 'Cima de la torre'];
+  // Plataformas: tierra, superficie y anillo de cada escenario, con su decoración encima
+  let plataformas: THREE.Group[] = [];
+  const ESTILO: [string, string, string][] = [['#b0905a', '#a8e07a', '#8acb5a'], ['#c8a870', '#f0dcaa', '#e0c890'], ['#6a5030', '#6aa050', '#4a8a3a'], ['#4a4458', '#7a7488', '#9a90b0'], ['#c8bca8', '#f2eee6', '#d8c890']];
+  const vestirPlataformas = (grupos: THREE.Group[]) => { plataformas = grupos; };
+  const decorar = (i: number) => {
+    for (const p of plataformas) {
+      const [tierra, cara, anillo] = p.children as THREE.Mesh[], [c1, c2, c3] = ESTILO[i % 5];
+      tierra.material = mat(c1); cara.material = mat(c2); anillo.material = mat(c3);
+      p.getObjectByName('deco')?.removeFromParent();
+      const deco = new THREE.Group(); deco.name = 'deco'; p.add(deco);
+      const radio = (cara.geometry as THREE.CylinderGeometry).parameters.radiusTop;
+      for (let k = 0; k < 9; k++) {
+        const a = (k / 9) * Math.PI * 2 + 0.3, r = radio * (0.8 + (k % 3) * 0.06), x = Math.cos(a) * r, z = Math.sin(a) * r;
+        if (Math.sin(a) > 0.55) continue; // nada delante de la criatura
+        const pieza = i % 5 === 0 ? new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), mat(['#ff8ac8', '#ffe36b', '#ffffff'][k % 3]))
+          : i % 5 === 1 ? new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.08, 5), mat(k % 2 ? '#ffb0c0' : '#fff4e8'))
+          : i % 5 === 2 ? new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), mat(k % 2 ? '#d9443a' : '#c8a070'))
+          : i % 5 === 3 ? new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.22, 5), new THREE.MeshBasicMaterial({ color: new THREE.Color(['#7af0ff', '#c87aff'][k % 2]).multiplyScalar(1.8) }))
+          : new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.015, 6, 12), mat('#e8c060'));
+        pieza.position.set(x, 0.09, z); if (i % 5 === 4) pieza.rotation.x = Math.PI / 2; deco.add(pieza);
+      }
+    }
+    // Color de la escena y viñeta (con CSS, que no cuesta en equipos lentos)
+    e.lienzo.style.filter = ['saturate(1.08)', 'saturate(1.12) brightness(1.03)', 'saturate(0.95) contrast(1.05)', 'saturate(1.1) contrast(1.08)', 'sepia(0.12) saturate(1.15)'][i % 5];
+    vineta.style.background = `radial-gradient(ellipse at center, transparent 55%, ${['rgba(20,40,10,.22)', 'rgba(20,40,60,.18)', 'rgba(10,30,20,.32)', 'rgba(10,0,30,.45)', 'rgba(60,20,40,.3)'][i % 5]} 100%)`;
+  };
+  const vineta = document.createElement('div');
+  vineta.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:1';
+  e.lienzo.parentElement?.insertBefore(vineta, e.lienzo.nextSibling);
   const escenario = (i: number) => {
     grupo?.removeFromParent();
     const g = new THREE.Group(); grupo = g; e.escena.add(g);
@@ -251,7 +293,7 @@ export function crearEfectos(e: Escenario, animar: Animar) {
         e.escena.fog = new THREE.Fog('#2a2440', 8, 26);
         suelo('#4a4458');
         for (let k = 0; k < 16; k++) { const lado = k % 2 ? -1 : 1; caja(new THREE.DodecahedronGeometry(1.4 + Math.random() * 1.6), '#5a5268', lado * (5.5 + Math.random() * 6), 0.6, -2 - Math.random() * 14); }
-        for (let k = 0; k < 14; k++) { const col = ['#7af0ff', '#c87aff', '#ff7ad8'][k % 3]; caja(new THREE.ConeGeometry(0.18, 0.9 + Math.random() * 0.8, 6), new THREE.MeshBasicMaterial({ color: col }), (k % 2 ? -1 : 1) * (3.6 + Math.random() * 4), 0.4, -1 - Math.random() * 9, [1, 1, 1], [azar(0.5), 0, azar(0.5)]); }
+        for (let k = 0; k < 14; k++) { const col = ['#7af0ff', '#c87aff', '#ff7ad8'][k % 3]; caja(new THREE.ConeGeometry(0.18, 0.9 + Math.random() * 0.8, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color(col).multiplyScalar(1.9) }), (k % 2 ? -1 : 1) * (3.6 + Math.random() * 4), 0.4, -1 - Math.random() * 9, [1, 1, 1], [azar(0.5), 0, azar(0.5)]); }
         ambiente = { color: '#9ad8ff', v: v3(0, 0.25, 0), cada: 0.18, suma: true };
         break;
       case 4: // Cima de la torre, entre las nubes, al atardecer
@@ -261,11 +303,13 @@ export function crearEfectos(e: Escenario, animar: Animar) {
         caja(new THREE.CylinderGeometry(5.5, 5.8, 0.4, 40), '#c8bca8', 0, -0.18, -0.2);
         for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2 + 0.2; if (Math.sin(a) > 0.5) continue; caja(new THREE.CylinderGeometry(0.22, 0.26, 2.6, 10), '#e8dcc8', Math.cos(a) * 5.2, 1.3, -0.2 + Math.sin(a) * 4.2); }
         ambiente = { color: '#ffffff', v: v3(1.4, 0.05, 0), cada: 0.12, suma: true };
+        { const sol = new THREE.Sprite(new THREE.SpriteMaterial({ map: PUNTO, color: new THREE.Color('#ffd8a0').multiplyScalar(2.2), depthWrite: false, blending: THREE.AdditiveBlending })); sol.position.set(-9, 5, -40); sol.scale.setScalar(16); g.add(sol); }
         break;
     }
+    decorar(i);
     return NOMBRES[i % 5];
   };
 
-  return { emitir, onda, impacto, especial, destello, estados, aura, actualizar, escenario, estallido };
+  return { emitir, onda, impacto, especial, destello, estados, aura, escudo, actualizar, escenario, estallido, vestirPlataformas, despues, calmar: (b: boolean) => { calma = b; } };
 }
 export type Efectos = ReturnType<typeof crearEfectos>;
