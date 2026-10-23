@@ -16,6 +16,8 @@ export interface Mando {
   tomarAccion(): boolean;
   /** Si está agachado (solo en los juegos que piden el segundo botón). */
   readonly agachado: boolean;
+  /** La palanca derecha del control (x, z), o [0, 0] si no se usa. */
+  readonly derecha: [number, number];
 }
 
 const TECLAS: Record<string, [number, number]> = {
@@ -65,15 +67,16 @@ export function crearMando(e: Escenario, caja: HTMLElement, etiqueta: string, ag
   // Control: se lee en cada consulta (la API no avisa los cambios); el borde de la acción se detecta aquí
   // El control cuenta recién cuando alguien lo usa de verdad (un botón o la palanca a fondo): uno conectado y olvidado,
   // con la palanca un poco descentrada, ya no maneja solo
-  let padAccion = false, padAbajo = false, padX = 0, padZ = 0, padActivo = false;
+  let padAccion = false, padAbajo = false, padX = 0, padZ = 0, padRX = 0, padRZ = 0, padActivo = false;
   const leerControl = () => {
     const pad = typeof navigator.getGamepads === 'function' ? [...navigator.getGamepads()].find((p) => p?.connected) : null;
-    if (!pad) { padAccion = padAbajo = false; padX = padZ = 0; return; }
+    if (!pad) { padAccion = padAbajo = false; padX = padZ = padRX = padRZ = 0; return; }
     const b = (i: number) => !!pad.buttons[i]?.pressed, zona = (v = 0) => (Math.abs(v) < 0.25 ? 0 : v);
     padActivo ||= pad.buttons.some((x) => x.pressed) || pad.axes.some((v) => Math.abs(v) > 0.6);
     if (!padActivo) return;
     padX = Math.max(-1, Math.min(1, zona(pad.axes[0]) + (b(15) ? 1 : 0) - (b(14) ? 1 : 0)));
     padZ = Math.max(-1, Math.min(1, zona(pad.axes[1]) + (b(13) ? 1 : 0) - (b(12) ? 1 : 0)));
+    padRX = zona(pad.axes[2]); padRZ = zona(pad.axes[3]);
     const ahora = b(0) || b(5) || b(7);
     if (ahora && !padAccion) accion = true;
     padAccion = ahora;
@@ -90,6 +93,7 @@ export function crearMando(e: Escenario, caja: HTMLElement, etiqueta: string, ag
     get z() { return eje(1); },
     get pulsada() { leerControl(); return apretada || padAccion; },
     get agachado() { leerControl(); return abajo || botonAbajo || padAbajo; },
+    get derecha(): [number, number] { leerControl(); return [padRX, padRZ]; },
     tomarAccion() { leerControl(); const si = accion; accion = false; return si; },
   };
 }
