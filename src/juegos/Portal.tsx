@@ -53,7 +53,7 @@ export function Portal({ sub, extra }: { sub: string; extra: string }) {
   const sesion = useSesion(), pendientes = usePendientes(sesion.usuarioId);
   if (sub === 'duelo') return <Duelo key={extra} id={Number(extra)} />;
   if (sub === 'mirar') return <div class="pagina portal"><Vivo codigo={extra} mirar /></div>;
-  const juego = juegoPorId(sub);
+  const juego = JUEGOS.find((x) => x.id === sub);
   if (juego?.listo) return <Sala key={juego.id} juego={juego} />;
   const modo = sub === '3v3' || MODOS.some((m) => m.ruta === sub) ? sub : '';
   // El 3v3 vive dentro de la pestaña En vivo

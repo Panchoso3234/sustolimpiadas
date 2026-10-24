@@ -9,7 +9,7 @@ const MEDUSA = 'medusa', LIMITE = 240, MIRA = 1.1;
 export interface EstadoParejas { cartas: string[]; duenas: (Lado | 'x' | null)[]; abiertas: number[]; turno: Lado; puntos: Record<Lado, number>; tapa: number }
 
 export const parejas: Reglas<EstadoParejas> = {
-  id: 'parejas', nombre: 'Parejas del Arrecife', idea: 'Memorice por turnos: si aciertas, sigues. Cuidado con las medusas.',
+  id: 'parejas', nombre: 'Memoria de Pez', idea: 'Memorice por turnos: si aciertas, sigues. Cuidado con las medusas.',
   inicial(semilla) {
     const cartas = barajar([...FIGURAS, ...FIGURAS, MEDUSA, MEDUSA], generador(`${semilla}|parejas-vivo`));
     return { cartas, duenas: cartas.map(() => null), abiertas: [], turno: 'a', puntos: { a: 0, b: 0 }, tapa: 0 };
