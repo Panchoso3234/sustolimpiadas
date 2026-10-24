@@ -83,7 +83,6 @@ export function logros(d: Datos): Logro[] {
     L('chuzas', 'Hazañas', '🎳', 'Tres chuzas', 'Bolos Playeros: 3 chuzas en una partida', alguna('bolos', (x) => n(x.d.chuzas) >= 3)),
     L('podio', 'Hazañas', '🏎️', 'Bandera a cuadros', 'Carreras de Autos: gana la carrera', alguna('karts', (x) => n(x.d.puesto) === 1)),
     L('agujero', 'Hazañas', '🕳️', 'Apetito infinito', 'Agujero Negro: termina primero', alguna('agujero', (x) => n(x.d.puesto) === 1)),
-    L('adivino', 'Hazañas', '🔤', 'Adivino', 'La Palabra Secreta: acierta en 3 intentos o menos', alguna('palabra', (x) => x.d.acerto === true && n(x.d.intentos) <= 3)),
     L('noctambulo', 'Secretos', '🦉', 'Noctámbulo', 'Juega pasada la medianoche', horas.some((h) => h < 4), true),
     L('halloween', 'Secretos', '🦇', 'Noche de Brujas', 'Juega el 31 de octubre', dias.has('2026-10-31'), true),
     L('pulso', 'Secretos', '🧘', 'Pulso de cirujano', 'Torre de Calabazas: 4 metros sin que se caiga ninguna pieza', alguna('calabazas', (x) => n(x.d.altura) >= 4 && n(x.d.caidas) === 0), true),

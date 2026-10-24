@@ -128,8 +128,9 @@ const TODOS: Juego[] = [
 /** Juegos que en celular se ven mucho mejor de lado: avisan al partir si el teléfono está parado. */
 export const HORIZONTALES = new Set(['catapulta', 'billar', 'karts', 'tiro', 'defensa', 'cocina', 'triples', 'escobas', 'bestias']);
 
-/** Juegos retirados (El Más Bajo, 23-10): no salen en la web ni en los sorteos, pero sus marcas viejas conservan el nombre. */
-export const RETIRADOS = new Set(['bajo']);
+/** Juegos retirados (El Más Bajo el 23-10; La Palabra Secreta y Luces del Faro el 24-10): no salen en la web ni en los sorteos,
+ * ni sus modos 1v1 y 3v3, pero sus marcas viejas conservan el nombre. */
+export const RETIRADOS = new Set(['bajo', 'palabra', 'luces']);
 export const JUEGOS = TODOS.filter((x) => !RETIRADOS.has(x.id));
 export const juegoPorId = (id: string) => TODOS.find((x) => x.id === id);
 
@@ -140,7 +141,7 @@ export interface TipoVersus { id: string; modo: '1v1' | '3v3'; nombre: string; i
 const v = (modo: '1v1' | '3v3', id: string, nombre: string, idea: string, base?: string, vivo = false): TipoVersus =>
   ({ id, modo, nombre: (modo === '1v1' && base && !vivo && juegoPorId(base)?.nombre) || nombre, idea, base, vivo });
 
-export const VERSUS: TipoVersus[] = [
+const TODOS_VERSUS: TipoVersus[] = [
   v('1v1', 'duelo-tinta', 'Duelo de Tinta', 'Las mismas palabras tramposas para los dos: gana quien acierta más sin caer.', 'tinta'),
   v('1v1', 'cangrejos-dos', 'Cangrejos a Dos Manos', 'El mismo tablero de cangrejos y tortugas; gana quien caza más.', 'cangrejos'),
   v('1v1', 'carrera-numeros', 'Carrera de Números', 'El mismo tablero revuelto; gana quien llega primero al 25.', 'numeros'),
@@ -206,6 +207,7 @@ export const VERSUS: TipoVersus[] = [
   v('3v3', 'torre-equipo', 'Torres en Equipo', 'Cada integrante levanta su torre; suman los tres.', 'torre'),
   v('3v3', 'bandera', 'Captura la Bandera', 'Robar la bandera rival y traerla a la base.'),
 ];
+export const VERSUS = TODOS_VERSUS.filter((t) => !t.base || !RETIRADOS.has(t.base));
 
 /** Nombre con que se muestra un enfrentamiento: el del tipo de versus si existe, o el del juego. */
 export function nombreVersus(modo: string, juego: string): string {
