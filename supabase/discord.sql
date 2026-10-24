@@ -58,15 +58,18 @@ insert into public.nombres_juegos (id, nombre) values
 on conflict (id) do update set nombre = excluded.nombre;
 
 -- Manda un mensaje al canal. Las menciones (<@id>) avisan a la persona en Discord.
-create or replace function public.avisar_discord(p_texto text) returns void
+-- p_canal: resultados, recordatorios, tabla, en-vivo o hazanas (sin webhook propio, usa discord_webhook)
+drop function if exists public.avisar_discord(text);
+create or replace function public.avisar_discord(p_texto text, p_canal text default 'general') returns void
 language plpgsql security definer set search_path = '' as $$
 declare v_url text;
 begin
-  select valor into v_url from public.secretos where clave = 'discord_webhook';
+  select coalesce((select valor from public.secretos where clave = 'discord_webhook_' || p_canal),
+                  (select valor from public.secretos where clave = 'discord_webhook')) into v_url;
   if v_url is null or v_url not like 'https://discord.com/api/webhooks/%' then return; end if;
   perform net.http_post(url := v_url, body := jsonb_build_object('content', left(p_texto, 1990), 'allowed_mentions', jsonb_build_object('parse', jsonb_build_array('users'))));
 end; $$;
-revoke all on function public.avisar_discord(text) from public, anon, authenticated;
+revoke all on function public.avisar_discord(text, text) from public, anon, authenticated;
 
 -- Cómo nombrar a alguien en Discord: su mención si entró con Discord, o su nombre
 create or replace function public.mencion(p_uid uuid) returns text
