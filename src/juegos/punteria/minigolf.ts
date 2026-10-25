@@ -430,7 +430,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (cambio >= 0) {
       if (t < cambio) return;
       cambio = -1;
-      if (++actual >= HOYOS.length) return terminar();
+      if (++actual >= HOYOS.length) { if (!c.libre) return terminar(); actual = 0; } // modo libre: los hoyos vuelven a empezar
       return montar(t);
     }
     if (quieta()) return;
@@ -469,7 +469,7 @@ export async function crear(c: Contexto): Promise<Partida> {
         e.hud.aviso('¡Lava! +1 golpe', 'mal', 0.9);
       }
     }
-    if (quieta() && golpes >= TOPE) { festejar(false); cerrarHoyo(t, `Tope de ${TOPE} golpes`, 'mal'); }
+    if (quieta() && golpes >= TOPE && !c.libre) { festejar(false); cerrarHoyo(t, `Tope de ${TOPE} golpes`, 'mal'); }
   });
 
   return {

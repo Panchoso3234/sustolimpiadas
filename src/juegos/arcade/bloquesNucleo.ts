@@ -299,3 +299,9 @@ export function paso(e: Estado, dt: number, bajando = false): Asiento | null {
 /** Para el modo en vivo: el tablero en texto compacto (una letra por celda) para mandarlo por la red. */
 export const comprimir = (e: Estado) => e.tablero.slice(OCULTAS * ANCHO).map((c) => '.IOTSZJLXC'[c]).join('');
 export const descomprimir = (s: string) => [...s].map((ch) => Math.max(0, '.IOTSZJLXC'.indexOf(ch)));
+
+/** Modo libre: vacía el caldero tras llenarse y saca la pieza siguiente (sin tocar puntos ni nivel). */
+export function vaciar(e: Estado) {
+  e.tablero.fill(0); e.basura = []; e.perdio = false; e.puedeGuardar = true;
+  sacar(e);
+}

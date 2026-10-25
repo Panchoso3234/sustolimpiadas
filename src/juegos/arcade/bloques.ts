@@ -1,7 +1,7 @@
 import type { Contexto, Partida } from '../marco';
 import { crearEscenario, mmss } from '../reflejos/motor';
 import { mejorJugada } from './bloquesIA';
-import { ALTO, OCULTAS, basuraPendiente, caerYa, guardar, girar, hechizar, mover, nuevo, paso, sombra, type Asiento, type Estado } from './bloquesNucleo';
+import { ALTO, OCULTAS, basuraPendiente, caerYa, guardar, girar, hechizar, mover, nuevo, paso, sombra, vaciar, type Asiento, type Estado } from './bloquesNucleo';
 import { crearControles, crearFondo, crearSonidos, crearTableroVisual } from './bloquesVista';
 
 // TETRIX, modo individual (también es la ronda del 1v1 diferido): 3 minutos para hacer el mejor puntaje con
@@ -55,7 +55,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     });
   };
 
-  e.hud.tiempo(mmss(DURA)); e.hud.puntos(0);
+  e.hud.tiempo(mmss(c.libre ? 0 : DURA)); e.hud.puntos(0);
   e.alCuadro((t, dt) => {
     const paso2 = Math.min(dt, 0.05);
     if (empezado && !terminado) {
@@ -71,11 +71,15 @@ export async function crear(c: Contexto): Promise<Partida> {
       if (!est.anuncio) anuncio = null;
       if (est.evento !== evento) { evento = est.evento; if (evento === 'lapidas') { e.temblar(0.4); e.sonido.ruido(0.3, 0.15); } }
       if (!avisoObjetivo && est.objetivo && est.tiempo > 1) { avisoObjetivo = true; e.hud.aviso(`Desafío del día: ${OBJETIVOS[est.objetivo.tipo](est.objetivo.meta)}`, 'oro', 2.2); }
-      if (est.perdio || est.tiempo >= DURA) terminar();
+      if (c.libre && est.perdio) {
+        // Modo libre: el caldero se vacía y se sigue (sin reloj)
+        vaciar(est);
+        e.hud.aviso('Caldero vacío: ¡sigue!', 'oro', 1.2);
+      } else if (est.perdio || (est.tiempo >= DURA && !c.libre)) terminar();
       sonidos.musica(t, est.nivel, !terminado);
       const hech = est.tiempo < est.hechizoHasta ? ` · ✦ ${Math.ceil(est.hechizoHasta - est.tiempo)} s` : est.hechizo >= 1 ? ' · ✦ listo (E)' : ` · ✦ ${Math.round(est.hechizo * 100)} %`;
       const obj = est.objetivo ? ` · desafío ${est.objetivo.hecho ? '✓' : `${est.objetivo.lleva}/${est.objetivo.meta}`}` : '';
-      e.hud.tiempo(mmss(Math.max(0, DURA - est.tiempo)));
+      e.hud.tiempo(mmss(c.libre ? est.tiempo : Math.max(0, DURA - est.tiempo)));
       e.hud.extra(`Nivel ${est.nivel} · ${est.lineas} líneas${hech}${obj}`);
       e.hud.puntos(est.puntos);
     }

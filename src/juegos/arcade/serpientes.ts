@@ -264,7 +264,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     e.camara.lookAt(yo.x, 0, yo.z);
   };
   if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__serpientes = () => ({ x: yo.x, z: yo.z, ang: yo.ang, meta: yo.meta, viva: yo.viva, masa: yo.masa, eliminadas, caida, vivas: serpientes.filter((s) => s.viva).length, cadaveres: cadaveres.length });
-  e.hud.tiempo(mmss(DURA));
+  e.hud.tiempo(mmss(c.libre ? 0 : DURA));
   e.hud.puntos(0);
   camara(0, true);
   e.alCuadro((t, dt) => {
@@ -272,7 +272,11 @@ export async function crear(c: Contexto): Promise<Partida> {
     const lento = caida ? Math.max(0.3, 1 - (t - caida) * 1.6) : 1;
     const paso = Math.min(dt, 0.05) * lento;
     if (empezado && !terminado) {
-      if (caida && t - caida >= CAMARA_LENTA) return terminar(caida, false);
+      if (caida && t - caida >= CAMARA_LENTA) {
+        if (!c.libre) return terminar(caida, false);
+        // Modo libre: se vuelve a nacer al centro, chica, y se sigue jugando
+        caida = 0; nacer(yo); e.hud.aviso('¡De vuelta al jardín!', 'oro', 1.2);
+      }
       indexar();
       for (const s of serpientes) {
         if (!s.viva) { if (!s.humano && t > s.vuelve) nacer(s); continue; }
@@ -324,11 +328,11 @@ export async function crear(c: Contexto): Promise<Partida> {
           break;
         }
       }
-      if (!caida && t >= DURA) return terminar(t, true);
+      if (!caida && t >= DURA && !c.libre) return terminar(t, true);
       // Aviso del borde
       if (yo.viva && Math.hypot(yo.x, yo.z) > RADIO - 5 && t > avisoBorde) { avisoBorde = t + 2.5; e.hud.aviso('¡Cuidado con el borde!', 'mal', 0.9); }
       const vivas = serpientes.filter((s) => s.viva).sort((a, b) => b.masa - a.masa);
-      e.hud.tiempo(mmss(Math.max(0, DURA - t)));
+      e.hud.tiempo(mmss(c.libre ? t : Math.max(0, DURA - t)));
       e.hud.extra(yo.viva ? `Largo ${Math.round(yo.masa)} · ${vivas.indexOf(yo) + 1}º de ${vivas.length}${yo.corre ? ' · ¡Turbo!' : ''}` : 'Eliminada');
       e.hud.puntos(puntaje());
       if (t > rankingEn) {

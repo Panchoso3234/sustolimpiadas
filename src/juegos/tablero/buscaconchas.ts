@@ -1,6 +1,6 @@
 import { generador } from '../../nucleo/azar';
 import type { Contexto, Partida } from '../marco';
-import { barajar, crearMesa, mmss } from './mesa';
+import { barajar, crearMesa, mmss, relojHud } from './mesa';
 
 // Erizos Ocultos: 5×5 casillas de arena. Bajo cada una hay un ×1, un ×2, un ×3 o un erizo. Al final de cada fila y
 // columna se ve cuánto suman sus números y cuántos erizos tiene, así que se deduce en vez de adivinar.
@@ -18,7 +18,7 @@ const MEZCLAS: [number, number, number][][] = [
 const ERIZO = 0;
 
 export async function crear(c: Contexto): Promise<Partida> {
-  const m = crearMesa(c.caja, 'buscaconchas', c.aspecto), r = generador(c.semilla);
+  const m = crearMesa(c.caja, 'buscaconchas', c.aspecto), r = generador(c.semilla), limite = c.libre ? Infinity : LIMITE, rondas = c.libre ? Infinity : RONDAS;
   const grilla = m.el('div', 'voltorb', m.tablero);
   const barra = m.el('div', 'fila centro', m.tablero);
   const botonPlantar = m.el('button', 'boton principal', barra, 'Plantarse');
@@ -88,7 +88,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     }
     mostrarTodo();
     ronda++;
-    m.despues(1.8, () => { if (terminado) return; if (ronda >= RONDAS) terminar(); else armar(); });
+    m.despues(1.8, () => { if (terminado) return; if (ronda >= rondas) terminar(); else armar(); });
   }
 
   function anotar(i: number) {
@@ -110,13 +110,13 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (!faltan()) cerrarRonda('ganada');
   }
 
-  m.hud.tiempo(mmss(LIMITE));
+  m.hud.tiempo(relojHud(limite, 0));
   m.alTic((t) => {
-    m.hud.tiempo(mmss(LIMITE - t));
-    m.hud.extra(`Ronda ${Math.min(ronda + 1, RONDAS)} · nivel ${dificultad + 1} · en juego: ${tocadas ? monedas : 0}`);
+    m.hud.tiempo(relojHud(limite, t));
+    m.hud.extra(`Ronda ${Math.min(ronda + 1, rondas)} · nivel ${dificultad + 1} · en juego: ${tocadas ? monedas : 0}`);
     m.hud.puntos(`${total} pts`);
     botonPlantar.disabled = pausa || tocadas === 0;
-    if (t >= LIMITE) terminar(); // lo que no alcanzaste a guardar se pierde
+    if (t >= limite) terminar(); // lo que no alcanzaste a guardar se pierde
   });
   return { empezar() { m.empezar(); armar(); }, destruir: m.destruir };
 }

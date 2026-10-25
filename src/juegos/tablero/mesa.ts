@@ -113,6 +113,8 @@ export function crearMesa(caja: HTMLElement, clase: string, aspecto?: Aspecto) {
   return api;
 }
 
+/** El reloj del marcador: lo que queda, o lo que va en modo libre (límite infinito). */
+export const relojHud = (limite: number, t: number) => mmss(Number.isFinite(limite) ? limite - t : t);
 export const mmss = (seg: number) => { const s = Math.max(0, Math.ceil(seg)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 export const limitar = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 

@@ -14,6 +14,7 @@ import { PestanaCopa, PestanaRecords } from './PestanaRecords';
 import { Sala } from './Sala';
 import { Vivo } from '../vivo/PantallaVivo';
 import { PartidasEnLinea } from '../vivo/PartidasEnLinea';
+import { ContraMaquina, esContraMaquina } from '../vivo/ContraMaquina';
 
 // Portal de juegos: individual, versus en diferido, en vivo (1v1 y 3v3), partidas en línea y la tabla del torneo.
 // La meta es que todo enfrentamiento sea en vivo; el diferido queda para cuando los dos no pueden a la misma hora.
@@ -55,6 +56,7 @@ function usePendientes(usuarioId: string | null): Record<string, number> {
 export function Portal({ sub, extra }: { sub: string; extra: string }) {
   const sesion = useSesion(), pendientes = usePendientes(sesion.usuarioId);
   if (sub === 'duelo') return <Duelo key={extra} id={Number(extra)} />;
+  if (sub === 'maquina' && esContraMaquina(extra)) return <div class="pagina portal"><ContraMaquina key={extra} juego={extra} /></div>;
   if (sub === 'mirar') return <div class="pagina portal"><Vivo codigo={extra} mirar /></div>;
   const juego = JUEGOS.find((x) => x.id === sub);
   if (juego?.listo) return <Sala key={juego.id} juego={juego} />;
@@ -125,6 +127,21 @@ function Grilla() {
           </div>
         </section>
       ))}
+      {filtro === 'todos' && !texto && (
+        <section class="motor" style="--tono:#ffe08a">
+          <h2>Contra la máquina</h2>
+          <div class="rejilla-juegos">
+            {([['conchas', 'Cuatro Conchas en Línea', 'Por turnos, deja caer conchas: gana quien alinea cuatro.'], ['balsas', 'Batalla de Balsas', 'Esconde tus balsas y hunde las de la máquina antes que ella las tuyas.']] as const).map(([id, nombre, idea]) => (
+              <div key={id} class="tarjeta">
+                <img class="foto" src={`${import.meta.env.BASE_URL}juegos/${id}.png`} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                <h3>{nombre}</h3>
+                <p>{idea}</p>
+                <span class="pie"><span class="premia">Práctica, sin marca</span><a class="boton principal" href={`#/juegos/maquina/${id}`}>Jugar</a></span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </>
   );
 }

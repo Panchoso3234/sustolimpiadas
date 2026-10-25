@@ -403,8 +403,8 @@ export async function crear(c: Contexto): Promise<Partida> {
     objetoAntes = pidoObjeto;
     const giro = automatico ? limitar(-rumbo(yo, t) * 2.2, -1, 1) : mando.x;
     if (mover(yo, t, dt, giro, mando.z > 0.5, mando.pulsada || (automatico && Math.abs(curvaAdelante(yo, 5, 60)) > 0.6)) && yo.vuelta >= 1) {
-      if (yo.vuelta >= VUELTAS) { yo.fin = t; e.hud.aviso('¡Meta!', 'oro', 1.5); e.chispas(yo.x, 2, yo.z, ['#ffd23c', '#ffffff', '#ef5565'], 60, 7); terminar(t); return; }
-      e.hud.aviso(yo.vuelta === VUELTAS - 1 ? '¡Última vuelta!' : `Vuelta ${yo.vuelta + 1}`, 'oro', 1.2);
+      if (yo.vuelta >= VUELTAS && !c.libre) { yo.fin = t; e.hud.aviso('¡Meta!', 'oro', 1.5); e.chispas(yo.x, 2, yo.z, ['#ffd23c', '#ffffff', '#ef5565'], 60, 7); terminar(t); return; }
+      e.hud.aviso(c.libre ? `Vuelta ${yo.vuelta + 1}` : yo.vuelta === VUELTAS - 1 ? '¡Última vuelta!' : `Vuelta ${yo.vuelta + 1}`, 'oro', 1.2);
       e.sonido.efecto('campana', 0.6);
     }
     // Rivales: siguen la pista por dentro de las curvas, frenan un poco en las cerradas y sacan mini turbos
@@ -470,10 +470,10 @@ export async function crear(c: Contexto): Promise<Partida> {
       const pasos = Math.max(1, Math.ceil(dt / PASO_FISICA));
       for (let s = 0; s < pasos && !terminado; s++) paso(t - dt + (dt * (s + 1)) / pasos, dt / pasos);
       if (terminado) return;
-      if (t >= LIMITE) return terminar(t);
+      if (t >= LIMITE && !c.libre) return terminar(t); // modo libre: vueltas sin fin y sin reloj
       // Marcador
       const orden = [...karts].sort((a, b) => progreso(b) - progreso(a)), puesto = orden.indexOf(yo) + 1;
-      e.hud.tiempo(`Vuelta ${Math.min(VUELTAS, Math.max(1, yo.vuelta + 1))}/${VUELTAS}`);
+      e.hud.tiempo(c.libre ? `Vuelta ${Math.max(1, yo.vuelta + 1)}` : `Vuelta ${Math.min(VUELTAS, Math.max(1, yo.vuelta + 1))}/${VUELTAS}`);
       e.hud.extra(`${puesto}º de 6 · 🪙 ${yo.monedas}`);
       e.hud.puntos([1000, 800, 650, 520, 420, 340][puesto - 1] + yo.monedas * 15);
       if (motor && volMotor) motor.frequency.value = 60 + Math.max(0, yo.v) * 7 + (t < yo.turbo ? 60 : 0);

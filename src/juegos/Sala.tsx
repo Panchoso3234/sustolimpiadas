@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { fechaChile, generador } from '../nucleo/azar';
 import { supabase, useSesion } from '../nucleo/supabase';
 import { aspectoAleatorio, normalizarAspecto, normalizarPersonaje, type Aspecto } from '../personaje/catalogo';
-import { HORIZONTALES, JUEGOS, MOTORES, TOPES, VERSUS, topeDudoso, type Juego } from './catalogo';
+import { HORIZONTALES, JUEGOS, LIBRES, MOTORES, TOPES, VERSUS, topeDudoso, type Juego } from './catalogo';
 import { Records } from './Records';
 import { leerPuntos, puntosPorPuesto, PUNTOS_BASE } from './puntos';
 import { guardarMarca, historial, marcaLocal, tablaDelDia, type Fila, type Guardado } from './marcas';
@@ -191,10 +191,11 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
   useEffect(() => cerrar, []);
 
   // Práctica: se juega igual, pero la marca no se guarda en ninguna parte
-  const practica = useRef(false);
-  const jugar = async (soloPractica = false, contraLider: Fantasma | null = null) => {
+  const practica = useRef(false), libre = useRef(false);
+  const jugar = async (soloPractica = false, contraLider: Fantasma | null = null, modoLibre = false) => {
     cerrar();
-    practica.current = !reto && soloPractica;
+    libre.current = !reto && modoLibre && LIBRES.has(juego.id);
+    practica.current = !reto && (soloPractica || libre.current);
     contra.current = reto ? null : contraLider;
     const mio = turno.current;
     setFase('cargando');
@@ -210,7 +211,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
       ajustesPartida.pausable = !reto; // en un enfrentamiento el reloj no se detiene al cambiar de pestaña
       ajustesPartida.vivo = ajustesPartida.foto = false;
       const nueva = await crear({
-        caja: caja.current, semilla, aspecto, nivel: reto?.nivel ?? jornadaDe(fecha), fantasma: contra.current ?? undefined, practica: practica.current,
+        caja: caja.current, semilla, aspecto, nivel: reto?.nivel ?? jornadaDe(fecha), fantasma: contra.current ?? undefined, practica: practica.current, libre: libre.current,
         alTerminar(r) {
           if (mio !== turno.current) return;
           setResultado(r);
@@ -327,7 +328,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
     const tecla = (e: KeyboardEvent) => {
       const escribiendo = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, a, button');
       if (escribiendo || e.repeat) return;
-      if (e.key === 'Enter' && (fase === 'previa' || fase === 'resultado') && !(reto && fase === 'resultado')) { e.preventDefault(); jugar(fase === 'resultado' && practica.current); }
+      if (e.key === 'Enter' && (fase === 'previa' || fase === 'resultado') && !(reto && fase === 'resultado')) { e.preventDefault(); jugar(fase === 'resultado' && practica.current, null, fase === 'resultado' && libre.current); }
       else if (e.key === 'Escape' && reglas) cerrarReglas();
       else if ((e.key === 'r' || e.key === 'R') && (fase === 'jugando' || fase === 'cuenta')) { if (reglas) cerrarReglas(); else abrirReglas(); }
       else if (e.key === 'Escape' && !reto && (fase === 'jugando' || fase === 'cuenta') && !document.fullscreenElement) salir();
@@ -349,7 +350,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
       <div class="juego-caja" ref={caja} />
       {(fase === 'cuenta' || fase === 'jugando') && (
         <div class="sala-salir">
-          {!reto && <button class="boton" title="Salir (Esc)" onClick={salir}>Salir</button>}
+          {!reto && <button class="boton" title="Salir (Esc)" onClick={salir}>{libre.current ? 'Terminar' : 'Salir'}</button>}
           {!reto && fase === 'jugando' && <button class="boton" aria-pressed={pausa} title="Pausa (P)" disabled={!!reanudando} onClick={(ev) => { if (pausa) reanudar(); else pausar(true); ev.currentTarget.blur(); }}>{pausa ? 'Seguir' : 'Pausa'}</button>}
           <button class="boton" aria-pressed={callado} onClick={(ev) => { silenciar(!callado); setCallado(!callado); ev.currentTarget.blur(); }}>{callado ? 'Sonido: no' : 'Sonido: sí'}</button>
           <button class={`boton${reglasNuevas && !reglas ? ' reglas-nuevas' : ''}`} aria-pressed={reglas} title="Reglas del juego (R)" onClick={(ev) => { if (reglas) cerrarReglas(); else abrirReglas(); ev.currentTarget.blur(); }}>Reglas</button>
@@ -389,6 +390,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
               {!(reto && fase === 'error') && <button class="boton principal grande" disabled={fase === 'cargando'} onClick={() => jugar()}>{fase === 'cargando' ? 'Preparando…' : reto ? 'Jugar mi intento' : 'Jugar'}</button>}
               {reto && fase !== 'error' && <a class="boton" href={reto.practica}>Practicar primero</a>}
               {!reto && <button class="boton" disabled={fase === 'cargando'} onClick={() => jugar(true)} title="Juegas igual, pero la marca no se guarda">Práctica (no guarda)</button>}
+              {!reto && LIBRES.has(juego.id) && <button class="boton" disabled={fase === 'cargando'} onClick={() => jugar(true, null, true)} title="Sin reloj ni límite de vidas o intentos; terminas cuando quieras. No guarda nada.">Modo libre</button>}
               {!reto && lider && <button class="boton fantasma-boton" disabled={fase === 'cargando'} onClick={() => jugar(false, lider)} title="El mismo recorrido que hizo el líder de hoy, con su fantasma corriendo a tu lado">👻 Correr contra {lider.nombre} ({lider.puntaje})</button>}
               <a class="boton" href={volver}>{reto ? 'Volver a mis enfrentamientos' : 'Volver al portal'}</a>
             </div>
@@ -415,7 +417,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
               </p>
             ) : (
               <p class="chico tenue">
-                {practica.current ? 'Partida de práctica: no se guardó en ninguna parte.'
+                {libre.current ? 'Modo libre: no se guardó en ninguna parte.' : practica.current ? 'Partida de práctica: no se guardó en ninguna parte.'
                   : !guardado ? 'Guardando tu marca…'
                   : guardado.donde === 'nube' ? 'Marca guardada en la tabla.'
                   : guardado.donde === 'sin-sesion' ? 'Entra con Discord para que tu marca aparezca en la tabla. Por ahora quedó anotada en este navegador.'
@@ -423,7 +425,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
               </p>
             )}
             <div class="fila">
-              {!reto && <button class="boton principal grande" onClick={() => jugar(practica.current)}>{practica.current ? 'Practicar otra vez' : 'Jugar otra vez'}</button>}
+              {!reto && <button class="boton principal grande" onClick={() => jugar(practica.current, null, libre.current)}>{libre.current ? 'Otra vez en modo libre' : practica.current ? 'Practicar otra vez' : 'Jugar otra vez'}</button>}
               {!reto && lider && <button class="boton fantasma-boton" onClick={() => jugar(false, lider)}>👻 Contra {lider.nombre}</button>}
               {!reto && siguiente && <a class="boton" href={`#/juegos/${siguiente.id}`} title="El próximo juego que todavía no juegas hoy">Siguiente: {siguiente.nombre} →</a>}
               <a class={reto ? 'boton principal grande' : 'boton'} href={volver}>{reto ? 'Volver a mis enfrentamientos' : 'Volver al portal'}</a>

@@ -1,13 +1,13 @@
 import { generador } from '../../nucleo/azar';
 import type { Contexto, Partida } from '../marco';
-import { barajar, crearMesa, mmss } from './mesa';
+import { barajar, crearMesa, mmss, relojHud } from './mesa';
 
 // Cuatro juegos de mente rápida, fuera de la playa: atención, autocontrol, memoria y cálculo.
 // Todo lo que aparece (números, colores, secuencia, cuentas) sale de la semilla: mismo desafío para todos.
 
 /** Cazanúmeros: tocar del 1 al 25 en orden, lo más rápido posible. */
 export async function numeros(c: Contexto): Promise<Partida> {
-  const m = crearMesa(c.caja, 'neon', c.aspecto), LIMITE = 60, TOTAL = 25;
+  const m = crearMesa(c.caja, 'neon', c.aspecto), LIMITE = c.libre ? Infinity : 60, TOTAL = 25;
   const r = generador(c.semilla), orden = barajar(Array.from({ length: TOTAL }, (_, i) => i + 1), r);
   const grilla = m.el('div', 'numeros', m.tablero);
   // Cada tantos aciertos las fichas que quedan cambian de lugar (más seguido en las últimas jornadas)
@@ -39,7 +39,7 @@ export async function numeros(c: Contexto): Promise<Partida> {
     });
   }
   m.alTic((t) => {
-    m.hud.tiempo(mmss(LIMITE - t));
+    m.hud.tiempo(relojHud(LIMITE, t));
     m.hud.extra(`Busca el ${Math.min(sigue, TOTAL)}`);
     m.hud.puntos(`${sigue - 1} / ${TOTAL}`);
     if (t >= LIMITE) terminar();
@@ -51,7 +51,7 @@ const COLORES: [string, string][] = [['Rojo', '#e5484d'], ['Azul', '#3b82f6'], [
 
 /** Tinta Tramposa: responder de qué color está pintada la palabra, no lo que dice. */
 export async function tinta(c: Contexto): Promise<Partida> {
-  const m = crearMesa(c.caja, 'neon', c.aspecto), r = generador(c.semilla), LIMITE = 45;
+  const m = crearMesa(c.caja, 'neon', c.aspecto), r = generador(c.semilla), LIMITE = c.libre ? Infinity : 45;
   const ayuda = m.el('p', 'tinta-ayuda', m.tablero, '¿De qué color está pintada la palabra?');
   const palabra = m.el('div', 'tinta-palabra', m.tablero), barra = m.el('div', 'tinta-botones', m.tablero);
   let color = 0, texto = 0, puntos = 0, racha = 0, mejor = 0, buenas = 0, malas = 0, terminado = false, vistas = 0, alReves = 0;
@@ -78,7 +78,7 @@ export async function tinta(c: Contexto): Promise<Partida> {
   m.escuchar('keydown', (e) => { const i = Number(e.key) - 1; if (i >= 0 && i < COLORES.length && !botones[i].hidden && !e.repeat) { e.preventDefault(); responder(i); } });
   nueva();
   m.alTic((t) => {
-    m.hud.tiempo(mmss(LIMITE - t));
+    m.hud.tiempo(relojHud(LIMITE, t));
     m.hud.extra(racha >= 3 ? `racha ${racha}` : '');
     m.hud.puntos(`${puntos} pts`);
     if (t < LIMITE || terminado) return;

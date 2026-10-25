@@ -45,6 +45,8 @@ export interface Contexto {
   fantasma?: Fantasma;
   /** Partida de práctica (no se guarda): los juegos pueden ser más amables, como reaparecer una vez. */
   practica?: boolean;
+  /** Modo libre (también es práctica): sin reloj ni límite de vidas o intentos; la sala tiene un botón para terminar cuando uno quiera. */
+  libre?: boolean;
 }
 
 /** Lo que la sala le avisa a los motores para la partida que parte (shortcut: un valor compartido; basta porque hay una sola partida a la vez). */

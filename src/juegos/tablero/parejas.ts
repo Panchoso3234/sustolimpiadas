@@ -1,6 +1,6 @@
 import { generador } from '../../nucleo/azar';
 import type { Contexto, Partida } from '../marco';
-import { barajar, crearMesa, mmss } from './mesa';
+import { barajar, crearMesa, mmss, relojHud } from './mesa';
 
 // Parejas del Arrecife: tres tableros que crecen (6, 8 y 10 parejas). Desde el segundo aparecen medusas: cartas sin
 // pareja que, al abrirlas, te hacen perder puntos y tapan lo que tenías abierto. Cada cuatro fallos, dos cartas
@@ -12,7 +12,7 @@ const TOTAL = NIVELES.reduce((a, b) => a + b, 0);
 const ruta = (figura: string) => `${import.meta.env.BASE_URL}figuras/${figura}.png`;
 
 export async function crear(c: Contexto): Promise<Partida> {
-  const m = crearMesa(c.caja, 'parejas', c.aspecto), r = generador(c.semilla);
+  const m = crearMesa(c.caja, 'parejas', c.aspecto), r = generador(c.semilla), limite = c.libre ? Infinity : LIMITE;
   const grilla = m.el('div', 'cartas', m.tablero);
   let lista: { boton: HTMLButtonElement; figura: string; lista: boolean }[] = [];
   let abiertas: number[] = [], bloqueo = false, fallos = 0, hechas = 0, enNivel = 0, nivel = 0, medusas = 0, terminado = false;
@@ -120,13 +120,13 @@ export async function crear(c: Contexto): Promise<Partida> {
     });
   }
 
-  m.hud.tiempo(mmss(LIMITE));
+  m.hud.tiempo(relojHud(limite, 0));
   m.hud.puntos(`0 / ${TOTAL}`);
   m.alTic((t) => {
-    m.hud.tiempo(mmss(LIMITE - t));
+    m.hud.tiempo(relojHud(limite, t));
     m.hud.puntos(`${hechas} / ${TOTAL}`);
     m.hud.extra(`Tablero ${Math.min(nivel + 1, NIVELES.length)} · ${fallos} ${fallos === 1 ? 'fallo' : 'fallos'}`);
-    if (t >= LIMITE) terminar();
+    if (t >= limite) terminar();
   });
   return {
     empezar() { m.empezar(); armar(); },

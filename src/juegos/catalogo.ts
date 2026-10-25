@@ -128,6 +128,8 @@ const TODOS: Juego[] = [
 ];
 
 /** Juegos que en celular se ven mucho mejor de lado: avisan al partir si el teléfono está parado. */
+/** Juegos con modo libre (fase 4): sin reloj ni límite de vidas o intentos, no guarda nada. */
+export const LIBRES = new Set(['tinta', 'numeros', 'parejas', 'buscaconchas', 'catapulta', 'minigolf', 'tren', 'serpientes', 'karts', 'bloques']);
 export const HORIZONTALES = new Set(['catapulta', 'billar', 'karts', 'tiro', 'defensa', 'cocina', 'triples', 'escobas', 'bestias']);
 
 /** Juegos retirados (El Más Bajo el 23-10; La Palabra Secreta y Luces del Faro el 24-10): no salen en la web ni en los sorteos,
@@ -176,6 +178,14 @@ const TODOS_VERSUS: TipoVersus[] = [
   v('1v1', 'bestias-duelo', 'Duelo de Entrenadores', 'La misma torre para los dos (las mismas crías y los mismos rivales): gana quien suba más y con más puntos.', 'bestias'),
   v('1v1', 'bloques-duelo', 'Duelo de Bloques', 'Las mismas piezas para los dos; en vivo, cada línea le manda lápidas al rival.', 'bloques'),
   v('1v1', 'torre-duelo', 'Duelo de Torres', 'El mismo ritmo para los dos; gana la torre más alta.', 'torre'),
+  // Fase 4 (25-10): los 7 individuales que no tenían duelo; entran a los sorteos de la liga desde el cruce que diga MesaLiga
+  v('1v1', 'lava-duelo', 'Lava Loca', 'La misma pasarela y las mismas barras para los dos: gana quien llega más lejos.', 'rodillos'),
+  v('1v1', 'puertas-duelo', 'Puertas Falsas', 'Los mismos muros y las mismas puertas falsas: gana quien pasa más.', 'puertas'),
+  v('1v1', 'huevo-duelo', 'Caza del Huevo', 'La misma partida contra la máquina para los dos: gana quien junta más huevos.', 'huevo'),
+  v('1v1', 'futbol-duelo', 'Fuchibol', 'El mismo partido contra la máquina para los dos: gana quien hace más puntos.', 'futbol'),
+  v('1v1', 'faro-duelo', 'Rey del Faro', 'La misma luz y los mismos rivales: gana quien aguanta más dentro.', 'faro'),
+  v('1v1', 'catapulta-duelo', 'Angry Birds', 'Las mismas torres para los dos: gana quien bota más.', 'catapulta'),
+  v('1v1', 'erizos-duelo', 'Erizos Ocultos', 'El mismo campo de erizos para los dos: gana quien cava mejor.', 'buscaconchas'),
   v('3v3', 'cocos-equipo', 'Cosecha en Equipo', 'Cada integrante atrapa cocos; se suman los tres.', 'cocos'),
   v('3v3', 'eco-cadena', 'Eco en Cadena', 'La misma secuencia para los seis; suma hasta dónde llegó cada uno.', 'eco'),
   v('3v3', 'caceria', 'Cacería de Cangrejos', 'Cada integrante limpia el mismo tablero; suma el equipo.', 'cangrejos'),
@@ -209,7 +219,8 @@ const TODOS_VERSUS: TipoVersus[] = [
   v('3v3', 'torre-equipo', 'Torres en Equipo', 'Cada integrante levanta su torre; suman los tres.', 'torre'),
   v('3v3', 'bandera', 'Captura la Bandera', 'Robar la bandera rival y traerla a la base.'),
 ];
-export const VERSUS = TODOS_VERSUS.filter((t) => !t.base || !RETIRADOS.has(t.base));
+// Sin `base` (Captura la Bandera) todavía no hay juego: se oculta hasta que exista
+export const VERSUS = TODOS_VERSUS.filter((t) => t.base && !RETIRADOS.has(t.base));
 
 /** Nombre con que se muestra un enfrentamiento: el del tipo de versus si existe, o el del juego. */
 export function nombreVersus(modo: string, juego: string): string {

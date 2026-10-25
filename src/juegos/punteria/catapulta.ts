@@ -109,7 +109,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     enVuelo = { c: par, desde: e.reloj() };
     marcas.length = 0;
     for (const h of huella) h.visible = false;
-    quedan--;
+    if (!c.libre) quedan--; // modo libre: sandías infinitas
     e.gesto(k, 'attack-melee-right', 0.6);
     if (!e.sonido.efecto('soltar')) e.sonido.ruido(0.15, 0.2);
     e.sonido.tono(180, 0.25, { hasta: 420, vol: 0.2 });
@@ -128,7 +128,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   };
 
   const avanzar = pasos(mundo);
-  e.hud.tiempo(`🍉 × ${SANDIAS}`);
+  e.hud.tiempo(c.libre ? '🍉 × ∞' : `🍉 × ${SANDIAS}`);
   e.hud.puntos(0);
   e.alCuadro((t, dt) => {
     seguir(cuerpos);
@@ -152,7 +152,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       const p = k.c.cuerpo.translation();
       if (p.y < k.techo() + 0.15) { k.caida = true; botadas++; botadasNivel++; e.flotante('+40', p.x, p.y + 1, 0, 'bien'); if (!e.sonido.efecto('madera', 0.6)) e.sonido.tono(300 + botadasNivel * 20, 0.08, { tipo: 'square', vol: 0.1 }); }
     }
-    e.hud.tiempo(`🍉 × ${quedan}`);
+    e.hud.tiempo(c.libre ? '🍉 × ∞' : `🍉 × ${quedan}`);
     e.hud.puntos(botadas * 40);
     e.hud.extra(`Nivel ${Math.min(nivel + 1, NIVELES)} · ${botadasNivel} de ${cajas.length} cajas`);
     if (enVuelo) {
@@ -168,8 +168,9 @@ export async function crear(c: Contexto): Promise<Partida> {
         marcas.forEach((m, i) => { huella[i].position.set(m.x, m.y, 0); huella[i].visible = true; });
         if (botadasNivel === cajas.length) {
           nivel++;
-          if (nivel >= NIVELES) { cerrando = true; e.alCuadro(cierre(t + 1.4)); }
+          if (nivel >= NIVELES && !c.libre) { cerrando = true; e.alCuadro(cierre(t + 1.4)); }
           else {
+            nivel %= NIVELES; // modo libre: los niveles vuelven a empezar
             quedan += EXTRA;
             botadasNivel = 0;
             e.hud.aviso(`¡Nivel ${nivel + 1}! Torres nuevas y +${EXTRA} sandías`, 'oro', 1.8);

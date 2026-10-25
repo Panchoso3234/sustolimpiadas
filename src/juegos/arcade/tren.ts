@@ -437,7 +437,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   };
   /** Un choque sin escudo: en práctica se reaparece una vez, en la vía más despejada; si no, termina la carrera. */
   const caer = (t: number, porque: string) => {
-    if (!c.practica || revivido) return terminar(t, porque);
+    if (!c.practica || (revivido && !c.libre)) return terminar(t, porque); // modo libre: se reaparece siempre
     revivido = true; reviveHasta = t + 3; yo.invencible = t + 5; yo.tropiezo = -9; rachaNivel = 0; rachaDesde = -yo.z; limpioDesde = -yo.z;
     k.animar('die', true);
     const libre = [yo.carril, 1, 0, 2].find((x) => [0, 3, 6, 9, 12, 15].every((d) => !pisoYChoque(x, yo.z - d, 0, 1.7).choca)) ?? yo.carril;

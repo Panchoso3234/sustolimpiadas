@@ -136,7 +136,7 @@ export function Vivo({ codigo, mirar = false }: { codigo: string; mirar?: boolea
             <img class="foto" src={`${import.meta.env.BASE_URL}juegos/${j}.png`} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             <h3>{JUEGOS[j].nombre}</h3>
             <p>{JUEGOS[j].idea}</p>
-            <span class="pie"><span class="premia">En vivo</span><button class="boton principal" onClick={() => crear(j)}>Crear sala</button></span>
+            <span class="pie"><span class="premia">En vivo</span><a class="boton" href={`#/juegos/maquina/${j}`}>Contra la máquina</a><button class="boton principal" onClick={() => crear(j)}>Crear sala</button></span>
           </div>
         ))}
         {Object.entries(DUELOS).map(([id, formato]) => { const j = CATALOGO.find((x) => x.id === id); return j && (

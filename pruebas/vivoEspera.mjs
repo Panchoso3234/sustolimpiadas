@@ -3,7 +3,7 @@
 import { abrir, esperar, hasta, limpiarPerfiles } from './navegador.mjs';
 
 const BASE = 'http://localhost:5173/', salida = {};
-const sala = `tinta-E${Math.floor(Math.random() * 900 + 100)}`;
+const juego = process.env.JUEGO ?? 'tinta', sala = `${juego}-E${Math.floor(Math.random() * 900 + 100)}`;
 const a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`, { ancho: 1100, alto: 800 }), b = await abrir(`${BASE}?invitado=b#/juegos/vivo/${sala}`, { ancho: 1100, alto: 800 });
 try {
   await hasta(async () => (await a.js('window.__sala?.presentes() ?? 0')) >= 2, 20000);
