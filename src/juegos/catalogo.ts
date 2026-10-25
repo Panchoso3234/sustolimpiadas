@@ -25,6 +25,8 @@ export const TOPES: Record<string, number> = {
 
 /** Desde cuánto se marca una partida como dudosa en la Mesa cuando no es el tope (el tren 2.0 da mucho más con la racha y los bonos). */
 export const DUDOSA: Record<string, number> = { tren: 25000 };
+/** Sobre esto una partida es dudosa: no entra a los récords y la Mesa la marca para revisar. */
+export const topeDudoso = (juego: string): number | undefined => DUDOSA[juego] ?? TOPES[juego];
 
 export const MOTORES: Record<Motor, { nombre: string; color: string }> = {
   D: { nombre: 'Reflejos y ritmo', color: '#ff9a2e' },

@@ -959,3 +959,18 @@ body.foto .sala-reglas-fondo { display: none; }
 @media (max-height: 480px) { .tren-misiones { top: 108px; } .tren-misiones span { font-size: .66rem; padding: 2px 7px; } }
 body.foto .tren-misiones { display: none; }
 .liga-ausencias { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 4px; }
+/* Inicio: portada liviana */
+.pagina.inicio { max-width: 900px; gap: 22px; }
+.inicio-cabeza { display: flex; flex-direction: column; gap: 4px; }
+.inicio-cabeza h1 { margin: 0; }
+.inicio-cruce { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 14px 18px; border-radius: 14px; background: var(--noche-2); border: 2px solid var(--linea); }
+.inicio-cruce.en-curso { border-color: var(--calabaza); }
+.inicio-cruce > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.inicio-cruce b { font-size: 1.15rem; color: var(--luna); }
+.inicio-duelos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.inicio-duelos li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-radius: 12px; background: var(--noche-2); }
+.inicio-duelos li > span { min-width: 0; }
+.inicio-accesos { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.inicio-accesos .tarjeta { min-height: 0; }
+.inicio-accesos h3 { margin: 0; }
+.inicio-novedades { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 6px; }

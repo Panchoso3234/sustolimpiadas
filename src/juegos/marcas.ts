@@ -1,4 +1,5 @@
 import { supabase } from '../nucleo/supabase';
+import { TOPES, topeDudoso } from './catalogo';
 
 // Marcas de los juegos. Siempre se anotan en el navegador (para que cada uno vea su mejor marca aunque no haya
 // entrado con Discord) y, con sesión iniciada, también en la tabla `marcas` de Supabase, que es la que vale.
@@ -71,12 +72,42 @@ export async function borrarMarca(id: number): Promise<string | null> {
 }
 
 const records = new Map<string, { hora: number; filas: Promise<Fila[]> }>();
+let todos: { hora: number; mapa: Promise<Map<string, Fila[]> | null> } | null = null;
 
-/** Récords históricos de un juego: la mejor marca de siempre de las 3 mejores personas (se recuerda un minuto). */
-export function recordsDelJuego(juego: string): Promise<Fila[]> {
+/** Los top 3 de todos los juegos en una sola consulta (supabase/2026-10-25-records.sql), sin partidas dudosas. Null si falta ese SQL. */
+function todosLosRecords(): Promise<Map<string, Fila[]> | null> {
+  if (todos && Date.now() - todos.hora < 60_000) return todos.mapa;
+  const topes = Object.fromEntries(Object.keys(TOPES).map((j) => [j, topeDudoso(j)]));
+  const mapa = Promise.resolve(supabase.rpc('records_top', { p_topes: topes })).then(({ data, error }) => {
+    if (error || !Array.isArray(data)) return null;
+    const m = new Map<string, Fila[]>();
+    for (const f of data as { juego: string; perfil: string; nombre: string; puntaje: number }[]) {
+      const lista = m.get(f.juego) ?? [];
+      lista.push({ perfil: f.perfil, nombre: f.nombre ?? 'Participante', puntaje: f.puntaje });
+      m.set(f.juego, lista);
+    }
+    for (const lista of m.values()) lista.sort((a, b) => b.puntaje - a.puntaje);
+    return m;
+  }, () => null);
+  todos = { hora: Date.now(), mapa };
+  return mapa;
+}
+
+/** Récords históricos de un juego: la mejor marca de siempre de las 3 mejores personas, sin partidas dudosas (se recuerda un minuto). */
+export async function recordsDelJuego(juego: string): Promise<Fila[]> {
+  const mapa = await todosLosRecords();
+  if (mapa) return mapa.get(juego) ?? [];
+  return recordsSueltos(juego);
+}
+
+/** Respaldo mientras no exista la función de récords: una consulta por juego, igual sin las dudosas. */
+function recordsSueltos(juego: string): Promise<Fila[]> {
   const guardado = records.get(juego);
   if (guardado && Date.now() - guardado.hora < 60_000) return guardado.filas;
-  const filas = Promise.resolve(supabase.from('marcas').select('perfil_id,puntaje,perfiles(nombre)').eq('juego', juego).order('puntaje', { ascending: false }).limit(500)
+  const tope = topeDudoso(juego);
+  let consulta = supabase.from('marcas').select('perfil_id,puntaje,perfiles(nombre)').eq('juego', juego);
+  if (tope) consulta = consulta.lte('puntaje', tope);
+  const filas = Promise.resolve(consulta.order('puntaje', { ascending: false }).limit(500)
     .then(({ data }) => {
       const vistos = new Set<string>(), mejores: Fila[] = [];
       for (const f of data ?? []) {

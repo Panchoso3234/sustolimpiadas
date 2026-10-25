@@ -9,7 +9,11 @@ export interface Enfrentamiento {
   estado: 'pendiente' | 'cerrado' | 'anulado'; ganador: Lado | 'empate' | null; puntos_a: number; puntos_b: number; creado_por: string; creado: string;
   /** Liga (etapa 3): a qué cruce pertenece y quién no jugó ninguna ronda. */
   cruce?: number | null; no_jugo?: Lado | 'ambos' | null;
+  /** Muerte súbita (2026-10-25-muerte-subita.sql): rondas extra que se agregaron por empate, y cómo se desempató al final. */
+  muerte_subita?: number; desempate?: 'suma' | 'mejor_ronda' | null;
 }
+/** Las rondas con que se creó el duelo (sin las de muerte súbita). */
+export const rondasBase = (e: Enfrentamiento) => e.rondas - (e.muerte_subita ?? 0);
 export interface MarcaVersus {
   enfrentamiento_id: number; perfil_id: string; ronda: number; lado: Lado; puntaje: number; terminado: boolean;
   detalle: Record<string, unknown>; creado: string; avance: string | null; reinicios: number;
@@ -45,6 +49,8 @@ export type NuevoEnfrentamiento = Pick<Enfrentamiento, 'modo' | 'juego' | 'ronda
 const COLUMNAS = 'id,modo,juego,rondas,jornada,plazo,oficial,a_perfil,b_perfil,a_equipo,b_equipo,estado,ganador,puntos_a,puntos_b,creado_por,creado';
 // Con las columnas de la liga (etapa-3.sql); si la base aún no las tiene, se piden las de antes
 const COLUMNAS_LIGA = `${COLUMNAS},cruce,no_jugo`;
+// Con la muerte súbita (2026-10-25-muerte-subita.sql); si todavía no se ejecuta, se piden las de la liga
+const COLUMNAS_MUERTE = `${COLUMNAS_LIGA},muerte_subita,desempate`;
 
 export async function listarPersonas(): Promise<Persona[]> {
   const { data } = await supabase.from('perfiles').select('id,nombre,rol').order('nombre');
@@ -66,7 +72,8 @@ export async function listarEquipos(): Promise<Equipo[]> {
 /** `disponible` es falso mientras las tablas del versus no existan en Supabase. */
 export async function listarEnfrentamientos(modo?: '1v1' | '3v3'): Promise<{ lista: Enfrentamiento[]; disponible: boolean }> {
   const pedir = (columnas: string) => { let consulta = supabase.from('enfrentamientos').select(columnas).order('id', { ascending: false }).limit(1000); if (modo) consulta = consulta.eq('modo', modo); return consulta; };
-  let { data, error } = await pedir(COLUMNAS_LIGA);
+  let { data, error } = await pedir(COLUMNAS_MUERTE);
+  if (error) ({ data, error } = await pedir(COLUMNAS_LIGA));
   if (error) ({ data, error } = await pedir(COLUMNAS));
   return { lista: (data as Enfrentamiento[] | null) ?? [], disponible: !error };
 }

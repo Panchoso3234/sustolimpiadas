@@ -43,7 +43,7 @@ export function MisEnVivo() {
           const hechas = datos.marcas.filter((m) => m.enfrentamiento_id === e.id && m.perfil_id === yo && m.terminado).length;
           return (
             <li key={e.id}>
-              <span class="quienes"><b>{nombreVersus(e.modo, e.juego)}</b><span>contra {V.nombreLado(e, lado === 'a' ? 'b' : 'a', datos.personas, datos.equipos)} · {e.oficial ? `jornada ${e.jornada}` : 'amistoso'} · {e.rondas > 1 ? `ronda ${Math.min(hechas + 1, e.rondas)} de ${e.rondas} · ` : ''}{V.fechaCorta(e.plazo) === 'sin plazo' ? 'sin plazo' : `hasta el ${V.fechaCorta(e.plazo)}`}{!esVivo(e) ? ' · si no pueden a la vez, en Versus 1v1 (Diferido)' : ''}</span></span>
+              <span class="quienes"><b>{nombreVersus(e.modo, e.juego)}</b><span>contra {V.nombreLado(e, lado === 'a' ? 'b' : 'a', datos.personas, datos.equipos)} · {e.oficial ? `jornada ${e.jornada}` : 'amistoso'} · {(e.muerte_subita ?? 0) > 0 ? 'muerte súbita: ronda extra · ' : ''}{e.rondas > 1 ? `ronda ${Math.min(hechas + 1, e.rondas)} de ${e.rondas} · ` : ''}{V.fechaCorta(e.plazo) === 'sin plazo' ? 'sin plazo' : `hasta el ${V.fechaCorta(e.plazo)}`}{!esVivo(e) ? ' · si no pueden a la vez, en Versus 1v1 (Diferido)' : ''}</span></span>
               {hechas < e.rondas ? <a class="boton principal" href={`#/juegos/vivo/enf-${e.id}`}>Jugar en vivo</a> : <span class="tenue chico">Ya jugaste. Falta tu rival.</span>}
             </li>
           );
@@ -141,11 +141,11 @@ export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; pres
                   const hechas = datos.marcas.filter((m) => m.enfrentamiento_id === e.id && m.perfil_id === yo && m.terminado).length, total = e.modo === '1v1' ? e.rondas : 1;
                   return (
                     <li key={e.id}>
-                      <span class="quienes"><b>{nombreVersus(e.modo, e.juego)}</b><span>contra {nombre(e, otro(lado))} · {e.oficial ? `jornada ${e.jornada}` : 'amistoso'} · {V.fechaCorta(e.plazo) === 'sin plazo' ? 'sin plazo' : `hasta el ${V.fechaCorta(e.plazo)}`}</span></span>
+                      <span class="quienes"><b>{nombreVersus(e.modo, e.juego)}</b><span>contra {nombre(e, otro(lado))} · {e.oficial ? `jornada ${e.jornada}` : 'amistoso'} · {V.fechaCorta(e.plazo) === 'sin plazo' ? 'sin plazo' : `hasta el ${V.fechaCorta(e.plazo)}`}{(e.muerte_subita ?? 0) > 0 ? ' · muerte súbita: empataron, se juega una ronda extra' : ''}</span></span>
                       {hechas < total
                         ? <span class="fila">
                             {seJuegaEnVivo(e) && <a class="boton" href={`#/juegos/vivo/enf-${e.id}`}>Jugar en vivo</a>}
-                            <a class="boton principal" href={`#/juegos/duelo/${e.id}`}>{total > 1 ? `Jugar ronda ${hechas + 1} de ${total}` : 'Jugar mi turno'}</a>
+                            <a class="boton principal" href={`#/juegos/duelo/${e.id}`}>{e.modo === '1v1' && hechas + 1 > V.rondasBase(e) ? 'Jugar la muerte súbita' : total > 1 ? `Jugar ronda ${hechas + 1} de ${V.rondasBase(e)}` : 'Jugar mi turno'}</a>
                           </span>
                         : <span class="tenue chico">Ya jugaste. Falta {e.modo === '1v1' ? 'tu rival' : 'el resto'}.</span>}
                     </li>
@@ -316,14 +316,14 @@ function ResultadoDuelo({ e, lado, marcas, personas, equipos }: { e: V.Enfrentam
   const como = e.ganador === 'empate' ? 'empata' : e.ganador === yo ? 'gana' : 'pierde';
   const delLado = (l: V.Lado) => marcas.filter((m) => m.lado === l);
   const filas = e.modo === '1v1'
-    ? Array.from({ length: e.rondas }, (_, i) => ({ titulo: `Ronda ${i + 1}`, a: delLado(yo).find((m) => m.ronda === i + 1), b: delLado(el).find((m) => m.ronda === i + 1) }))
+    ? Array.from({ length: e.rondas }, (_, i) => ({ titulo: i + 1 > V.rondasBase(e) ? `Muerte súbita ${i + 1 - V.rondasBase(e)}` : `Ronda ${i + 1}`, a: delLado(yo).find((m) => m.ronda === i + 1), b: delLado(el).find((m) => m.ronda === i + 1) }))
     : Array.from({ length: 3 }, (_, i) => {
       const a = delLado(yo)[i], b = delLado(el)[i], quien = (m?: V.MarcaVersus) => personas.find((p) => p.id === m?.perfil_id)?.nombre ?? '—';
       return { titulo: `${quien(a)} / ${quien(b)}`, a, b };
     });
   const revancha = async () => {
     const otro = yo === 'a' ? e.b_perfil : e.a_perfil;
-    const error = await V.crearEnfrentamientos([{ modo: '1v1', juego: e.juego, rondas: e.rondas, jornada: 1, plazo: null, oficial: false, a_perfil: sesion.usuarioId, b_perfil: otro, a_equipo: null, b_equipo: null }]);
+    const error = await V.crearEnfrentamientos([{ modo: '1v1', juego: e.juego, rondas: V.rondasBase(e), jornada: 1, plazo: null, oficial: false, a_perfil: sesion.usuarioId, b_perfil: otro, a_equipo: null, b_equipo: null }]);
     setAviso(error ? { texto: `No se pudo crear: ${error}`, ok: false } : { texto: 'Revancha creada: ya aparece en tus enfrentamientos y en los de tu rival.', ok: true });
   };
 
@@ -333,6 +333,7 @@ function ResultadoDuelo({ e, lado, marcas, personas, equipos }: { e: V.Enfrentam
       <h1>{lado ? (como === 'gana' ? '¡Ganaste!' : como === 'empata' ? 'Empate' : 'Perdiste') : e.ganador === 'empate' ? 'Empate' : `Ganó ${n(e.ganador as V.Lado)}`}</h1>
       <p class="marcador-duelo"><b>{n(yo)}</b> {yo === 'a' ? e.puntos_a : e.puntos_b} <span class="tenue">a</span> {yo === 'a' ? e.puntos_b : e.puntos_a} <b>{n(el)}</b>
         <span class="tenue chico"> · {e.modo === '1v1' ? 'rondas ganadas' : 'puntos sumados'}</span></p>
+      {e.desempate && <p class="tenue">{e.desempate === 'suma' ? 'Quedaron iguales en rondas: se definió por la suma de puntaje de todas las rondas.' : 'Quedaron iguales en rondas y en la suma: se definió por la mejor ronda de cada uno.'}</p>}
       {e.oficial && e.modo === '1v1' ? <PuntosDuelo id={e.id} /> : lado && <p>{e.oficial ? `Para el torneo: +${puntosVersus(puntos, como, e.jornada)} puntos (jornada ${e.jornada}).` : 'Amistoso: no da puntos del torneo.'}</p>}
       {marcas.length > 0 && <div class="tabla-caja">
         <table class="tabla duelo-detalle">

@@ -346,7 +346,7 @@ export function AjustePuntos() {
   const guardar = async () => { const error = await guardarPuntos(p); setAviso(error ? { texto: `No se pudo guardar: ${error}`, ok: false } : { texto: 'Puntos guardados.', ok: true }); };
   return (
     <>
-      <p>Cuántos puntos del torneo vale cada resultado de un duelo oficial (no jugar siempre da 0, y el bono por ganar un enfrentamiento de cruce es +5; ambos se multiplican por la jornada). Desde el 21 de octubre la tabla oficial solo suma duelos: los valores del modo individual quedan sin uso.</p>
+      <p>Cuántos puntos del torneo vale cada resultado de un duelo oficial (no jugar siempre da 0, y el bono por ganar un enfrentamiento de cruce es +5; ambos se multiplican por la jornada). Desde el 21 de octubre la tabla oficial solo suma duelos. Los valores de la Copa Individual son para su propia tabla, aparte del torneo: nunca se suman a los equipos.</p>
       <Mensaje aviso={aviso} />
       <h2>Versus (1v1 y 3v3)</h2>
       <div class="formulario">
@@ -354,7 +354,7 @@ export function AjustePuntos() {
         {campo('Empatar', p.empate, (n) => ({ ...p, empate: n }))}
         {campo('Perder', p.derrota, (n) => ({ ...p, derrota: n }))}
       </div>
-      <h2>Individual</h2>
+      <h2>Copa Individual (aparte del torneo)</h2>
       <div class="formulario">
         {campo('Primer puesto', p.individualMax, (n) => ({ ...p, individualMax: n }))}
         {campo('Último puesto', p.individualMin, (n) => ({ ...p, individualMin: n }))}
@@ -365,7 +365,7 @@ export function AjustePuntos() {
       </div>
       <div class="fila">
         <button class="boton principal" onClick={guardar}>Guardar puntos</button>
-        <button class="boton" onClick={() => setP(PUNTOS_BASE)}>Volver a 10 / 6 / 3</button>
+        <button class="boton" onClick={() => setP(PUNTOS_BASE)}>Volver a {PUNTOS_BASE.victoria} / {PUNTOS_BASE.empate} / {PUNTOS_BASE.derrota}</button>
       </div>
     </>
   );

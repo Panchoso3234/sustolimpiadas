@@ -3,7 +3,8 @@ import { supabase } from '../nucleo/supabase';
 // Cuántos puntos del torneo vale cada cosa. Los valores viven en la tabla `ajustes` y se cambian desde la Mesa de control.
 export interface Puntos { victoria: number; empate: number; derrota: number; individualMax: number; individualMin: number; multiplicadores: number[] }
 
-export const PUNTOS_BASE: Puntos = { victoria: 10, empate: 6, derrota: 3, individualMax: 10, individualMin: 2, multiplicadores: [1, 1.25, 1.5, 2] };
+/** Los valores con que se juega la liga (25-10): ganar 7, empatar 6 y perder 4. */
+export const PUNTOS_BASE: Puntos = { victoria: 7, empate: 6, derrota: 4, individualMax: 10, individualMin: 2, multiplicadores: [1, 1.25, 1.5, 2] };
 
 const numero = (valor: unknown, porDefecto: number) => (typeof valor === 'number' && Number.isFinite(valor) && valor >= 0 && valor <= 1000 ? valor : porDefecto);
 

@@ -26,7 +26,7 @@ export function Posiciones() {
   return (
     <>
       <h1>Tabla oficial</h1>
-      <p>Solo suman los <b>duelos oficiales</b> de la liga: ganar <b>{p.victoria}</b>, empatar <b>{p.empate}</b>, perder <b>{p.derrota}</b> y no jugar <b>0</b>, por el multiplicador de cada jornada ({m}). Los puntos van al jugador y a su equipo. El equipo que gana 2 de los 3 duelos de su enfrentamiento suma <b>+{BONO_CRUCE}</b> (también multiplicado). Las partidas individuales y los amistosos no cuentan.</p>
+      <p>Solo suman los <b>duelos oficiales</b> de la liga: ganar <b>{p.victoria}</b>, empatar <b>{p.empate}</b>, perder <b>{p.derrota}</b> y no jugar <b>0</b>, por el multiplicador de cada jornada ({m}). Los puntos van al jugador y a su equipo. El equipo que gana 2 de los 3 duelos de su enfrentamiento suma <b>+{BONO_CRUCE}</b> (también multiplicado). Si un duelo queda igualado en rondas, se juega <b>muerte súbita</b>: una ronda extra (hasta dos); si siguen iguales, gana la suma de puntaje. Las partidas individuales y los amistosos no cuentan.</p>
       {cruce && <p class="aviso ok">{hoy < cruce.desde ? `El cruce ${cruce.n} parte el ${V.fechaCorta(cruce.desde)}.` : `En curso: cruce ${cruce.n} de 11, hasta el ${V.fechaCorta(cruce.hasta)}.`} Tus duelos están en Juegos → Versus 1v1.</p>}
       {!tabla.length ? <p class="aviso atencion">Todavía no hay equipos.</p> : (
         <>
