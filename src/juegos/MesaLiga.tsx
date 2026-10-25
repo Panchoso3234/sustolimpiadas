@@ -19,11 +19,12 @@ const juegosDuelo = (cruce: number) => VERSUS.filter((t) => t.modo === '1v1' && 
 interface Borrador { cruce: number; juegos: string[]; duelos: { a: string; b: string; juego: string; equipos: [number, number] }[] }
 
 export function MesaLiga() {
+  const [ausencias, setAusencias] = useState<V.Ausencia[]>([]);
   const [equipos, setEquipos] = useState<V.Equipo[]>([]), [personas, setPersonas] = useState<V.Persona[]>([]), [duelos, setDuelos] = useState<V.Enfrentamiento[]>([]);
   const [borrador, setBorrador] = useState<Borrador | null>(null), [aviso, setAviso] = useState<{ texto: string; ok: boolean } | null>(null), [creando, setCreando] = useState(false);
   const cargar = async () => {
-    const [q, p, { lista }] = await Promise.all([V.listarEquipos(), V.listarPersonas(), V.listarEnfrentamientos('1v1')]);
-    setEquipos(q); setPersonas(p); setDuelos(lista.filter((d) => d.oficial));
+    const [q, p, { lista }, au] = await Promise.all([V.listarEquipos(), V.listarPersonas(), V.listarEnfrentamientos('1v1'), V.listarAusencias()]);
+    setEquipos(q); setPersonas(p); setDuelos(lista.filter((d) => d.oficial)); setAusencias(au);
   };
   useEffect(() => { cargar(); }, []);
 
@@ -67,7 +68,7 @@ export function MesaLiga() {
   /** Duelos que le faltan a un cruce ya creado (alguien se vinculó tarde): se agregan sin tocar los que existen. */
   const faltantes = (n: number): Borrador['duelos'] => {
     const hechos = delCruce(n), juegos = juegosPorUso(n, hechos.map((d) => d.juego)), lista: Borrador['duelos'] = [];
-    const ocupados = new Set(hechos.flatMap((d) => [d.a_perfil, d.b_perfil]));
+    const ocupados = new Set([...hechos.flatMap((d) => [d.a_perfil, d.b_perfil]), ...ausencias.filter((a) => a.cruce === n).map((a) => a.perfil_id)]);
     for (const [ea, eb] of calendario[n - 1]?.parejas ?? []) {
       const ma = equipos.find((q) => q.id === ea)?.miembros ?? [], mb = equipos.find((q) => q.id === eb)?.miembros ?? [];
       const dePareja = hechos.filter((d) => (ma.includes(d.a_perfil!) && mb.includes(d.b_perfil!)) || (mb.includes(d.a_perfil!) && ma.includes(d.b_perfil!)));
@@ -81,6 +82,32 @@ export function MesaLiga() {
     if (!lista.length) return setAviso({ texto: `Al cruce ${n} no le falta ningún duelo (o sus rivales siguen sin cuenta).`, ok: true });
     setBorrador({ cruce: n, juegos: lista.map((d) => d.juego), duelos: lista });
     setAviso(null);
+  };
+  /**
+   * Victorias por ausencia de un cruce: en cada enfrentamiento, quien todavía no tiene duelo gana contra un integrante
+   * "sin cuenta" del otro equipo (uno por uno, hasta completar los 3 duelos del enfrentamiento).
+   */
+  const porAusencia = (n: number): { perfil: string; rival: V.Equipo; ausente: string }[] => {
+    const hechos = delCruce(n), dados = ausencias.filter((a) => a.cruce === n), lista: { perfil: string; rival: V.Equipo; ausente: string }[] = [];
+    const ocupados = new Set([...hechos.flatMap((d) => [d.a_perfil, d.b_perfil]), ...dados.map((a) => a.perfil_id)]);
+    for (const [ea, eb] of calendario[n - 1]?.parejas ?? []) {
+      const qa = equipos.find((q) => q.id === ea), qb = equipos.find((q) => q.id === eb);
+      if (!qa || !qb) continue;
+      const enPareja = hechos.filter((d) => (qa.miembros.includes(d.a_perfil!) && qb.miembros.includes(d.b_perfil!)) || (qb.miembros.includes(d.a_perfil!) && qa.miembros.includes(d.b_perfil!))).length
+        + dados.filter((a) => (qa.miembros.includes(a.perfil_id) && a.equipo_rival === eb) || (qb.miembros.includes(a.perfil_id) && a.equipo_rival === ea)).length;
+      let libres = 3 - enPareja;
+      for (const [yo, otro] of [[qa, qb], [qb, qa]] as const) {
+        const presentes = yo.miembros.filter((id) => !ocupados.has(id)), sinCuenta = (otro.pendientes ?? []).filter((x) => !dados.some((a) => a.equipo_rival === otro.id && a.ausente === x.nombre));
+        for (let i = 0; i < Math.min(presentes.length, sinCuenta.length) && libres > 0; i++, libres--) { lista.push({ perfil: presentes[i], rival: otro, ausente: sinCuenta[i].nombre }); ocupados.add(presentes[i]); }
+      }
+    }
+    return lista;
+  };
+  const darAusencias = async (n: number) => {
+    const lista = porAusencia(n), c = CRUCES[n - 1];
+    const error = await V.darAusencias(lista.map((x) => ({ cruce: n, jornada: jornadaDe(c.desde), perfil_id: x.perfil, equipo_rival: x.rival.id, ausente: x.ausente })));
+    setAviso(error ? { texto: error, ok: false } : { texto: `Cruce ${n}: ${lista.length} victorias por ausencia. El bot ya lo avisó en Discord.`, ok: true });
+    cargar();
   };
   const crear = async () => {
     if (!borrador) return;
@@ -134,6 +161,18 @@ export function MesaLiga() {
                 ? <span class="chico">{cerrados} de {hechos.length} duelos cerrados · {[...new Set(hechos.map((d) => nombreVersus('1v1', d.juego)))].join(', ')}</span>
                 : <button class="boton" onClick={() => preparar(i + 1)}>Preparar cruce {i + 1}</button>}
               {hechos.length > 0 && <button class="boton" onClick={() => completar(i + 1)}>➕ Agregar duelos que faltan</button>}
+              {hechos.length > 0 && (() => {
+                const lista = porAusencia(i + 1), dados = ausencias.filter((a) => a.cruce === i + 1);
+                return (
+                  <div class="liga-ausencias">
+                    {dados.length > 0 && <span class="chico">Victorias por ausencia: {dados.map((a) => `${nombre(a.perfil_id)} sobre ${a.ausente}`).join(', ')}</span>}
+                    {lista.length > 0 && <>
+                      <span class="chico tenue">Sin rival porque el otro nunca entró: {lista.map((x) => `${nombre(x.perfil)} vs ${x.ausente} (${x.rival.nombre})`).join(', ')}. Dales la victoria al cerrar el cruce (si la persona entra antes, mejor créale su duelo).</span>
+                      <BotonDoble texto={`Dar ${lista.length} ${lista.length === 1 ? 'victoria' : 'victorias'} por ausencia`} alConfirmar={() => darAusencias(i + 1)} />
+                    </>}
+                  </div>
+                );
+              })()}
               {hechos.length > 0 && <BotonDoble texto={`Borrar el cruce ${i + 1}`} alConfirmar={() => borrarCruces(i + 1)} />}
             </li>
           );

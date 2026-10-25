@@ -21,6 +21,24 @@ export interface Equipo {
   pendientes?: Pendiente[];
 }
 export interface Pendiente { id: number; nombre: string; es_capitan: boolean }
+/**
+ * Victoria por ausencia (2026-10-25-ausencias.sql): el rival de un cruce nunca entró a la web, así que no hubo duelo.
+ * Quien estaba gana como si hubiera ganado el duelo (y cuenta para el bono); el ausente queda en 0.
+ */
+export interface Ausencia { id: number; cruce: number; jornada: number; perfil_id: string; equipo_rival: number; ausente: string }
+export async function listarAusencias(): Promise<Ausencia[]> {
+  const { data } = await supabase.from('ausencias').select('id,cruce,jornada,perfil_id,equipo_rival,ausente').order('id'); // si la tabla aún no existe, llega vacío
+  return (data as Ausencia[] | null) ?? [];
+}
+export async function darAusencias(filas: Omit<Ausencia, 'id'>[]): Promise<string | null> {
+  if (!filas.length) return 'No hay victorias por ausencia que dar.';
+  const { error } = await supabase.from('ausencias').insert(filas);
+  return error ? (error.message.includes('ausencias') ? 'Falta ejecutar supabase/2026-10-25-ausencias.sql en Supabase.' : error.message) : null;
+}
+export async function quitarAusencia(id: number): Promise<string | null> {
+  const { error } = await supabase.from('ausencias').delete().eq('id', id);
+  return error?.message ?? null;
+}
 export type NuevoEnfrentamiento = Pick<Enfrentamiento, 'modo' | 'juego' | 'rondas' | 'jornada' | 'plazo' | 'oficial' | 'a_perfil' | 'b_perfil' | 'a_equipo' | 'b_equipo'> & { cruce?: number };
 
 // La semilla queda fuera a propósito: no se puede leer, solo la entrega `empezar_ronda`

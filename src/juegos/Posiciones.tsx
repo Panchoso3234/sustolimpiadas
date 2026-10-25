@@ -14,8 +14,8 @@ export function Posiciones() {
   useEffect(() => {
     (async () => {
       await V.cerrarVencidos();
-      const [equipos, personas, { lista }, puntos] = await Promise.all([V.listarEquipos(), V.listarPersonas(), V.listarEnfrentamientos('1v1'), leerPuntos().catch(() => PUNTOS_BASE)]);
-      setDatos({ ...calcularLiga(equipos, personas, lista, puntos), personas, puntos });
+      const [equipos, personas, { lista }, puntos, ausencias] = await Promise.all([V.listarEquipos(), V.listarPersonas(), V.listarEnfrentamientos('1v1'), leerPuntos().catch(() => PUNTOS_BASE), V.listarAusencias()]);
+      setDatos({ ...calcularLiga(equipos, personas, lista, puntos, ausencias), personas, puntos });
     })();
   }, []);
 

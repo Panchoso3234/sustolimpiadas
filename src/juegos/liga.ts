@@ -1,5 +1,5 @@
 import { fechaChile } from '../nucleo/azar';
-import type { Persona, Equipo, Enfrentamiento } from './duelos';
+import type { Ausencia, Persona, Equipo, Enfrentamiento } from './duelos';
 import { puntosVersus, type Puntos } from './puntos';
 
 // La liga del torneo (desde el 21 de octubre de 2026). 12 equipos de 3: 8 con un capitán del staff y 4 solo de participantes.
@@ -74,7 +74,7 @@ export interface LineaJugador { id: string; nombre: string; equipo: Equipo | nul
 /** Quién es staff: el capitán de cada equipo y las cuentas de administración y guardianes. */
 export const esStaff = (id: string, equipos: Equipo[], personas: Persona[]) => equipos.some((q) => q.capitan === id) || personas.some((p) => p.id === id && p.rol !== 'jugador');
 
-export function calcularLiga(equipos: Equipo[], personas: Persona[], duelos: Enfrentamiento[], p: Puntos) {
+export function calcularLiga(equipos: Equipo[], personas: Persona[], duelos: Enfrentamiento[], p: Puntos, ausencias: Ausencia[] = []) {
   const equipoDe = (id: string | null) => equipos.find((q) => id && q.miembros.includes(id)) ?? null;
   const lineas = new Map<number, LineaEquipo>(equipos.map((q) => [q.id, { equipo: q, puntos: 0, porJornada: [0, 0, 0, 0], bonos: 0, ganados: 0, empatados: 0, perdidos: 0, sinJugar: 0, capitan: q.capitan ?? null }]));
   const jugadores = new Map<string, LineaJugador>();
@@ -109,6 +109,21 @@ export function calcularLiga(equipos: Equipo[], personas: Persona[], duelos: Enf
       const reg = enfrentamientos.get(clave) ?? { jornada: d.jornada, victorias: new Map<number, number>() };
       const ganador = d.ganador === 'a' ? qa.id : qb.id;
       reg.victorias.set(ganador, (reg.victorias.get(ganador) ?? 0) + 1);
+      enfrentamientos.set(clave, reg);
+    }
+  }
+  // Victorias por ausencia: quien estaba gana (puntos de victoria y cuenta para el bono); el equipo del ausente suma un "sin jugar"
+  for (const a of ausencias) {
+    const j = jugador(a.perfil_id), pts = puntosVersus(p, 'gana', a.jornada);
+    j.puntos += pts; j.ganados++;
+    const linea = j.equipo ? lineas.get(j.equipo.id) : undefined;
+    if (linea) { linea.puntos += pts; linea.porJornada[a.jornada - 1] += pts; linea.ganados++; }
+    const rival = lineas.get(a.equipo_rival);
+    if (rival) rival.sinJugar++;
+    if (j.equipo && j.equipo.id !== a.equipo_rival) {
+      const clave = `${a.cruce}|${Math.min(j.equipo.id, a.equipo_rival)}|${Math.max(j.equipo.id, a.equipo_rival)}`;
+      const reg = enfrentamientos.get(clave) ?? { jornada: a.jornada, victorias: new Map<number, number>() };
+      reg.victorias.set(j.equipo.id, (reg.victorias.get(j.equipo.id) ?? 0) + 1);
       enfrentamientos.set(clave, reg);
     }
   }

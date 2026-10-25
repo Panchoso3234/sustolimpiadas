@@ -958,3 +958,4 @@ body.foto .sala-reglas-fondo { display: none; }
 .tren-rango { flex-direction: column; align-items: stretch !important; }
 @media (max-height: 480px) { .tren-misiones { top: 108px; } .tren-misiones span { font-size: .66rem; padding: 2px 7px; } }
 body.foto .tren-misiones { display: none; }
+.liga-ausencias { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 4px; }
