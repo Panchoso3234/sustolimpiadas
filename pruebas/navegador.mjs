@@ -26,10 +26,12 @@ export async function abrir(url, { ancho = 1280, alto = 720, escala = 1 } = {}) 
   }
   const ws = new WebSocket(lista.find((p) => p.type === 'page').webSocketDebuggerUrl);
   await new Promise((r) => ws.addEventListener('open', r));
-  let id = 0; const pendientes = new Map(), errores = [];
+  let id = 0; const pendientes = new Map(), errores = [], consola = [];
   ws.addEventListener('message', (ev) => {
     const m = JSON.parse(ev.data);
     if (m.id && pendientes.has(m.id)) { pendientes.get(m.id)(m); pendientes.delete(m.id); }
+    // console.error de la página (no cuenta como error de la prueba, pero sirve para saber por qué algo falló)
+    if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') consola.push(m.params.args.map((x) => x.description ?? x.value).join(' '));
     if (m.method === 'Runtime.exceptionThrown') errores.push(m.params.exceptionDetails.exception?.description ?? m.params.exceptionDetails.text);
   });
   const cdp = (method, params = {}) => new Promise((r) => { const n = ++id; pendientes.set(n, r); ws.send(JSON.stringify({ id: n, method, params })); });
@@ -40,6 +42,7 @@ export async function abrir(url, { ancho = 1280, alto = 720, escala = 1 } = {}) 
   await cdp('Page.navigate', { url });
   return {
     errores,
+    consola,
     async js(expr) { const r = await cdp('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }); return r.result?.result?.value; },
     async clic(selector) { return this.js(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (!e) return false; e.click(); return true; })()`); },
     async foto(ruta) { const r = await cdp('Page.captureScreenshot', { format: 'png' }); writeFileSync(ruta, Buffer.from(r.result.data, 'base64')); },

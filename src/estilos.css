@@ -938,3 +938,23 @@ body.foto .b-reacciones, body.foto .b-reloj { display: none; }
 .tren-poderes .tren-inspector { display: flex; align-items: center; gap: 6px; }
 .tren-inspector i { display: block; min-width: 4px; height: 8px; border-radius: 4px; background: #ef5565; }
 body.foto .tren-op, body.foto .tren-hoja { display: none; }
+/* Reglas de cada juego: un panel que pausa la partida (en vez del texto de controles al empezar) */
+.sala-reglas-fondo { position: absolute; inset: 0; z-index: 7; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(12, 19, 36, .78); }
+.sala-reglas { width: min(560px, 100%); max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 18px 22px; border-radius: 16px; background: var(--noche-2, #1c2a4a); border: 2px solid var(--tono, var(--luna)); color: var(--hueso); text-align: left; }
+.sala-reglas header { display: flex; flex-direction: column; gap: 2px; }
+.sala-reglas h2 { margin: 0; font-family: var(--display); font-size: 1.6rem; color: var(--calabaza); }
+.sala-reglas h3 { margin: 4px 0 0; font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; color: var(--luna); }
+.sala-reglas .objetivo { margin: 0; font-size: 1.05rem; font-weight: 700; }
+.sala-reglas ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 5px; line-height: 1.45; }
+.sala-reglas .boton { align-self: center; margin-top: 4px; }
+.sala-salir .reglas-nuevas { animation: reglas-llaman 1s ease-in-out 6; }
+@keyframes reglas-llaman { 50% { box-shadow: 0 0 0 4px var(--calabaza); } }
+@media (max-height: 480px) { .sala-reglas { padding: 12px 16px; gap: 6px; } .sala-reglas h2 { font-size: 1.25rem; } .sala-reglas ul { font-size: .9rem; } }
+body.foto .sala-reglas-fondo { display: none; }
+/* Subway Surfers: misiones de la partida y sensibilidad */
+.tren-misiones { position: absolute; left: 14px; top: 110px; display: flex; flex-direction: column; gap: 4px; pointer-events: none; z-index: 2; }
+.tren-misiones span { font: 700 .78rem var(--cuerpo); color: var(--hueso); background: rgba(20, 32, 58, .72); border-radius: 10px; padding: 3px 9px; }
+.tren-misiones span.hecha { color: #9ff0c8; }
+.tren-rango { flex-direction: column; align-items: stretch !important; }
+@media (max-height: 480px) { .tren-misiones { top: 108px; } .tren-misiones span { font-size: .66rem; padding: 2px 7px; } }
+body.foto .tren-misiones { display: none; }

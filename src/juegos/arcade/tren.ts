@@ -7,6 +7,7 @@ import { crearMando } from '../mando';
 import type { Contexto, Partida, Resultado } from '../marco';
 import { crearEscenario, limitar, sombra } from '../reflejos/motor';
 import { mat } from '../punteria/fisica';
+import { ponerSensibilidad, sensibilidad } from '../../nucleo/preferencias';
 
 // Fuga del Tren: corre sin parar por tres vías esquivando trenes. Se cambia de vía a los lados, se salta y se rueda.
 // Los trenes detenidos con rampa se pueden subir y recorrer por el techo; los que vienen de frente avisan con luces.
@@ -17,7 +18,7 @@ import { mat } from '../punteria/fisica';
 const CARRIL = 2.5, TRAMO = 60, TRAMOS = 6, ALTO_TREN = 2.7, LARGO_VAGON = 6, GRAVEDAD = 46, SALTO = 15.5, SUPER = 21;
 type Tipo = 'tren' | 'viene' | 'baja' | 'alta';
 interface Obstaculo { tipo: Tipo; carril: number; z: number; largo: number; rampa: boolean; malla: THREE.Object3D; luz?: THREE.Object3D; pasado?: boolean }
-interface Poder { tipo: 'iman' | 'zapatillas' | 'doble' | 'escudo'; carril: number; z: number; y: number; malla: THREE.Object3D; tomado: boolean }
+interface Poder { tipo: 'iman' | 'zapatillas' | 'doble' | 'escudo' | 'tabla'; carril: number; z: number; y: number; malla: THREE.Object3D; tomado: boolean }
 interface Tramo { k: number; grupo: THREE.Group; obstaculos: Obstaculo[]; monedas: { x: number; y: number; z: number; tomada: boolean; valor?: number }[]; poderes: Poder[] }
 interface Bioma { nombre: string; cielo: [string, string]; niebla: string; pasto: string; vereda: string; edificios: string[]; luz: number }
 const BIOMAS: Bioma[] = [
@@ -28,12 +29,18 @@ const BIOMAS: Bioma[] = [
 ];
 /** Paisaje de un tramo: cambia cada 1.000 m y vuelve a empezar después de la noche. */
 const biomaDe = (kTramo: number) => Math.floor((kTramo * TRAMO + TRAMO / 2) / 1000) % BIOMAS.length;
-const ICONO = { iman: '🧲', zapatillas: '👟', doble: '×2', escudo: '🛡️' } as const;
+const ICONO = { iman: '🧲', zapatillas: '👟', doble: '×2', escudo: '🛡️', tabla: '🛹' } as const;
 // Solo en pruebas: "?rampas=1" pone solo trenes con rampa, "?vel=34" fija la velocidad y "?paso=0.05" simula 20 cuadros/s
 const DEV = import.meta.env.DEV ? new URLSearchParams(location.search) : null;
 const RAMPAS = !!DEV?.has('rampas'), VEL_FIJA = Number(DEV?.get('vel')) || 0, PASO_FIJO = Number(DEV?.get('paso')) || 0;
 // "?metros=3000" parte más adelante (para revisar los paisajes sin correr todo)
 const K0 = Math.floor((Number(DEV?.get('metros')) || 0) / TRAMO);
+// "?inmortal=1": los choques no terminan la carrera (para recorrer miles de metros buscando muros)
+const INMORTAL = !!DEV?.has('inmortal');
+/** Lo que avanza hacia el jugador un tren que viene de frente (12 m/s mientras estás a menos de 70 m, con la velocidad mínima). */
+const VIAJE = 42;
+/** Lo que tapa una vía por completo: un tren detenido sin rampa o uno que viene de frente. */
+const tapa = (o: Obstaculo) => o.tipo === 'viene' || (o.tipo === 'tren' && !o.rampa);
 
 export async function crear(c: Contexto): Promise<Partida> {
   const e = crearEscenario(c.caja, { ancho: 10, alto: 8, centro: [0, 0, 0], inclinacion: 0.4, sinPlaya: true });
@@ -104,6 +111,18 @@ export async function crear(c: Contexto): Promise<Partida> {
   const tramos: Tramo[] = [];
   const geoBaliza = new THREE.SphereGeometry(0.13, 8, 6), matBaliza = new THREE.MeshBasicMaterial({ color: '#ffb02e' });
   const ocupadaPrevia = [Infinity, Infinity, Infinity]; // por vía, hasta dónde llega lo último puesto (se comparte entre tramos)
+  /** Si un tren de frente en esta vía, al avanzar, dejaría las tres vías tapadas a la vez en algún punto. */
+  const cierraElPaso = (carril: number, z: number, nuevos: Obstaculo[]) => {
+    const todos = [...tramos.flatMap((t) => t.obstaculos), ...nuevos];
+    const tramosDe = (x: number) => todos.filter((o) => o.carril === x && tapa(o)).map((o) => [o.z - o.largo, o.z + (o.tipo === 'viene' ? VIAJE : 0)]);
+    const [a, b] = [0, 1, 2].filter((x) => x !== carril).map(tramosDe);
+    for (const [a0, a1] of a) for (const [b0, b1] of b) if (Math.min(a1, b1, z + VIAJE) - Math.max(a0, b0, z - 2 * LARGO_VAGON) > -1) return true;
+    return false;
+  };
+  /** Si un punto de la vía queda dentro del cuerpo de un tren (no encima de su techo). */
+  const bajoUnTren = (carril: number, z: number, y: number, nuevos: Obstaculo[]) =>
+    y < ALTO_TREN + 0.3 && [...tramos.flatMap((t) => t.obstaculos), ...nuevos].some((o) => (o.tipo === 'tren' || o.tipo === 'viene') && o.carril === carril && z <= o.z + 0.6 && z >= o.z - o.largo - 0.6);
+  let quitadas = 0;
   const crearTramo = (kTramo: number): Tramo => {
     const r = generador(`${c.semilla}|tramo${kTramo}`), grupo = new THREE.Group(), z0 = -kTramo * TRAMO, obstaculos: Obstaculo[] = [], lista: Tramo['monedas'] = [], poderes: Poder[] = [];
     const nb = biomaDe(kTramo), bioma = BIOMAS[nb], noche = bioma.nombre === 'Noche';
@@ -162,6 +181,7 @@ export async function crear(c: Contexto): Promise<Partida> {
           if (carril === libre) tipo = r() < 0.5 ? 'baja' : 'alta';
           if (RAMPAS) tipo = 'tren';
           const z = zFila - r() * 3;
+          if (tipo === 'viene' && !DEV?.has('sinarreglo') && cierraElPaso(carril, z, obstaculos)) tipo = 'tren';
           if (tipo === 'tren' || tipo === 'viene') {
             const cabe = Math.max(1, Math.floor((z - (z0 - TRAMO + 2)) / LARGO_VAGON));
             const n = Math.min(cabe, tipo === 'viene' ? 2 : 1 + Math.floor(r() * 3)), g = new THREE.Group(), rampa = tipo === 'tren' && (r() < 0.55 || RAMPAS);
@@ -194,12 +214,22 @@ export async function crear(c: Contexto): Promise<Partida> {
             // En los techos largos, la última es una moneda grande que vale 10
             if (rampa) for (let q = 0; q < n * 3; q++) lista.push({ x: (carril - 1) * CARRIL, y: ALTO_TREN + 0.8, z: z - 1 - q * 2, tomada: false, valor: n >= 2 && q === n * 3 - 1 ? 10 : undefined });
           } else {
-            const g = new THREE.Group(), color = tipo === 'baja' ? '#e8443a' : '#ffb02e';
+            const g = new THREE.Group(), color = tipo === 'baja' ? '#e8443a' : '#ffb02e', avanzado = kTramo * TRAMO >= 1500;
+            let largoObs = 0.5;
             if (tipo === 'baja') {
               for (const y of [0.4, 0.92]) { const tabla = new THREE.Mesh(new THREE.BoxGeometry(CARRIL * 0.86, 0.3, 0.18), mat(y > 0.5 ? '#f7f7f0' : color)); tabla.position.y = y; g.add(tabla); }
               // Dos balizas encendidas arriba: se distinguen de lejos aunque haya niebla
               for (const x of [-1, 1]) { const baliza = new THREE.Mesh(geoBaliza, matBaliza); baliza.position.set(x * CARRIL * 0.38, 1.15, 0); g.add(baliza); }
               for (const x of [-1, 1]) { const pata = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.1, 0.14), mat('#5d5560')); pata.position.set(x * CARRIL * 0.38, 0.55, 0); g.add(pata); }
+            } else if (avanzado && r() < 0.35) {
+              // Túnel: un techo bajo de 8 m; hay que pasarlo rodando de punta a punta
+              largoObs = 8.5;
+              const techoTunel = new THREE.Mesh(new THREE.BoxGeometry(CARRIL * 0.98, 1.3, 8), mat('#5a4a6a'));
+              techoTunel.position.set(0, 2.0, -4);
+              const boca = new THREE.Mesh(new THREE.BoxGeometry(CARRIL * 0.98, 0.25, 0.3), mat(color));
+              boca.position.set(0, 1.5, 0.05);
+              g.add(techoTunel, boca);
+              for (const x of [-1, 1]) { const muro = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.7, 8), mat('#4a3a5a')); muro.position.set(x * CARRIL * 0.49, 1.35, -4); g.add(muro); }
             } else {
               const barra = new THREE.Mesh(new THREE.BoxGeometry(CARRIL * 0.95, 0.5, 0.3), mat(color));
               barra.position.y = 1.55;
@@ -210,8 +240,16 @@ export async function crear(c: Contexto): Promise<Partida> {
             }
             g.position.set((carril - 1) * CARRIL, 0, z);
             grupo.add(g);
-            ocupada[carril] = z - 3;
-            obstaculos.push({ tipo, carril, z, largo: 0.5, rampa: false, malla: g });
+            ocupada[carril] = z - largoObs - 3;
+            obstaculos.push({ tipo, carril, z, largo: largoObs, rampa: false, malla: g });
+            // Valla doble: otra igual 3,5 m más allá (un buen salto pasa las dos)
+            if (tipo === 'baja' && avanzado && r() < 0.3) {
+              const g2 = g.clone();
+              g2.position.z = z - 3.5;
+              grupo.add(g2);
+              obstaculos.push({ tipo, carril, z: z - 3.5, largo: 0.5, rampa: false, malla: g2 });
+              ocupada[carril] = z - 6.5;
+            }
           }
         }
         // Una fila de monedas por la vía libre
@@ -220,12 +258,21 @@ export async function crear(c: Contexto): Promise<Partida> {
         zz += 22 - dificultad * 7 + r() * 6;
       }
       if (r() < 0.45) {
-        const tipo = (['iman', 'zapatillas', 'doble', 'escudo'] as const)[Math.floor(r() * 4)], carril = Math.floor(r() * 3), z = z0 - TRAMO + 4;
-        const malla = new THREE.Group(), burbuja = new THREE.Mesh(new THREE.IcosahedronGeometry(0.6, 1), new THREE.MeshBasicMaterial({ color: { iman: '#ef5565', zapatillas: '#3fc79a', doble: '#ffd23c', escudo: '#5ad1ff' }[tipo], transparent: true, opacity: 0.75 }));
+        const tipo = (['iman', 'zapatillas', 'doble', 'escudo', 'tabla'] as const)[Math.floor(r() * 5)], azarVia = Math.floor(r() * 3), z = z0 - TRAMO + 4;
+        // En la primera vía (desde la sorteada) que no tenga un tren encima; si las tres lo tienen, no hay burbuja
+        const carril = [0, 1, 2].map((d) => (azarVia + d) % 3).find((x) => !bajoUnTren(x, z, 1.2, obstaculos)) ?? -1;
+        if (carril >= 0) {
+        const malla = new THREE.Group(), burbuja = new THREE.Mesh(new THREE.IcosahedronGeometry(0.6, 1), new THREE.MeshBasicMaterial({ color: { iman: '#ef5565', zapatillas: '#3fc79a', doble: '#ffd23c', escudo: '#5ad1ff', tabla: '#ff8a2e' }[tipo], transparent: true, opacity: 0.75 }));
         malla.add(burbuja);
         malla.position.set((carril - 1) * CARRIL, 1.2, z);
         grupo.add(malla);
         poderes.push({ tipo, carril, z, y: 1.2, malla, tomado: false });
+        }
+      }
+      // Monedas que cayeron dentro de un tren (al lado de la vía libre de una fila venía otro tren): se quitan
+      for (let i = lista.length - 1; i >= 0; i--) {
+        const mo = lista[i];
+        if (bajoUnTren(Math.round(mo.x / CARRIL) + 1, mo.z, mo.y, obstaculos)) { lista.splice(i, 1); quitadas++; }
       }
     }
     e.escena.add(grupo);
@@ -248,9 +295,9 @@ export async function crear(c: Contexto): Promise<Partida> {
 
   // ── Estado del corredor ──
   const yo = { carril: 1, x: 0, y: 0, vy: 0, z: -K0 * TRAMO, rueda: 0, suelo: 0, tropiezo: -9, escudo: false, invencible: 0, accion: -9, combo: 0, techo: null as Obstaculo | null, aplasta: 0 };
-  const poder: Record<Poder['tipo'], number> = { iman: 0, zapatillas: 0, doble: 0, escudo: 0 };
+  const poder: Record<Poder['tipo'], number> = { iman: 0, zapatillas: 0, doble: 0, escudo: 0, tabla: 0 };
   // Opciones de este navegador: menos temblor y, solo en práctica, una partida más suave para aprender
-  const OPCIONES = 'susto.tren.opciones', RECORD = 'susto.tren.record', op = { calma: false, suave: false };
+  const OPCIONES = 'susto.tren.opciones', RECORD = 'susto.tren.record', op = { calma: false, suave: false, musica: true };
   try { Object.assign(op, JSON.parse(localStorage.getItem(OPCIONES) ?? '{}')); } catch { /* sin almacenamiento */ }
   const suave = op.suave && !!c.practica, temblar = (f: number) => e.temblar(op.calma ? f * 0.25 : f);
   let record = 0;
@@ -258,7 +305,44 @@ export async function crear(c: Contexto): Promise<Partida> {
   let v = (suave ? 10 : 13) + (c.nivel - 1) * 0.6, empezado = false, terminado = false, monedasTotal = 0, previoX = 0, previoZ = 0, previoRueda = false, inicio = 0;
   // Puntos: la distancia cuenta con el multiplicador de la racha (sube cada 500 m sin roces ni choques) y se suman los bonos
   let puntosDist = 0, bonos = 0, rachaDesde = K0 * TRAMO, rachaNivel = 0, rachaMax = 0, revivido = false, reviveHasta = 0, cuenta = 0, finT = 0, atrapado = false, superoRecord = false, biomaVisto = Math.floor((K0 * TRAMO) / 1000), dobleToque = false;
-  let resultado: Resultado | null = null;
+  let resultado: Resultado | null = null, ultimoCambio = -9, ultimoRompe = -9, poderesTomados = 0, justos = 0, comboMax = 0, limpioDesde = K0 * TRAMO, limpioMax = 0, proxPulso = 0, compas = 0, ultimoT = 0, techosTotal = 0, viaAyuda = 1, ayudaHasta = -9;
+  // Misiones de la partida: tres metas cortas que salen de la semilla (las mismas para los dos en un duelo); cada una da +250
+  const MISIONES = [
+    { id: 'techos', texto: 'Sube a 5 techos', meta: 5, avance: () => techosTotal },
+    { id: 'monedas', texto: 'Junta 80 monedas', meta: 80, avance: () => monedasTotal },
+    { id: 'justos', texto: 'Haz 3 pasadas justas', meta: 3, avance: () => justos },
+    { id: 'combo', texto: 'Encadena 3 techos sin bajar', meta: 3, avance: () => comboMax },
+    { id: 'metros', texto: 'Corre 1.000 m', meta: 1000, avance: () => Math.round(-yo.z - K0 * TRAMO) },
+    { id: 'poderes', texto: 'Toma 2 poderes', meta: 2, avance: () => poderesTomados },
+    { id: 'limpio', texto: 'Corre 600 m sin rozar ni chocar', meta: 600, avance: () => Math.round(limpioMax) },
+  ];
+  const rMis = generador(`${c.semilla}|misiones`), misiones = [...MISIONES].sort(() => rMis() - 0.5).slice(0, 3).map((m) => ({ ...m, hecha: false }));
+  const listaMisiones = document.createElement('div');
+  listaMisiones.className = 'tren-misiones';
+  c.caja.appendChild(listaMisiones);
+  const pintarMisiones = () => { listaMisiones.innerHTML = misiones.map((m) => `<span class="${m.hecha ? 'hecha' : ''}">${m.hecha ? '✓' : '○'} ${m.texto}${m.hecha ? '' : ` · ${Math.min(m.meta, m.avance())}/${m.meta}`}</span>`).join(''); };
+  pintarMisiones();
+  // Cada poder suena distinto
+  const sonarPoder = (tipo: Poder['tipo']) => {
+    const ahora = e.sonido.ctx?.currentTime ?? 0;
+    if (tipo === 'iman') e.sonido.tono(520, 0.25, { tipo: 'sine', vol: 0.14, hasta: 1040 });
+    else if (tipo === 'zapatillas') e.sonido.tono(300, 0.3, { tipo: 'triangle', vol: 0.14, hasta: 900 });
+    else if (tipo === 'doble') { e.sonido.tono(880, 0.08, { tipo: 'square', vol: 0.08 }); e.sonido.tono(1320, 0.1, { tipo: 'square', vol: 0.08, cuando: ahora + 0.09 }); }
+    else if (tipo === 'escudo') e.sonido.tono(220, 0.35, { tipo: 'sawtooth', vol: 0.08, hasta: 440 });
+    else { e.sonido.ruido(0.2, 0.08); e.sonido.tono(700, 0.3, { tipo: 'triangle', vol: 0.12, hasta: 350 }); }
+  };
+  // La tabla bajo los pies mientras dura
+  const tablaMalla = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.08, 1.5), mat('#ff8a2e'));
+  tablaMalla.visible = false;
+  e.escena.add(tablaMalla);
+  // Ayuda de los primeros 500 m: una flecha verde sobre la única vía libre cuando vienen dos trenes juntos
+  const flecha = new THREE.Mesh(new THREE.ConeGeometry(0.8, 1.9, 3), new THREE.MeshBasicMaterial({ color: '#3fe0a0', transparent: true, opacity: 0.85, depthWrite: false }));
+  flecha.rotation.x = -Math.PI / 2; flecha.visible = false;
+  e.escena.add(flecha);
+  const viaLibre = (): number | null => {
+    const tapadas = [0, 1, 2].map((x) => tramos.some((tr) => tr.obstaculos.some((o) => o.carril === x && (o.tipo === 'tren' || o.tipo === 'viene') && o.z > yo.z - 30 && o.z - o.largo < yo.z - 6)));
+    return tapadas.filter(Boolean).length === 2 ? tapadas.indexOf(false) : null;
+  };
   const multiplicador = () => 1 + rachaNivel * 0.5, puntaje = () => Math.round(puntosDist) + monedasTotal * 5 + bonos;
   const bajarRacha = () => { rachaNivel = Math.max(0, rachaNivel - 1); rachaDesde = -yo.z - rachaNivel * 500; };
   const panel = document.createElement('div');
@@ -268,8 +352,11 @@ export async function crear(c: Contexto): Promise<Partida> {
   const botonOp = document.createElement('button'), hoja = document.createElement('div');
   botonOp.className = 'tren-op'; botonOp.textContent = '⚙'; botonOp.title = 'Opciones';
   hoja.className = 'tren-hoja';
-  hoja.innerHTML = '<b>Opciones</b><label><input type="checkbox" data-o="calma"> Menos temblor de cámara</label><label><input type="checkbox" data-o="suave"> Partida suave para aprender (solo en práctica, desde la próxima)</label><small>El volumen se cambia en ⚙ arriba a la derecha de la página.</small>';
-  hoja.querySelectorAll('input').forEach((x) => {
+  hoja.innerHTML = '<b>Opciones</b><label><input type="checkbox" data-o="calma"> Menos temblor de cámara</label><label><input type="checkbox" data-o="suave"> Partida suave para aprender (solo en práctica, desde la próxima)</label><label><input type="checkbox" data-o="musica"> Música</label><label class="tren-rango">Sensibilidad del deslizamiento <input type="range" min="0.6" max="1.6" step="0.1" data-s></label><small>El volumen se cambia en ⚙ arriba a la derecha de la página.</small>';
+  const rango = hoja.querySelector<HTMLInputElement>('[data-s]')!;
+  rango.value = String(sensibilidad());
+  rango.addEventListener('change', () => { ponerSensibilidad(Number(rango.value)); rango.blur(); });
+  hoja.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((x) => {
     const clave = x.dataset.o as keyof typeof op;
     x.checked = op[clave];
     x.addEventListener('change', () => { op[clave] = x.checked; try { localStorage.setItem(OPCIONES, JSON.stringify(op)); } catch { /* sin almacenamiento */ } x.blur(); });
@@ -294,13 +381,22 @@ export async function crear(c: Contexto): Promise<Partida> {
     for (const x of [-1, 1]) { const brillo = new THREE.Sprite(new THREE.SpriteMaterial({ map: halo('rgba(255,210,60,0.95)'), depthWrite: false, blending: THREE.AdditiveBlending })); brillo.scale.set(2.4, 2.4, 1); brillo.position.set(x * CARRIL * 1.6, 1, -record); e.escena.add(brillo); }
   }
 
-  const prueba = { techos: 0, tropiezos: 0, desdeTecho: 0, cruces: 0, fin: '' };
-  if (DEV) (window as unknown as { __tren: () => unknown }).__tren = () => ({ ...prueba, metros: Math.round(-yo.z), v, terminado, puntaje: puntaje(), bonos, racha: rachaNivel, revivido, practica: !!c.practica });
+  const prueba = { techos: 0, tropiezos: 0, desdeTecho: 0, cruces: 0, muros: 0, gestos: 0, fin: '' };
+  if (DEV) Object.defineProperty(prueba, 'monedasQuitadas', { get: () => quitadas, enumerable: true });
+  let enMuro = false;
+  const hayMuro = () => {
+    const vias = [0, 1, 2].map((x) => tramos.flatMap((t) => t.obstaculos).filter((o) => o.carril === x && tapa(o) && o.z > yo.z - 25 && o.z - o.largo < yo.z - 3).map((o) => [o.z - o.largo, o.z]));
+    for (const [a0, a1] of vias[0]) for (const [b0, b1] of vias[1]) for (const [c0, c1] of vias[2]) if (Math.min(a1, b1, c1, yo.z - 3) > Math.max(a0, b0, c0, yo.z - 25)) return true;
+    return false;
+  };
+  if (DEV) (window as unknown as { __tren: () => unknown }).__tren = () => ({ ...prueba, metros: Math.round(-yo.z), v, terminado, puntaje: puntaje(), bonos, racha: rachaNivel, revivido, practica: !!c.practica, carril: yo.carril, z: yo.z, misiones: misiones.filter((m) => m.hecha).length, flecha: flecha.visible, libre: viaLibre(),
+    tunelCerca: tramos.some((tr) => tr.obstaculos.some((o) => o.tipo === 'alta' && o.largo > 1 && o.z < yo.z - 4 && o.z > yo.z - 22)) });
+  if (DEV) (window as unknown as { __trenTabla: () => void }).__trenTabla = () => { poder.tabla = ultimoT + 8; };
   const terminar = (t: number, porque: string) => {
     if (terminado) return;
     prueba.fin = `${porque} · y ${yo.y.toFixed(2)} · suelo ${yo.suelo.toFixed(2)}`;
     terminado = true; finT = t; atrapado = porque.includes('inspector');
-    botonOp.hidden = true; hoja.classList.remove('visible');
+    botonOp.hidden = true; hoja.classList.remove('visible'); listaMisiones.hidden = true;
     k.animar('die', true);
     const metros = Math.round(-yo.z), nuevoRecord = metros > record;
     if (nuevoRecord) try { localStorage.setItem(RECORD, String(metros)); } catch { /* sin almacenamiento */ }
@@ -308,7 +404,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     resultado = {
       puntaje: puntaje(),
       lineas: [['Distancia', `${metros} m${nuevoRecord && record ? ' · ¡récord personal!' : ''}`], ['Monedas', String(monedasTotal)], ['Racha máxima', `×${(1 + rachaMax * 0.5).toLocaleString('es-CL')}`],
-        ['Bonos (justos y combos)', `+${bonos}`], ['Tiempo corriendo', `${Math.round(t - inicio)} s`], ['Fin', `${porque} (ibas a ${Math.round(v)} m/s)`]],
+        ['Misiones', `${misiones.filter((m) => m.hecha).length} de ${misiones.length}`], ['Bonos (justos, combos y misiones)', `+${bonos}`], ['Tiempo corriendo', `${Math.round(t - inicio)} s`], ['Fin', `${porque} (ibas a ${Math.round(v)} m/s)`]],
       detalle: { metros, monedas: monedasTotal, bonos, racha: rachaMax, seg: Math.round(t - inicio), ruta: ruta.final() },
     };
   };
@@ -328,7 +424,7 @@ export async function crear(c: Contexto): Promise<Partida> {
           if (Math.max(y, rampa) >= ALTO_TREN - 0.45 || (o.rampa && y >= ALTO_TREN * 0.55 && z > frente - 2)) { piso = Math.max(piso, ALTO_TREN); techo = o; }
           else if (!rampa) choca = o;
         }
-      } else if (Math.abs(z - o.z) < 0.45) {
+      } else if (z <= o.z + 0.45 && z >= o.z - (o.largo - 0.5) - 0.45) {
         if (o.tipo === 'baja' && y < 1.0) choca = o;
         if (o.tipo === 'alta' && y + alto > 1.35 && y < 2.6) choca = o;
       }
@@ -337,12 +433,12 @@ export async function crear(c: Contexto): Promise<Partida> {
   };
   const MOTIVO: Record<Tipo, string> = {
     viene: 'Te pilló un tren de frente: los de luz roja avanzan hacia ti', tren: 'Chocaste con el frente de un vagón',
-    baja: 'Tropezaste con una valla: las rojas se saltan', alta: 'Te golpeaste con una barra: las naranjas se pasan rodando',
+    baja: 'Tropezaste con una valla: las rojas se saltan', alta: 'Te golpeaste con una barra o un túnel: se pasan rodando',
   };
   /** Un choque sin escudo: en práctica se reaparece una vez, en la vía más despejada; si no, termina la carrera. */
   const caer = (t: number, porque: string) => {
     if (!c.practica || revivido) return terminar(t, porque);
-    revivido = true; reviveHasta = t + 3; yo.invencible = t + 5; yo.tropiezo = -9; rachaNivel = 0; rachaDesde = -yo.z;
+    revivido = true; reviveHasta = t + 3; yo.invencible = t + 5; yo.tropiezo = -9; rachaNivel = 0; rachaDesde = -yo.z; limpioDesde = -yo.z;
     k.animar('die', true);
     const libre = [yo.carril, 1, 0, 2].find((x) => [0, 3, 6, 9, 12, 15].every((d) => !pisoYChoque(x, yo.z - d, 0, 1.7).choca)) ?? yo.carril;
     yo.carril = libre; yo.x = (libre - 1) * CARRIL; yo.y = yo.vy = 0; yo.suelo = 0; yo.techo = null; yo.combo = 0;
@@ -414,6 +510,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   // Fantasma del líder (si se juega contra él) y grabación del propio recorrido
   const ruta = grabadora(), lider = c.fantasma ? figuraFantasma(e.escena, c.fantasma, 1.75) : null;
   e.alCuadro((t, dt) => {
+    ultimoT = t;
     if (terminado && resultado && t - finT > 1.6) { e.detener(); const r = resultado; resultado = null; c.alTerminar(r); }
     if (empezado && !terminado && t < reviveHasta) {
       // Práctica: cuenta regresiva para reaparecer
@@ -429,17 +526,18 @@ export async function crear(c: Contexto): Promise<Partida> {
       // Controles: a los lados cambia de vía (uno por toque), arriba o Espacio salta, abajo o Shift rueda
       let mx = mando.x, mz = mando.z;
       if (automatico) [mx, mz] = pilotar();
-      if (Math.abs(mx) > 0.5 && Math.abs(previoX) <= 0.5) {
+      if (Math.abs(mx) > 0.5 && Math.abs(previoX) <= 0.5 && t - ultimoCambio >= 0.12) {
         mando.reanclar();
+        ultimoCambio = t; prueba.gestos++;
         const nuevo = limitar(yo.carril + Math.sign(mx), 0, 2);
         if (nuevo !== yo.carril) {
           const lado = pisoYChoque(nuevo, yo.z, yo.y, 1.7), deCostado = !!lado.choca && lado.choca.tipo !== 'baja' && lado.choca.tipo !== 'alta';
           // A media rampa no cabes en la vía de al lado: rebota sin castigo
-          if (deCostado && yo.suelo > 0.05) { e.sonido.efecto('leve', 0.3); e.hud.aviso('No cabes: hay un tren al lado', 'mal', 0.7); }
-          else if (deCostado) {
+          if (deCostado && yo.suelo > 0.05 && t >= poder.tabla) { e.sonido.efecto('leve', 0.3); e.hud.aviso('No cabes: hay un tren al lado', 'mal', 0.7); }
+          else if (deCostado && t >= poder.tabla) {
             // Rozar un tren de costado: el inspector se acerca; si vuelve a pasar pronto, te atrapa
-            if (t - yo.tropiezo < 3 && t > yo.invencible) { temblar(0.6); return caer(t, 'Te atrapó el inspector: dos roces seguidos'); }
-            yo.tropiezo = t; prueba.tropiezos++; bajarRacha(); temblar(0.3); e.sonido.efecto('golpe', 0.6); e.hud.aviso('¡Uy! El inspector se acerca', 'mal', 0.9);
+            if (t - yo.tropiezo < 3 && t > yo.invencible && !INMORTAL) { temblar(0.6); return caer(t, 'Te atrapó el inspector: dos roces seguidos'); }
+            yo.tropiezo = t; prueba.tropiezos++; bajarRacha(); limpioDesde = -yo.z; temblar(0.3); e.sonido.efecto('golpe', 0.6); e.hud.aviso('¡Uy! El inspector se acerca', 'mal', 0.9);
           } else { if (yo.suelo >= ALTO_TREN - 0.01) prueba.desdeTecho++; yo.carril = nuevo; e.sonido.efecto('leve', 0.4); }
         }
       }
@@ -452,6 +550,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       if (salto && enSuelo) { yo.vy = t < poder.zapatillas ? SUPER : SALTO; yo.rueda = 0; yo.accion = t; k.animar('jump', true); e.sonido.tono(420, 0.15, { tipo: 'triangle', vol: 0.15, hasta: 760 }); }
       if (rueda) { yo.rueda = t + 0.75; yo.accion = t; if (!enSuelo) yo.vy = -26; e.sonido.ruido(0.2, 0.08); }
       // Avance y gravedad en pasos de 25 cm como mucho: así nada se atraviesa aunque el juego vaya lento
+      const zAntes = yo.z, recorrido = (z: number) => z <= zAntes + 1 && z >= yo.z - 1;
       const pasos = Math.max(1, Math.ceil((v * paso) / 0.25)), sub = paso / pasos;
       for (let i = 0; i < pasos; i++) {
         yo.z -= v * sub;
@@ -461,16 +560,17 @@ export async function crear(c: Contexto): Promise<Partida> {
         const rodando = t < yo.rueda, { piso, choca, techo } = pisoYChoque(yo.carril, yo.z, yo.y, rodando ? 0.8 : 1.7);
         // Combo de techos: cada techo nuevo sin pisar las vías entre medio da un bono
         if (techo && techo !== yo.techo) {
-          prueba.techos++; yo.combo++;
+          prueba.techos++; techosTotal++; yo.combo++; comboMax = Math.max(comboMax, yo.combo);
           if (yo.combo >= 2) { const b = Math.min(200, 50 * (yo.combo - 1)); bonos += b; e.hud.aviso(`Combo de techos ×${yo.combo}: +${b}`, 'oro', 0.9); }
         }
         if (techo) yo.techo = techo;
         else if (piso === 0 && yo.y <= 0.01) { yo.techo = null; yo.combo = 0; }
         yo.suelo = piso;
         if (yo.y <= piso) { yo.y = piso; yo.vy = 0; }
-        if (choca && t > yo.invencible) {
+        if (choca && t < poder.tabla + 1 && t - ultimoRompe > 0.4) { ultimoRompe = t; e.chispas(yo.x, yo.y + 0.6, yo.z - 0.6, ['#ff8a2e', '#ffd23c'], 12, 4); e.sonido.ruido(0.12, 0.08); }
+        if (choca && t > yo.invencible && t >= poder.tabla + 1 && !INMORTAL) {
           if (t < poder.escudo || yo.escudo) {
-            poder.escudo = 0; yo.escudo = false; yo.invencible = t + 1.6; bajarRacha();
+            poder.escudo = 0; yo.escudo = false; yo.invencible = t + 1.6; bajarRacha(); limpioDesde = -yo.z;
             e.chispas(yo.x, yo.y + 1, yo.z, ['#5ad1ff', '#ffffff'], 30, 6);
             e.hud.aviso('¡El escudo te salvó!', 'oro', 1.2);
             temblar(0.5);
@@ -488,7 +588,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       for (const tr of tramos) for (const o of tr.obstaculos) {
         if (o.pasado || (o.tipo !== 'baja' && o.tipo !== 'alta') || o.z < yo.z) continue;
         o.pasado = true;
-        if (o.carril === yo.carril && t - yo.accion < 0.3) { bonos += 25; e.hud.aviso('¡Justo! +25', 'oro', 0.6); e.sonido.tono(880, 0.08, { tipo: 'triangle', vol: 0.08, hasta: 1320 }); }
+        if (o.carril === yo.carril && t - yo.accion < 0.3) { justos++; bonos += 25; e.hud.aviso('¡Justo! +25', 'oro', 0.6); e.sonido.tono(880, 0.08, { tipo: 'triangle', vol: 0.08, hasta: 1320 }); }
       }
       // Racha: la distancia vale más mientras no choques ni roces
       puntosDist += v * paso * multiplicador();
@@ -504,6 +604,7 @@ export async function crear(c: Contexto): Promise<Partida> {
         if (o.luz) { o.luz.visible = Math.sin(t * 12) > 0; ((o.luz.userData.franja as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = 0.2 + Math.abs(Math.sin(t * 6)) * 0.3; }
         if (cerca && !o.malla.userData.aviso && o.z - yo.z > -60 && o.carril === yo.carril) { o.malla.userData.aviso = true; e.sonido.tono(330, 0.5, { tipo: 'sawtooth', vol: 0.12 }); e.sonido.tono(262, 0.6, { tipo: 'sawtooth', vol: 0.12, cuando: (e.sonido.ctx?.currentTime ?? 0) + 0.5 }); }
       }
+      if (DEV) { const muro = hayMuro(); if (muro && !enMuro) prueba.muros++; enMuro = muro; }
       // Monedas y poderes
       const iman = t < poder.iman, valor = t < poder.doble ? 2 : 1;
       for (const tr of tramos) {
@@ -511,20 +612,21 @@ export async function crear(c: Contexto): Promise<Partida> {
           if (mo.tomada) continue;
           const dz = mo.z - yo.z, dx = mo.x - yo.x, dy = mo.y - (yo.y + 0.9);
           if (iman && Math.abs(dz) < 12 && dz < 2) { mo.x += -dx * Math.min(1, paso * 8); mo.y -= dy * Math.min(1, paso * 8); mo.z -= dz * Math.min(1, paso * 6); }
-          if (Math.abs(dz) < 1 && Math.abs(dx) < 1 && Math.abs(dy) < 1.3) {
+          if (recorrido(mo.z) && Math.abs(dx) < 1 && Math.abs(dy) < 1.3) {
             mo.tomada = true; monedasTotal += valor * (mo.valor ?? 1);
             if (mo.valor) { e.hud.aviso(`¡Moneda grande! +${valor * mo.valor}`, 'oro', 0.8); e.chispas(mo.x, mo.y, mo.z, ['#ffd23c', '#ffffff'], 14, 4); e.sonido.efecto('campana', 0.5); }
             else e.sonido.tono(1175, 0.06, { tipo: 'square', vol: 0.06 });
           }
         }
         for (const p of tr.poderes) {
-          if (p.tomado || Math.abs(p.z - yo.z) > 1 || p.carril !== yo.carril || Math.abs(p.y - (yo.y + 0.9)) > 1.5) continue;
+          if (p.tomado || !recorrido(p.z) || p.carril !== yo.carril || Math.abs(p.y - (yo.y + 0.9)) > 1.5) continue;
           p.tomado = true; p.malla.visible = false;
-          poder[p.tipo] = t + (p.tipo === 'escudo' ? 999 : 10);
+          poder[p.tipo] = t + (p.tipo === 'escudo' ? 999 : p.tipo === 'tabla' ? 8 : 10);
+          poderesTomados++;
           if (p.tipo === 'escudo') yo.escudo = true;
           e.chispas(p.malla.position.x, 1.2, p.z, ['#ffffff', '#ffd23c'], 20, 4);
-          e.sonido.efecto('campana', 0.6);
-          e.hud.aviso({ iman: '¡Imán!', zapatillas: '¡Súper salto!', doble: '¡Monedas ×2!', escudo: '¡Escudo!' }[p.tipo], 'oro', 1);
+          sonarPoder(p.tipo);
+          e.hud.aviso({ iman: '¡Imán!', zapatillas: '¡Súper salto!', doble: '¡Monedas ×2!', escudo: '¡Escudo!', tabla: '¡Tabla! 8 s sin choques' }[p.tipo], 'oro', 1);
         }
       }
       // Tramos nuevos por delante
@@ -532,6 +634,18 @@ export async function crear(c: Contexto): Promise<Partida> {
       const metros = Math.round(-yo.z);
       if (record > 50 && !superoRecord && metros > record) { superoRecord = true; e.hud.aviso('¡Nuevo récord personal!', 'oro', 1.4); e.chispas(yo.x, 1.5, yo.z - 2, ['#ffd23c', '#ffffff', '#ff8a2e'], 30, 6); e.sonido.efecto('campana', 0.7); }
       if (Math.floor(metros / 1000) > biomaVisto) { biomaVisto = Math.floor(metros / 1000); const b = biomaVisto % BIOMAS.length; e.hud.aviso(`${['🏙️', '🏜️', '❄️', '🌙'][b]} ${BIOMAS[b].nombre}`, 'oro', 1.4); }
+      limpioMax = Math.max(limpioMax, -yo.z - limpioDesde);
+      for (const m of misiones) if (!m.hecha && m.avance() >= m.meta) { m.hecha = true; bonos += 250; e.hud.aviso(`Misión cumplida: ${m.texto} +250`, 'oro', 1.4); e.sonido.efecto('campana', 0.6); }
+      if (Math.floor(t * 4) !== Math.floor((t - dt) * 4)) pintarMisiones();
+      // Música: un pulso que acelera con el tren
+      if (op.musica && t >= proxPulso) {
+        const notas = [110, 110, 147, 131], ahora = e.sonido.ctx?.currentTime ?? 0;
+        e.sonido.tono(70, 0.12, { tipo: 'sine', vol: 0.09, hasta: 40 });
+        if (compas % 2) e.sonido.ruido(0.04, 0.025);
+        if (compas % 4 === 0) e.sonido.tono(notas[(compas / 4) % 4], 0.22, { tipo: 'triangle', vol: 0.05, cuando: ahora + 0.01 });
+        compas++;
+        proxPulso = Math.max(proxPulso, t - 1) + 60 / (100 + (v - 13) * 2.4);
+      }
       e.hud.tiempo(`${metros} m`);
       e.hud.extra(`🪙 ${monedasTotal}${valor > 1 ? ' ×2' : ''}${rachaNivel ? ` · racha ×${multiplicador().toLocaleString('es-CL')}` : ''}`);
       e.hud.puntos(puntaje());
@@ -549,6 +663,13 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (!terminado && empezado && t >= reviveHasta) k.animar(yo.y > yo.suelo + 0.05 ? 'jump' : 'sprint');
     k.grupo.visible = t > yo.invencible || Math.sin(t * 30) > 0;
     sombraYo.position.set(yo.x, yo.suelo + 0.05, yo.z);
+    tablaMalla.visible = empezado && !terminado && t < poder.tabla;
+    if (tablaMalla.visible) { tablaMalla.position.set(yo.x, yo.y + 0.06, yo.z); tablaMalla.rotation.z = Math.sin(t * 9) * 0.06; }
+    // Se queda al menos medio segundo para que no parpadee
+    const libre = empezado && !terminado && -yo.z - K0 * TRAMO < 500 ? viaLibre() : null;
+    if (libre !== null) { viaAyuda = libre; ayudaHasta = t + 0.5; }
+    flecha.visible = empezado && !terminado && t < ayudaHasta;
+    if (flecha.visible) flecha.position.set((viaAyuda - 1) * CARRIL, 0.55 + Math.sin(t * 6) * 0.12, yo.z - 9);
     // El inspector te persigue al partir y vuelve a aparecer cuando tropiezas; si te atrapa, se queda a tu lado
     const persigue = empezado && !terminado && (t - inicio < 4 || t - yo.tropiezo < 3);
     inspector.grupo.visible = persigue || atrapado || (terminado && t - inicio < 6);

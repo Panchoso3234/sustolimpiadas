@@ -149,7 +149,8 @@ export function crearEscenario(caja: HTMLElement, encuadre: Encuadre) {
   };
 
   const paso = () => {
-    const ahora = performance.now(), dt = Math.min(0.1, (ahora - previo) / 1000);
+    // En pausa el tiempo no corre para nadie: los juegos que avanzan con dt (no solo con el reloj) también se detienen
+    const ahora = performance.now(), dt = pausado ? 0 : Math.min(0.1, (ahora - previo) / 1000);
     previo = ahora;
     const t = reloj();
     mar.position.y = 0.02 + Math.sin(ahora / 900) * 0.015;

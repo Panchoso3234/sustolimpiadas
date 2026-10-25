@@ -118,6 +118,30 @@ function textoResultado(juego: Juego, r: Resultado, mejor: boolean, contra: Fant
 
 type Fase = 'previa' | 'cargando' | 'cuenta' | 'jugando' | 'resultado' | 'error';
 
+const REGLAS_VISTAS = 'susto.reglasVistas';
+const reglasVistas = (): string[] => { try { return JSON.parse(localStorage.getItem(REGLAS_VISTAS) ?? '[]'); } catch { return []; } };
+const marcarReglasVistas = (id: string) => { try { const v = reglasVistas(); if (!v.includes(id)) localStorage.setItem(REGLAS_VISTAS, JSON.stringify([...v, id])); } catch { /* sin almacenamiento */ } };
+
+/** Las reglas de un juego, ordenadas: de qué se trata, cómo se juega (frase por frase) y qué premia. */
+function Reglas({ juego, enDuelo, cerrar }: { juego: Juego; enDuelo: boolean; cerrar: () => void }) {
+  const boton = useRef<HTMLButtonElement>(null);
+  useEffect(() => { boton.current?.focus({ preventScroll: true }); }, []);
+  const pasos = juego.controles.split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ¿¡0-9])/).filter(Boolean);
+  return (
+    <div class="sala-reglas-fondo" onClick={(e) => { if (e.target === e.currentTarget) cerrar(); }}>
+      <div class="sala-reglas" role="dialog" aria-modal="true" aria-label={`Reglas de ${juego.nombre}`}>
+        <header><span class="sigla">Reglas</span><h2>{juego.nombre}</h2></header>
+        <p class="objetivo">{juego.idea}</p>
+        <h3>Cómo se juega</h3>
+        <ul>{pasos.map((p, i) => <li key={i}>{p}</li>)}</ul>
+        <p class="chico tenue">Premia: {juego.premia.toLowerCase()}. Atajos: P pausa, R reglas, Esc sale.</p>
+        {enDuelo && <p class="aviso atencion">En un duelo el tiempo no se detiene: el juego sigue mientras lees.</p>}
+        <button class="boton principal grande" onClick={cerrar} ref={boton}>{enDuelo ? 'Cerrar' : 'Volver al juego'}</button>
+      </div>
+    </div>
+  );
+}
+
 export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
   const sesion = useSesion();
   const caja = useRef<HTMLDivElement>(null), partida = useRef<Partida | null>(null), turno = useRef(0);
@@ -129,8 +153,9 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
   const [motivo, setMotivo] = useState('');
   const [version, setVersion] = useState(0);
   const [callado, setCallado] = useState(estaCallado);
-  const [ayuda, setAyuda] = useState(false);
-  const [tutorial, setTutorial] = useState(true);
+  const [reglas, setReglas] = useState(false);
+  const [reanudando, setReanudando] = useState(0);
+  const pausoReglas = useRef(false);
   const [girar, setGirar] = useState(true);
   const [pausa, setPausa] = useState(false);
   const [completa, setCompleta] = useState(false);
@@ -202,16 +227,13 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
       if (lienzo && clipsActivos()) clips.current = grabarClips(lienzo);
       // Cuenta regresiva: 3, 2, 1 y parte
       setFase('cuenta');
-      setTutorial(true);
+      setReglas(false);
       for (let n = 3; n >= 1; n--) {
         setCuenta(n);
         await new Promise((listo) => setTimeout(listo, 750));
         if (mio !== turno.current) return;
       }
       setFase('jugando');
-      setAyuda(true);
-      setTutorial(false);
-      setTimeout(() => { if (mio === turno.current) setAyuda(false); }, 6000);
       nueva.empezar();
     } catch (e) {
       if (mio !== turno.current) return;
@@ -256,7 +278,27 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
 
   // Pausa a mano (solo en el modo individual): los motores la tratan igual que cambiar de pestaña
   const pausar = (si: boolean) => { setPausa(si); window.dispatchEvent(new CustomEvent('susto-pausa', { detail: si })); };
-  useEffect(() => { if (fase !== 'jugando' && pausa) pausar(false); }, [fase]);
+  useEffect(() => { if (fase !== 'jugando' && pausa) pausar(false); if (fase !== 'jugando' && fase !== 'cuenta') { setReglas(false); setReanudando(0); } }, [fase]);
+  // Volver de una pausa: "3, 2, 1, ¡ya!" con el juego todavía detenido, y recién ahí sigue
+  const reanudar = async () => {
+    if (reanudando) return;
+    const mio = turno.current;
+    for (const n of [3, 2, 1]) { setReanudando(n); await new Promise((listo) => setTimeout(listo, 650)); if (mio !== turno.current) return setReanudando(0); }
+    setReanudando(0);
+    pausar(false);
+  };
+  // Reglas: en el modo individual pausan el juego; en un enfrentamiento el reloj sigue (se avisa en el panel)
+  const abrirReglas = () => {
+    marcarReglasVistas(juego.id);
+    setReglas(true);
+    pausoReglas.current = !reto && fase === 'jugando' && !pausa;
+    if (pausoReglas.current) pausar(true);
+  };
+  const cerrarReglas = () => {
+    setReglas(false);
+    if (pausoReglas.current) { pausoReglas.current = false; reanudar(); }
+  };
+  const [reglasNuevas] = useState(() => !reglasVistas().includes(juego.id));
 
   // Pantalla completa de toda la sala (en iPhone el navegador no la permite: el botón no aparece)
   const puedeCompleta = typeof document !== 'undefined' && !!document.fullscreenEnabled;
@@ -280,12 +322,14 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
       const escribiendo = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, a, button');
       if (escribiendo || e.repeat) return;
       if (e.key === 'Enter' && (fase === 'previa' || fase === 'resultado') && !(reto && fase === 'resultado')) { e.preventDefault(); jugar(fase === 'resultado' && practica.current); }
+      else if (e.key === 'Escape' && reglas) cerrarReglas();
+      else if ((e.key === 'r' || e.key === 'R') && (fase === 'jugando' || fase === 'cuenta')) { if (reglas) cerrarReglas(); else abrirReglas(); }
       else if (e.key === 'Escape' && !reto && (fase === 'jugando' || fase === 'cuenta') && !document.fullscreenElement) salir();
-      else if ((e.key === 'p' || e.key === 'P') && !reto && fase === 'jugando') pausar(!pausa);
+      else if ((e.key === 'p' || e.key === 'P') && !reto && fase === 'jugando' && !reglas) { if (pausa) reanudar(); else pausar(true); }
     };
     window.addEventListener('keydown', tecla);
     return () => window.removeEventListener('keydown', tecla);
-  }, [fase, pausa]);
+  }, [fase, pausa, reglas, reanudando]);
 
   // El próximo juego abierto que todavía no juegas hoy, para encadenar la ronda del día
   const siguiente = (() => {
@@ -300,27 +344,25 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
       {(fase === 'cuenta' || fase === 'jugando') && (
         <div class="sala-salir">
           {!reto && <button class="boton" title="Salir (Esc)" onClick={salir}>Salir</button>}
-          {!reto && fase === 'jugando' && <button class="boton" aria-pressed={pausa} title="Pausa (P)" onClick={(ev) => { pausar(!pausa); ev.currentTarget.blur(); }}>{pausa ? 'Seguir' : 'Pausa'}</button>}
+          {!reto && fase === 'jugando' && <button class="boton" aria-pressed={pausa} title="Pausa (P)" disabled={!!reanudando} onClick={(ev) => { if (pausa) reanudar(); else pausar(true); ev.currentTarget.blur(); }}>{pausa ? 'Seguir' : 'Pausa'}</button>}
           <button class="boton" aria-pressed={callado} onClick={(ev) => { silenciar(!callado); setCallado(!callado); ev.currentTarget.blur(); }}>{callado ? 'Sonido: no' : 'Sonido: sí'}</button>
-          {fase === 'jugando' && <button class="boton" aria-label="Cómo se juega" title="Cómo se juega" onClick={(ev) => { setAyuda(false); setTutorial(true); if (!reto) pausar(true); ev.currentTarget.blur(); }}>?</button>}
+          <button class={`boton${reglasNuevas && !reglas ? ' reglas-nuevas' : ''}`} aria-pressed={reglas} title="Reglas del juego (R)" onClick={(ev) => { if (reglas) cerrarReglas(); else abrirReglas(); ev.currentTarget.blur(); }}>Reglas</button>
           {clips.current && fase === 'jugando' && <button class="boton" title="Guarda en video los últimos segundos de la partida" disabled={clip === 'preparando'} onClick={(ev) => { sacarClip(); ev.currentTarget.blur(); }}>🎬 Clip</button>}
           {puedeCompleta && <button class="boton" aria-pressed={completa} aria-label={completa ? 'Salir de pantalla completa' : 'Pantalla completa'} title="Pantalla completa" onClick={(ev) => { alternarCompleta(); ev.currentTarget.blur(); }}>{completa ? '⤡' : '⛶'}</button>}
         </div>
       )}
-      {fase === 'jugando' && pausa && !tutorial && (
+      {fase === 'jugando' && pausa && !reglas && !reanudando && (
         <div class="sala-pausa" role="dialog" aria-label="Juego en pausa">
           <b>En pausa</b>
           <p class="chico">El reloj está detenido.</p>
-          <button class="boton principal grande" onClick={() => pausar(false)}>Seguir jugando</button>
+          <button class="boton principal grande" onClick={reanudar}>Seguir jugando</button>
         </div>
       )}
       {clip && <div class="clip-aviso" role="status">{clip === 'preparando' ? '🎬 Preparando tu clip…' : clip}</div>}
       {fase === 'cuenta' && <div class="sala-cuenta" key={cuenta} aria-live="assertive">{cuenta}</div>}
-      {(fase === 'cuenta' || fase === 'jugando') && tutorial && (fase === 'cuenta' || !ayuda) && (
-        <div class="sala-tutorial" role="button" tabIndex={0} title="Toca para cerrar" onClick={() => { setTutorial(false); if (fase === 'jugando' && !reto) pausar(false); }}><b>Cómo se juega</b><p>{juego.controles}</p><span class="chico tenue">Toca para cerrar</span></div>
-      )}
+      {reanudando > 0 && <div class="sala-cuenta" key={`r${reanudando}`} aria-live="assertive">{reanudando}</div>}
+      {(fase === 'cuenta' || fase === 'jugando') && reglas && <Reglas juego={juego} enDuelo={!!reto} cerrar={cerrarReglas} />}
       {(fase === 'cuenta' || fase === 'jugando') && HORIZONTALES.has(juego.id) && girar && <button class="sala-girar" onClick={() => setGirar(false)}><b>↻ Gira el celular</b><span>Este juego se ve mejor de lado. Toca para seguir así.</span></button>}
-      {fase === 'jugando' && ayuda && <div class="sala-teclas" aria-hidden="true">{juego.controles}</div>}
       {(fase === 'previa' || fase === 'cargando' || fase === 'error') && (
         <div class="sala-telon">
           <div class="sala-panel">

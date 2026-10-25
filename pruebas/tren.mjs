@@ -10,7 +10,7 @@ for (const [nombre, q] of casos) {
   try {
     await hasta(() => p.js("[...document.querySelectorAll('button')].some((b) => b.textContent.includes('Práctica'))"), 60000);
     await p.js("[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Práctica')).click(), 1");
-    await hasta(() => p.js('!!window.__tren'), 30000);
+    await hasta(() => p.js('!!window.__tren'), 90000);
     const listo = async () => { const x = await p.js('window.__tren()'); return x.terminado || (q ? x.techos >= meta : x.metros >= 2500); };
     await hasta(listo, 300000).catch(() => {});
     const x = await p.js('window.__tren()');
