@@ -91,7 +91,12 @@ export function identidadVivo(usuarioId: string | null, nombre: string | undefin
 }
 
 /** Datos de un enfrentamiento oficial que se juega en su sala `enf-<id>`. */
-export interface Oficial { e: V.Enfrentamiento; personas: V.Persona[]; /** Rondas que ya abrí y que ya guardé, según el servidor. */ empezadas: number[]; jugadas: number[] }
+export interface Oficial {
+  e: V.Enfrentamiento; personas: V.Persona[]; /** Rondas que ya abrí y que ya guardé, según el servidor. */ empezadas: number[]; jugadas: number[];
+  /** Rondas que ya terminó el rival (null si la base todavía no tiene rondas_jugadas). */ rivalJugadas: number[] | null;
+}
+/** La ronda que toca en vivo: la primera que no terminaron los dos (así ambos llegan a la misma, sin importar lo que guardó cada navegador). */
+export const rondaComun = (mias: number[], suyas: number[], total: number) => { for (let r = 1; r <= total; r++) if (!(mias.includes(r) && suyas.includes(r))) return r; return null; };
 
 /** Sala de un enfrentamiento oficial: primero carga quiénes juegan y qué rondas faltan. */
 function SalaOficial({ id, mirar }: { id: number; mirar: boolean }) {
@@ -99,10 +104,11 @@ function SalaOficial({ id, mirar }: { id: number; mirar: boolean }) {
   const [datos, setDatos] = useState<Oficial | null | 'no'>(null);
   useEffect(() => {
     if (sesion.cargando) return;
-    Promise.all([V.unEnfrentamiento(id), V.listarPersonas(), V.marcasDe([id])]).then(([e, personas, marcas]) => {
+    Promise.all([V.unEnfrentamiento(id), V.listarPersonas(), V.marcasDe([id]), V.rondasJugadas(id)]).then(([e, personas, marcas, porLado]) => {
       if (!e || !e.a_perfil || !e.b_perfil || !(e.juego in JUEGOS || e.juego in TABLEROS || e.juego in DUELOS)) return setDatos('no');
-      const mias = marcas.filter((m) => m.perfil_id === sesion.usuarioId);
-      setDatos({ e, personas, empezadas: mias.map((m) => m.ronda), jugadas: mias.filter((m) => m.terminado).map((m) => m.ronda) });
+      const mias = marcas.filter((m) => m.perfil_id === sesion.usuarioId), miLado = e.a_perfil === sesion.usuarioId ? 'a' : e.b_perfil === sesion.usuarioId ? 'b' : null;
+      const rivalJugadas = porLado && miLado ? porLado.filter((x) => x.lado !== miLado).map((x) => x.ronda) : null;
+      setDatos({ e, personas, empezadas: mias.map((m) => m.ronda), jugadas: mias.filter((m) => m.terminado).map((m) => m.ronda), rivalJugadas });
     });
   }, [id, sesion.cargando, sesion.usuarioId]);
   if (datos === null) return <p class="tenue">Cargando el enfrentamiento…</p>;

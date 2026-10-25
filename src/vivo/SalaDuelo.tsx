@@ -9,7 +9,9 @@ import { aspectoDe, puntajeEnPantalla } from '../juegos/Sala';
 import { repartir, rondasDistintas, rondaSiguiente } from './asientos';
 import { capturar, limpiar } from './espejo';
 import { DUELOS } from './formatos';
-import { asientosValidos, debeReiniciar, identidadVivo, type Oficial } from './PantallaVivo';
+import { asientosValidos, debeReiniciar, identidadVivo, rondaComun, type Oficial } from './PantallaVivo';
+import { BotonAvisar } from '../juegos/BotonAvisar';
+import { Carita } from '../personaje/Carita';
 import { Prediccion, cerrarVivo, empezarVivo, idPartidaVivo } from './Prediccion';
 import { PuntosDuelo } from './PuntosDuelo';
 import { unirse, type Presente, type Sala } from './sala';
@@ -21,8 +23,10 @@ import { anunciarSala } from './vestibulo';
 // lo que lleva y fotos de su pantalla; el rival y los espectadores las ven al lado. En un oficial cada uno
 // guarda su propio resultado, igual que en diferido: el servidor compara y reparte los puntos.
 const ESPERA_ABANDONO = 30;
-interface Estado { partida: number; asientos: [string, string] | null; v: number; puntos: Record<Lado, number | null>; abandono: string | null }
-const nueva = (partida = 1): Estado => ({ partida, asientos: null, v: 0, puntos: { a: null, b: null }, abandono: null });
+interface Estado { partida: number; asientos: [string, string] | null; v: number; puntos: Record<Lado, number | null>; abandono: string | null; /** Cuándo parte (reloj del anfitrión). */ inicio: number | null }
+const nueva = (partida = 1): Estado => ({ partida, asientos: null, v: 0, puntos: { a: null, b: null }, abandono: null, inicio: null });
+/** Margen para que los dos alcancen a cargar el juego antes de la cuenta común. */
+const MARGEN_INICIO = 6000;
 const puntajeValido = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n >= -1e6 && n <= 1e7;
 const LADOS: Lado[] = ['a', 'b'];
 // Los juegos del mismo mundo tienen su propia versión para dos (el anfitrión simula; ver mundo/red.ts)
@@ -44,7 +48,7 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
   const yo = identidadVivo(sesion.usuarioId, sesion.perfil?.nombre);
   const fijos = oficial ? [oficial.e.a_perfil!, oficial.e.b_perfil!] as [string, string] : null;
   const quiere = mirar || (fijos && !fijos.includes(yo.id)) ? 'mirar' : 'jugar';
-  const primera = oficial ? rondaSiguiente(oficial.jugadas, oficial.e.rondas) ?? oficial.e.rondas : 1;
+  const primera = oficial ? (oficial.rivalJugadas ? rondaComun(oficial.jugadas, oficial.rivalJugadas, oficial.e.rondas) : rondaSiguiente(oficial.jugadas, oficial.e.rondas)) ?? oficial.e.rondas : 1;
   const [p, setP] = useState<Estado>(() => { let g = nueva(primera); try { g = { ...g, ...JSON.parse(localStorage.getItem(`susto.vivo.${codigo}`) ?? '{}') }; } catch { /* sin respaldo */ } return debeReiniciar(g.partida, primera, !!oficial) ? nueva(primera) : g; });
   const [presentes, setPresentes] = useState<Presente[]>([]);
   const [aviso, setAviso] = useState(''), [ahora, setAhora] = useState(Date.now()), [ausente, setAusente] = useState<number | null>(null);
@@ -54,6 +58,8 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
   const oyenteMundo = useRef<Parameters<ContextoVivo['alRecibir']>[0] | null>(null);
   const sala = useRef<Sala | null>(null), est = useRef(p), anfitrionRef = useRef<string | null>(null), sentadosRef = useRef<string[]>([]);
   const fijar = (y: Estado) => { est.current = y; setP(y); };
+  // Conexión con cada pestaña: ida y vuelta en ms y cuánto adelanta su reloj al mío (para la cuenta común)
+  const red = useRef(new Map<string, { rtt: number; desfase: number }>()), [, setPulso] = useState(0);
   const mandar = (y: Estado) => sala.current?.enviar('estado', y as unknown as Record<string, unknown>);
 
   useEffect(() => { try { localStorage.setItem(`susto.vivo.${codigo}`, JSON.stringify(p)); } catch { /* sin almacenamiento */ } }, [p]);
@@ -89,6 +95,15 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
       const x = est.current, quien = de.split(':')[0], sentados = x.asientos ?? fijos ?? sentadosRef.current, sentado = sentados.includes(quien), deAnfitrion = de === anfitrionRef.current;
       // shortcut: el remitente se puede falsificar por el respaldo de Supabase; frena a un espectador común (ver tanda 1)
       if (evento === 'pedir') { if (s.clave === anfitrionRef.current) s.enviar('estado', x as unknown as Record<string, unknown>); return; }
+      if (evento === 'ping') { if (typeof d.t === 'number') s.enviar('pong', { t: d.t, ahora: Date.now() }, de); return; }
+      if (evento === 'pong') {
+        if (typeof d.t !== 'number' || typeof d.ahora !== 'number') return;
+        const rtt = Math.max(0, Date.now() - d.t), previo = red.current.get(de), desfase = d.ahora + rtt / 2 - Date.now();
+        // Se suaviza: un mensaje que llegó tarde por el respaldo no mueve de golpe la cuenta
+        red.current.set(de, previo ? { rtt: Math.round(previo.rtt * 0.6 + rtt * 0.4), desfase: previo.desfase * 0.6 + desfase * 0.4 } : { rtt, desfase });
+        setPulso((n) => n + 1);
+        return;
+      }
       if (evento === 'estado') {
         const pts = d.puntos as Record<string, unknown> | undefined;
         if (!(deAnfitrion || sentado) || !Number.isInteger(d.partida) || !Number.isInteger(d.v) || !pts || !LADOS.every((l) => pts[l] === null || puntajeValido(pts[l]))) return;
@@ -99,13 +114,13 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
         // Si ya sé el puntaje de alguien que el otro aún no anotó, no lo pierdo
         const misma = d.partida === x.partida, puntos = { a: (pts.a as number | null) ?? (misma ? est.current.puntos.a : null), b: (pts.b as number | null) ?? (misma ? est.current.puntos.b : null) };
         const asientos = d.asientos as [string, string] | null;
-        fijar({ partida: d.partida as number, asientos, v: d.v as number, puntos, abandono: typeof d.abandono === 'string' && asientos?.includes(d.abandono) ? d.abandono : null });
+        fijar({ partida: d.partida as number, asientos, v: d.v as number, puntos, abandono: typeof d.abandono === 'string' && asientos?.includes(d.abandono) ? d.abandono : null, inicio: typeof d.inicio === 'number' && Number.isFinite(d.inicio) ? d.inicio : null });
         return;
       }
       if ((evento === 'mundo' || evento === 'entrada' || evento === 'rescate') && d.partida === x.partida && (sentado || deAnfitrion)) { oyenteMundo.current?.(evento, d, x.asientos ? ladoDe(x.asientos, quien) : null, deAnfitrion); return; }
       if (!sentado) return;
       const lado = x.asientos ? ladoDe(x.asientos, quien) : null;
-      if (evento === 'resultado') { if (lado && d.partida === x.partida && puntajeValido(d.puntaje)) anotar(lado, d.puntaje); return; }
+      if (evento === 'resultado') { if (lado && d.partida === x.partida && puntajeValido(d.puntaje)) { anotar(lado, d.puntaje); if (quien !== yo.id) suyas.current.add(x.partida); } return; }
       if (evento === 'marcador') { if (lado && d.partida === x.partida && puntajeValido(d.puntaje)) setLlevan((v) => ({ ...v, [lado]: d.puntaje as number })); return; }
       if (evento === 'foto') { if (lado && d.partida === x.partida && String(d.img ?? '').length < 150000 && String(d.html ?? '').length < 90000) { fotos.current[lado] = { img: d.img as string | undefined, html: d.html as string | undefined }; pintarEspejo(lado); } return; }
       if (evento === 'revancha') { if (Number.isInteger(d.partida) && (d.partida as number) > x.partida && rondaLibre(d.partida as number)) { fijar(nueva(d.partida as number)); s.marcarListo(0); } return; }
@@ -113,9 +128,11 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
     }, fijos);
     sala.current = s;
     const t0 = setTimeout(() => s.enviar('pedir', {}), 800);
+    // Medir la conexión cada 2 s (sirve para mostrarla y para sincronizar la cuenta)
+    const tPing = setInterval(() => s.enviar('ping', { t: Date.now() }), 2000);
     // Quien llega tarde o recarga pide el estado; si el anfitrión no contestó, lo vuelve a pedir
     const t1 = setInterval(() => { if (!est.current.asientos) pedir(); }, 5000);
-    return () => { clearTimeout(t0); clearInterval(t1); s.salir(); };
+    return () => { clearTimeout(t0); clearInterval(t1); clearInterval(tPing); s.salir(); };
   }, [codigo, sesion.cargando, yo.id]);
 
   const { asientos, puntos } = p;
@@ -136,7 +153,7 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
   // El anfitrión arma la partida cuando los dos están listos (los asientos se alternan en cada revancha)
   useEffect(() => {
     if (!formato || asientos || !listos || !soyAnfitrion) return;
-    const y: Estado = { ...est.current, asientos: (p.partida % 2 ? [...sentados] : [...sentados].reverse()) as [string, string], v: est.current.v + 1, puntos: { a: null, b: null }, abandono: null };
+    const y: Estado = { ...est.current, asientos: (p.partida % 2 ? [...sentados] : [...sentados].reverse()) as [string, string], v: est.current.v + 1, puntos: { a: null, b: null }, abandono: null, inicio: Date.now() + MARGEN_INICIO };
     fijar(y);
     mandar(y);
   }, [listos, !!asientos, soyAnfitrion]);
@@ -148,9 +165,9 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
   }, [soyAnfitrion, !!asientos]);
 
   // Siguiente ronda: la primera que yo no haya jugado (en diferido o en vivo); en un amistoso, la que sigue
-  const guardadas = useRef(new Set(oficial?.jugadas ?? []));
-  const rondaLibre = (n: number) => !oficial || (n <= oficial.e.rondas && !guardadas.current.has(n));
-  const siguiente = oficial ? rondaSiguiente([...guardadas.current, p.partida], oficial.e.rondas) : p.partida + 1;
+  const guardadas = useRef(new Set(oficial?.jugadas ?? [])), suyas = useRef(new Set(oficial?.rivalJugadas ?? []));
+  const rondaLibre = (n: number) => !oficial || (n <= oficial.e.rondas && !(guardadas.current.has(n) && (!oficial.rivalJugadas || suyas.current.has(n))));
+  const siguiente = oficial ? (oficial.rivalJugadas ? rondaComun([...guardadas.current, p.partida], [...suyas.current, p.partida], oficial.e.rondas) : rondaSiguiente([...guardadas.current, p.partida], oficial.e.rondas)) : p.partida + 1;
 
   // Mi partida: corre en mi navegador cuando me toca
   const miCaja = useRef<HTMLDivElement>(null), partidaJuego = useRef<Juego | null>(null), corrida = useRef(0), vuelta = useRef(0);
@@ -212,6 +229,11 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
       if (mio !== vuelta.current) return j.destruir();
       partidaJuego.current = j;
       setFase('cuenta');
+      // Si el anfitrión fijó la hora, la cuenta 3-2-1 termina justo ahí para los dos; si no (o ya pasó), parte de inmediato
+      const delAnfitrion = anfitrionRef.current ? red.current.get(anfitrionRef.current)?.desfase ?? 0 : 0, soyYo = anfitrionRef.current === sala.current?.clave;
+      const meta = est.current.inicio && formato !== 'turnos' ? est.current.inicio - (soyYo ? 0 : delAnfitrion) : 0;
+      const espera = meta - 2250 - Date.now();
+      if (espera > 0 && espera < MARGEN_INICIO + 5000) { setCuenta(0); await new Promise((listo) => setTimeout(listo, espera)); if (mio !== vuelta.current) return; }
       for (let n = 3; n >= 1; n--) { setCuenta(n); await new Promise((listo) => setTimeout(listo, 750)); if (mio !== vuelta.current) return; }
       setFase('jugando');
       j.empezar();
@@ -236,14 +258,14 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
       if (!s || !caja) return;
       n++;
       const directo = soyAnfitrion ? s.presentes().filter((y) => y.clave !== s.clave).every((y) => s.directo(y.clave)) : !!anfitrionRef.current && s.directo(anfitrionRef.current);
-      const cada = !directo ? 6 : formato === 'dividida' ? 2 : 1; // sin conexión directa todo pasa por Supabase: menos fotos
+      const cada = !directo ? 8 : formato === 'dividida' ? 2 : 1; // sin conexión directa todo pasa por Supabase: una foto cada 2 s
       if (n % 2 === 0) {
         const lleva = puntajeEnPantalla(caja);
         s.enviar('marcador', { partida: x.partida, puntaje: lleva });
         setLlevan((v) => ({ ...v, [miLado]: lleva }));
         if (oficial && n % 8 === 0) V.latidoRonda(oficial.e.id, x.partida, lleva);
       }
-      if (formato !== 'mundo' && n % cada === 0) { const f = capturar(caja, formato === 'turnos' ? 400 : 320); if (f) s.enviar('foto', { partida: x.partida, ...f }); }
+      if (formato !== 'mundo' && n % cada === 0 && s.presentes().length > 1) { const f = capturar(caja, formato === 'turnos' ? 360 : 260); if (f) s.enviar('foto', { partida: x.partida, ...f }); }
     }, 250);
     return () => clearInterval(r);
   }, [fase, miLado, soyAnfitrion]);
@@ -312,9 +334,28 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
         {!asientos && !soyJugador && sentados.length < 2 && !oficial && <button class="boton principal vivo-quiero" onClick={() => sala.current?.quiero('jugar')}>Quiero jugar</button>}
       </div>
       {!asientos && <p class="tenue">{juego === 'bestias' ? 'Cara a cara por turnos: los dos eligen 3 criaturas del mismo sorteo y combaten de frente, Nv. 50. Cada turno tiene 30 segundos (si se acaba, la máquina elige por ti). Gana quien deja sin criaturas al otro.' : juego === 'bloques' ? 'Cara a cara: cada uno su tablero, lado a lado. Cada línea que completas le manda lápidas a tu rival; gana quien lo llena hasta arriba (o el mejor puntaje a los 3 minutos).' : formato === 'mundo' ? 'Los dos en la misma arena, contra bots que atacan a ambos. Gana el mejor puntaje.' : formato === 'dividida' ? 'Los dos juegan al mismo tiempo el mismo desafío, cada uno su partida, y ven la pantalla del otro. Gana el mejor puntaje.' : 'Por turnos: primero juega uno mientras el otro mira, y después al revés, con el mismo desafío. Gana el mejor puntaje.'} {ficha.controles}</p>}
-      <ul class="vivo-gente">
-        {sentados.map((id, i) => <li key={id} class="juega"><b>{nombre(id)}{id === yo.id ? ' (tú)' : ''}</b><span class="tenue chico">{(asientos ? asientos.indexOf(id) : i) === 0 ? 'Azul' : 'Rojo'}{!asientos ? (presentes.some((x) => x.id === id && x.listo === p.partida) ? ' · listo' : ' · esperando') : presentes.some((x) => x.id === id) ? '' : ' · desconectado'}</span></li>)}
-      </ul>
+      {!asientos ? (
+        <div class="sala-espera">
+          {[0, 1].map((i) => {
+            const id = sentados[i] ?? (fijos ? fijos[i] : null), aqui = !!id && presentes.some((x) => x.id === id), listo = !!id && presentes.some((x) => x.id === id && x.listo === p.partida);
+            const clave = id ? presentes.find((x) => x.id === id)?.clave : undefined, conexion = clave && clave !== sala.current?.clave ? red.current.get(clave) : undefined;
+            const directo = !!clave && clave !== sala.current?.clave && !!sala.current?.directo(clave);
+            return (
+              <div key={i} class={`asiento${listo ? ' listo' : aqui ? ' aqui' : ''}`} style={`--color:${COLOR_LADO[i === 0 ? 'a' : 'b']}`}>
+                {id && !id.startsWith('inv-') ? <Carita perfil={id} tam={56} /> : <span class="asiento-vacio">?</span>}
+                <b>{id ? nombre(id) : 'Esperando a alguien'}{id === yo.id ? ' (tú)' : ''}</b>
+                <span class={`chip-estado ${listo ? 'listo' : aqui ? 'aqui' : 'fuera'}`}>{listo ? 'Listo' : aqui ? 'Conectado' : id ? 'No ha entrado' : 'Libre'}</span>
+                {conexion && <span class="tenue chico">{directo ? 'Conexión directa' : 'Conexión por respaldo (más lenta)'} · {conexion.rtt} ms</span>}
+                {oficial && id && !aqui && id !== yo.id && soyJugador && <BotonAvisar id={oficial.e.id} />}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <ul class="vivo-gente">
+          {sentados.map((id) => <li key={id} class="juega"><b>{nombre(id)}{id === yo.id ? ' (tú)' : ''}</b><span class="tenue chico">{asientos.indexOf(id) === 0 ? 'Azul' : 'Rojo'}{presentes.some((x) => x.id === id) ? '' : ' · desconectado'}</span></li>)}
+        </ul>
+      )}
       {!soyJugador && pareja && idVivo && <Prediccion partida={idVivo} a={{ id: pareja[0], nombre: nombre(pareja[0]) }} b={{ id: pareja[1], nombre: nombre(pareja[1]) }} abierta={!asientos} ganador={ganadorVivo} usuarioId={sesion.usuarioId} />}
       {!asientos && (sentados.length < 2 ? <p class="aviso atencion">Esperando a otra persona. Comparte el enlace de la sala.</p>
         : rivalEnOtraRonda ? <p class="aviso atencion">Tu rival está en otra ronda (ya jugó una a su hora): terminen esta ronda en diferido.</p>
@@ -328,7 +369,7 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
         <div class={`duelo-zona ${formato}${jugandoYo || fase === 'listo' ? ' con-juego' : ''}`}>
           <div class="sala duelo-mio" hidden={!jugandoYo}>
             <div class="juego-caja" ref={miCaja} />
-            {fase === 'cuenta' && <div class="sala-cuenta" key={cuenta}>{cuenta}</div>}
+            {fase === 'cuenta' && (cuenta ? <div class="sala-cuenta" key={cuenta}>{cuenta}</div> : <div class="duelo-cargando">Esperando a que tu rival termine de cargar…</div>)}
             {fase === 'cargando' && <div class="duelo-cargando">Preparando tu partida…</div>}
           </div>
           {!jugandoYo && miLado && puntos[miLado] !== null && <div class="duelo-listo"><b>{puntos[miLado]}</b><span>{formato === 'turnos' || puntos[miLado === 'a' ? 'b' : 'a'] === null ? `Terminaste. Ahora mira a ${nombres[miLado === 'a' ? 'b' : 'a']}.` : 'Terminaste.'}</span></div>}
@@ -336,6 +377,16 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
         </div>
       )}
       {textoFin && <p class="aviso ok vivo-fin duelo-fin">{textoFin}</p>}
+      {ganador && asientos && !p.abandono && (
+        <div class="duelo-resultado">
+          {LADOS.map((l) => (
+            <div key={l} class={`duelo-resultado-lado${ganador === asientos[l === 'a' ? 0 : 1] ? ' gano' : ''}`} style={`--color:${COLOR_LADO[l]}`}>
+              <span>{nombres[l]}</span><b>{puntos[l]}</b>{ganador === asientos[l === 'a' ? 0 : 1] && <i>Ganó la ronda</i>}
+            </div>
+          ))}
+          <button class="boton" onClick={(ev) => { const t = `${ficha.nombre} en vivo${oficial ? ` (ronda ${p.partida})` : ''}: ${nombres.a} ${puntos.a} contra ${nombres.b} ${puntos.b}. ${ganador === 'empate' ? 'Empate.' : `Ganó ${nombre(ganador)}.`}`; navigator.clipboard?.writeText(t).then(() => { ev.currentTarget.textContent = 'Copiado'; }, () => undefined); }}>Copiar resultado para Discord</button>
+        </div>
+      )}
       {oficial && ganador && !siguiente && <PuntosDuelo id={oficial.e.id} />}
       {ganador && (oficial && !siguiente
         ? <div class="fila"><a class="boton principal" href={`#/juegos/duelo/${oficial.e.id}`}>Enfrentamiento terminado: ver resultado</a></div>

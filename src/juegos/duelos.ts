@@ -101,6 +101,32 @@ export async function crearEnfrentamientos(filas: NuevoEnfrentamiento[]): Promis
   return error?.message ?? null;
 }
 
+/** Avisos personales de la campana (2026-10-25-avisos.sql). Si la tabla aún no existe, llega vacío. */
+export interface AvisoWeb { id: number; tipo: string; texto: string; enlace: string | null; leido: boolean; creado: string }
+export async function misAvisos(): Promise<AvisoWeb[]> {
+  if (!(await supabase.auth.getSession()).data.session) return [];
+  const { data } = await supabase.from('avisos').select('id,tipo,texto,enlace,leido,creado').order('creado', { ascending: false }).limit(20);
+  return (data as AvisoWeb[] | null) ?? [];
+}
+/** Escucha los avisos nuevos de una persona (llegan al instante). Devuelve cómo dejar de escuchar. */
+export function escucharAvisos(yo: string, alLlegar: (a: AvisoWeb) => void): () => void {
+  const canal = supabase.channel(`avisos:${yo}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'avisos', filter: `perfil_id=eq.${yo}` }, (cambio) => alLlegar(cambio.new as AvisoWeb))
+    .subscribe();
+  return () => { supabase.removeChannel(canal); };
+}
+/** Le avisa al rival (campana y Discord) que lo esperan en vivo. Devuelve null si salió bien, o el motivo. */
+export async function avisarRival(id: number): Promise<string | null> {
+  const { data, error } = await supabase.rpc('avisar_rival', { p_enf: id });
+  if (error) return /avisar_rival|function/i.test(error.message) ? 'Todavía no se puede avisar: falta activar los avisos en la base de datos.' : error.message;
+  return data ? String(data) : null;
+}
+/** Qué rondas terminó cada lado (sin puntajes), o null si la función aún no existe en la base. */
+export async function rondasJugadas(id: number): Promise<{ lado: Lado; ronda: number }[] | null> {
+  const { data, error } = await supabase.rpc('rondas_jugadas', { p_enf: id });
+  return error ? null : (data as { lado: Lado; ronda: number }[] | null) ?? [];
+}
+
 export async function empezarRonda(id: number, ronda: number): Promise<{ semilla?: string; error?: string }> {
   const { data, error } = await supabase.rpc('empezar_ronda', { p_enf: id, p_ronda: ronda });
   if (data === '') return { error: 'Tu partida anterior de esta ronda se cortó después de los primeros 10 segundos, así que vale lo que alcanzaste a llevar. Vuelve a tus enfrentamientos para ver la ronda siguiente.' };

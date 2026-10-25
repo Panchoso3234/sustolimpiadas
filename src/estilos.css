@@ -974,3 +974,20 @@ body.foto .tren-misiones { display: none; }
 .inicio-accesos .tarjeta { min-height: 0; }
 .inicio-accesos h3 { margin: 0; }
 .inicio-novedades { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 6px; }
+/* Fase 2: sala de espera en vivo, resultado del duelo y campana */
+.sala-espera { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.asiento { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px; border-radius: 14px; background: var(--noche-2); border: 2px solid var(--linea); border-top: 5px solid var(--color); text-align: center; }
+.asiento.listo { border-color: var(--alga); border-top-color: var(--color); }
+.asiento-vacio { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--tabla); color: var(--tenue); font: 1.6rem var(--display); }
+.chip-estado { font: 800 .72rem var(--cuerpo); text-transform: uppercase; letter-spacing: .05em; padding: 2px 10px; border-radius: 99px; background: var(--tabla); color: var(--tenue); }
+.chip-estado.aqui { background: var(--luna); color: var(--noche); }
+.chip-estado.listo { background: var(--alga); color: var(--noche); }
+.duelo-resultado { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; }
+.duelo-resultado-lado { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 140px; padding: 12px 18px; border-radius: 14px; background: var(--noche-2); border-top: 5px solid var(--color); }
+.duelo-resultado-lado b { font: 2rem var(--display); }
+.duelo-resultado-lado.gano { outline: 3px solid var(--luna); }
+.duelo-resultado-lado i { font-style: normal; font-size: .78rem; color: var(--luna); }
+.campana .timbre { animation: timbre .6s ease-in-out 3; }
+@keyframes timbre { 25% { transform: rotate(-14deg); } 75% { transform: rotate(14deg); } }
+.campana-navegador { margin-top: 8px; width: 100%; font-size: .82rem; }
+.aviso-ok-texto { color: var(--alga); }

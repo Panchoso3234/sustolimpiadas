@@ -9,22 +9,24 @@ import { marcaLocal, tablaDelDia } from './juegos/marcas';
 // y el resumen de la semana. Se calcula con lo que ya hay en la base; lo leído se recuerda en este navegador.
 
 interface Aviso { clave: string; texto: string; enlace: string }
+const AVISOS_NAVEGADOR = 'susto.avisosNavegador';
 
 async function calcular(yo: string): Promise<Aviso[]> {
   const hoy = fechaChile(Date.now()), manana = fechaChile(Date.now() + 864e5);
-  const [equipos, personas, { lista }] = await Promise.all([V.listarEquipos(), V.listarPersonas(), V.listarEnfrentamientos()]);
+  const [equipos, personas, { lista }, propios] = await Promise.all([V.listarEquipos(), V.listarPersonas(), V.listarEnfrentamientos(), V.misAvisos()]);
   const mios = lista.map((e) => ({ e, lado: V.ladoDe(e, yo, equipos) })).filter((x): x is { e: V.Enfrentamiento; lado: V.Lado } => x.lado !== null);
   const pendientes = mios.filter((x) => x.e.estado === 'pendiente');
   const marcas = await V.marcasDe(pendientes.map((x) => x.e.id));
   const rival = (e: V.Enfrentamiento, lado: V.Lado) => V.nombreLado(e, lado === 'a' ? 'b' : 'a', personas, equipos);
-  const avisos: Aviso[] = [];
+  // Los avisos personales (alguien te espera en vivo, muerte súbita…) van primero
+  const avisos: Aviso[] = propios.map((a) => ({ clave: `db-${a.id}`, texto: a.texto, enlace: a.enlace ?? '#/inicio' }));
 
   for (const { e, lado } of pendientes) {
     const hechas = marcas.filter((m) => m.enfrentamiento_id === e.id && m.perfil_id === yo && m.terminado).length;
     if (hechas >= (e.modo === '1v1' ? e.rondas : 1)) continue;
     const enlace = `#/juegos/duelo/${e.id}`;
     if (e.plazo && e.plazo <= manana) avisos.push({ clave: `plazo-${e.id}-${e.plazo}`, texto: `Vence ${e.plazo <= hoy ? 'hoy' : 'mañana'}: ${nombreVersus(e.modo, e.juego)} contra ${rival(e, lado)}`, enlace });
-    avisos.push({ clave: `reto-${e.id}`, texto: `${e.oficial ? 'Enfrentamiento oficial' : e.creado_por === yo ? 'Tu reto' : 'Te retaron'}: ${nombreVersus(e.modo, e.juego)} contra ${rival(e, lado)}`, enlace });
+    avisos.push({ clave: `reto-${e.id}-${e.rondas}`, texto: `${(e.muerte_subita ?? 0) > 0 ? 'Muerte súbita' : e.oficial ? 'Enfrentamiento oficial' : e.creado_por === yo ? 'Tu reto' : 'Te retaron'}: ${nombreVersus(e.modo, e.juego)} contra ${rival(e, lado)}`, enlace });
   }
   for (const { e, lado } of mios.filter((x) => x.e.estado === 'cerrado').slice(0, 10)) {
     const como = e.ganador === 'empate' ? 'Empataste' : e.ganador === lado ? 'Ganaste' : 'Perdiste';
@@ -60,8 +62,22 @@ export function Campana({ yo }: { yo: string }) {
     refrescar();
     const reloj = setInterval(refrescar, 90_000);
     window.addEventListener('hashchange', refrescar);
-    return () => { vigente = false; clearInterval(reloj); window.removeEventListener('hashchange', refrescar); };
+    // Los avisos personales llegan al instante; si la pestaña está en segundo plano y se permitió, también como aviso del navegador
+    const dejar = V.escucharAvisos(yo, (a) => {
+      refrescar();
+      setTimbre(true);
+      try { if (document.hidden && 'Notification' in window && Notification.permission === 'granted' && localStorage.getItem(AVISOS_NAVEGADOR) === 'si') new Notification('Las Sustolimpiadas', { body: a.texto }); } catch { /* sin avisos del navegador */ }
+    });
+    return () => { vigente = false; clearInterval(reloj); window.removeEventListener('hashchange', refrescar); dejar(); };
   }, [yo]);
+  const [timbre, setTimbre] = useState(false);
+  const puedeNavegador = typeof window !== 'undefined' && 'Notification' in window;
+  const [navegador, setNavegador] = useState(() => { try { return puedeNavegador && Notification.permission === 'granted' && localStorage.getItem(AVISOS_NAVEGADOR) === 'si'; } catch { return false; } });
+  const activarNavegador = async () => {
+    if (navegador) { try { localStorage.removeItem(AVISOS_NAVEGADOR); } catch { /* sin almacenamiento */ } setNavegador(false); return; }
+    const permiso = await Notification.requestPermission().catch(() => 'denied');
+    if (permiso === 'granted') { try { localStorage.setItem(AVISOS_NAVEGADOR, 'si'); } catch { /* sin almacenamiento */ } setNavegador(true); }
+  };
   useEffect(() => {
     if (!abierta) return;
     const fuera = (e: PointerEvent) => { if (!caja.current?.contains(e.target as Node)) setAbierta(false); };
@@ -73,7 +89,7 @@ export function Campana({ yo }: { yo: string }) {
   const leer = () => { marcarAvisos(avisos.map((a) => a.clave)); setVistos(avisosVistos()); };
   return (
     <div class="campana" ref={caja}>
-      <button class="boton" aria-expanded={abierta} aria-label={`Avisos${nuevos ? `: ${nuevos} nuevos` : ''}`} onClick={() => { if (abierta) leer(); setAbierta(!abierta); }}>
+      <button class={`boton${timbre ? ' timbre' : ''}`} aria-expanded={abierta} aria-label={`Avisos${nuevos ? `: ${nuevos} nuevos` : ''}`} onClick={() => { if (abierta) leer(); setAbierta(!abierta); setTimbre(false); }}>
         🔔{nuevos > 0 && <i class="globo">{nuevos}</i>}
       </button>
       {abierta && (
@@ -87,6 +103,7 @@ export function Campana({ yo }: { yo: string }) {
               ))}
             </ul>
           )}
+          {puedeNavegador && <button class="boton campana-navegador" onClick={activarNavegador}>{navegador ? 'Desactivar avisos del navegador' : 'Avisarme aunque no tenga la página abierta'}</button>}
         </div>
       )}
     </div>
