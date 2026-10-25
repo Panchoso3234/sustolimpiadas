@@ -10,6 +10,7 @@ import { CARGADORES } from './marco';
 import { Posiciones } from './Posiciones';
 import { Planificacion } from './Panel';
 import { Records } from './Records';
+import { PestanaCopa, PestanaRecords } from './PestanaRecords';
 import { Sala } from './Sala';
 import { Vivo } from '../vivo/PantallaVivo';
 import { PartidasEnLinea } from '../vivo/PartidasEnLinea';
@@ -23,6 +24,8 @@ const MODOS = [
   { ruta: 'en-linea', titulo: 'Partidas en línea', bajada: 'Mirar en directo' },
   { ruta: 'posiciones', titulo: 'Tabla oficial', bajada: 'Liga de cruces' },
   { ruta: 'calendario', titulo: 'Calendario', bajada: 'Cruces y fechas' },
+  { ruta: 'records', titulo: 'Récords', bajada: 'Hoy, semana y siempre' },
+  { ruta: 'copa', titulo: 'Copa Individual', bajada: 'Aparte del torneo' },
 ];
 
 /** Cuántos enfrentamientos esperan a que esta persona juegue, por modo. */
@@ -74,7 +77,7 @@ export function Portal({ sub, extra }: { sub: string; extra: string }) {
           <a href="#/juegos/3v3" class={modo === '3v3' ? 'activa' : ''} aria-current={modo === '3v3' ? 'page' : undefined}><b>3v3</b></a>
         </nav>
       )}
-      {modo === '' ? <Grilla /> : modo === 'posiciones' ? <Posiciones /> : modo === 'calendario' ? <><h1>Calendario de la liga</h1><Planificacion publico /></> : modo === 'vivo' ? <Vivo codigo={extra} /> : modo === 'en-linea' ? <PartidasEnLinea /> : <PestanaVersus key={modo} modo={modo as '1v1' | '3v3'} preset={extra} />}
+      {modo === '' ? <Grilla /> : modo === 'posiciones' ? <Posiciones /> : modo === 'records' ? <PestanaRecords /> : modo === 'copa' ? <PestanaCopa /> : modo === 'calendario' ? <><h1>Calendario de la liga</h1><Planificacion publico /></> : modo === 'vivo' ? <Vivo codigo={extra} /> : modo === 'en-linea' ? <PartidasEnLinea /> : <PestanaVersus key={modo} modo={modo as '1v1' | '3v3'} preset={extra} />}
     </div>
   );
 }

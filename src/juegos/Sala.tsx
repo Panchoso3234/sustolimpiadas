@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { fechaChile, generador } from '../nucleo/azar';
 import { supabase, useSesion } from '../nucleo/supabase';
 import { aspectoAleatorio, normalizarAspecto, normalizarPersonaje, type Aspecto } from '../personaje/catalogo';
-import { HORIZONTALES, JUEGOS, MOTORES, TOPES, VERSUS, type Juego } from './catalogo';
+import { HORIZONTALES, JUEGOS, MOTORES, TOPES, VERSUS, topeDudoso, type Juego } from './catalogo';
 import { Records } from './Records';
+import { leerPuntos, puntosPorPuesto, PUNTOS_BASE } from './puntos';
 import { guardarMarca, historial, marcaLocal, tablaDelDia, type Fila, type Guardado } from './marcas';
 import { clipsActivos } from '../nucleo/preferencias';
 import { entregarClip, grabarClips, type Clips } from './clips';
@@ -52,7 +53,8 @@ export async function aspectoDe(usuarioId: string | null): Promise<Aspecto> {
 function Tabla({ juego, fecha, usuarioId, version }: { juego: Juego; fecha: string; usuarioId: string | null; version: number }) {
   const [estado, setEstado] = useState<{ filas: Fila[]; disponible: boolean } | null>(null);
   const [vits, setVits] = useState<Map<string, Vitrina>>(new Map());
-  useEffect(() => { vitrinas().then(setVits).catch(() => {}); }, []);
+  const [p, setP] = useState(PUNTOS_BASE);
+  useEffect(() => { vitrinas().then(setVits).catch(() => {}); leerPuntos().then(setP, () => undefined); }, []);
   useEffect(() => {
     let vigente = true;
     tablaDelDia(juego.id, fecha).then((r) => { if (vigente) setEstado(r); });
@@ -71,10 +73,14 @@ function Tabla({ juego, fecha, usuarioId, version }: { juego: Juego; fecha: stri
   );
   // Cuánto le falta para pasar a la persona de arriba (al empatar no se sube, así que se pide un punto más)
   const falta = mio > 0 ? estado.filas[mio - 1].puntaje - estado.filas[mio].puntaje + 1 : 0;
+  // Copa Individual: el puesto sin las partidas dudosas (los empates comparten puesto, como en la base)
+  const tope = topeDudoso(juego.id), validas = estado.filas.filter((f) => !tope || f.puntaje <= tope), miValida = validas.find((f) => f.perfil === usuarioId);
+  const puestoCopa = miValida ? validas.filter((f) => f.puntaje > miValida.puntaje).length : -1;
   return (
     <>
       {mio > 0 && <p class="falta chico">Te faltan <b>{falta}</b> para subir al puesto {mio}.</p>}
       {mio === 0 && total > 1 && <p class="falta chico">Vas primero hoy. ¡Defiende el puesto!</p>}
+      {puestoCopa >= 0 && <p class="copa-linea chico"><a href="#/juegos/copa">Copa Individual</a>: hoy vas <b>{puestoCopa + 1}.º</b> en este juego (+{Math.round(puntosPorPuesto(p, puestoCopa, validas.length) * 100) / 100} de Copa si termina así).</p>}
       <ol class="marcas">{top.map(fila)}{mio >= top.length && fila(estado.filas[mio], mio)}</ol>
     </>
   );

@@ -991,3 +991,34 @@ body.foto .tren-misiones { display: none; }
 @keyframes timbre { 25% { transform: rotate(-14deg); } 75% { transform: rotate(14deg); } }
 .campana-navegador { margin-top: 8px; width: 100%; font-size: .82rem; }
 .aviso-ok-texto { color: var(--alga); }
+
+/* Récords y Copa Individual (fase 3) */
+.records-grilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin: 12px 0 20px; }
+.records-juego { background: var(--noche-2); border: 2px solid var(--linea); border-radius: 14px; padding: 10px 12px; min-width: 0; }
+.records-juego h3 { margin: 0 0 8px; font-size: 1rem; }
+.records-juego .records b { white-space: nowrap; }
+.records-juego h3 a { color: inherit; }
+.records .puesto { width: 1.4em; text-align: center; font-weight: 800; color: var(--luna); }
+.records .quien { flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: inherit; }
+.records-cruce { margin: 10px 0; }
+.records-cruce h3 { margin: 0 0 6px; font-size: 1rem; }
+.records-cruce .quien { color: inherit; display: inline-flex; align-items: center; gap: 4px; }
+.cruce-lista { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 12px; }
+.cruce-lista li { background: var(--tabla); border-radius: 10px; padding: 4px 10px; }
+.cruce-lista .gano { font-weight: 800; color: var(--alga); }
+.mis-resumen { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin: 12px 0; }
+.mis-resumen div { display: flex; flex-direction: column; background: var(--noche-2); border: 2px solid var(--linea); border-radius: 14px; padding: 10px 12px; }
+.mis-resumen b { font-size: 1.15rem; }
+/* La Copa va con su propio color (violeta) para que no se confunda con la tabla oficial */
+.copa { --copa: #c59bff; }
+.copa h1 { color: var(--copa); }
+.copa .modos button.activa { background: var(--copa); border-color: var(--copa); }
+.copa-tabla thead th { color: var(--copa); }
+.copa-tabla tr.copa-podio td { background: rgba(197, 155, 255, .14); }
+.copa-tabla tr.mia td { outline: 2px solid var(--copa); outline-offset: -2px; }
+.modos a[href="#/juegos/copa"] b { color: #c59bff; }
+.modos a.activa[href="#/juegos/copa"] { background: #c59bff; border-color: #c59bff; }
+.modos a.activa[href="#/juegos/copa"] b { color: var(--noche); }
+.copa-linea { margin: 4px 0; color: #c59bff; }
+.copa-linea a { color: inherit; font-weight: 800; }
+.records .barrida { flex: 1; }

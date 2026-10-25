@@ -138,3 +138,40 @@ export async function tablaDelDia(juego: string, fecha: string): Promise<{ filas
   }
   return { filas, disponible: true };
 }
+
+const topesDudosos = () => Object.fromEntries(Object.keys(TOPES).map((j) => [j, topeDudoso(j)]));
+
+/** Top 3 de cada juego desde una fecha (hoy, esta semana), sin dudosas. Null si falta 2026-10-25-records-copa.sql. */
+export async function recordsDesde(desde: string): Promise<Map<string, Fila[]> | null> {
+  const { data, error } = await supabase.rpc('records_periodo', { p_desde: desde, p_topes: topesDudosos() });
+  if (error || !Array.isArray(data)) return null;
+  const m = new Map<string, Fila[]>();
+  for (const f of data as { juego: string; perfil: string; nombre: string; puntaje: number }[]) m.set(f.juego, [...(m.get(f.juego) ?? []), { perfil: f.perfil, nombre: f.nombre ?? 'Participante', puntaje: f.puntaje }]);
+  for (const lista of m.values()) lista.sort((a, b) => b.puntaje - a.puntaje);
+  return m;
+}
+/** Todos los récords de siempre (top 3 de cada juego), o null si falta el SQL de récords. */
+export const recordsDeSiempre = () => todosLosRecords();
+
+/** Copa Individual (aparte del torneo): puntos por puesto de cada día y juego, sumados entre dos fechas. Null si falta el SQL. */
+export interface FilaCopa { perfil: string; nombre: string; puntos: number; primeros: number; podios: number; partidas: number }
+export async function copaIndividual(desde: string, hasta: string): Promise<FilaCopa[] | null> {
+  const { data, error } = await supabase.rpc('copa_individual', { p_desde: desde, p_hasta: hasta, p_topes: topesDudosos() });
+  if (error || !Array.isArray(data)) return null;
+  return (data as FilaCopa[]).map((f) => ({ ...f, nombre: f.nombre ?? 'Participante', puntos: Number(f.puntos) }));
+}
+
+/** Récords de versus que necesitan las rondas: mejor ronda de cada juego y remontadas. Null si falta el SQL. */
+export interface RecordVersus { tipo: 'mejor_ronda' | 'remontadas'; juego: string | null; perfil: string; nombre: string; valor: number; enfrentamiento: number | null }
+export async function recordsVersus(): Promise<RecordVersus[] | null> {
+  const { data, error } = await supabase.rpc('records_versus', { p_topes: topesDudosos() });
+  return error || !Array.isArray(data) ? null : (data as RecordVersus[]);
+}
+
+/** Mi mejor marca de siempre en cada juego (sin dudosas). */
+export async function misMejores(perfil: string): Promise<Map<string, number>> {
+  const { data } = await supabase.from('marcas').select('juego,puntaje').eq('perfil_id', perfil).order('puntaje', { ascending: false }).limit(3000);
+  const m = new Map<string, number>();
+  for (const f of data ?? []) { const j = f.juego as string, s = f.puntaje as number, tope = topeDudoso(j); if ((!tope || s <= tope) && !m.has(j)) m.set(j, s); }
+  return m;
+}
