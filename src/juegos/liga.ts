@@ -17,8 +17,9 @@ export const BONO_CRUCE = 5, EQUIPOS_A_LA_FINAL = 4, CUPOS_FINAL = 12;
  * Los 11 cruces, dos por semana para no agobiar: miércoles a sábado (4 días) y domingo a martes (3 días).
  * Así cada persona juega 1 o 2 duelos por semana. La liga termina el sábado 28 de noviembre.
  */
+// El cruce 1 se extendió un día (hasta el domingo 25-10), por eso se cruza con el primer día del cruce 2
 export const CRUCES = [
-  { n: 1, desde: '2026-10-21', hasta: '2026-10-24' }, { n: 2, desde: '2026-10-25', hasta: '2026-10-27' },
+  { n: 1, desde: '2026-10-21', hasta: '2026-10-25' }, { n: 2, desde: '2026-10-25', hasta: '2026-10-27' },
   { n: 3, desde: '2026-10-28', hasta: '2026-10-31' }, { n: 4, desde: '2026-11-01', hasta: '2026-11-03' },
   { n: 5, desde: '2026-11-04', hasta: '2026-11-07' }, { n: 6, desde: '2026-11-08', hasta: '2026-11-10' },
   { n: 7, desde: '2026-11-11', hasta: '2026-11-14' }, { n: 8, desde: '2026-11-15', hasta: '2026-11-17' },
