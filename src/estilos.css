@@ -1078,3 +1078,4 @@ body.foto .tren-misiones { display: none; }
 .palanca-visual i { position: absolute; left: 50%; top: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; background: #ffffffcc; }
 .espejo-oculto { margin: 0; padding: 18px 12px; text-align: center; font-size: .85rem; color: var(--tenue); }
 @media (prefers-reduced-motion: reduce) { .carrera-ayuda { animation: none; } }
+.mapa .camino.optima { stroke: #3fc79a; stroke-width: 1.6; stroke-dasharray: 1.6 1; opacity: .9; animation: none; }

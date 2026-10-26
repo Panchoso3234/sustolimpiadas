@@ -14,11 +14,16 @@ import { crearEscenario, mmss, sombra } from '../reflejos/motor';
 // amuleto, llave y mapa), telarañas, tablas que crujen y puertas secretas. Si un fantasma te toca pierdes una vida.
 // Los laberintos y el andar de los fantasmas salen de la semilla: lo mismo para todos en un mismo desafío.
 
-const DURA = 150, VIDAS = 3, T = 2.4, VEL = 4.3, RADIO = 0.42, ALTO_MURO = 1.7, CARGA = 0.6;
+// Versión 2 (26-10): nadie pasaba del piso 2 (poco tiempo, todas las velas obligatorias y un Cazador que no soltaba).
+// Ahora: 3 minutos más 45 s por piso superado, la reja se abre con el 75 % de las velas, se puede pasar rozando a un
+// fantasma pegado a la pared, la pila dura más y espantar muchos fantasmas en un mismo piso da cada vez menos.
+const DURA = 180, EXTRA_PISO = 45, VIDAS = 3, T = 2.4, VEL = 4.3, RADIO = 0.42, ALTO_MURO = 1.7, CARGA = 0.6;
+/** Velas que abren la reja (fracción del total), con y sin la llave dorada. */
+const PARA_ABRIR = 0.75, PARA_ABRIR_LLAVE = 0.5, TODAS = 150, TOQUE = 0.7, ATRAPA = 0.85, PILA_DURA = 110;
 type Especie = 'errante' | 'cazador' | 'muros' | 'chillon' | 'dama';
 const ESPECIES: Record<Especie, { color: string; brillo: string; vel: number; olfato: number; nombre: string; puntos: number }> = {
-  errante: { color: '#eef2ff', brillo: '#8890b8', vel: 1, olfato: 6, nombre: 'Errante', puntos: 100 },
-  cazador: { color: '#ffd0d0', brillo: '#c04848', vel: 1.18, olfato: 10, nombre: 'Cazador', puntos: 150 },
+  errante: { color: '#eef2ff', brillo: '#8890b8', vel: 1, olfato: 5, nombre: 'Errante', puntos: 100 },
+  cazador: { color: '#ffd0d0', brillo: '#c04848', vel: 1.08, olfato: 8, nombre: 'Cazador', puntos: 150 },
   muros: { color: '#c8ffd8', brillo: '#3a9a5a', vel: 0.55, olfato: 9, nombre: 'Atraviesamuros', puntos: 150 },
   chillon: { color: '#fff4b0', brillo: '#b0a040', vel: 1, olfato: 7, nombre: 'Chillón', puntos: 150 },
   dama: { color: '#ffffff', brillo: '#d0d8ff', vel: 0.92, olfato: 14, nombre: 'Dama de Blanco', puntos: 400 },
@@ -26,7 +31,7 @@ const ESPECIES: Record<Especie, { color: string; brillo: string; vel: number; ol
 type Objeto = 'reloj' | 'botas' | 'amuleto' | 'llave' | 'mapa';
 const OBJETOS: Record<Objeto, { color: string; nombre: string }> = {
   reloj: { color: '#ffd23c', nombre: 'Reloj de arena: +15 s' }, botas: { color: '#ff7ab8', nombre: 'Botas: más rápido' }, amuleto: { color: '#5ad1ff', nombre: 'Amuleto: aguanta un toque' },
-  llave: { color: '#ffb02e', nombre: 'Llave dorada: la reja se abre con el 70 % de las velas' }, mapa: { color: '#b0ff7a', nombre: 'Mapa: ves todo el piso' },
+  llave: { color: '#ffb02e', nombre: 'Llave dorada: la reja se abre con la mitad de las velas' }, mapa: { color: '#b0ff7a', nombre: 'Mapa: ves todo el piso' },
 };
 /** El estilo de cada piso: muro, tapa del muro, piso y color de la neblina. */
 const ESTILOS = [
@@ -92,7 +97,8 @@ export async function crear(c: Contexto): Promise<Partida> {
   let fantasmas: Fantasma[] = [], reja: THREE.Mesh | null = null, portal: THREE.Mesh | null = null, bloquesSecretos: THREE.InstancedMesh | null = null, rj = generador('');
   const yo = { x: 0, z: 0, ang: 0, vidas: VIDAS, invencible: 0 };
   let reloj = 0, limite = DURA, piso = 0, bateria = 1, puntos = 0, velasTotal = 0, espantados = 0, pisos = 0, empezado = false, terminado = false, abierta = false, avisoPila = false;
-  let botas = 0, amuleto = false, llave = false, mapaHasta = 0, inicioPiso = 0, vidasPiso = VIDAS, combo = 0, ultimaVela = -9, latido = 0;
+  let botas = 0, amuleto = false, llave = false, mapaHasta = 0, inicioPiso = 0, vidasPiso = VIDAS, combo = 0, ultimaVela = -9, latido = 0, espantadosPiso = 0;
+  const necesarias = () => Math.ceil(velasTotal * (llave ? PARA_ABRIR_LLAVE : PARA_ABRIR));
   const desglose = { velas: 0, combos: 0, pisos: 0, fantasmas: 0, final: 0 };
 
   const enMundo = (i: number) => (i - N) * T; // el centro de la casilla i (el laberinto queda centrado en el origen)
@@ -167,7 +173,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       return { x: v.position.x, z: v.position.z, i, j, malla: v, tomada: false };
     });
     velasTotal = velas.length;
-    pilas = Array.from({ length: 3 }, () => {
+    pilas = Array.from({ length: 3 + Math.min(2, piso) }, () => {
       const [i, j] = sacar(), p = new THREE.Group();
       const tubo = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.45, 10), mat('#3fc79a')), polo = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.08, 8), mat('#d8dde8'));
       tubo.position.y = 0.45; polo.position.y = 0.72;
@@ -235,7 +241,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       return { especie, g: f, cuerpo: cabeza, falda, x: f.position.x, z: f.position.z, hacia: null, susto: 0, fase: n * 1.7, alerta: 0, previo: null, cae: 0, ultimoChillido: -9 };
     });
     yo.x = enMundo(1); yo.z = enMundo(1); yo.ang = 0;
-    inicioPiso = reloj; vidasPiso = yo.vidas;
+    inicioPiso = reloj; vidasPiso = yo.vidas; espantadosPiso = 0;
     e.hud.aviso(`Piso ${piso + 1}: ${estilo.nombre}${piso >= 3 ? ' · cuidado con la Dama de Blanco' : piso === 2 ? ' · llegan el Chillón y el Atraviesamuros' : piso === 1 ? ' · llega el Cazador' : ''}`, 'oro', 2);
   };
 
@@ -277,7 +283,7 @@ export async function crear(c: Contexto): Promise<Partida> {
         ['Vidas al final', `${Math.max(0, yo.vidas)}${desglose.final ? ` (+${desglose.final})` : ''}`],
         ['Fin', porque],
       ],
-      detalle: { pisos, velas: puntosVelas, espantados, vidas: yo.vidas },
+      detalle: { version: 2, pisos, velas: puntosVelas, espantados, vidas: yo.vidas },
     });
   };
   let puntosVelas = 0;
@@ -403,7 +409,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       for (const f of fantasmas) if (Math.hypot(f.x - yo.x, f.z - yo.z) < T * 9) f.alerta = t + 4;
     }
     // Linterna: se gasta sola; un toque lanza el destello corto y mantener lo carga
-    bateria = Math.max(0, bateria - paso / 85);
+    bateria = Math.max(0, bateria - paso / PILA_DURA);
     const pulsada = mando.pulsada;
     if (pulsada && !pulsadaAntes) apretadoDesde = t;
     if (!pulsada && pulsadaAntes && apretadoDesde >= 0) { lanzarDestello(t - apretadoDesde >= CARGA); apretadoDesde = -1; }
@@ -418,7 +424,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       e.flotante(extra ? `+${50 + extra} combo ×${combo}` : '+50', v.x, 1, v.z, 'bien'); e.sonido.tono(880, 0.12, { tipo: 'sine', vol: 0.12 }); e.sonido.tono(1320, 0.16, { tipo: 'sine', vol: 0.1, cuando: (e.sonido.ctx?.currentTime ?? 0) + 0.08 });
     }
     const tomadas = velas.filter((x) => x.tomada).length;
-    if (!abierta && (tomadas === velasTotal || (llave && tomadas >= Math.ceil(velasTotal * 0.7)))) { abierta = true; e.hud.aviso(llave && tomadas < velasTotal ? '¡La llave abrió la reja!' : '¡La reja se abrió! Busca la salida', 'oro', 1.6); e.sonido.bien(); }
+    if (!abierta && tomadas >= necesarias()) { abierta = true; e.hud.aviso(tomadas < velasTotal ? `¡La reja se abrió! Sal, o junta las ${velasTotal - tomadas} velas que faltan (+${TODAS} por todas)` : '¡La reja se abrió! Busca la salida', 'oro', 2); e.sonido.bien(); }
     for (const p of pilas) if (!p.tomada && Math.hypot(p.x - yo.x, p.z - yo.z) < 0.85) { p.tomada = true; p.malla.visible = false; bateria = Math.min(1, bateria + 0.45); e.hud.aviso('Pila: +45 %', 'oro', 0.8); e.sonido.efecto('campana', 0.5); }
     for (const it of items) if (!it.tomada && Math.hypot(it.x - yo.x, it.z - yo.z) < 0.85) {
       it.tomada = true; it.malla.visible = false;
@@ -427,10 +433,10 @@ export async function crear(c: Contexto): Promise<Partida> {
     }
     // Salida: con la reja abierta, se pasa al piso siguiente (bono por rapidez y por no perder vidas)
     if (abierta && Math.hypot(enMundo(salida.i) - yo.x, enMundo(salida.j) - yo.z) < 1) {
-      const rapido = Math.max(0, Math.round((45 - (t - inicioPiso)) * 6)), limpio = yo.vidas === vidasPiso ? 150 : 0, total = 300 + rapido + limpio;
-      pisos++; piso++; puntos += total; desglose.pisos += total; llave = false;
+      const rapido = Math.max(0, Math.round((60 - (t - inicioPiso)) * 6)), limpio = yo.vidas === vidasPiso ? 150 : 0, todas = tomadas === velasTotal ? TODAS : 0, total = 300 + rapido + limpio + todas;
+      pisos++; piso++; puntos += total; desglose.pisos += total; llave = false; limite += EXTRA_PISO;
       e.chispas(yo.x, 1, yo.z, ['#b17cff', '#ffd23c', '#ffffff'], 40, 6);
-      e.hud.aviso(`¡Piso superado! +300${rapido ? ` +${rapido} rápido` : ''}${limpio ? ' +150 sin daño' : ''}`, 'oro', 1.8);
+      e.hud.aviso(`¡Piso superado! +300${rapido ? ` +${rapido} rápido` : ''}${limpio ? ' +150 sin daño' : ''}${todas ? ` +${TODAS} todas las velas` : ''} · +${EXTRA_PISO} s`, 'oro', 2.2);
       armarPiso(); camara(0, true);
       return;
     }
@@ -466,10 +472,13 @@ export async function crear(c: Contexto): Promise<Partida> {
         }
       }
       // ¿Te tocó?
-      if (Math.hypot(f.x - yo.x, f.z - yo.z) < 0.85) {
+      const distancia = Math.hypot(f.x - yo.x, f.z - yo.z);
+      if (distancia < (asustado ? ATRAPA : TOQUE)) {
         if (asustado) {
-          espantados++; puntos += datos.puntos; desglose.fantasmas += datos.puntos; f.cae = 0.001;
-          e.flotante(`+${datos.puntos} ¡Buu!`, f.x, 1.6, f.z, 'oro'); e.chispas(f.x, 1, f.z, ['#ffffff', '#7fb4ff'], 24, 5); e.sonido.tono(1400, 0.3, { tipo: 'sine', vol: 0.1, hasta: 200 });
+          // Espantar muchos en el mismo piso vale cada vez menos (desde el quinto, la mitad): explorar sigue valiendo más
+          const vale = espantadosPiso >= 4 ? Math.round(datos.puntos / 2) : datos.puntos;
+          espantados++; espantadosPiso++; puntos += vale; desglose.fantasmas += vale; f.cae = 0.001;
+          e.flotante(`+${vale} ¡Buu!`, f.x, 1.6, f.z, 'oro'); e.chispas(f.x, 1, f.z, ['#ffffff', '#7fb4ff'], 24, 5); e.sonido.tono(1400, 0.3, { tipo: 'sine', vol: 0.1, hasta: 200 });
         } else if (t > yo.invencible) {
           if (amuleto) { amuleto = false; yo.invencible = t + 2; e.hud.aviso('¡El amuleto te salvó!', 'oro', 1.2); e.chispas(yo.x, 1, yo.z, ['#5ad1ff', '#ffffff'], 24, 5); f.susto = t + 3; continue; }
           yo.vidas--; yo.invencible = t + 3;
@@ -492,10 +501,10 @@ export async function crear(c: Contexto): Promise<Partida> {
       const paso = Math.min(dt, 0.05);
       for (let n = 0; n < aceleracion && !terminado; n++) simular(paso);
       if (!terminado) {
-        const tomadas = velas.filter((x) => x.tomada).length, necesarias = llave ? Math.ceil(velasTotal * 0.7) : velasTotal;
+        const tomadas = velas.filter((x) => x.tomada).length;
         const extras = [reloj < botas ? 'botas' : '', amuleto ? 'amuleto' : '', llave ? 'llave' : '', reloj < mapaHasta ? 'mapa' : ''].filter(Boolean).join(', ');
         e.hud.tiempo(mmss(Math.max(0, limite - reloj)));
-        e.hud.extra(`Piso ${piso + 1} · 🕯️ ${tomadas}/${necesarias} · 🔦 ${Math.round(bateria * 100)} % · ${'❤️'.repeat(Math.max(0, yo.vidas))}${extras ? ` · ${extras}` : ''}`);
+        e.hud.extra(`Piso ${piso + 1} · 🕯️ ${tomadas}/${abierta ? velasTotal : necesarias()} · 🔦 ${Math.round(bateria * 100)} % · ${'❤️'.repeat(Math.max(0, yo.vidas))}${extras ? ` · ${extras}` : ''}`);
         e.hud.puntos(puntos);
       }
     }
@@ -515,6 +524,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (cargaAro.visible) { cargaAro.geometry.dispose(); cargaAro.geometry = new THREE.RingGeometry(0.55, 0.68, 32, 1, 0, Math.PI * 2 * cargando); (cargaAro.material as THREE.MeshBasicMaterial).color.set(cargando >= 1 ? '#ffffff' : '#ffcf5a'); }
     escudoMalla.visible = amuleto; escudoMalla.position.set(yo.x, 0.9, yo.z);
     // Brújula: a la vela más cercana por los pasillos, o a la salida si la reja está abierta
+    // Con la reja abierta, la brújula apunta a la salida (las velas que faltan siguen en el mapa)
     const d = distancias(casilla(yo.x), casilla(yo.z)), meta = abierta ? salida : velas.filter((v) => !v.tomada).sort((a, b) => d(a.i, a.j) - d(b.i, b.j))[0];
     brujula.visible = !!meta && empezado && !terminado;
     if (meta) {
@@ -541,5 +551,5 @@ export async function crear(c: Contexto): Promise<Partida> {
     camara(dt);
   });
 
-  return { empezar() { e.empezar(); empezado = true; k.animar('idle'); e.hud.aviso('¡Junta las velas! (mantén Espacio para el destello cargado)', 'oro', 1.6); }, destruir: e.destruir };
+  return { empezar() { e.empezar(); empezado = true; k.animar('idle'); e.hud.aviso('¡Junta las velas! Con 3 de cada 4 se abre la reja (mantén Espacio para el destello cargado)', 'oro', 2); }, destruir: e.destruir };
 }
