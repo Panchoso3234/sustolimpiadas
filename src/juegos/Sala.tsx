@@ -126,7 +126,7 @@ function textoResultado(juego: Juego, r: Resultado, mejor: boolean, contra: Fant
 type Fase = 'previa' | 'cargando' | 'cuenta' | 'jugando' | 'resultado' | 'error';
 
 const REGLAS_VISTAS = 'susto.reglasVistas';
-const reglasVistas = (): string[] => { try { return JSON.parse(localStorage.getItem(REGLAS_VISTAS) ?? '[]'); } catch { return []; } };
+const reglasVistas = (): string[] => { try { const v = JSON.parse(localStorage.getItem(REGLAS_VISTAS) ?? '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
 const marcarReglasVistas = (id: string) => { try { const v = reglasVistas(); if (!v.includes(id)) localStorage.setItem(REGLAS_VISTAS, JSON.stringify([...v, id])); } catch { /* sin almacenamiento */ } };
 
 /** Las reglas de un juego, ordenadas: de qué se trata, cómo se juega (frase por frase) y qué premia. */
