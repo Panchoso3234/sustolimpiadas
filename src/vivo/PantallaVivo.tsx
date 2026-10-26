@@ -6,7 +6,7 @@ import { SalaTablero } from './SalaTablero';
 import { SalaDuelo } from './SalaDuelo';
 import { DUELOS } from './formatos';
 import { probarEspejo } from './espejo';
-import { JUEGOS as CATALOGO } from '../juegos/catalogo';
+import { JUEGOS as CATALOGO, RETIRADOS } from '../juegos/catalogo';
 import { probarAsientos } from './asientos';
 import * as V from '../juegos/duelos';
 import { MisEnVivo } from '../juegos/PantallaVersus';
@@ -92,7 +92,7 @@ export function Vivo({ codigo, mirar = false }: { codigo: string; mirar?: boolea
             <span class="pie"><span class="premia">{formato === 'dividida' ? 'Pantalla dividida' : formato === 'turnos' ? 'Por turnos' : id === 'bloques' || id === 'bestias' ? 'Cara a cara' : 'Mismo mundo'}</span><button class="boton principal" onClick={() => crear(id)}>Crear sala</button></span>
           </div>
         ); })}
-        {Object.values(TABLEROS).map((r) => (
+        {Object.values(TABLEROS).filter((r) => !RETIRADOS.has(r.id)).map((r) => (
           <div key={r.id} class="tarjeta" style="--tono:#ffe08a">
             <img class="foto" src={`${import.meta.env.BASE_URL}juegos/${r.id}.png`} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             <h3>{r.nombre}</h3>

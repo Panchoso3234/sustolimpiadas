@@ -134,7 +134,7 @@ export const HORIZONTALES = new Set(['catapulta', 'billar', 'karts', 'tiro', 'de
 
 /** Juegos retirados (El Más Bajo el 23-10; La Palabra Secreta y Luces del Faro el 24-10): no salen en la web ni en los sorteos,
  * ni sus modos 1v1 y 3v3, pero sus marcas viejas conservan el nombre. */
-export const RETIRADOS = new Set(['bajo', 'palabra', 'luces']);
+export const RETIRADOS = new Set(['bajo', 'palabra', 'luces', 'cofre', 'eco']);
 export const JUEGOS = TODOS.filter((x) => !RETIRADOS.has(x.id));
 export const juegoPorId = (id: string) => TODOS.find((x) => x.id === id);
 
