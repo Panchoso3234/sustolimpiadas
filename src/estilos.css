@@ -222,6 +222,8 @@ body.foto .mesa { padding: 10px; }
 /* Juegos de mesa (tablero, memoria y decisión) */
 .mesa { position: absolute; inset: 0; overflow-y: auto; display: flex; padding: 64px 12px 56px; background: linear-gradient(#8fd6f5 0%, #58c0ea 30%, #f2deae 30.5%, #ecd092 100%); color: var(--noche); }
 .mesa-tablero { margin: auto; width: min(100%, 560px); display: flex; flex-direction: column; align-items: center; gap: 12px; background: rgba(243, 236, 220, .95); border: 3px solid #b88a4a; border-radius: 18px; padding: 16px; box-shadow: 0 8px 0 rgba(122, 79, 42, .35); }
+.mesa.battleship .mesa-tablero, .mesa.balsas .mesa-tablero { width: min(100%, 860px); }
+.mesa.battleship .mares, .mesa.balsas .mares { width: 100%; }
 .mesa-tablero.oculta { visibility: hidden; }
 .mesa .sigla { color: #8a5a38; }
 .mesa .boton { color: var(--hueso); }
@@ -562,7 +564,7 @@ body.foto ::-webkit-scrollbar { display: none; }
 .vivo-turno { font-weight: 800; font-size: 1.15rem; }
 .vivo-turno.mio { color: var(--calabaza); }
 .vivo-fin { font-size: 1.15rem; font-weight: 800; }
-.conchas { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; width: min(100%, 460px); padding: 10px; border-radius: 16px; background: #1f4f8a; }
+.tablero-conchas { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; width: min(100%, 460px); padding: 10px; border-radius: 16px; background: #1f4f8a; }
 .conchas-col { display: flex; flex-direction: column; gap: 6px; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 10px; }
 .conchas-col:not(:disabled):hover { background: #ffffff22; }
 .conchas-col:disabled { cursor: default; }
@@ -572,7 +574,7 @@ body.foto ::-webkit-scrollbar { display: none; }
 .concha.gana { outline: 3px solid var(--luna); outline-offset: 1px; }
 .mares { display: flex; flex-wrap: wrap; gap: 18px; }
 .mar-caja { display: flex; flex-direction: column; gap: 6px; flex: 1 1 260px; max-width: 340px; }
-.mar { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; width: 100%; padding: 8px; border-radius: 12px; background: #1f6fa8; }
+.mar { display: grid; grid-template-columns: repeat(var(--lado, 8), 1fr); gap: 3px; width: 100%; padding: 8px; border-radius: 12px; background: #1f6fa8; }
 .agua-c { aspect-ratio: 1; min-width: 0; padding: 0; border: 0; border-radius: 4px; background: #3f9ad6; cursor: pointer; }
 .agua-c:disabled { cursor: default; }
 .agua-c:not(:disabled):hover { background: #6cbcee; }
@@ -582,6 +584,23 @@ body.foto ::-webkit-scrollbar { display: none; }
 .agua-c.tocado { background: var(--calabaza); }
 .agua-c.hundido { background: var(--sangre); }
 .agua-c.espera { outline: 2px dashed var(--luna); }
+.agua-c { font-weight: 700; font-size: 0.85rem; line-height: 1; color: #fff; }
+.agua-c.elegida { outline: 3px solid var(--luna); outline-offset: -2px; background: #e0a85c; }
+.agua-c.radar { box-shadow: inset 0 0 0 2px #7cf7c4; }
+.agua-c.ultimo { outline: 2px solid #fff; outline-offset: -2px; }
+.agua-c.hundido { animation: hundir 0.7s ease-out; }
+@keyframes hundir { 0% { transform: scale(1.25); filter: brightness(1.8); } 60% { transform: scale(0.85); } 100% { transform: scale(1); } }
+.conchas-sacar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; width: min(100%, 460px); padding: 0 10px; }
+.conchas-sacar .boton { padding: 4px 0; font-size: 0.72rem; min-width: 0; }
+.concha.ultima { box-shadow: 0 0 0 3px #ffffffaa; }
+.concha { transition: background 0.15s; }
+.mesa-tablero .tablero-conchas, .mesa-tablero .mares { margin: 0 auto; }
+.mesa-tablero .mares { justify-content: center; }
+.desafio-marcador { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 4px 0 8px; }
+.desafio-marcador span { padding: 2px 8px; border-radius: 999px; background: #ffffff14; font-size: 0.8rem; }
+.desafio-marcador span.gano { background: #3fc79a44; }
+.desafio-marcador span.perdio { background: #ef556544; }
+.desafio-marcador span.actual { outline: 2px solid var(--luna); }
 
 /* Mi personaje: crear el propio o elegir uno de la lista */
 .modo-personaje { margin-bottom: 10px; }
@@ -626,7 +645,7 @@ body.foto .tren-poderes { display: none; }
 .duelo-zona.con-juego { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; }
 .duelo-zona.turnos.con-juego, .duelo-zona.mundo.con-juego { grid-template-columns: minmax(0, 1fr); }
 .duelo-mio { height: min(70vh, 640px); border-radius: 14px; }
-.duelo-mio[hidden] { display: none; }
+[hidden] { display: none !important; } /* un display propio no debe ganarle al atributo hidden */
 .duelo-cargando { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--noche); }
 .duelo-otros { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 .duelo-pantalla { display: flex; flex-direction: column; gap: 4px; border: 3px solid var(--color); border-radius: 14px; padding: 6px; background: var(--noche-2); }

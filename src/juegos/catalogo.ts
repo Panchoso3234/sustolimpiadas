@@ -20,7 +20,7 @@ export interface Juego {
 export const TOPES: Record<string, number> = {
   rodillos: 1500, puertas: 1600, huevo: 3400, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, torre: 2400, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2800, parejas: 1000, buscaconchas: 1800, luces: 1800,
   cartero: 4200, cofre: 1300, palabra: 1000, totem: 1000, catapulta: 7000, bolos: 750, minigolf: 1000,
-  karts: 2300, tren: 9000, tanques: 16000, bombas: 2500, agujero: 14000, serpientes: 5000, defensa: 10000, museo: 5000, tiro: 9000, cocina: 6000, billar: 8000, triples: 9000, calabazas: 3500, laberinto: 6000, escobas: 4000, bloques: 120000, bestias: 15000,
+  karts: 2300, tren: 9000, tanques: 16000, bombas: 2500, agujero: 14000, serpientes: 5000, defensa: 10000, museo: 5000, tiro: 9000, cocina: 6000, billar: 8000, triples: 9000, calabazas: 3500, laberinto: 6000, escobas: 4000, conchas: 2400, balsas: 2200, bloques: 120000, bestias: 15000,
 };
 
 
@@ -121,11 +121,15 @@ const TODOS: Juego[] = [
     'Mueve con ← → (o arrastrando el dedo), gira con ↑ o X (a la derecha), Z (a la izquierda) y A (media vuelta); ↓ baja rápido y Espacio la deja caer de una (o desliza rápido hacia abajo). C o Shift guarda una pieza para después. La sombra blanca muestra dónde caerá. Completar líneas suma (1, 2, 3 o 4 a la vez: el cuádruple vale mucho) y encadenarlas da combos; meter la pieza T girando en un hueco cerrado es un Giro maestro. La barra violeta se llena con líneas: con E activas el Hechizo (8 s sin gravedad y puntos al doble). Piezas especiales: la bomba rompe un cuadro de 3 × 3, la calabaza rellena su fila y la fantasma atraviesa bloques. Se anuncian eventos: niebla, viento y lluvia de lápidas. Tienes 3 minutos; cumple el desafío del día para un bono. En celular hay botones abajo; con control, la cruceta mueve, A y B giran y el gatillo deja caer.'),
   j(40, 'bestias', 'PUCHAMON', 'G', 'Batallas de criaturas de frente, por turnos: elige 3 de 6 crías sorteadas y sube una torre de 5 rivales. Ganar sube de nivel a tu equipo y las hace evolucionar; en la cima espera una criatura legendaria. 30 criaturas por descubrir.', 'Estrategia y conocimiento',
     'Con las flechas (o WASD, el mouse, el dedo o el control) te mueves por los menús; Enter o Espacio eligen y Esc vuelve. En tu turno: Luchar (4 ataques, cada uno con su tipo y sus PP; el menú avisa si es muy eficaz o poco eficaz), Equipo (cambiar de criatura), Objetos (2 Pociones que curan la mitad y 1 Cura Total) o Rendirse. Los ataques de su mismo tipo pegan x1,5 y la tabla de tipos multiplica (x2, x½ o no afecta). Ojo con los estados: quemado, paralizado, dormido, envenenado y congelado. Mantén Enter o el clic para apurar los textos. Tu equipo empieza en el Nv. 18 y sube 8 niveles con cada victoria: en el Nv. 30 y en el Nv. 45 las criaturas evolucionan (con ataques nuevos). El Bestiario guarda las criaturas que has visto. Ganar suma puntos por criaturas en pie, vida restante, rapidez y golpes eficaces; vencer a la legendaria y superar la torre dan bonos.'),
+  j(41, 'conchas', 'CONECTA4', 'F', 'El Cuatro en Línea de siempre contra la máquina: cinco partidas cada vez más difíciles, alternando quién empieza y una en modo Pop Out. En vivo, contra otra persona.', 'Estrategia',
+    'Toca una columna para dejar caer tu concha: gana quien alinea cuatro (en fila, columna o diagonal). En Pop Out también puedes sacar una concha tuya de la fila de abajo con el botón ⬇ Sacar. Tienes 15 s por jugada; si se acaban, la concha cae sola. Ganar vale 250 a 500 según la partida, más 10 por cada jugada menos de 21; el empate vale un 30 %. Al final se marca la jugada ganadora que se te pasó y puedes ver la repetición.'),
+  j(42, 'balsas', 'Battleship', 'F', 'La batalla naval clásica: un mar de 10 × 10 con cinco balsas. Tres batallas contra la máquina (la última en modo Salvo), con radar. En vivo, contra otra persona.', 'Deducción',
+    'Primero ubica tu flota: toca una balsa y después la casilla donde la quieres (Girar la pone de pie o acostada; no se pueden tocar entre sí). Después dispara tocando el mar de la máquina: 20 s por turno. El 📡 radar, una vez por batalla, dice cuántas casillas con balsa hay en un cuadrado de 3 × 3. En Salvo disparas tantas veces como balsas te queden. Ganar vale 400, más 8 por cada tiro menos de 65 y 10 por cada casilla tuya a flote; si pierdes, 8 por acierto.'),
 ];
 
 /** Juegos que en celular se ven mucho mejor de lado: avisan al partir si el teléfono está parado. */
 /** Juegos con modo libre (fase 4): sin reloj ni límite de vidas o intentos, no guarda nada. */
-export const LIBRES = new Set(['rodillos', 'puertas', 'cartero', 'laberinto', 'tinta', 'numeros', 'parejas', 'buscaconchas', 'catapulta', 'minigolf', 'tren', 'serpientes', 'karts', 'bloques', 'bombas']);
+export const LIBRES = new Set(['rodillos', 'puertas', 'cartero', 'laberinto', 'tinta', 'numeros', 'parejas', 'buscaconchas', 'catapulta', 'minigolf', 'tren', 'serpientes', 'karts', 'bloques', 'bombas', 'conchas', 'balsas']);
 export const HORIZONTALES = new Set(['catapulta', 'billar', 'karts', 'tiro', 'defensa', 'cocina', 'triples', 'escobas', 'bestias']);
 
 /** Juegos retirados (El Más Bajo el 23-10; La Palabra Secreta y Luces del Faro el 24-10): no salen en la web ni en los sorteos,
@@ -153,8 +157,8 @@ const TODOS_VERSUS: TipoVersus[] = [
   v('1v1', 'cofre-duelo', 'El Cofre o la Ola en duelo', 'Las mismas olas escondidas: gana quien se planta mejor.', 'cofre'),
   v('1v1', 'cartero-duelo', 'Carteros rivales', 'El mismo pueblo; gana la ruta más corta.', 'cartero'),
   v('1v1', 'golf-duelo', 'Minigolf mano a mano', 'Los mismos seis hoyos; gana quien usa menos golpes.', 'minigolf'),
-  v('1v1', 'conchas-linea', 'Cuatro Conchas en Línea', 'Por turnos, el primero en alinear cuatro.', 'conchas', true),
-  v('1v1', 'balsas', 'Batalla de Balsas', 'Batalla naval: esconde tus balsas y hunde las del rival.', 'balsas', true),
+  v('1v1', 'conchas-linea', 'CONECTA4', 'Los dos contra la misma máquina, o en vivo cara a cara: el primero en alinear cuatro.', 'conchas'),
+  v('1v1', 'balsas', 'Battleship', 'Los dos contra la misma flota, o en vivo cara a cara: hunde las balsas del rival.', 'balsas'),
   v('1v1', 'sumo-1v1', 'Al Agua Pato 1v1', 'Los mismos cinco rivales de máquina para cada uno; gana quien aguanta y bota más.', 'sumo'),
   v('1v1', 'karts-duelo', 'Duelo de Karts', 'La misma pista y los mismos rivales: gana quien llega mejor.', 'karts'),
   v('1v1', 'tren-duelo', 'Fuga en Paralelo', 'Las mismas vías y los mismos trenes: gana quien llega más lejos.', 'tren'),

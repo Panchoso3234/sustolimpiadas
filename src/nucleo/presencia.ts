@@ -21,7 +21,7 @@ export function actividadDeRuta(hash: string): Omit<Actividad, 'desde'> {
   if (seccion === 'juegos') {
     if (sub === 'vivo' && extra) { const j = juegoPorId(extra.split('-')[0]); return { texto: j ? `En una sala en vivo de ${j.nombre}` : 'En un duelo en vivo', enlace: `#/juegos/mirar/${extra}` }; }
     if (sub === 'mirar') return { texto: 'Mirando un duelo en vivo', enlace: `#/juegos/mirar/${extra}` };
-    if (sub === 'maquina') return { texto: `Jugando ${extra === 'balsas' ? 'Batalla de Balsas' : 'Cuatro Conchas'} contra la máquina` };
+    if (sub === 'maquina') return { texto: `Jugando ${extra === 'balsas' ? 'Battleship' : 'CONECTA4'} contra la máquina` };
     const j = juegoPorId(sub);
     if (j) return { texto: `Viendo ${j.nombre}`, enlace: `#/juegos/${j.id}` };
     const textos: Record<string, string> = { '': 'En el portal de juegos', '1v1': 'Revisando sus duelos', vivo: 'En la sala de espera en vivo', '3v3': 'En la sala de espera en vivo', 'en-linea': 'Mirando partidas en línea', posiciones: 'Mirando la tabla oficial', calendario: 'Mirando el calendario', records: 'Mirando los récords', copa: 'Mirando la Copa Individual', duelo: 'Revisando un duelo' };

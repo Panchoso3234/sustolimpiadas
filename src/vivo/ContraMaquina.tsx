@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'preact/hooks';
 import { COLUMNAS, FILAS, LADO, disparoMaquina, filaLibre, jugadaMaquina, jugarConchas, recibirDisparo, repartirFlota, type Balsa, type Dificultad, type Resultado } from './reglas';
 
-// Modo individual de Cuatro Conchas en Línea y Batalla de Balsas: contra la máquina, en este navegador.
+// Práctica de CONECTA4 y Battleship contra la máquina, en este navegador.
 // Es para practicar: no guarda marcas ni cuenta para nada (solo se recuerda cuántas ganaste, en este navegador).
 
-const NOMBRES = { conchas: 'Cuatro Conchas en Línea', balsas: 'Batalla de Balsas' } as const;
+export const NOMBRES = { conchas: 'CONECTA4', balsas: 'Battleship' } as const;
 type Juego = keyof typeof NOMBRES;
 const DIFICULTADES: [Dificultad, string][] = [['facil', 'Fácil'], ['normal', 'Normal'], ['dificil', 'Difícil']];
 type Cuenta = Record<Dificultad, { g: number; p: number; e: number }>;
@@ -55,7 +55,7 @@ function Conchas({ dificultad, empiezoYo, fin, otra }: { dificultad: Dificultad;
   return (
     <>
       <p class={`vivo-turno${miTurno ? ' mio' : ''}`}>{terminada ? (estado.empate ? 'Empate: el tablero se llenó.' : estado.ganador === yo ? '¡Ganaste!' : 'Ganó la máquina.') : miTurno ? `Tu turno (eres ${yo === 1 ? 'azul' : 'rojo'})` : 'La máquina está pensando…'}</p>
-      <div class="conchas" aria-label="Tablero de Cuatro Conchas">
+      <div class="tablero-conchas" aria-label="Tablero de CONECTA4">
         {Array.from({ length: COLUMNAS }, (_, col) => (
           <button key={col} class="conchas-col" disabled={!miTurno || filaLibre(estado.tablero, col) < 0} onClick={() => setJugadas([...jugadas, col])} aria-label={`Columna ${col + 1}`}>
             {Array.from({ length: FILAS }, (_, k) => FILAS - 1 - k).map((f) => {

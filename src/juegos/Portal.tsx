@@ -128,21 +128,6 @@ function Grilla() {
           </div>
         </section>
       ))}
-      {filtro === 'todos' && !texto && (
-        <section class="motor" style="--tono:#ffe08a">
-          <h2>Contra la máquina</h2>
-          <div class="rejilla-juegos">
-            {([['conchas', 'Cuatro Conchas en Línea', 'Por turnos, deja caer conchas: gana quien alinea cuatro.'], ['balsas', 'Batalla de Balsas', 'Esconde tus balsas y hunde las de la máquina antes que ella las tuyas.']] as const).map(([id, nombre, idea]) => (
-              <div key={id} class="tarjeta">
-                <img class="foto" src={`${import.meta.env.BASE_URL}juegos/${id}.png`} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                <h3>{nombre}</h3>
-                <p>{idea}</p>
-                <span class="pie"><span class="premia">Práctica, sin marca</span><a class="boton principal" href={`#/juegos/maquina/${id}`}>Jugar</a></span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
     </>
   );
 }

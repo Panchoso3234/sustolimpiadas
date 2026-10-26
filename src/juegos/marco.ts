@@ -95,6 +95,8 @@ export const CARGADORES: Record<string, () => Promise<CrearJuego>> = {
   buscaconchas: () => import('./tablero/buscaconchas').then((m) => m.crear),
   luces: () => import('./tablero/luces').then((m) => m.crear),
   cartero: () => import('./tablero/cartero').then((m) => m.crear),
+  conchas: () => import('./tablero/conecta4').then((m) => m.crear),
+  balsas: () => import('./tablero/battleship').then((m) => m.crear),
   cofre: () => import('./tablero/cofre').then((m) => m.crear),
   palabra: () => import('./tablero/palabra').then((m) => m.crear),
   totem: () => import('./punteria/totem').then((m) => m.crear),

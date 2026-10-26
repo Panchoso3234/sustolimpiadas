@@ -28,10 +28,12 @@ async function armarConchas(letra) {
   const listo = (p) => hasta(() => p.js(`(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent === '¡Listo!'); if (b) b.click(); return !!b; })()`), 20000);
   await hasta(async () => (await a.js('window.__sala?.presentes() ?? 0')) >= 3, 20000);
   await listo(a); await listo(b);
-  await hasta(() => a.js(`!!document.querySelector('.conchas')`), 20000);
-  const parte = (await a.js(`!document.querySelector('.conchas-col')?.disabled`)) ? [a, b] : [b, a];
+  await hasta(() => a.js(`!!document.querySelector('.tablero-conchas')`), 20000);
+  const parte = await quienParte(a, b);
   return { sala, a, b, c, parte, listo };
 }
+// Quién parte: el que tiene alguna columna activa, ya terminada la cuenta regresiva de la sala
+const quienParte = async (a, b) => { const activa = (p) => p.js(`[...document.querySelectorAll('.conchas-col')].some((x) => !x.disabled)`); await hasta(async () => (await activa(a)) || (await activa(b)), 15000); return (await activa(a)) ? [a, b] : [b, a]; };
 const columna = (p, i) => hasta(() => p.js(`(() => { const c = document.querySelectorAll('.conchas-col')[${i}]; if (!c || c.disabled) return false; c.click(); return true; })()`));
 const jugadas = async (p, sala) => JSON.parse((await p.js(`localStorage.getItem('susto.vivo.${sala}')`)) ?? '{}');
 
@@ -211,7 +213,7 @@ const grupos = {
       await c.js(`window.__sala.enviarCrudo('historia', { partida: 9, jugadas: 'x' })`);
       await new Promise((r) => setTimeout(r, 3000));
       const ea = await jugadas(a, sala), eb = await jugadas(b, sala);
-      const vivas = (await a.js(`!!document.querySelector('.conchas')`)) && (await b.js(`!!document.querySelector('.conchas')`));
+      const vivas = (await a.js(`!!document.querySelector('.tablero-conchas')`)) && (await b.js(`!!document.querySelector('.tablero-conchas')`));
       return { 'las jugadas falsas no entran': (ea.jugadas ?? []).length === 0 && (eb.jugadas ?? []).length === 0, 'la revancha falsa no entra': ea.partida === 1 && eb.partida === 1, 'la página sigue funcionando': vivas };
     } finally { a.cerrar(); b.cerrar(); c.cerrar(); }
   },
@@ -223,7 +225,7 @@ const grupos = {
       await hasta(() => a.js(`document.querySelector('.vivo-fin')?.textContent?.includes('Ganó') ?? false`));
       await hasta(() => a.js(`(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent === 'Revancha'); if (b) b.click(); return !!b; })()`));
       const pideListo = (await listo(a)) && (await listo(b));
-      await hasta(() => a.js(`!!document.querySelector('.conchas')`), 20000);
+      await hasta(() => a.js(`!!document.querySelector('.tablero-conchas')`), 20000);
       const parteOtro = await hasta(async () => (await parte[1].js(`!document.querySelector('.conchas-col')?.disabled`)) && (await parte[0].js(`!!document.querySelector('.conchas-col')?.disabled`)), 10000);
       return { 'la revancha pide Listo a los dos': pideListo, 'en la revancha parte el otro': parteOtro };
     } finally { a.cerrar(); b.cerrar(); c.cerrar(); }
@@ -265,8 +267,8 @@ const grupos = {
     let sala = `conchas-F${n()}`, a = await abrir(`${BASE}?invitado=a#/juegos/vivo/${sala}`, tam), b = await abrir(`${BASE}?invitado=b#/juegos/vivo/${sala}`, tam);
     try {
       await clic(a, '¡Listo!'); await clic(b, '¡Listo!');
-      await hasta(() => a.js(`!!document.querySelector('.conchas')`), 20000);
-      const parte = (await a.js(`!document.querySelector('.conchas-col')?.disabled`)) ? [a, b] : [b, a];
+      await hasta(() => a.js(`!!document.querySelector('.tablero-conchas')`), 20000);
+      const parte = await quienParte(a, b);
       for (const [x, y] of [[3, 3], [2, 4], [4, 2], [3, 5], [1, 3]]) { await columna(parte[0], x); await columna(parte[1], y); }
       await encuadrar(a, '.conchas', 'Cuatro Conchas', 1.25); await a.foto('public/juegos/conchas.png');
     } finally { a.cerrar(); b.cerrar(); }
@@ -290,9 +292,9 @@ const grupos = {
     const columna = (p, i) => hasta(() => p.js(`(() => { const c = document.querySelectorAll('.conchas-col')[${i}]; if (!c || c.disabled) return false; c.click(); return true; })()`));
     try {
       await listo(a); await listo(b);
-      const empieza = await hasta(() => a.js(`!!document.querySelector('.conchas')`), 20000);
+      const empieza = await hasta(() => a.js(`!!document.querySelector('.tablero-conchas')`), 20000);
       // Quien parte juega en la columna 1 y el otro en la 2, cuatro veces: gana el que parte
-      const parte = (await a.js(`!document.querySelector('.conchas-col')?.disabled`)) ? [a, b] : [b, a];
+      const parte = await quienParte(a, b);
       for (let k = 0; k < 4; k++) { await columna(parte[0], 0); if (k < 3) await columna(parte[1], 1); }
       const gana = await hasta(() => c.js(`document.querySelector('.vivo-fin')?.textContent?.includes('Ganó') ?? false`));
       const ojo = await a.js(`document.querySelector('.vivo-ojo')?.textContent`);
