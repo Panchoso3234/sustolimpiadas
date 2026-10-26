@@ -160,24 +160,6 @@ export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; pres
               </ul>
             </section>
 
-            {cerrados.length > 0 && (
-              <section class="bloque">
-                <h2>Historial</h2>
-                <ul class="duelos">
-                  {cerrados.map(({ e, lado }) => {
-                    const como = e.ganador === 'empate' ? 'empata' : e.ganador === lado ? 'gana' : 'pierde';
-                    const mias = lado === 'a' ? e.puntos_a : e.puntos_b, suyas = lado === 'a' ? e.puntos_b : e.puntos_a;
-                    return (
-                      <li key={e.id} class={como}>
-                        <a class="quienes" href={`#/juegos/duelo/${e.id}`}><b>{como === 'gana' ? 'Ganaste' : como === 'empata' ? 'Empate' : 'Perdiste'} · {mias} a {suyas}</b><span>{nombreVersus(e.modo, e.juego)} contra {nombre(e, otro(lado))} · ver detalle</span></a>
-                        <span class="tenue chico">{e.oficial ? `+${puntosVersus(puntos, como, e.jornada)} pts del torneo` : 'amistoso'}</span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            )}
-
             {modo === '1v1' && <Retar yo={yo} personas={datos.personas} alCrear={recargar} elegido={elegido} rivalInicial={rivalPre} />}
           </>
         )}
@@ -200,6 +182,24 @@ export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; pres
           })}
         </div>
       </section>
+
+      {datos?.disponible && yo && cerrados.length > 0 && (
+        <section class="bloque">
+          <h2>Historial</h2>
+          <ul class="duelos">
+            {cerrados.map(({ e, lado }) => {
+              const como = e.ganador === 'empate' ? 'empata' : e.ganador === lado ? 'gana' : 'pierde';
+              const mias = lado === 'a' ? e.puntos_a : e.puntos_b, suyas = lado === 'a' ? e.puntos_b : e.puntos_a;
+              return (
+                <li key={e.id} class={como}>
+                  <a class="quienes" href={`#/juegos/duelo/${e.id}`}><b>{como === 'gana' ? 'Ganaste' : como === 'empata' ? 'Empate' : 'Perdiste'} · {mias} a {suyas}</b><span>{nombreVersus(e.modo, e.juego)} contra {nombre(e, otro(lado))} · ver detalle</span></a>
+                  <span class="tenue chico">{e.oficial ? `+${puntosVersus(puntos, como, e.jornada)} pts del torneo` : 'amistoso'}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
     </>
   );
 }
