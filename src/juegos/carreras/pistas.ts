@@ -7,8 +7,9 @@ import { crearCarrera, type Barra, type Bloque, type Gema, type Hito, type Marti
 const PIEDRA = '#4f3d38', PIEDRA_2 = '#5e4741', CONTROL = '#7a6a62', TABLON = '#8a5a35', VAPOR = '#c9c2bd';
 
 /**
- * Lava Loca: subir por un volcán que se derrumba, con la lava detrás. Siete tramos sacados de una bolsa de doce tipos
- * (los dos primeros, de los fáciles). Cada tramo empieza con un punto de control y unos escalones: la pista sube y la lava también.
+ * Lava Loca: subir por un volcán que se derrumba, sobre un mar de lava. Siete tramos sacados de una bolsa de doce tipos
+ * (los dos primeros, de los fáciles). Cada tramo empieza con un punto de control y unos escalones. La lava no sube (26-10: mataba
+ * muy rápido); caer cuesta el tiempo de volver al control y el bono de tramo limpio.
  */
 export function rodillos(c: Contexto): Promise<Partida> {
   const r = generador(c.semilla), bloques: Bloque[] = [], barras: Barra[] = [], rocas: Roca[] = [], martillos: Martillo[] = [], gemas: Gema[] = [], hitos: Hito[] = [];
@@ -136,9 +137,8 @@ export function rodillos(c: Contexto): Promise<Partida> {
   const fin = z - 2.5;
   return crearCarrera(c, {
     bloques, barras, rocas, martillos, gemas, hitos, inicio: [0, 0.1, 1.5], cielo: '#3a2026', abismo: '#ff5a1e', caida: '¡A la lava!',
-    lava: { desde: -4.5, vel: 0.1 + (nivel - 1) * 0.02, acel: 0.005 },
-    limite: 90, escenario: 'volcan', medallas: [700, 1050, 1350],
-    bono: { porSegundo: 4, porMetroLava: 25, limpio: 30 },
+    limite: 150, escenario: 'volcan', medallas: [900, 1250, 1550],
+    bono: { porSegundo: 5, limpio: 30 },
     progreso: (_x, _y, zz) => zz / fin,
   });
 }

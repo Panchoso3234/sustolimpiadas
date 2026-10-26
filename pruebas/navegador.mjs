@@ -21,7 +21,7 @@ export async function abrir(url, { ancho = 1280, alto = 720, escala = 1 } = {}) 
     const puerto = 9400 + Math.floor(Math.random() * 500);
     perfil = mkdtempSync(join(tmpdir(), 'edge-'));
     perfilesVivos.add(perfil);
-    edge = spawn(EDGE, ['--headless=new', `--remote-debugging-port=${puerto}`, `--user-data-dir=${perfil}`, `--window-size=${ancho},${alto}`, '--use-angle=d3d11', 'about:blank'], { stdio: 'ignore' });
+    edge = spawn(EDGE, ['--headless=new', '--mute-audio', `--remote-debugging-port=${puerto}`, `--user-data-dir=${perfil}`, `--window-size=${ancho},${alto}`, '--use-angle=d3d11', 'about:blank'], { stdio: 'ignore' });
     for (let i = 0; i < 60; i++) { try { lista = await (await fetch(`http://127.0.0.1:${puerto}/json`)).json(); if (lista.some((p) => p.type === 'page')) break; } catch {} await esperar(250); }
   }
   const ws = new WebSocket(lista.find((p) => p.type === 'page').webSocketDebuggerUrl);

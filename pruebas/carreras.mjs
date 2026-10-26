@@ -20,7 +20,7 @@ async function partida(juego, bot) {
   await tecla('keydown', 'ArrowUp');
   const t0 = Date.now();
   let lado = '';
-  while ((await fase()) === 'jugando' && Date.now() - t0 < 130000) {
+  while ((await fase()) === 'jugando' && Date.now() - t0 < 170000) {
     if (bot === 'saltador') { await tecla('keydown', ' '); await esperar(60); await tecla('keyup', ' '); await esperar(290); continue; }
     const yo = await p.js('window.__carrera?.()'), buenas = await p.js('window.__puertasBuenas?.()');
     if (!yo || !buenas) { await esperar(100); continue; }
