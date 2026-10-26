@@ -15,6 +15,8 @@ const RONDAS = 3;
 // bestias: entra desde el cruce 2 (25-10)
 // Desde qué cruce entra cada juego a los sorteos (los demás, desde el 1)
 const DESDE_CRUCE: Record<string, number> = { bloques: 2, bestias: 2, rodillos: 2, puertas: 2, huevo: 3, futbol: 3, faro: 3, catapulta: 3, buscaconchas: 3 };
+/** Juegos rehechos (versión 2) y desde qué fecha: los duelos de antes no cuentan para "menos usados". */
+const VERSION_NUEVA: Record<string, string> = { rodillos: '2026-10-26', puertas: '2026-10-26', cartero: '2026-10-26', laberinto: '2026-10-26' };
 const juegosDuelo = (cruce: number) => VERSUS.filter((t) => t.modo === '1v1' && t.base && !t.vivo && juegoPorId(t.base)?.listo && (DESDE_CRUCE[t.base] ?? 1) <= cruce).map((t) => t.base!);
 
 interface Borrador { cruce: number; juegos: string[]; duelos: { a: string; b: string; juego: string; equipos: [number, number] }[] }
@@ -51,7 +53,8 @@ export function MesaLiga() {
   };
   /** Todos los juegos de duelo al azar, pero primero los que menos se han jugado en la liga (así van rotando todos). */
   const juegosPorUso = (cruce: number, excluir: string[] = []) => {
-    const uso = (j: string) => duelos.filter((d) => d.cruce && d.juego === j).length;
+    // Los juegos rehechos cuentan sus usos desde su versión nueva: en el sorteo valen como recién llegados
+    const uso = (j: string) => duelos.filter((d) => d.cruce && d.juego === j && d.creado.slice(0, 10) >= (VERSION_NUEVA[j] ?? '')).length;
     return V.mezclar(juegosDuelo(cruce).filter((j) => !excluir.includes(j))).sort((a, b) => uso(a) - uso(b));
   };
   /** Sortea rivales dentro de cada par de equipos y un juego distinto para cada duelo del cruce (hay más juegos que duelos). */
