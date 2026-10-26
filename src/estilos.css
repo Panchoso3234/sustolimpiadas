@@ -1022,3 +1022,32 @@ body.foto .tren-misiones { display: none; }
 .copa-linea { margin: 4px 0; color: #c59bff; }
 .copa-linea a { color: inherit; font-weight: 800; }
 .records .barrida { flex: 1; }
+
+/* Lista de miembros a la derecha (como en Discord) */
+.cuerpo { flex: 1; min-height: 0; display: flex; }
+.cuerpo > main { min-width: 0; }
+.boton-miembros { display: inline-flex; align-items: center; gap: 6px; }
+.boton-miembros .punto, .conectado .punto { width: 10px; height: 10px; border-radius: 50%; background: #3ba55d; display: inline-block; }
+.boton-miembros.activa { border-color: var(--luna); }
+.panel-conectados { width: 270px; flex: none; display: flex; flex-direction: column; background: var(--noche-2); border-left: 2px solid var(--linea); min-height: 0; }
+.panel-conectados header { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 2px solid var(--linea); }
+.panel-conectados header .boton { padding: 2px 10px; }
+.panel-conectados-lista { overflow-y: auto; padding: 4px 8px 16px; }
+.panel-conectados h4 { margin: 14px 6px 6px; font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--tenue); }
+.panel-conectados ul { list-style: none; margin: 0; padding: 0; }
+.conectado { display: flex; align-items: center; gap: 10px; padding: 5px 6px; border-radius: 10px; }
+.conectado:hover { background: var(--tabla); }
+.conectado-cara { position: relative; flex: none; display: inline-flex; }
+.conectado .punto { position: absolute; right: -2px; bottom: -2px; border: 2px solid var(--noche-2); width: 13px; height: 13px; }
+.conectado.ausente .punto { background: #faa61a; }
+.conectado.juega .punto { background: #5865f2; }
+.conectado.fuera { opacity: .5; }
+.conectado-texto { min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.conectado-nombre { color: var(--hueso); font-weight: 800; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conectado-actividad { font-size: .78rem; color: var(--tenue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conectado.juega .conectado-actividad { color: var(--alga); }
+.conectado-actividad a { color: inherit; }
+/* En pantallas angostas la lista se abre encima del contenido */
+@media (max-width: 900px) {
+  .panel-conectados { position: fixed; right: 0; top: 0; bottom: 0; z-index: 60; width: min(300px, 86vw); box-shadow: -8px 0 30px rgba(0, 0, 0, .5); padding-top: env(safe-area-inset-top, 0px); }
+}

@@ -13,6 +13,7 @@ import { vitrinaLocal, vitrinas, type Vitrina } from './progreso';
 import { CON_FANTASMA, decodificar, liderDelDia, type Fantasma } from './fantasma';
 import { CARGADORES, ajustesPartida, jornadaDe, type Partida, type Resultado } from './marco';
 import { estaCallado, fanfarria, silenciar } from './sonido';
+import { fijarJuego } from '../nucleo/presencia';
 
 // La "sala" envuelve a cualquier juego: pantalla previa, cuenta regresiva, partida, resultado y guardado.
 // Sirve para el modo individual (marcas del día, intentos libres) y para una ronda de versus (un solo intento).
@@ -285,6 +286,12 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
 
   // Pausa a mano (solo en el modo individual): los motores la tratan igual que cambiar de pestaña
   const pausar = (si: boolean) => { setPausa(si); window.dispatchEvent(new CustomEvent('susto-pausa', { detail: si })); };
+  // Lo que ven los demás en la lista de miembros
+  useEffect(() => {
+    if (fase !== 'jugando') return fijarJuego(null);
+    fijarJuego({ texto: reto ? `Jugando un duelo de ${juego.nombre}` : libre.current ? `Jugando ${juego.nombre} (modo libre)` : practica.current ? `Practicando ${juego.nombre}` : `Jugando ${juego.nombre}`, enlace: `#/juegos/${juego.id}` });
+  }, [fase]);
+  useEffect(() => () => fijarJuego(null), []);
   useEffect(() => { if (fase !== 'jugando' && pausa) pausar(false); if (fase !== 'jugando' && fase !== 'cuenta') { setReglas(false); setReanudando(0); } }, [fase]);
   // Volver de una pausa: "3, 2, 1, ¡ya!" con el juego todavía detenido, y recién ahí sigue
   const reanudar = async () => {
