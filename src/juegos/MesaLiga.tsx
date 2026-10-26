@@ -14,7 +14,7 @@ const RONDAS = 3;
 // Juegos que entran a la liga recién desde un cruce (los nuevos, cuando el cruce en curso ya estaba armado)
 // bestias: entra desde el cruce 2 (25-10)
 // Desde qué cruce entra cada juego a los sorteos (los demás, desde el 1)
-const DESDE_CRUCE: Record<string, number> = { bloques: 2, bestias: 2, rodillos: 3, puertas: 3, huevo: 3, futbol: 3, faro: 3, catapulta: 3, buscaconchas: 3 };
+const DESDE_CRUCE: Record<string, number> = { bloques: 2, bestias: 2, rodillos: 2, puertas: 2, huevo: 3, futbol: 3, faro: 3, catapulta: 3, buscaconchas: 3 };
 const juegosDuelo = (cruce: number) => VERSUS.filter((t) => t.modo === '1v1' && t.base && !t.vivo && juegoPorId(t.base)?.listo && (DESDE_CRUCE[t.base] ?? 1) <= cruce).map((t) => t.base!);
 
 interface Borrador { cruce: number; juegos: string[]; duelos: { a: string; b: string; juego: string; equipos: [number, number] }[] }
