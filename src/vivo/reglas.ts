@@ -221,22 +221,26 @@ function negamax(t: Tablero, prof: number, alfa: number, beta: number, quien: Fi
   }
   return alguna ? mejor : 0;
 }
-/** La jugada de la máquina. Fácil: gana o tapa si lo ve, si no al azar; normal y difícil miran 4 y 6 jugadas (3 y 4 en Pop Out). */
+// Qué tan humana es la máquina (2026-10-26: la de antes miraba 6 jugadas y "predecía" todo; a un jugador casual le ganaba siempre).
+// tapa: probabilidad de ver tu amenaza a la vista; mira: jugadas que calcula; ruido: cuánto se equivoca al elegir.
+const MAQUINA: Record<Dificultad, { tapa: number; mira: number; ruido: number }> = { facil: { tapa: 0.6, mira: 0, ruido: 0 }, normal: { tapa: 0.75, mira: 1, ruido: 6 }, dificil: { tapa: 0.9, mira: 2, ruido: 4 } };
+/** La jugada de la máquina: gana si lo ve, tapa tu amenaza (no siempre) y si no, calcula unas jugadas con algo de error. */
 export function jugadaMaquina(jugadas: number[], dificultad: Dificultad, azar: () => number = Math.random, popout = false): number {
   const { tablero: t, turno } = jugarConchas(jugadas, popout), otro: Ficha = turno === 1 ? 2 : 1;
   const mias = legales(t, turno, popout);
   const resultado = (j: number, quien: Ficha) => { const deshacer = hacer(t, j, quien), g = ganaTras(t, j, quien).ganador; deshacer(); return g; };
   // Gana si puede; si no, tapa la columna donde el rival ganaría poniendo
-  const directa = mias.find((j) => resultado(j, turno) === turno) ?? legales(t, otro, false).find((c) => mias.includes(c) && resultado(c, otro) === otro);
+  const nivel = MAQUINA[dificultad], ve = azar() < nivel.tapa;
+  const directa = mias.find((j) => resultado(j, turno) === turno) ?? (ve ? legales(t, otro, false).find((c) => mias.includes(c) && resultado(c, otro) === otro) : undefined);
   if (directa !== undefined) return directa;
   const seguras = mias.filter((j) => resultado(j, turno) !== otro);
   const opciones = seguras.length ? seguras : mias;
-  if (dificultad === 'facil') return opciones[Math.floor(azar() * opciones.length)];
-  const prof = popout ? (dificultad === 'normal' ? 3 : 4) : dificultad === 'normal' ? 4 : 6;
+  if (!nivel.mira) return opciones[Math.floor(azar() * opciones.length)];
+  const prof = popout ? Math.min(nivel.mira, 3) : nivel.mira;
   let mejor = opciones[0], valor = -Infinity;
   for (const j of opciones) {
     const deshacer = hacer(t, j, turno);
-    const v = -negamax(t, prof - 1, -Infinity, Infinity, otro, popout) + (dificultad === 'normal' ? azar() * 2 : 0);
+    const v = -negamax(t, prof - 1, -Infinity, Infinity, otro, popout) + azar() * nivel.ruido;
     deshacer();
     if (v > valor) { valor = v; mejor = j; }
   }
@@ -273,9 +277,9 @@ export function disparoMaquina(vistos: { i: number; res: Resultado; hundida?: nu
 /** Prueba de la máquina: no se deja ganar a la vista y siempre hunde una flota. */
 export function probarMaquina(): string {
   const ok = (cond: boolean, que: string) => { if (!cond) throw new Error(`Falla: ${que}`); };
-  ok(jugadaMaquina([0, 6, 0, 6, 0], 'normal') === 0, 'tapa la vertical');
-  ok(jugadaMaquina([0, 0, 1, 1, 2, 2], 'dificil') === 3, 'gana cuando puede');
-  ok(jugadaMaquina([0, 6, 0, 6, 0], 'normal', Math.random, true) === 0, 'tapa la vertical en Pop Out');
+  ok(jugadaMaquina([0, 6, 0, 6, 0], 'dificil', () => 0) === 0, 'tapa la vertical (cuando la ve)');
+  ok(jugadaMaquina([0, 0, 1, 1, 2, 2], 'dificil', () => 0.99) === 3, 'gana cuando puede');
+  ok(jugadaMaquina([0, 6, 0, 6, 0], 'dificil', () => 0, true) === 0, 'tapa la vertical en Pop Out');
   for (const d of ['facil', 'normal', 'dificil'] as Dificultad[]) {
     const flota = repartirFlota(), vistos: { i: number; res: Resultado; hundida?: number[] }[] = [];
     let fin = false;

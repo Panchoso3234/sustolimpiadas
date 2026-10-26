@@ -8,11 +8,11 @@ import { crearMesa } from './mesa';
 // modo Pop Out. La máquina sale de la semilla: los dos rivales de un duelo enfrentan exactamente a la misma.
 // Ganar vale según la partida, más un bono por ganar en pocas jugadas; el empate vale algo. Reloj de 15 s por jugada.
 const PARTIDAS: { dif: Dificultad; empiezo: boolean; popout: boolean; vale: number }[] = [
-  { dif: 'normal', empiezo: true, popout: false, vale: 250 },
+  { dif: 'facil', empiezo: true, popout: false, vale: 250 },
   { dif: 'normal', empiezo: false, popout: false, vale: 300 },
   { dif: 'normal', empiezo: true, popout: true, vale: 300 },
-  { dif: 'dificil', empiezo: true, popout: false, vale: 400 },
-  { dif: 'dificil', empiezo: false, popout: false, vale: 500 },
+  { dif: 'normal', empiezo: false, popout: false, vale: 400 },
+  { dif: 'dificil', empiezo: true, popout: false, vale: 500 },
 ];
 const RAPIDEZ = 10, EMPATE = 0.3, PIENSA = 0.6;
 const NOMBRE_DIF: Record<Dificultad, string> = { facil: 'fácil', normal: 'normal', dificil: 'difícil' };
@@ -75,7 +75,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     c.alTerminar({
       puntaje: total,
       lineas: [['Partidas ganadas', `${ganadas} de ${PARTIDAS.length}`], ['Empates', String(empates)], ...resumen.map((x, i) => [`${i + 1}. ${NOMBRE_DIF[PARTIDAS[i].dif]}${PARTIDAS[i].popout ? ' (Pop Out)' : ''}`, x] as [string, string])],
-      detalle: { version: 1, ganadas, empates, partidas: resumen },
+      detalle: { version: 2, ganadas, empates, partidas: resumen },
     });
   };
 
