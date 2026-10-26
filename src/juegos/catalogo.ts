@@ -19,8 +19,8 @@ export interface Juego {
 /** Puntaje de referencia de cada juego para la experiencia del pase (cerca de él, más experiencia). Desde el 26-10 ya no marca partidas como dudosas: todo puntaje cuenta. */
 export const TOPES: Record<string, number> = {
   rodillos: 1500, puertas: 1600, huevo: 3400, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, torre: 2400, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2800, parejas: 1000, buscaconchas: 1800, luces: 1800,
-  cartero: 4200, cofre: 1300, palabra: 1000, totem: 1000, catapulta: 2800, bolos: 750, minigolf: 1000,
-  karts: 2300, tren: 9000, tanques: 16000, bombas: 4200, agujero: 14000, serpientes: 5000, defensa: 10000, museo: 5000, tiro: 9000, cocina: 6000, billar: 8000, triples: 9000, calabazas: 3500, laberinto: 6000, escobas: 4000, bloques: 120000, bestias: 15000,
+  cartero: 4200, cofre: 1300, palabra: 1000, totem: 1000, catapulta: 7000, bolos: 750, minigolf: 1000,
+  karts: 2300, tren: 9000, tanques: 16000, bombas: 2500, agujero: 14000, serpientes: 5000, defensa: 10000, museo: 5000, tiro: 9000, cocina: 6000, billar: 8000, triples: 9000, calabazas: 3500, laberinto: 6000, escobas: 4000, bloques: 120000, bestias: 15000,
 };
 
 
@@ -55,8 +55,8 @@ const TODOS: Juego[] = [
     'Muévete con las flechas o WASD; en celular, arrastra el dedo. Quédate dentro del círculo de luz y saca a los demás embistiendo con Espacio o el botón. La luz se achica con el tiempo y, a ratos, parpadea, se apaga y reaparece en otro lado: anticípate. Dura un minuto.'),
   j(7, 'totem', 'Tiro al Tótem', 'C', 'Diez flechas a la diana, con un viento que cambia en cada tiro.', 'Cálculo',
     'Mueve la mira con el mouse o el dedo y toca para disparar. El viento empuja la flecha hacia donde apunta la veleta: apunta al lado contrario. La mira nunca se queda quieta. Desde la flecha 4 el viento también sopla hacia arriba o abajo (↑ ↓), y desde la 5 la diana se mueve.'),
-  j(8, 'catapulta', 'Angry Birds', 'C', 'Cuatro sandías para botar las torres; si las botas todas, viene un segundo nivel con una plataforma que se mueve.', 'Estimación',
-    'Arrastra hacia atrás y suelta: mientras más lejos tires, más fuerza. La línea punteada muestra por dónde sale la sandía. Cada caja que cae de su plataforma suma. Si botas todas pasas al nivel 2 (con 3 sandías más); las sandías que te sobren al final dan premio.'),
+  j(8, 'catapulta', 'Angry Birds', 'C', 'Diez niveles con puentes, casas, una pirámide, un búnker y un castillo de madera, piedra y hielo. Revienta las calabazas-monstruo con sandías normales, explosivas y triples; desde el nivel 8 sopla viento.', 'Estimación',
+    'Arrastra hacia atrás y suelta: mientras más lejos tires, más fuerza. La línea punteada muestra por dónde sale la sandía. Con la 💥 o la 🔱 en el aire, toca la pantalla (o Espacio) para que estalle o se divida en tres. Calabaza 150, pieza botada 15, nivel limpio 200 y 100 por cada sandía que sobre; desde el 5.º objeto de un mismo tiro hay combo. La piedra pesa, el hielo se quiebra. Si no limpias un nivel, igual pasas al siguiente.'),
   j(9, 'bolos', 'Bolos Playeros', 'C', 'Cinco turnos de bolos en una pista larga, con la arena inclinada, rocas y efecto.', 'Precisión',
     'Arrastra hacia atrás y suelta para lanzar el coco. La pista está inclinada hacia donde apunta la flecha: compensa. Con los botones de abajo (o las teclas A y D) le das efecto para que se curve. Desde el tercer turno hay una roca en la pista. Tienes dos tiros por turno.'),
   j(10, 'minigolf', 'Minigolf', 'C', 'Seis hoyos al pie de un volcán: muros, pozas de lava, hongos que rebotan, portales y un gólem de piedra que se cruza. El recorrido cambia en cada partida.', 'Planificación',
@@ -93,8 +93,8 @@ const TODOS: Juego[] = [
     'Corres solo. Cambia de vía con las flechas, A/D o deslizando a los lados. Salta con Espacio, la flecha arriba o deslizando hacia arriba; rueda con Shift, la flecha abajo o deslizando hacia abajo. Las vallas rojas se saltan y las barras naranjas se pasan rodando. Los trenes con rampa se suben y se recorren por el techo; los que tienen luz roja vienen de frente. Las burbujas dan poderes: 🧲 imán, 👟 súper salto, ×2 monedas, 🛡️ escudo y 🛹 tabla (8 s en que los choques no te detienen). Si rozas un tren de costado, el inspector se acerca: dos veces seguidas y te atrapa. Cada 500 m sin chocar ni rozar sube la racha (hasta ×3 los metros); saltar o rodar justo a tiempo, encadenar techos y las monedas grandes dan bonos. Cada partida trae 3 misiones (arriba a la izquierda) que dan +250 cada una. Desde los 1.500 m aparecen túneles (se pasan rodando) y vallas dobles. Cada 1.000 m cambia el paisaje. En ⚙ (dentro del juego) puedes bajar el temblor, quitar la música y ajustar la sensibilidad del deslizamiento.'),
   j(26, 'tanques', 'Guerra de Tanques', 'G', 'Ocho oleadas de tanques en un cuarto de juguetes: francotiradores que tiran de rebote, minadores, kamikazes, blindados, potenciadores en las cajas y un jefe con escudo giratorio.', 'Puntería y estrategia',
     'Mueve tu tanque azul con WASD, las flechas, la palanca del control o arrastrando el dedo. Con mouse, apuntas donde está el cursor y disparas con clic (la línea muestra el primer rebote); con control, apuntas con la palanca derecha; en celular, el botón Disparar apunta solo al enemigo más cercano. Tus balas rebotan una vez y rompen cajas; si chocan con una enemiga, se anulan. Los enemigos no se dañan entre ellos. Ojo: el Blindado no se daña de frente, el Kamikaze explota al tocarte y el Minador deja minas negras. Las cajas que rompes pueden soltar potenciadores (escudo, bala doble, rebote extra, velocidad, vida o mina gigante). Con Shift, C o el botón Mina dejas una mina que estalla a los 6 s o cuando un enemigo la pisa (¡aléjate! tu bala o tu mina te restan 100). Suman las bajas, las carambolas (bajas de rebote), los combos, cada oleada, la precisión y, si ganas, las vidas y el tiempo. 3 vidas y 5 minutos y medio para las 8 oleadas; ⏩ acelera.'),
-  j(27, 'bombas', 'Bomberman', 'G', 'Tú contra tres rivales en el patio de un castillo: bombas en cruz, cajas que esconden mejoras y un patio que se cierra. Tres rondas.', 'Táctica y nervios',
-    'Muévete con las flechas, WASD o arrastrando el dedo. Pon una bomba con Espacio o el botón Bomba: estalla en cruz a los 2 segundos y rompe cajas. ¡Sal de la línea de fuego! Las cajas a veces sueltan mejoras: 💣 más bombas, 🔥 llama más larga, 👟 más velocidad y 🦶 patear bombas (camina contra una). Gana la ronda quien queda en pie; desde el segundo 90 el patio se cierra desde el borde. Son 3 rondas.'),
+  j(27, 'bombas', 'Bomberman', 'G', 'Bomberman de batalla: tú contra tres rivales en tres arenas (clásica, cintas transportadoras y túneles). Bombas en cruz, cajas con mejoras clásicas, la calavera y un patio que se cierra en espiral.', 'Táctica y nervios',
+    'Muévete con las flechas, WASD o arrastrando el dedo. Pon una bomba con Espacio o el botón Bomba: estalla en cruz a los 2,6 segundos (el rojo marca lo que va a quemar). Mejoras: 💣 más bombas, 🔥 más fuego, 🌋 fuego máximo, 👟 patines, 🦶 patear (camina contra una bomba) y 🧤 guante (párate sobre tu bomba y apreta Bomba para lanzarla). La 💀 te maldice 12 s y se contagia. Desde el segundo 50 el patio se cierra. Por ronda: 1.º 300, 2.º 150, 3.º 50 (solo si rompiste cajas o eliminaste a alguien), rival 200, caja 10 y mejora 20. Son 3 rondas de 90 s.'),
   j(28, 'agujero', 'Agujero Negro', 'G', 'Eres un agujero en una ciudad: trágate conos, gente, autos y edificios enteros mientras creces. Dos agujeros rivales compiten contigo.', 'Ruta y ambición',
     'Mueve tu agujero (borde amarillo) con las flechas, WASD o arrastrando el dedo. Todo lo que es más chico que tú cae adentro y te hace crecer: empieza por conos, gente y faroles, sigue con autos y termina con edificios. Si eres bastante más grande que un rival, te lo tragas (+300); si él es más grande, te traga a ti y vuelves a la mitad de tu tamaño. Con Espacio o el botón Turbo aceleras un momento (cada 5 s). Tienes 2 minutos.'),
   j(29, 'serpientes', 'Serpientes', 'G', 'Un jardín de noche: come bolitas brillantes, crece y encierra a las otras ocho serpientes sin chocar con nadie.', 'Astucia y reflejos',
@@ -125,7 +125,7 @@ const TODOS: Juego[] = [
 
 /** Juegos que en celular se ven mucho mejor de lado: avisan al partir si el teléfono está parado. */
 /** Juegos con modo libre (fase 4): sin reloj ni límite de vidas o intentos, no guarda nada. */
-export const LIBRES = new Set(['rodillos', 'puertas', 'cartero', 'laberinto', 'tinta', 'numeros', 'parejas', 'buscaconchas', 'catapulta', 'minigolf', 'tren', 'serpientes', 'karts', 'bloques']);
+export const LIBRES = new Set(['rodillos', 'puertas', 'cartero', 'laberinto', 'tinta', 'numeros', 'parejas', 'buscaconchas', 'catapulta', 'minigolf', 'tren', 'serpientes', 'karts', 'bloques', 'bombas']);
 export const HORIZONTALES = new Set(['catapulta', 'billar', 'karts', 'tiro', 'defensa', 'cocina', 'triples', 'escobas', 'bestias']);
 
 /** Juegos retirados (El Más Bajo el 23-10; La Palabra Secreta y Luces del Faro el 24-10): no salen en la web ni en los sorteos,
@@ -180,7 +180,7 @@ const TODOS_VERSUS: TipoVersus[] = [
   v('1v1', 'huevo-duelo', 'Caza del Huevo', 'La misma partida contra la máquina para los dos: gana quien junta más huevos.', 'huevo'),
   v('1v1', 'futbol-duelo', 'Fuchibol', 'El mismo partido contra la máquina para los dos: gana quien hace más puntos.', 'futbol'),
   v('1v1', 'faro-duelo', 'Rey del Faro', 'La misma luz y los mismos rivales: gana quien aguanta más dentro.', 'faro'),
-  v('1v1', 'catapulta-duelo', 'Angry Birds', 'Las mismas torres para los dos: gana quien bota más.', 'catapulta'),
+  v('1v1', 'catapulta-duelo', 'Angry Birds', 'Los mismos diez niveles para los dos: gana quien hace más puntos.', 'catapulta'),
   v('1v1', 'erizos-duelo', 'Erizos Ocultos', 'El mismo campo de erizos para los dos: gana quien cava mejor.', 'buscaconchas'),
   v('3v3', 'cocos-equipo', 'Cosecha en Equipo', 'Cada integrante atrapa cocos; se suman los tres.', 'cocos'),
   v('3v3', 'eco-cadena', 'Eco en Cadena', 'La misma secuencia para los seis; suma hasta dónde llegó cada uno.', 'eco'),
@@ -188,7 +188,7 @@ const TODOS_VERSUS: TipoVersus[] = [
   v('3v3', 'tinta-equipo', 'Tinta en Equipo', 'Las mismas palabras tramposas; suma el equipo.', 'tinta'),
   v('3v3', 'arqueros', 'Arqueros del Tótem', 'Treinta flechas por equipo con los mismos vientos.', 'totem'),
   v('3v3', 'bolos-equipo', 'Torneo de Bolos', 'Cada integrante juega sus cinco turnos; suma el equipo.', 'bolos'),
-  v('3v3', 'asedio', 'Asedio de Sandías', 'Los tres disparan a las mismas torres; suman las cajas botadas.', 'catapulta'),
+  v('3v3', 'asedio', 'Asedio de Sandías', 'Los tres juegan los mismos diez niveles; suma el equipo.', 'catapulta'),
   v('3v3', 'fareros', 'Fareros', 'Los tres apagan los mismos tableros de luces.', 'luces'),
   v('3v3', 'conchas-equipo', 'Erizos Ocultos en Equipo', 'El mismo campo de erizos para todos; suma el equipo.', 'buscaconchas'),
   v('3v3', 'tesoro', 'Tesoro Compartido', 'Las mismas olas para los seis: suma lo que guardó cada equipo.', 'cofre'),

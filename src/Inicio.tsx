@@ -12,6 +12,7 @@ import { escucharSalas, type InfoSala } from './vivo/vestibulo';
 
 /** Las últimas novedades del sitio (la más reciente primero). */
 const NOVEDADES: { fecha: string; texto: string }[] = [
+  { fecha: '2026-10-26', texto: 'Bomberman 2.0 (tres arenas, mejoras clásicas, calavera y puntaje por puesto) y Angry Birds 2.0 (diez niveles con piedra, hielo, sandías especiales y viento). Sus marcas antiguas se borran.' },
   { fecha: '2026-10-26', texto: 'Ya no hay partidas dudosas: todo puntaje cuenta para los récords y la Copa. El cruce 2 va del 26 al 28 de octubre y el 3 del 29 al 31.' },
   { fecha: '2026-10-25', texto: 'Lista de miembros a la derecha: quién está en línea y qué está jugando.' },
   { fecha: '2026-10-25', texto: 'Modo libre en 10 juegos, siete duelos 1v1 nuevos y Cuatro Conchas y Batalla de Balsas contra la máquina.' },
