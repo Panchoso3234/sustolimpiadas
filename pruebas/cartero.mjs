@@ -8,7 +8,7 @@ async function jugar(bot, pausa) {
   await p.js('location.hash = "#/juegos"; setTimeout(() => { location.hash = "#/juegos/cartero"; }, 300), 1'); await esperar(2500);
   await p.js('[...document.querySelectorAll("button")].find((b) => b.textContent === "Práctica (no guarda)")?.click(), 1');
   if (!(await hasta(async () => (await fase()) === 'jugando', 40000))) return null;
-  for (let rep = 0; rep < 3; rep++) {
+  for (let rep = 0; rep < 5; rep++) {
     await hasta(async () => (await p.js('window.__cartero?.().reparto')) === rep && (await p.js('window.__cartero?.().ruta.length')) === 0, 8000);
     const est = await p.js('window.__cartero()');
     const orden = bot === 'perfecto' ? est.optimo : Array.from({ length: est.casas }, (_, i) => i + 1);
@@ -23,7 +23,7 @@ async function jugar(bot, pausa) {
 }
 try {
   const a = await jugar('perfecto', 150), b = await jugar('en orden', 150);
-  salida['el perfecto termina los tres repartos'] = a > 2000;
+  salida["el perfecto termina los cinco repartos"] = a > 4000;
   salida['entregar en orden saca bastante menos'] = b < a * 0.75;
   salida['sin errores'] = !p.errores.length; if (p.errores.length) console.log(p.errores.slice(0, 3));
 } catch (e) { console.log('falló:', e?.message ?? e); } finally { p.cerrar(); }

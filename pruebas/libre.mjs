@@ -2,7 +2,7 @@
 // node pruebas/libre.mjs <carpeta-fotos>
 import { abrir, esperar, hasta, limpiarPerfiles } from './navegador.mjs';
 const BASE = 'http://localhost:5173/', dir = process.argv[2] ?? '.', salida = {};
-const JUEGOS = ['rodillos', 'puertas', 'tinta', 'numeros', 'parejas', 'buscaconchas', 'catapulta', 'minigolf', 'tren', 'serpientes', 'karts', 'bloques'];
+const JUEGOS = ['rodillos', 'puertas', 'cartero', 'laberinto', 'tinta', 'numeros', 'parejas', 'buscaconchas', 'catapulta', 'minigolf', 'tren', 'serpientes', 'karts', 'bloques'];
 const p = await abrir(`${BASE}#/juegos`, { ancho: 1100, alto: 800 });
 const fase = () => p.js('([...(document.querySelector(".sala")?.classList ?? [])].find((x) => x.startsWith("fase-")) ?? "").slice(5)');
 try {

@@ -9,7 +9,7 @@ import { aspectoDe, puntajeEnPantalla } from '../juegos/Sala';
 import { repartir, rondasDistintas, rondaSiguiente } from './asientos';
 import { capturar, limpiar } from './espejo';
 /** Juegos donde ver la pantalla del rival sería copiarle la respuesta. */
-const SIN_ESPEJO = new Set(['puertas', 'cartero']);
+const SIN_ESPEJO = new Set(['puertas', 'cartero', 'laberinto']);
 import { DUELOS } from './formatos';
 import { asientosValidos, debeReiniciar, identidadVivo, rondaComun, type Oficial } from './PantallaVivo';
 import { BotonAvisar } from '../juegos/BotonAvisar';

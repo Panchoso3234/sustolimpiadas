@@ -96,7 +96,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   let velas: Cosa[] = [], pilas: Cosa[] = [], items: Item[] = [], telas: { i: number; j: number }[] = [], tablas: { i: number; j: number; ultima: number }[] = [], secretas: { i: number; j: number; n: number }[] = [];
   let fantasmas: Fantasma[] = [], reja: THREE.Mesh | null = null, portal: THREE.Mesh | null = null, bloquesSecretos: THREE.InstancedMesh | null = null, rj = generador('');
   const yo = { x: 0, z: 0, ang: 0, vidas: VIDAS, invencible: 0 };
-  let reloj = 0, limite = DURA, piso = 0, bateria = 1, puntos = 0, velasTotal = 0, espantados = 0, pisos = 0, empezado = false, terminado = false, abierta = false, avisoPila = false;
+  let reloj = 0, limite = c.libre ? Infinity : DURA, piso = 0, bateria = 1, puntos = 0, velasTotal = 0, espantados = 0, pisos = 0, empezado = false, terminado = false, abierta = false, avisoPila = false;
   let botas = 0, amuleto = false, llave = false, mapaHasta = 0, inicioPiso = 0, vidasPiso = VIDAS, combo = 0, ultimaVela = -9, latido = 0, espantadosPiso = 0;
   const necesarias = () => Math.ceil(velasTotal * (llave ? PARA_ABRIR_LLAVE : PARA_ABRIR));
   const desglose = { velas: 0, combos: 0, pisos: 0, fantasmas: 0, final: 0 };
@@ -308,6 +308,11 @@ export async function crear(c: Contexto): Promise<Partida> {
     f.x = enMundo(mejor.i); f.z = enMundo(mejor.j); f.hacia = null; f.susto = 0; f.cae = 0;
   };
 
+  // ── Aviso de peligro: borde rojo cuando un fantasma que no ves se acerca ──
+  const peligro = document.createElement('div');
+  peligro.className = 'laberinto-peligro';
+  c.caja.appendChild(peligro);
+
   // ── Minimapa (se revela al explorar) ──
   const minimapa = document.createElement('canvas');
   minimapa.width = minimapa.height = 130; minimapa.className = 'kart-mapa';
@@ -367,13 +372,14 @@ export async function crear(c: Contexto): Promise<Partida> {
   if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__laberinto = () => ({ piso: piso + 1, vidas: yo.vidas, puntos, bateria, terminado });
 
   const camara = (dt: number, ya = false) => {
-    const objetivo = new THREE.Vector3(yo.x, 19, yo.z + 8.5);
+    const parada = e.lienzo.clientHeight > e.lienzo.clientWidth ? 1.35 : 1;
+    const objetivo = new THREE.Vector3(yo.x, 19 * parada, yo.z + 8.5 * parada);
     e.camara.position.lerp(objetivo, ya ? 1 : 1 - Math.exp(-6 * dt));
     e.camara.lookAt(yo.x, 0, yo.z - 0.6);
   };
   armarPiso();
   camara(0, true);
-  e.hud.tiempo(mmss(DURA)); e.hud.puntos(0);
+  e.hud.tiempo(mmss(c.libre ? 0 : DURA)); e.hud.puntos(0);
   let caminando = false;
 
   const simular = (paso: number) => {
@@ -444,7 +450,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     // están asustados huyen. Los primeros 4 s y mientras eres invencible no persiguen.
     const base = 2.4 + Math.min(1.2, piso * 0.3) + (c.nivel - 1) * 0.15;
     for (const f of fantasmas) {
-      const datos = ESPECIES[f.especie], asustado = t < f.susto, vel = Math.min(VEL * 0.95, base * datos.vel);
+      const datos = ESPECIES[f.especie], asustado = t < f.susto, vel = Math.min(VEL * 0.95, base * datos.vel) * (c.libre ? 0.6 : 1);
       if (f.cae > 0) { f.cae += paso; f.g.scale.setScalar(Math.max(0.01, (f.especie === 'dama' ? 1.3 : 1) * (1 - f.cae * 2.5))); if (f.cae > 0.4) { devolver(f); f.g.scale.setScalar(f.especie === 'dama' ? 1.3 : 1); } continue; }
       const fi = casilla(f.x), fj = casilla(f.z), cerca = Math.hypot(f.x - yo.x, f.z - yo.z), ve = aLaVista(f.x, f.z, yo.x, yo.z);
       // El chillón, si te ve, avisa a todos
@@ -491,6 +497,8 @@ export async function crear(c: Contexto): Promise<Partida> {
     }
     // Latido: más rápido mientras más cerca está un fantasma
     const masCerca = Math.min(...fantasmas.map((f) => (t < f.susto ? Infinity : Math.hypot(f.x - yo.x, f.z - yo.z))));
+    const oculto = Math.min(...fantasmas.map((f) => (t < f.susto || f.cae || aLaVista(yo.x, yo.z, f.x, f.z) ? Infinity : Math.hypot(f.x - yo.x, f.z - yo.z))));
+    peligro.style.opacity = oculto < T * 3.5 ? String(Math.min(0.85, (1 - oculto / (T * 3.5)) * 1.1)) : '0';
     if (masCerca < T * 3 && t > latido) { latido = t + 0.25 + (masCerca / (T * 3)) * 0.7; e.sonido.tono(55, 0.12, { tipo: 'sine', vol: 0.18 }); e.sonido.tono(48, 0.1, { tipo: 'sine', vol: 0.14, cuando: (e.sonido.ctx?.currentTime ?? 0) + 0.14 }); }
     if (t >= limite) return terminar('Se acabó el tiempo');
   };
@@ -503,7 +511,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       if (!terminado) {
         const tomadas = velas.filter((x) => x.tomada).length;
         const extras = [reloj < botas ? 'botas' : '', amuleto ? 'amuleto' : '', llave ? 'llave' : '', reloj < mapaHasta ? 'mapa' : ''].filter(Boolean).join(', ');
-        e.hud.tiempo(mmss(Math.max(0, limite - reloj)));
+        e.hud.tiempo(mmss(Number.isFinite(limite) ? Math.max(0, limite - reloj) : reloj));
         e.hud.extra(`Piso ${piso + 1} · 🕯️ ${tomadas}/${abierta ? velasTotal : necesarias()} · 🔦 ${Math.round(bateria * 100)} % · ${'❤️'.repeat(Math.max(0, yo.vidas))}${extras ? ` · ${extras}` : ''}`);
         e.hud.puntos(puntos);
       }

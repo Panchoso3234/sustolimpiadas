@@ -2,14 +2,16 @@ import { generador } from '../../nucleo/azar';
 import type { Contexto, Partida } from '../marco';
 import { crearMesa, mmss } from './mesa';
 
-// Ruta del Cartero (versión 2, 26-10): tres repartos seguidos, de 9, 11 y 13 casas. En cada uno hay que salir del correo,
+// Ruta del Cartero (versión 2, 26-10): cinco repartos seguidos, de 8 a 13 casas (desde el tercero, casas con horario). En cada uno hay que salir del correo,
 // pasar por todas las casas y volver, caminando lo menos posible por las calles (primero a lo ancho y después a lo alto).
 // Las casas urgentes (⏰) deben estar entre las primeras entregas. Cada reparto suma por precisión (qué tan cerca de la mejor
 // ruta) y por rapidez (segundos que tardaste en ese reparto), así que dos rutas perfectas igual se separan por el tiempo.
 // La mejor ruta se calcula exacta (programación dinámica sobre subconjuntos: con 13 casas, un instante).
-const REPARTOS = [9, 11, 13], LIMITE = 180, ANCHO = 100, ALTO = 64, URGENTES_ANTES = 4, SVG = 'http://www.w3.org/2000/svg';
+const REPARTOS = [8, 10, 11, 12, 13], LIMITE = 300, ANCHO = 100, ALTO = 64, URGENTES_ANTES = 4, SVG = 'http://www.w3.org/2000/svg';
 /** Puntos de un reparto: precisión (hasta 500, cae rápido si te alejas de la mejor), rapidez (hasta 300) y ruta perfecta (+100). */
-const PRECISION = 500, RAPIDEZ = 300, POR_SEGUNDO = 8, PERFECTA = 100, ATRASADA = 120;
+const PRECISION = 500, RAPIDEZ = 300, POR_SEGUNDO = 8, PERFECTA = 100, ATRASADA = 120, RACHA = 50;
+/** Una casa con horario: solo recibe entre la entrega `desde` y la `hasta` (contando desde 1). */
+export interface Horario { casa: number; desde: number; hasta: number }
 interface P { x: number; y: number }
 const dist = (a: P, b: P) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 /** Puntos de una caminata por las calles: de cada parada a la siguiente, a lo ancho y luego a lo alto. */
@@ -31,20 +33,26 @@ function largo(puntos: P[], orden: number[]): number {
   return total + dist(puntos[previo], puntos[0]);
 }
 
-/** La mejor ruta (largo y orden) que respeta las urgentes: Held-Karp con la regla de las urgentes en cada paso. */
-export function mejorRuta(puntos: P[], urgentes: number[]): { largo: number; orden: number[] } {
-  const n = puntos.length - 1, total = 1 << n, todasUrg = urgentes.reduce((m, u) => m | (1 << (u - 1)), 0);
+/** Si la casa `j` (desde 1) se puede entregar en el puesto `p` (desde 1): urgentes entre las primeras, y los horarios. */
+const enHora = (j: number, p: number, urgentes: number[], horarios: Horario[]) => {
+  if (urgentes.includes(j) && p > URGENTES_ANTES) return false;
+  const h = horarios.find((x) => x.casa === j);
+  return !h || (p >= h.desde && p <= h.hasta);
+};
+
+/** La mejor ruta (largo y orden) que respeta las urgentes y los horarios: Held-Karp, revisando el puesto de cada entrega. */
+export function mejorRuta(puntos: P[], urgentes: number[], horarios: Horario[] = []): { largo: number; orden: number[] } {
+  const n = puntos.length - 1, total = 1 << n;
   const costo = new Float64Array(total * n).fill(Infinity), padre = new Int16Array(total * n).fill(-1);
   const cuenta = (m: number) => { let c = 0; while (m) { m &= m - 1; c++; } return c; };
-  const valida = (m: number) => cuenta(m) < URGENTES_ANTES || (m & todasUrg) === todasUrg;
-  for (let i = 0; i < n; i++) if (valida(1 << i)) costo[(1 << i) * n + i] = dist(puntos[0], puntos[i + 1]);
+  for (let i = 0; i < n; i++) if (enHora(i + 1, 1, urgentes, horarios)) costo[(1 << i) * n + i] = dist(puntos[0], puntos[i + 1]);
   for (let m = 1; m < total; m++) for (let i = 0; i < n; i++) {
     const c0 = costo[m * n + i];
     if (!(m & (1 << i)) || c0 === Infinity) continue;
     for (let j = 0; j < n; j++) {
       if (m & (1 << j)) continue;
       const nm = m | (1 << j);
-      if (!valida(nm)) continue;
+      if (!enHora(j + 1, cuenta(nm), urgentes, horarios)) continue;
       const c = c0 + dist(puntos[i + 1], puntos[j + 1]);
       if (c < costo[nm * n + j]) { costo[nm * n + j] = c; padre[nm * n + j] = i; }
     }
@@ -52,14 +60,16 @@ export function mejorRuta(puntos: P[], urgentes: number[]): { largo: number; ord
   let mejor = Infinity, fin = 0;
   for (let i = 0; i < n; i++) { const c = costo[(total - 1) * n + i] + dist(puntos[i + 1], puntos[0]); if (c < mejor) { mejor = c; fin = i; } }
   const orden: number[] = [];
+  if (mejor === Infinity) return { largo: Infinity, orden };
   for (let m = total - 1, i = fin; i >= 0;) { orden.unshift(i + 1); const p = padre[m * n + i]; m &= ~(1 << i); i = p; }
   return { largo: mejor, orden };
 }
 
 /** Puntos de un reparto terminado. */
-export function puntajeReparto(optimo: number, mia: number, segundos: number, atrasadas: number): number {
-  const precision = Math.min(1, optimo / mia);
-  return Math.max(0, Math.round(PRECISION * precision ** 4 + Math.max(0, RAPIDEZ - POR_SEGUNDO * segundos) + (mia <= optimo + 0.01 ? PERFECTA : 0) - ATRASADA * atrasadas));
+export function puntajeReparto(optimo: number, mia: number, segundos: number, atrasadas: number, racha = 0): number {
+  const precision = Math.min(1, optimo / mia), perfecta = mia <= optimo + 0.01 && atrasadas === 0;
+  // Racha: cada ruta perfecta seguida vale 50 más que la anterior
+  return Math.max(0, Math.round(PRECISION * precision ** 4 + Math.max(0, RAPIDEZ - POR_SEGUNDO * segundos) + (perfecta ? PERFECTA + RACHA * racha : 0) - ATRASADA * atrasadas));
 }
 
 export async function crear(c: Contexto): Promise<Partida> {
@@ -73,10 +83,11 @@ export async function crear(c: Contexto): Promise<Partida> {
   const metros = (d: number) => Math.round(d * 10);
 
   let reparto = 0, total = 0, desde = 0, terminado = false, pausa = false;
-  let puntos: P[] = [], casas = 0, urgentes: number[] = [], optimo = { largo: 0, orden: [] as number[] };
+  let puntos: P[] = [], casas = 0, urgentes: number[] = [], horarios: Horario[] = [], optimo = { largo: 0, orden: [] as number[] }, racha = 0;
   const ruta: number[] = [], resumen: { pts: number; mia: number; opt: number; seg: number; tarde: number }[] = [];
   let camino: Element, borde: Element, vuelta: Element, optima: Element, bici: Element, marcas: { g: Element; numero: Element }[] = [];
-  const atrasadas = () => urgentes.filter((u) => { const k = ruta.indexOf(u); return k < 0 || k >= URGENTES_ANTES; }).length;
+  /** Entregas fuera de regla: urgentes atrasadas y casas con horario fuera de su horario. */
+  const atrasadas = () => [...urgentes, ...horarios.map((h) => h.casa)].filter((u) => { const k = ruta.indexOf(u); return k < 0 || !enHora(u, k + 1, urgentes, horarios); }).length;
 
   const forma = (tag: string, atributos: Record<string, string | number>, texto?: string) => {
     const e = document.createElementNS(SVG, tag);
@@ -96,7 +107,15 @@ export async function crear(c: Contexto): Promise<Partida> {
     urgentes = [];
     const cuantas = Math.min(URGENTES_ANTES - 1, (c.nivel >= 3 ? 3 : 2) + (reparto > 0 ? 1 : 0));
     while (urgentes.length < cuantas) { const u = 1 + Math.floor(r() * casas); if (!urgentes.includes(u)) urgentes.push(u); }
-    optimo = mejorRuta(puntos, urgentes);
+    // Desde el tercer reparto, casas con horario (una, y dos en el último): solo reciben entre ciertas entregas
+    horarios = [];
+    const conHorario = reparto >= 4 ? 2 : reparto >= 2 ? 1 : 0;
+    while (horarios.length < conHorario) {
+      const casa = 1 + Math.floor(r() * casas), desde = URGENTES_ANTES + 1 + Math.floor(r() * Math.max(1, casas - URGENTES_ANTES - 3));
+      if (!urgentes.includes(casa) && !horarios.some((h) => h.casa === casa)) horarios.push({ casa, desde, hasta: Math.min(casas, desde + 3) });
+    }
+    optimo = mejorRuta(puntos, urgentes, horarios);
+    if (optimo.largo === Infinity) { horarios = []; optimo = mejorRuta(puntos, urgentes); }
     // El barrio: manzanas con árboles y flores (una laguna y una plaza), y calles grises con línea al centro
     const b = generador(`${semilla}|barrio`), laguna = [Math.floor(b() * 12), Math.floor(b() * 8)], plaza = [(laguna[0] + 6) % 12, (laguna[1] + 3) % 8];
     for (let mx = 0; mx < 13; mx++) for (let my = 0; my < 8; my++) {
@@ -132,13 +151,15 @@ export async function crear(c: Contexto): Promise<Partida> {
       }
       const numero = pieza('text', { y: 8.6, class: 'orden' });
       if (urgentes.includes(i)) { g.classList.add('urgente'); pieza('text', { y: -6.2, class: 'reloj' }, '⏰'); g.setAttribute('aria-label', `Casa ${i}, urgente`); }
+      const h = horarios.find((x) => x.casa === i);
+      if (h) { g.classList.add('con-horario'); pieza('text', { y: -6.2, class: 'horario' }, `🕒${h.desde}–${h.hasta}`); g.setAttribute('aria-label', `Casa ${i}, solo entre la entrega ${h.desde} y la ${h.hasta}`); }
       if (i > 0) { g.addEventListener('click', () => visitar(i)); g.addEventListener('keydown', (e) => { if ((e as KeyboardEvent).key === 'Enter' || (e as KeyboardEvent).key === ' ') { e.preventDefault(); visitar(i); } }); }
       return { g, numero };
     });
     desde = m.reloj();
     pausa = false;
     pintar();
-    m.hud.aviso(`Reparto ${reparto + 1} de ${REPARTOS.length}: ${casas} casas${urgentes.length ? ` · ${urgentes.length} urgentes` : ''}`, 'oro', 1.4);
+    m.hud.aviso(`Reparto ${reparto + 1} de ${REPARTOS.length}: ${casas} casas${urgentes.length ? ` · ${urgentes.length} urgentes` : ''}${horarios.length ? ` · ${horarios.length} con horario 🕒` : ''}`, 'oro', 1.6);
   };
 
   const texto = (lista: P[]) => porCalles(lista).map((p) => `${p.x},${p.y}`).join(' ');
@@ -153,7 +174,8 @@ export async function crear(c: Contexto): Promise<Partida> {
     marcas.forEach(({ g, numero }, i) => { const puesto = ruta.indexOf(i); g.classList.toggle('visitada', puesto >= 0); numero.textContent = puesto >= 0 ? String(puesto + 1) : ''; });
     entregar.disabled = !completa || pausa;
     const tarde = ruta.length >= URGENTES_ANTES ? atrasadas() : 0;
-    m.hud.extra(`Reparto ${reparto + 1} de ${REPARTOS.length} · ${completa ? `${metros(largo(puntos, ruta))} m` : `${ruta.length} de ${casas} casas`}${tarde ? ` · ⏰ ${tarde} atrasada${tarde > 1 ? 's' : ''}` : ''}`);
+    const parcial = ruta.reduce((s, x, k) => s + dist(puntos[k ? ruta[k - 1] : 0], puntos[x]), 0);
+    m.hud.extra(`Reparto ${reparto + 1} de ${REPARTOS.length} · ${completa ? `${metros(largo(puntos, ruta))} m` : `${ruta.length} de ${casas} casas · ${metros(parcial)} m`}${tarde ? ` · ⏰ ${tarde} fuera de regla` : ''}${racha ? ` · racha ${racha}` : ''}`);
     m.hud.puntos(`${total} pts`);
   };
 
@@ -166,7 +188,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     c.alTerminar({
       puntaje: total,
       lineas: [
-        ...resumen.map((x, i) => [`Reparto ${i + 1}`, `${x.pts} pts · ${metros(x.mia)} m (mejor ${metros(x.opt)} m) · ${x.seg.toFixed(1)} s${x.tarde ? ` · ${x.tarde} atrasada${x.tarde > 1 ? 's' : ''}` : ''}`] as [string, string]),
+        ...resumen.map((x, i) => [`Reparto ${i + 1}`, `${x.pts} pts · ${metros(x.mia)} m (mejor ${metros(x.opt)} m) · ${x.seg.toFixed(1)} s${x.tarde ? ` · ${x.tarde} fuera de regla` : ''}`] as [string, string]),
         ['Repartos completos', `${resumen.length} de ${REPARTOS.length}`],
         ['Rutas perfectas', String(resumen.filter((x) => x.mia <= x.opt + 0.01).length)],
         ['Tiempo', mmss(t)],
@@ -179,10 +201,11 @@ export async function crear(c: Contexto): Promise<Partida> {
   /** Entregar: suma el reparto, muestra un momento la mejor ruta (para aprender) y pasa al siguiente. */
   const entregarReparto = () => {
     if (terminado || pausa || ruta.length !== casas) return;
-    const seg = m.reloj() - desde, mia = largo(puntos, ruta), tarde = atrasadas(), pts = puntajeReparto(optimo.largo, mia, seg, tarde);
+    const seg = m.reloj() - desde, mia = largo(puntos, ruta), tarde = atrasadas(), perfecta = mia <= optimo.largo + 0.01 && tarde === 0;
+    const pts = puntajeReparto(optimo.largo, mia, seg, tarde, perfecta ? racha : 0);
+    racha = perfecta ? racha + 1 : 0;
     total += pts; resumen.push({ pts, mia, opt: optimo.largo, seg, tarde });
-    const perfecta = mia <= optimo.largo + 0.01;
-    m.hud.aviso(perfecta ? `¡Ruta perfecta! +${pts}` : `+${pts} · ${Math.round((mia / optimo.largo - 1) * 100)} % de más`, perfecta ? 'oro' : 'bien', 1.6);
+    m.hud.aviso(perfecta ? `¡Ruta perfecta${racha > 1 ? ` (racha ${racha})` : ''}! +${pts}` : `+${pts} · ${Math.round((mia / optimo.largo - 1) * 100)} % de más`, perfecta ? 'oro' : 'bien', 1.6);
     if (perfecta) m.sonido.bien(); else m.sonido.toque();
     // La mejor ruta se ve en verde y la tuya queda tenue detrás
     if (!perfecta) { optima.setAttribute('points', texto([0, ...optimo.orden, 0].map((i) => puntos[i]))); (optima as SVGElement).style.display = ''; for (const x of [camino, borde, vuelta]) (x as SVGElement).style.opacity = '0.25'; }

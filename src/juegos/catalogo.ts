@@ -19,7 +19,7 @@ export interface Juego {
 /** Puntaje de referencia de cada juego para la experiencia del pase (cerca de él, más experiencia). Desde el 26-10 ya no marca partidas como dudosas: todo puntaje cuenta. */
 export const TOPES: Record<string, number> = {
   rodillos: 1500, puertas: 1600, huevo: 3400, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, torre: 2400, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2800, parejas: 1000, buscaconchas: 1800, luces: 1800,
-  cartero: 2400, cofre: 1300, palabra: 1000, totem: 1000, catapulta: 2800, bolos: 750, minigolf: 1000,
+  cartero: 4200, cofre: 1300, palabra: 1000, totem: 1000, catapulta: 2800, bolos: 750, minigolf: 1000,
   karts: 2300, tren: 9000, tanques: 16000, bombas: 4200, agujero: 14000, serpientes: 5000, defensa: 10000, museo: 5000, tiro: 9000, cocina: 6000, billar: 8000, triples: 9000, calabazas: 3500, laberinto: 6000, escobas: 4000, bloques: 120000, bestias: 15000,
 };
 
@@ -75,8 +75,8 @@ const TODOS: Juego[] = [
     'Cada fila y columna muestra cuánto suman sus números y cuántos erizos tiene (🦔). Tus monedas de la ronda se multiplican por cada número que destapas. Destapa todos los ×2 y ×3 para ganar la ronda, o Plántate para guardar lo que llevas. Pisar un erizo pierde lo de la ronda. Clic derecho (o el botón) marca una sospecha. Son 5 rondas en 4 minutos.'),
   j(17, 'luces', 'Luces del Faro', 'E', 'Cinco tableros: apaga todas las luces. Cada toque cambia también las vecinas.', 'Lógica',
     'Toca una luz y cambian ella y sus cuatro vecinas. Apaga el tablero completo para pasar al siguiente. Si lo logras con pocos toques (el par aparece arriba) ganas un bono. Tienes cuatro minutos para los cinco.'),
-  j(18, 'cartero', 'Ruta del Cartero', 'E', 'Tres repartos seguidos, de 9, 11 y 13 casas: recórrelas por las calles y vuelve al correo por el camino más corto. Las urgentes van primero.', 'Optimización',
-    'Toca las casas en el orden en que quieres visitarlas; el recorrido va por las calles y se dibuja solo. Las casas con ⏰ deben estar entre tus primeras 4 entregas (cada una atrasada resta 120). Puedes deshacer (o la tecla Z) y entregar con Enter. Son tres repartos (9, 11 y 13 casas) en 3 minutos. Cada reparto suma por precisión (hasta 500, y baja rápido si te alejas de la mejor ruta), por rapidez (hasta 300: 8 menos por cada segundo que tardes en ese reparto) y +100 si tu ruta es la mejor posible. Si no fue perfecta, se te muestra un momento la mejor ruta.'),
+  j(18, 'cartero', 'Ruta del Cartero', 'E', 'Cinco repartos seguidos, de 8 a 13 casas: recórrelas por las calles y vuelve al correo por el camino más corto. Las urgentes van primero y algunas casas tienen horario.', 'Optimización',
+    'Toca las casas en el orden en que quieres visitarlas; el recorrido va por las calles y se dibuja solo. Las casas con ⏰ deben estar entre tus primeras 4 entregas (cada una atrasada resta 120). Desde el tercer reparto hay casas con horario (🕒5–8: solo reciben entre tu entrega 5 y la 8); fuera de horario también resta 120. Puedes deshacer (o la tecla Z) y entregar con Enter. Son cinco repartos (8, 10, 11, 12 y 13 casas) en 5 minutos. Cada reparto suma por precisión (hasta 500, y baja rápido si te alejas de la mejor ruta), por rapidez (hasta 300: 8 menos por cada segundo que tardes en ese reparto) y +100 si tu ruta es la mejor posible; cada ruta perfecta seguida suma 50 más que la anterior (racha). Si no fue perfecta, se te muestra un momento la mejor ruta.'),
   j(19, 'cofre', 'El Cofre o la Ola', 'F', 'Diez cofres: sigue sacando tesoro o plántate antes de que llegue la ola.', 'Manejo del riesgo',
     'En cada cofre eliges: Sacar más (suma monedas, pero sube el riesgo) o Plantarte (guardas lo sacado). Arriba ves cómo está el mar (en tormenta hay más riesgo y paga más) y cuánto podría salir. Tienes dos catalejos que te dicen si la próxima sacada es segura. Si llega la ola, pierdes lo de ese cofre.'),
   j(20, 'bajo', 'El Más Bajo', 'F', 'Seis jugadores eligen un número en secreto; gana el más bajo que nadie repitió.', 'Leer al grupo',
@@ -125,7 +125,7 @@ const TODOS: Juego[] = [
 
 /** Juegos que en celular se ven mucho mejor de lado: avisan al partir si el teléfono está parado. */
 /** Juegos con modo libre (fase 4): sin reloj ni límite de vidas o intentos, no guarda nada. */
-export const LIBRES = new Set(['rodillos', 'puertas', 'tinta', 'numeros', 'parejas', 'buscaconchas', 'catapulta', 'minigolf', 'tren', 'serpientes', 'karts', 'bloques']);
+export const LIBRES = new Set(['rodillos', 'puertas', 'cartero', 'laberinto', 'tinta', 'numeros', 'parejas', 'buscaconchas', 'catapulta', 'minigolf', 'tren', 'serpientes', 'karts', 'bloques']);
 export const HORIZONTALES = new Set(['catapulta', 'billar', 'karts', 'tiro', 'defensa', 'cocina', 'triples', 'escobas', 'bestias']);
 
 /** Juegos retirados (El Más Bajo el 23-10; La Palabra Secreta y Luces del Faro el 24-10): no salen en la web ni en los sorteos,
