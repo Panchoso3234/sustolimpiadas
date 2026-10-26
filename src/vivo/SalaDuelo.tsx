@@ -8,6 +8,8 @@ import { CARGADORES, ajustesPartida, type ContextoVivo, type CrearJuego, type Pa
 import { aspectoDe, puntajeEnPantalla } from '../juegos/Sala';
 import { repartir, rondasDistintas, rondaSiguiente } from './asientos';
 import { capturar, limpiar } from './espejo';
+/** Juegos donde ver la pantalla del rival sería copiarle la respuesta. */
+const SIN_ESPEJO = new Set(['puertas']);
 import { DUELOS } from './formatos';
 import { asientosValidos, debeReiniciar, identidadVivo, rondaComun, type Oficial } from './PantallaVivo';
 import { BotonAvisar } from '../juegos/BotonAvisar';
@@ -265,7 +267,7 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
         setLlevan((v) => ({ ...v, [miLado]: lleva }));
         if (oficial && n % 8 === 0) V.latidoRonda(oficial.e.id, x.partida, lleva);
       }
-      if (formato !== 'mundo' && n % cada === 0 && s.presentes().length > 1) { const f = capturar(caja, formato === 'turnos' ? 360 : 260); if (f) s.enviar('foto', { partida: x.partida, ...f }); }
+      if (formato !== 'mundo' && !SIN_ESPEJO.has(juego) && n % cada === 0 && s.presentes().length > 1) { const f = capturar(caja, formato === 'turnos' ? 360 : 260); if (f) s.enviar('foto', { partida: x.partida, ...f }); }
     }, 250);
     return () => clearInterval(r);
   }, [fase, miLado, soyAnfitrion]);
@@ -318,7 +320,7 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
   const pantallita = (l: Lado, grande = false) => (
     <div class={`duelo-pantalla${grande ? ' grande' : ''}`} style={`--color:${COLOR_LADO[l]}`}>
       <div class="duelo-nombre"><b>{nombres[l]}</b><span>{puntos[l] !== null ? `terminó · ${puntos[l]}` : leToca(l) ? `jugando${llevan[l] ? ` · ${llevan[l]}` : ''}` : formato === 'turnos' ? 'espera su turno' : ''}</span></div>
-      <div class="duelo-espejo" ref={(el) => { espejos.current[l] = el; if (el && !el.firstChild) pintarEspejo(l); }} />
+      <div class="duelo-espejo" ref={(el) => { espejos.current[l] = el; if (el && !el.firstChild) pintarEspejo(l); }}>{SIN_ESPEJO.has(juego) && l !== miLado && <p class="espejo-oculto">En {ficha?.nombre} no se ve la pantalla del rival, para que nadie copie sus puertas. Arriba ves sus puntos.</p>}</div>
     </div>
   );
   // Qué se ve: mi juego (si me toca) y las pantallas de los demás

@@ -9,7 +9,8 @@ import { supabase } from '../nucleo/supabase';
 // dos y el intervalo se duplica). Un minuto de partida queda en ~1,9 KB.
 
 /** Juegos que graban su recorrido y se pueden jugar contra el fantasma del líder. */
-export const CON_FANTASMA = new Set(['escobas', 'tren', 'karts', 'rodillos', 'puertas']);
+// Puertas Falsas no: su fantasma mostraría las puertas buenas
+export const CON_FANTASMA = new Set(['escobas', 'tren', 'karts', 'rodillos']);
 const PASO = 0.25, MAX_PUNTOS = 500;
 
 export interface Fantasma { nombre: string; puntaje: number; semilla: string; paso: number; ruta: number[] }

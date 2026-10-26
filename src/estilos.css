@@ -1070,3 +1070,11 @@ body.foto .tren-misiones { display: none; }
 .agenda-hora.ok { color: var(--alga); }
 .agenda-form { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .agenda-form .texto { width: auto; }
+
+/* Carreras 2.0: ayuda táctil, palanca visible y espejo oculto en Puertas Falsas */
+.carrera-ayuda { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); z-index: 6; background: #14203ad9; color: var(--hueso); padding: 10px 16px; border-radius: 14px; font-weight: 800; text-align: center; pointer-events: none; animation: ayuda-latido 1.2s ease-in-out infinite alternate; }
+@keyframes ayuda-latido { from { opacity: .75; } to { opacity: 1; } }
+.palanca-visual { position: absolute; z-index: 5; width: 96px; height: 96px; margin: -48px 0 0 -48px; border-radius: 50%; border: 3px solid #ffffff88; background: #ffffff1a; pointer-events: none; }
+.palanca-visual i { position: absolute; left: 50%; top: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; background: #ffffffcc; }
+.espejo-oculto { margin: 0; padding: 18px 12px; text-align: center; font-size: .85rem; color: var(--tenue); }
+@media (prefers-reduced-motion: reduce) { .carrera-ayuda { animation: none; } }

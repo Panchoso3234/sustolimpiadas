@@ -44,7 +44,17 @@ export function crearMando(e: Escenario, caja: HTMLElement, etiqueta: string, ag
   e.escuchar(window, 'keyup', (ev) => { if (ev.key === ' ') apretada = false; if (ev.key === 'Shift' || ev.key.toLowerCase() === 'c') abajo = false; pulsadas.delete(ev.key.length === 1 ? ev.key.toLowerCase() : ev.key); });
   e.escuchar(window, 'blur', () => { pulsadas.clear(); abajo = false; });
 
-  e.escuchar(e.lienzo, 'pointerdown', (ev) => { if (!palancaConMouse && ev.pointerType === 'mouse') return; ultimo = { x: ev.clientX, y: ev.clientY }; palanca = { x0: ev.clientX, y0: ev.clientY, x: 0, z: 0, sx: 0, sz: 0 }; e.lienzo.setPointerCapture(ev.pointerId); });
+  // La palanca se ve donde apoyas el dedo (solo en pantallas táctiles)
+  const aro = document.createElement('div'), perilla = document.createElement('i');
+  aro.className = 'palanca-visual'; aro.hidden = true; aro.appendChild(perilla); caja.appendChild(aro);
+  const pintarPalanca = () => {
+    if (!palanca || !tactil) { aro.hidden = true; return; }
+    const r = caja.getBoundingClientRect();
+    aro.hidden = false; aro.style.left = `${palanca.x0 - r.left}px`; aro.style.top = `${palanca.y0 - r.top}px`;
+    perilla.style.transform = `translate(${palanca.x * 34}px, ${palanca.z * 34}px)`;
+  };
+  let tactil = false;
+  e.escuchar(e.lienzo, 'pointerdown', (ev) => { if (!palancaConMouse && ev.pointerType === 'mouse') return; tactil = ev.pointerType === 'touch'; ultimo = { x: ev.clientX, y: ev.clientY }; palanca = { x0: ev.clientX, y0: ev.clientY, x: 0, z: 0, sx: 0, sz: 0 }; e.lienzo.setPointerCapture(ev.pointerId); pintarPalanca(); });
   e.escuchar(e.lienzo, 'pointermove', (ev) => {
     if (!palanca) return;
     ultimo = { x: ev.clientX, y: ev.clientY };
@@ -59,8 +69,9 @@ export function crearMando(e: Escenario, caja: HTMLElement, etiqueta: string, ag
     const s = 55 / sensibilidad(), dx = (ev.clientX - palanca.x0) / s, dz = (ev.clientY - palanca.y0) / s, largo = Math.max(1, Math.hypot(dx, dz));
     palanca.x = dx / largo;
     palanca.z = dz / largo;
+    pintarPalanca();
   });
-  const soltar = () => { palanca = null; };
+  const soltar = () => { palanca = null; pintarPalanca(); };
   e.escuchar(e.lienzo, 'pointerup', soltar);
   e.escuchar(e.lienzo, 'pointercancel', soltar);
 

@@ -18,7 +18,7 @@ export interface Juego {
 
 /** Puntaje de referencia de cada juego para la experiencia del pase (cerca de él, más experiencia). Desde el 26-10 ya no marca partidas como dudosas: todo puntaje cuenta. */
 export const TOPES: Record<string, number> = {
-  rodillos: 2000, puertas: 2000, huevo: 3400, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, torre: 2400, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2800, parejas: 1000, buscaconchas: 1800, luces: 1800,
+  rodillos: 1500, puertas: 1600, huevo: 3400, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, torre: 2400, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2800, parejas: 1000, buscaconchas: 1800, luces: 1800,
   cartero: 1000, cofre: 1300, palabra: 1000, totem: 1000, catapulta: 2800, bolos: 750, minigolf: 1000,
   karts: 2300, tren: 9000, tanques: 16000, bombas: 4200, agujero: 14000, serpientes: 5000, defensa: 10000, museo: 5000, tiro: 9000, cocina: 6000, billar: 8000, triples: 9000, calabazas: 3500, laberinto: 9000, escobas: 4000, bloques: 120000, bestias: 15000,
 };
@@ -41,10 +41,10 @@ const j = (numero: number, id: string, nombre: string, motor: Motor, idea: strin
   ({ id, numero, nombre, motor, idea, premia, controles, unidad: 'puntos', listo: controles !== '', ...extra });
 
 const TODOS: Juego[] = [
-  j(1, 'rodillos', 'Lava Loca', 'A', 'Una pasarela sobre la lava con barras que giran: unas se saltan y otras se pasan agachado.', 'Sincronía',
-    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Salta las barras rojas con Espacio o el botón Saltar; pasa las naranjas (altas) agachado, manteniendo Shift, C o el botón Agacharse. Si te alcanzan, sales volando. Cada tramo empieza en un punto de control. La figura blanca transparente es el fantasma de ritmo: corre al paso de una buena marca. Con el botón Cámara (o la tecla V) miras desde arriba.'),
-  j(2, 'puertas', 'Puertas Falsas', 'A', 'Seis muros de cuatro puertas: una o dos se abren, las demás son pared.', 'Memoria y arrojo',
-    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Corre contra una puerta para probarla. Recuerda cuáles abrían: si te caes, vuelves al último punto de control. La figura blanca transparente es el fantasma de ritmo: corre al paso de una buena marca. Con el botón Cámara (o la tecla V) miras desde arriba.'),
+  j(1, 'rodillos', 'Lava Loca', 'A', 'Sube por un volcán que se derrumba con la lava detrás: siete tramos de barras, martillos, rocas, tablones que se hunden e islas.', 'Sincronía',
+    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Salta con Espacio o el botón Saltar: si lo sueltas antes, el salto es más corto. Las barras rojas se saltan; las naranjas (altas) se pasan agachado (Shift, C o el botón Agacharse), y si te agachas corriendo haces una barrida rápida. La lava sube sin parar: si te alcanza, termina la partida. Si te caes vuelves al último punto de control, pero la lava sigue subiendo. Suman los tramos superados (más si los pasas sin caerte), las gemas y, al llegar, la ventaja que le sacaste a la lava y el tiempo que sobra. Las grietas de vapor te lanzan alto. Con el botón Cámara (o la tecla V) miras desde arriba.'),
+  j(2, 'puertas', 'Puertas Falsas', 'A', 'Doce muros en cuatro secciones: elige una puerta y corre hacia ella. La falsa te devuelve al comienzo de la sección.', 'Memoria y arrojo',
+    'Muévete con las flechas o WASD; en celular, arrastra el dedo. Para probar una puerta hay que correr de frente hacia ella: rozarla de costado no la abre. La buena se abre; la falsa te rebota y te devuelve al comienzo de la sección (cada sección tiene tres muros) con sus puertas cerradas otra vez: recuerda cuáles eran. La marca verde brillante dice "por aquí", pero acierta solo 2 de cada 3 veces. En la última sección las puertas se deslizan. Suman los muros superados (más si los pasas al primer intento), las gemas y el tiempo que sobra. Con el botón Cámara (o la tecla V) miras desde arriba.'),
   j(3, 'huevo', 'Caza del Huevo', 'B', 'Tres contra tres: lleva huevos del centro a tu nido, roba del nido rival y bota al que lleve uno.', 'Reparto de roles',
     'Muévete con las flechas o WASD; en celular, arrastra el dedo. Pasa sobre un huevo para tomarlo y llévalo al círculo de tu color. Embiste con Espacio o el botón: si chocas a un rival cargado, lo suelta. A los 40 y a los 60 segundos aparece un huevo dorado que vale 3. Juegas con dos compañeros de máquina; en cada equipo uno junta huevos, otro caza a quien lleve uno y otro cuida el nido.'),
   j(4, 'sumo', 'Al Agua Pato', 'B', 'Seis sobre una balsa que se achica. Empuja a los demás al agua y no caigas.', 'Posición',
@@ -125,7 +125,7 @@ const TODOS: Juego[] = [
 
 /** Juegos que en celular se ven mucho mejor de lado: avisan al partir si el teléfono está parado. */
 /** Juegos con modo libre (fase 4): sin reloj ni límite de vidas o intentos, no guarda nada. */
-export const LIBRES = new Set(['tinta', 'numeros', 'parejas', 'buscaconchas', 'catapulta', 'minigolf', 'tren', 'serpientes', 'karts', 'bloques']);
+export const LIBRES = new Set(['rodillos', 'puertas', 'tinta', 'numeros', 'parejas', 'buscaconchas', 'catapulta', 'minigolf', 'tren', 'serpientes', 'karts', 'bloques']);
 export const HORIZONTALES = new Set(['catapulta', 'billar', 'karts', 'tiro', 'defensa', 'cocina', 'triples', 'escobas', 'bestias']);
 
 /** Juegos retirados (El Más Bajo el 23-10; La Palabra Secreta y Luces del Faro el 24-10): no salen en la web ni en los sorteos,

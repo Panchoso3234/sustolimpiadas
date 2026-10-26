@@ -358,6 +358,7 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
       {(fase === 'cuenta' || fase === 'jugando') && (
         <div class="sala-salir">
           {!reto && <button class="boton" title="Salir (Esc)" onClick={salir}>{libre.current ? 'Terminar' : 'Salir'}</button>}
+          {!reto && practica.current && fase === 'jugando' && <button class="boton" title="Empezar de nuevo" onClick={(ev) => { ev.currentTarget.blur(); jugar(true, null, libre.current); }}>Reiniciar</button>}
           {!reto && fase === 'jugando' && <button class="boton" aria-pressed={pausa} title="Pausa (P)" disabled={!!reanudando} onClick={(ev) => { if (pausa) reanudar(); else pausar(true); ev.currentTarget.blur(); }}>{pausa ? 'Seguir' : 'Pausa'}</button>}
           <button class="boton" aria-pressed={callado} onClick={(ev) => { silenciar(!callado); setCallado(!callado); ev.currentTarget.blur(); }}>{callado ? 'Sonido: no' : 'Sonido: sí'}</button>
           <button class={`boton${reglasNuevas && !reglas ? ' reglas-nuevas' : ''}`} aria-pressed={reglas} title="Reglas del juego (R)" onClick={(ev) => { if (reglas) cerrarReglas(); else abrirReglas(); ev.currentTarget.blur(); }}>Reglas</button>
