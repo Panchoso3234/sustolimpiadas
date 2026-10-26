@@ -104,6 +104,4 @@ export const CARGADORES: Record<string, () => Promise<CrearJuego>> = {
   calabazas: () => import('./punteria/calabazas').then((m) => m.crear),
   cocos: () => import('./reflejos/cocos').then((m) => m.crear),
   cangrejos: () => import('./reflejos/cangrejos').then((m) => m.crear),
-  tambores: () => import('./reflejos/tambores').then((m) => m.crear),
-  semaforo: () => import('./reflejos/semaforo').then((m) => m.crear),
 };

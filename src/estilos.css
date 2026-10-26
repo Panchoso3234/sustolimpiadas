@@ -1051,3 +1051,12 @@ body.foto .tren-misiones { display: none; }
 @media (max-width: 900px) {
   .panel-conectados { position: fixed; right: 0; top: 0; bottom: 0; z-index: 60; width: min(300px, 86vw); box-shadow: -8px 0 30px rgba(0, 0, 0, .5); padding-top: env(safe-area-inset-top, 0px); }
 }
+
+/* Celular: el menú y las pestañas del portal se deslizan de lado (con un degradado que avisa que hay más) */
+@media (max-width: 760px) {
+  .barra nav { -webkit-mask-image: linear-gradient(to right, #000 85%, transparent); mask-image: linear-gradient(to right, #000 85%, transparent); padding-right: 28px; }
+  .portal > .modos { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; -webkit-mask-image: linear-gradient(to right, #000 88%, transparent); mask-image: linear-gradient(to right, #000 88%, transparent); }
+  .portal > .modos::-webkit-scrollbar { display: none; }
+  .portal > .modos a { flex: none; padding: 6px 14px; }
+  .portal > .modos a span { display: none; }
+}

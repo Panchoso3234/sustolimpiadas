@@ -12,6 +12,11 @@ import { escucharSalas, type InfoSala } from './vivo/vestibulo';
 
 /** Las últimas novedades del sitio (la más reciente primero). */
 const NOVEDADES: { fecha: string; texto: string }[] = [
+  { fecha: '2026-10-26', texto: 'Ya no hay partidas dudosas: todo puntaje cuenta para los récords y la Copa. El cruce 2 va del 26 al 28 de octubre y el 3 del 29 al 31.' },
+  { fecha: '2026-10-25', texto: 'Lista de miembros a la derecha: quién está en línea y qué está jugando.' },
+  { fecha: '2026-10-25', texto: 'Modo libre en 10 juegos, siete duelos 1v1 nuevos y Cuatro Conchas y Batalla de Balsas contra la máquina.' },
+  { fecha: '2026-10-25', texto: 'Pestañas Récords y Copa Individual (aparte del torneo): cada lunes el bot anuncia el podio de la semana.' },
+  { fecha: '2026-10-25', texto: 'En vivo: sala de espera nueva, cuenta común, botón Avisar a mi rival y muerte súbita si un duelo queda empatado.' },
   { fecha: '2026-10-25', texto: 'Victorias por ausencia: si tu rival de cruce nunca entró a la web, la organización te da la victoria al cerrar el cruce.' },
   { fecha: '2026-10-25', texto: 'Subway Surfers 3.0: la pausa funciona, un deslizamiento cambia un solo carril, poder nuevo (la tabla), misiones, túneles y vallas dobles.' },
   { fecha: '2026-10-25', texto: 'Botón Reglas en todos los juegos: pausa la partida y al cerrarlo cuenta 3, 2, 1.' },
@@ -112,7 +117,7 @@ export function Inicio() {
       <section class="bloque">
         <h2>Novedades</h2>
         <ul class="inicio-novedades">
-          {NOVEDADES.map((n, i) => <li key={i}><span class="tenue chico">{V.fechaCorta(n.fecha)}</span> {n.texto}</li>)}
+          {NOVEDADES.slice(0, 6).map((n, i) => <li key={i}><span class="tenue chico">{V.fechaCorta(n.fecha)}</span> {n.texto}</li>)}
         </ul>
       </section>
     </div>

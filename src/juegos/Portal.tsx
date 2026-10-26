@@ -22,7 +22,6 @@ const MODOS = [
   { ruta: '', titulo: 'Individual', bajada: 'Marcas del día' },
   { ruta: '1v1', titulo: 'Versus 1v1 (Diferido)', bajada: 'Si no pueden a la vez' },
   { ruta: 'vivo', titulo: 'En vivo', bajada: '1v1 y 3v3, conectados' },
-  { ruta: 'en-linea', titulo: 'Partidas en línea', bajada: 'Mirar en directo' },
   { ruta: 'posiciones', titulo: 'Tabla oficial', bajada: 'Liga de cruces' },
   { ruta: 'calendario', titulo: 'Calendario', bajada: 'Cruces y fechas' },
   { ruta: 'records', titulo: 'Récords', bajada: 'Hoy, semana y siempre' },
@@ -60,9 +59,10 @@ export function Portal({ sub, extra }: { sub: string; extra: string }) {
   if (sub === 'mirar') return <div class="pagina portal"><Vivo codigo={extra} mirar /></div>;
   const juego = JUEGOS.find((x) => x.id === sub);
   if (juego?.listo) return <Sala key={juego.id} juego={juego} />;
-  const modo = sub === '3v3' || MODOS.some((m) => m.ruta === sub) ? sub : '';
+  // 3v3 y Partidas en línea viven dentro de la pestaña En vivo
+  const modo = sub === '3v3' || sub === 'en-linea' || MODOS.some((m) => m.ruta === sub) ? sub : '';
   // El 3v3 vive dentro de la pestaña En vivo
-  const pestana = modo === '3v3' ? 'vivo' : modo, cuenta = (r: string) => (r === 'vivo' ? (pendientes.vivo ?? 0) + (pendientes['3v3'] ?? 0) : pendientes[r]);
+  const pestana = modo === '3v3' || modo === 'en-linea' ? 'vivo' : modo, cuenta = (r: string) => (r === 'vivo' ? (pendientes.vivo ?? 0) + (pendientes['3v3'] ?? 0) : pendientes[r]);
   return (
     <div class="pagina portal">
       <div class="sigla">Portal de juegos</div>
@@ -77,6 +77,7 @@ export function Portal({ sub, extra }: { sub: string; extra: string }) {
         <nav class="modos sub-modos" aria-label="En vivo">
           <a href="#/juegos/vivo" class={modo === 'vivo' ? 'activa' : ''} aria-current={modo === 'vivo' ? 'page' : undefined}><b>1v1</b></a>
           <a href="#/juegos/3v3" class={modo === '3v3' ? 'activa' : ''} aria-current={modo === '3v3' ? 'page' : undefined}><b>3v3</b></a>
+          <a href="#/juegos/en-linea" class={modo === 'en-linea' ? 'activa' : ''} aria-current={modo === 'en-linea' ? 'page' : undefined}><b>Mirar partidas</b></a>
         </nav>
       )}
       {modo === '' ? <Grilla /> : modo === 'posiciones' ? <Posiciones /> : modo === 'records' ? <PestanaRecords /> : modo === 'copa' ? <PestanaCopa /> : modo === 'calendario' ? <><h1>Calendario de la liga</h1><Planificacion publico /></> : modo === 'vivo' ? <Vivo codigo={extra} /> : modo === 'en-linea' ? <PartidasEnLinea /> : <PestanaVersus key={modo} modo={modo as '1v1' | '3v3'} preset={extra} />}
