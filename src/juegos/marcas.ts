@@ -1,5 +1,5 @@
 import { supabase } from '../nucleo/supabase';
-import { TOPES, topeDudoso } from './catalogo';
+
 
 // Marcas de los juegos. Siempre se anotan en el navegador (para que cada uno vea su mejor marca aunque no haya
 // entrado con Discord) y, con sesión iniciada, también en la tabla `marcas` de Supabase, que es la que vale.
@@ -74,11 +74,10 @@ export async function borrarMarca(id: number): Promise<string | null> {
 const records = new Map<string, { hora: number; filas: Promise<Fila[]> }>();
 let todos: { hora: number; mapa: Promise<Map<string, Fila[]> | null> } | null = null;
 
-/** Los top 3 de todos los juegos en una sola consulta (supabase/2026-10-25-records.sql), sin partidas dudosas. Null si falta ese SQL. */
+/** Los top 3 de todos los juegos en una sola consulta (supabase/2026-10-25-records.sql). Null si falta ese SQL. */
 function todosLosRecords(): Promise<Map<string, Fila[]> | null> {
   if (todos && Date.now() - todos.hora < 60_000) return todos.mapa;
-  const topes = Object.fromEntries(Object.keys(TOPES).map((j) => [j, topeDudoso(j)]));
-  const mapa = Promise.resolve(supabase.rpc('records_top', { p_topes: topes })).then(({ data, error }) => {
+  const mapa = Promise.resolve(supabase.rpc('records_top', { p_topes: SIN_TOPES })).then(({ data, error }) => {
     if (error || !Array.isArray(data)) return null;
     const m = new Map<string, Fila[]>();
     for (const f of data as { juego: string; perfil: string; nombre: string; puntaje: number }[]) {
@@ -93,20 +92,18 @@ function todosLosRecords(): Promise<Map<string, Fila[]> | null> {
   return mapa;
 }
 
-/** Récords históricos de un juego: la mejor marca de siempre de las 3 mejores personas, sin partidas dudosas (se recuerda un minuto). */
+/** Récords históricos de un juego: la mejor marca de siempre de las 3 mejores personas (se recuerda un minuto). */
 export async function recordsDelJuego(juego: string): Promise<Fila[]> {
   const mapa = await todosLosRecords();
   if (mapa) return mapa.get(juego) ?? [];
   return recordsSueltos(juego);
 }
 
-/** Respaldo mientras no exista la función de récords: una consulta por juego, igual sin las dudosas. */
+/** Respaldo mientras no exista la función de récords: una consulta por juego. */
 function recordsSueltos(juego: string): Promise<Fila[]> {
   const guardado = records.get(juego);
   if (guardado && Date.now() - guardado.hora < 60_000) return guardado.filas;
-  const tope = topeDudoso(juego);
-  let consulta = supabase.from('marcas').select('perfil_id,puntaje,perfiles(nombre)').eq('juego', juego);
-  if (tope) consulta = consulta.lte('puntaje', tope);
+  const consulta = supabase.from('marcas').select('perfil_id,puntaje,perfiles(nombre)').eq('juego', juego);
   const filas = Promise.resolve(consulta.order('puntaje', { ascending: false }).limit(500)
     .then(({ data }) => {
       const vistos = new Set<string>(), mejores: Fila[] = [];
@@ -139,11 +136,13 @@ export async function tablaDelDia(juego: string, fecha: string): Promise<{ filas
   return { filas, disponible: true };
 }
 
-const topesDudosos = () => Object.fromEntries(Object.keys(TOPES).map((j) => [j, topeDudoso(j)]));
+// Ya no hay partidas dudosas (26-10): se manda un objeto vacío para que las funciones de la base no descarten nada,
+// aunque todavía no se haya pegado el SQL que deja vacío topes_dudosos()
+const SIN_TOPES = {};
 
-/** Top 3 de cada juego desde una fecha (hoy, esta semana), sin dudosas. Null si falta 2026-10-25-records-copa.sql. */
+/** Top 3 de cada juego desde una fecha (hoy, esta semana). Null si falta 2026-10-25-records-copa.sql. */
 export async function recordsDesde(desde: string): Promise<Map<string, Fila[]> | null> {
-  const { data, error } = await supabase.rpc('records_periodo', { p_desde: desde, p_topes: topesDudosos() });
+  const { data, error } = await supabase.rpc('records_periodo', { p_desde: desde, p_topes: SIN_TOPES });
   if (error || !Array.isArray(data)) return null;
   const m = new Map<string, Fila[]>();
   for (const f of data as { juego: string; perfil: string; nombre: string; puntaje: number }[]) m.set(f.juego, [...(m.get(f.juego) ?? []), { perfil: f.perfil, nombre: f.nombre ?? 'Participante', puntaje: f.puntaje }]);
@@ -156,7 +155,7 @@ export const recordsDeSiempre = () => todosLosRecords();
 /** Copa Individual (aparte del torneo): puntos por puesto de cada día y juego, sumados entre dos fechas. Null si falta el SQL. */
 export interface FilaCopa { perfil: string; nombre: string; puntos: number; primeros: number; podios: number; partidas: number }
 export async function copaIndividual(desde: string, hasta: string): Promise<FilaCopa[] | null> {
-  const { data, error } = await supabase.rpc('copa_individual', { p_desde: desde, p_hasta: hasta, p_topes: topesDudosos() });
+  const { data, error } = await supabase.rpc('copa_individual', { p_desde: desde, p_hasta: hasta, p_topes: SIN_TOPES });
   if (error || !Array.isArray(data)) return null;
   return (data as FilaCopa[]).map((f) => ({ ...f, nombre: f.nombre ?? 'Participante', puntos: Number(f.puntos) }));
 }
@@ -164,14 +163,14 @@ export async function copaIndividual(desde: string, hasta: string): Promise<Fila
 /** Récords de versus que necesitan las rondas: mejor ronda de cada juego y remontadas. Null si falta el SQL. */
 export interface RecordVersus { tipo: 'mejor_ronda' | 'remontadas'; juego: string | null; perfil: string; nombre: string; valor: number; enfrentamiento: number | null }
 export async function recordsVersus(): Promise<RecordVersus[] | null> {
-  const { data, error } = await supabase.rpc('records_versus', { p_topes: topesDudosos() });
+  const { data, error } = await supabase.rpc('records_versus', { p_topes: SIN_TOPES });
   return error || !Array.isArray(data) ? null : (data as RecordVersus[]);
 }
 
-/** Mi mejor marca de siempre en cada juego (sin dudosas). */
+/** Mi mejor marca de siempre en cada juego. */
 export async function misMejores(perfil: string): Promise<Map<string, number>> {
   const { data } = await supabase.from('marcas').select('juego,puntaje').eq('perfil_id', perfil).order('puntaje', { ascending: false }).limit(3000);
   const m = new Map<string, number>();
-  for (const f of data ?? []) { const j = f.juego as string, s = f.puntaje as number, tope = topeDudoso(j); if ((!tope || s <= tope) && !m.has(j)) m.set(j, s); }
+  for (const f of data ?? []) { const j = f.juego as string; if (!m.has(j)) m.set(j, f.puntaje as number); }
   return m;
 }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { fechaChile, generador } from '../nucleo/azar';
 import { supabase, useSesion } from '../nucleo/supabase';
 import { aspectoAleatorio, normalizarAspecto, normalizarPersonaje, type Aspecto } from '../personaje/catalogo';
-import { HORIZONTALES, JUEGOS, LIBRES, MOTORES, TOPES, VERSUS, topeDudoso, type Juego } from './catalogo';
+import { HORIZONTALES, JUEGOS, LIBRES, MOTORES, TOPES, VERSUS, type Juego } from './catalogo';
 import { Records } from './Records';
 import { leerPuntos, puntosPorPuesto, PUNTOS_BASE } from './puntos';
 import { guardarMarca, historial, marcaLocal, tablaDelDia, type Fila, type Guardado } from './marcas';
@@ -74,8 +74,8 @@ function Tabla({ juego, fecha, usuarioId, version }: { juego: Juego; fecha: stri
   );
   // Cuánto le falta para pasar a la persona de arriba (al empatar no se sube, así que se pide un punto más)
   const falta = mio > 0 ? estado.filas[mio - 1].puntaje - estado.filas[mio].puntaje + 1 : 0;
-  // Copa Individual: el puesto sin las partidas dudosas (los empates comparten puesto, como en la base)
-  const tope = topeDudoso(juego.id), validas = estado.filas.filter((f) => !tope || f.puntaje <= tope), miValida = validas.find((f) => f.perfil === usuarioId);
+  // Copa Individual: el puesto del día (los empates comparten puesto, como en la base)
+  const validas = estado.filas, miValida = validas.find((f) => f.perfil === usuarioId);
   const puestoCopa = miValida ? validas.filter((f) => f.puntaje > miValida.puntaje).length : -1;
   return (
     <>

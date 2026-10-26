@@ -9,7 +9,7 @@ export interface Resultado {
   puntaje: number;
   /** Desglose que se muestra en la pantalla de resultado: [qué, cuánto]. */
   lineas: [string, string][];
-  /** Resumen de la partida que se guarda junto a la marca, para revisar puntajes dudosos. */
+  /** Resumen de la partida que se guarda junto a la marca, para revisar una marca rara desde la Mesa. */
   detalle: Record<string, unknown>;
   /** En vivo: el puntaje de los dos lados y quién ganó. */
   vivo?: { a: number; b: number; ganador: 'a' | 'b' | 'empate' };

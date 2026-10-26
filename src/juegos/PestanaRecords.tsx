@@ -53,7 +53,7 @@ function RecordsIndividual() {
   }, [periodo]);
   return (
     <>
-      <p>La mejor marca de cada persona en cada juego. Las partidas dudosas (sobre el tope del juego) no cuentan.</p>
+      <p>La mejor marca de cada persona en cada juego.</p>
       <Secciones opciones={[['hoy', 'Hoy'], ['semana', 'Esta semana'], ['siempre', 'Siempre']]} valor={periodo} cambiar={setPeriodo} />
       {mapa === undefined ? <p class="tenue">Cargando…</p> : mapa === null ? <p class="aviso atencion">Los récords por periodo todavía no están activados en la base de datos.</p> : (
         <div class="records-grilla">
@@ -250,7 +250,7 @@ export function PestanaCopa() {
   return (
     <div class="copa">
       <h1>Copa Individual</h1>
-      <p>Va <b>aparte del torneo</b>: nunca suma a la liga ni a los equipos. Cada día, en cada juego, tu mejor marca da puntos según tu puesto: <b>{bonito(p.individualMax)}</b> al primero y bajando parejo hasta <b>{bonito(p.individualMin)}</b> al último (si empatan, comparten puesto). Las partidas dudosas no cuentan. Cada lunes el bot anuncia el podio de la semana.</p>
+      <p>Va <b>aparte del torneo</b>: nunca suma a la liga ni a los equipos. Cada día, en cada juego, tu mejor marca da puntos según tu puesto: <b>{bonito(p.individualMax)}</b> al primero y bajando parejo hasta <b>{bonito(p.individualMin)}</b> al último (si empatan, comparten puesto). Cada lunes el bot anuncia el podio de la semana.</p>
       <Secciones opciones={[['hoy', 'Hoy (en curso)'], ['semana', 'Esta semana'], ['temporada', 'Temporada']]} valor={periodo} cambiar={setPeriodo} />
       {filas === undefined ? <p class="tenue">Cargando…</p> : filas === null ? <p class="aviso atencion">La Copa Individual todavía no está activada en la base de datos.</p> : !filas.length ? <p class="tenue">Nadie suma todavía en este periodo.</p> : (
         <div class="tabla-caja">

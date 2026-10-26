@@ -16,17 +16,13 @@ export interface Juego {
   soloVivo?: boolean;
 }
 
-/** Puntaje que nadie debería superar jugando limpio: sobre esto, la marca se muestra como dudosa al organizador. */
+/** Puntaje de referencia de cada juego para la experiencia del pase (cerca de él, más experiencia). Desde el 26-10 ya no marca partidas como dudosas: todo puntaje cuenta. */
 export const TOPES: Record<string, number> = {
   rodillos: 2000, puertas: 2000, huevo: 3400, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, torre: 2400, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2800, parejas: 1000, buscaconchas: 1800, luces: 1800,
   cartero: 1000, cofre: 1300, palabra: 1000, totem: 1000, catapulta: 2800, bolos: 750, minigolf: 1000,
   karts: 2300, tren: 9000, tanques: 16000, bombas: 4200, agujero: 14000, serpientes: 5000, defensa: 10000, museo: 5000, tiro: 9000, cocina: 6000, billar: 8000, triples: 9000, calabazas: 3500, laberinto: 9000, escobas: 4000, bloques: 120000, bestias: 15000,
 };
 
-/** Desde cuánto se marca una partida como dudosa en la Mesa cuando no es el tope (el tren 2.0 da mucho más con la racha y los bonos). */
-export const DUDOSA: Record<string, number> = { tren: 25000 };
-/** Sobre esto una partida es dudosa: no entra a los récords y la Mesa la marca para revisar. */
-export const topeDudoso = (juego: string): number | undefined => DUDOSA[juego] ?? TOPES[juego];
 
 export const MOTORES: Record<Motor, { nombre: string; color: string }> = {
   D: { nombre: 'Reflejos y ritmo', color: '#ff9a2e' },
