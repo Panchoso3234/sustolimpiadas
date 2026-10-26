@@ -1060,3 +1060,13 @@ body.foto .tren-misiones { display: none; }
   .portal > .modos a { flex: none; padding: 6px 14px; }
   .portal > .modos a span { display: none; }
 }
+
+/* Mis duelos: rival en línea y agenda */
+.rival-estado { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; font-weight: 800; color: #3ba55d; }
+.rival-estado i { width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+.rival-estado.ausente { color: #faa61a; }
+.agenda { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.agenda-hora { font-size: .88rem; color: var(--tenue); }
+.agenda-hora.ok { color: var(--alga); }
+.agenda-form { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.agenda-form .texto { width: auto; }

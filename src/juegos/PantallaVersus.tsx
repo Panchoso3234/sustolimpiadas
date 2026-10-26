@@ -8,7 +8,7 @@ import * as V from './duelos';
 import { TABLEROS } from '../vivo/tableros';
 import { DUELOS } from '../vivo/formatos';
 import { PuntosDuelo } from '../vivo/PuntosDuelo';
-import { BotonAvisar } from './BotonAvisar';
+import { Agenda, BotonAvisar, EstadoRival } from './BotonAvisar';
 
 // Versus en diferido: cada lado juega el mismo desafío a su hora, con un solo intento, y el servidor compara.
 
@@ -45,7 +45,9 @@ export function MisEnVivo() {
           return (
             <li key={e.id}>
               <span class="quienes"><b>{nombreVersus(e.modo, e.juego)}</b><span>contra {V.nombreLado(e, lado === 'a' ? 'b' : 'a', datos.personas, datos.equipos)} · {e.oficial ? `jornada ${e.jornada}` : 'amistoso'} · {(e.muerte_subita ?? 0) > 0 ? 'muerte súbita: ronda extra · ' : ''}{e.rondas > 1 ? `ronda ${Math.min(hechas + 1, e.rondas)} de ${e.rondas} · ` : ''}{V.fechaCorta(e.plazo) === 'sin plazo' ? 'sin plazo' : `hasta el ${V.fechaCorta(e.plazo)}`}{!esVivo(e) ? ' · si no pueden a la vez, en Versus 1v1 (Diferido)' : ''}</span></span>
-              {hechas < e.rondas ? <a class="boton principal" href={`#/juegos/vivo/enf-${e.id}`}>Jugar en vivo</a> : <span class="tenue chico">Ya jugaste. Falta tu rival.</span>}
+              <EstadoRival id={lado === 'a' ? e.b_perfil : e.a_perfil} />
+              {hechas < e.rondas ? <span class="fila"><a class="boton principal" href={`#/juegos/vivo/enf-${e.id}`}>Jugar en vivo</a><BotonAvisar id={e.id} /></span> : <span class="tenue chico">Ya jugaste. Falta tu rival.</span>}
+              {hechas < e.rondas && <Agenda id={e.id} yo={yo} plazo={e.plazo} />}
             </li>
           );
         })}
@@ -143,6 +145,7 @@ export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; pres
                   return (
                     <li key={e.id}>
                       <span class="quienes"><b>{nombreVersus(e.modo, e.juego)}</b><span>contra {nombre(e, otro(lado))} · {e.oficial ? `jornada ${e.jornada}` : 'amistoso'} · {V.fechaCorta(e.plazo) === 'sin plazo' ? 'sin plazo' : `hasta el ${V.fechaCorta(e.plazo)}`}{(e.muerte_subita ?? 0) > 0 ? ' · muerte súbita: empataron, se juega una ronda extra' : ''}</span></span>
+                      {e.modo === '1v1' && <EstadoRival id={lado === 'a' ? e.b_perfil : e.a_perfil} />}
                       {hechas < total
                         ? <span class="fila">
                             {seJuegaEnVivo(e) && <a class="boton" href={`#/juegos/vivo/enf-${e.id}`}>Jugar en vivo</a>}
@@ -150,6 +153,7 @@ export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; pres
                             <a class="boton principal" href={`#/juegos/duelo/${e.id}`}>{e.modo === '1v1' && hechas + 1 > V.rondasBase(e) ? 'Jugar la muerte súbita' : total > 1 ? `Jugar ronda ${hechas + 1} de ${V.rondasBase(e)}` : 'Jugar mi turno'}</a>
                           </span>
                         : <span class="tenue chico">Ya jugaste. Falta {e.modo === '1v1' ? 'tu rival' : 'el resto'}.</span>}
+                      {e.modo === '1v1' && hechas < total && seJuegaEnVivo(e) && <Agenda id={e.id} yo={yo!} plazo={e.plazo} />}
                     </li>
                   );
                 })}
@@ -213,7 +217,7 @@ function Retar({ yo, personas, alCrear, elegido, rivalInicial }: { yo: string; p
 
   const crear = async () => {
     if (!rival || !juego) return setAviso({ texto: 'Elige a quién retar y en qué juego.', ok: false });
-    const error = await V.crearEnfrentamientos([{ modo: '1v1', juego, rondas, jornada: 1, plazo: null, oficial: false, a_perfil: yo, b_perfil: rival, a_equipo: null, b_equipo: null }]);
+    const error = await V.crearEnfrentamientos([{ modo: '1v1', juego, rondas, jornada: 1, plazo: V.plazoAmistoso(), oficial: false, a_perfil: yo, b_perfil: rival, a_equipo: null, b_equipo: null }]);
     setAviso(error ? { texto: `No se pudo crear: ${error}`, ok: false } : { texto: 'Reto creado. Aparece arriba, en tus enfrentamientos, y también en los de tu rival.', ok: true });
     if (!error) alCrear();
   };
@@ -221,7 +225,7 @@ function Retar({ yo, personas, alCrear, elegido, rivalInicial }: { yo: string; p
   return (
     <section class="bloque" id="retar">
       <h2>Retar a alguien (amistoso)</h2>
-      <p class="tenue chico">Sirve para practicar: no da puntos del torneo.</p>
+      <p class="tenue chico">Sirve para practicar: no da puntos del torneo. Tienen 3 días para jugarlo (hoy y los dos siguientes); después se cierra solo con lo que se haya jugado.</p>
       <div class="formulario">
         <label>Buscar rival<input class="texto" value={buscar} onInput={(e) => setBuscar(e.currentTarget.value)} placeholder="Escribe un nombre" /></label>
         <label>Rival
@@ -325,7 +329,7 @@ function ResultadoDuelo({ e, lado, marcas, personas, equipos }: { e: V.Enfrentam
     });
   const revancha = async () => {
     const otro = yo === 'a' ? e.b_perfil : e.a_perfil;
-    const error = await V.crearEnfrentamientos([{ modo: '1v1', juego: e.juego, rondas: V.rondasBase(e), jornada: 1, plazo: null, oficial: false, a_perfil: sesion.usuarioId, b_perfil: otro, a_equipo: null, b_equipo: null }]);
+    const error = await V.crearEnfrentamientos([{ modo: '1v1', juego: e.juego, rondas: V.rondasBase(e), jornada: 1, plazo: V.plazoAmistoso(), oficial: false, a_perfil: sesion.usuarioId, b_perfil: otro, a_equipo: null, b_equipo: null }]);
     setAviso(error ? { texto: `No se pudo crear: ${error}`, ok: false } : { texto: 'Revancha creada: ya aparece en tus enfrentamientos y en los de tu rival.', ok: true });
   };
 

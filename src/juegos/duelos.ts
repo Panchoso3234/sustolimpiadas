@@ -1,4 +1,5 @@
 import { supabase, type Rol } from '../nucleo/supabase';
+import { fechaChile } from '../nucleo/azar';
 
 // Acceso a los datos del versus en diferido: personas, equipos, enfrentamientos y sus marcas.
 export type Lado = 'a' | 'b';
@@ -185,3 +186,26 @@ export async function cerrarVencidos(): Promise<void> {
 }
 
 export const fechaCorta =(f: string | null) => (f ? f.split('-').reverse().slice(0, 2).join('/') : 'sin plazo');
+
+/** Duelo agendado (2026-10-26-agendar-duelos.sql): la hora que propuso uno de los dos y si el otro la confirmó. */
+export interface Agenda { enfrentamiento_id: number; hora: string; propuso: string; confirmada: boolean }
+/** La agenda de un duelo; null si no tiene, undefined si la tabla todavía no existe en la base. */
+export async function agendaDe(id: number): Promise<Agenda | null | undefined> {
+  const { data, error } = await supabase.from('agendas').select('enfrentamiento_id,hora,propuso,confirmada').eq('enfrentamiento_id', id).maybeSingle();
+  return error ? undefined : (data as Agenda | null);
+}
+const sinFuncion = (m: string) => (/agendar_duelo|confirmar_agenda|function/i.test(m) ? 'Todavía no se puede agendar: falta activarlo en la base de datos.' : m);
+export async function agendarDuelo(id: number, hora: Date): Promise<string | null> {
+  const { data, error } = await supabase.rpc('agendar_duelo', { p_enf: id, p_hora: hora.toISOString() });
+  return error ? sinFuncion(error.message) : data ? String(data) : null;
+}
+export async function confirmarAgenda(id: number): Promise<string | null> {
+  const { data, error } = await supabase.rpc('confirmar_agenda', { p_enf: id });
+  return error ? sinFuncion(error.message) : data ? String(data) : null;
+}
+/** Plazo de un reto amistoso: 3 días contando hoy (después se cierra solo con lo que se haya jugado). */
+export function plazoAmistoso(): string {
+  const d = new Date(`${fechaChile(Date.now())}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 2);
+  return d.toISOString().slice(0, 10);
+}
