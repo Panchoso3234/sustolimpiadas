@@ -323,6 +323,8 @@ export async function crear(c: Contexto): Promise<Partida> {
       }
     }
     const vivas = calabazas.filter((q) => q.viva).length;
+    // La estructura puede seguir cayendo después de que la sandía se detuvo: si aplasta la última calabaza, el nivel se cierra solo
+    if (!vuelo && !cerrando && disparos > 0 && vivas === 0) { cerrando = true; cerrarEn = t + 0.8; }
     e.hud.tiempo(c.libre ? '🍉 × ∞' : sandias.length ? sandias.map((s) => ICONO[s]).join('') : '—');
     e.hud.extra(`Nivel ${nivel + 1}/${NIVELES.length} · 🎃 ${vivas}${nv.viento ? ` · viento ${nv.viento > 0 ? '→' : '←'}${Math.abs(nv.viento)}` : ''}`);
     e.hud.puntos(total);

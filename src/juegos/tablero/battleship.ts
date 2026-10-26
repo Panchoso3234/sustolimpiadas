@@ -7,7 +7,7 @@ import { crearMesa } from './mesa';
 // Battleship · Desafío: tres batallas contra la máquina en un mar de 10 × 10 (la última en modo Salvo).
 // La flota de la máquina y su puntería salen de la semilla: los dos rivales de un duelo enfrentan lo mismo.
 // Ganar una batalla vale 400, más un bono por hundir en pocos tiros y por cada casilla tuya que quede a flote;
-// si pierdes, suman tus aciertos. Una vez por batalla puedes usar el radar.
+// si pierdes, suman tus aciertos. Una vez por batalla puedes usar el radar. Acertar da otro disparo (también a la máquina).
 const BATALLAS: { dif: Dificultad; salvo: boolean }[] = [{ dif: 'normal', salvo: false }, { dif: 'dificil', salvo: false }, { dif: 'dificil', salvo: true }];
 const PUNTOS = { gana: 400, porTiro: 8, tirosPar: 65, intacta: 10, acierto: 8 }, PIENSA = 0.45;
 const NOMBRE_DIF: Record<Dificultad, string> = { facil: 'fácil', normal: 'normal', dificil: 'difícil' };
@@ -46,9 +46,9 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (modoRadar) { if (usoRadar) return; modoRadar = false; usoRadar = { i, n: radar(suya, i) }; m.sonido.tono(880, 0.2, 'sine', 0.15); return; }
     const r = recibirDisparo(suya, misTiros, i);
     misTiros = [...misTiros, i];
-    if (r.resultado === 'agua') m.sonido.toque(); else { m.sonido.bien(); if (r.resultado === 'hundido') m.hud.aviso('¡Hundida!', 'oro', 1); }
+    if (r.resultado === 'agua') m.sonido.toque(); else { m.sonido.bien(); m.hud.aviso(r.resultado === 'hundido' ? '¡Hundida! Disparas otra vez' : '¡Tocado! Disparas otra vez', 'oro', 1); }
     if (r.fin) return cerrar(true);
-    if (--quedan <= 0) { miTurno = false; quedan = disparosSuyos(); piensaHasta = m.reloj() + PIENSA; }
+    if (r.resultado === 'agua' && --quedan <= 0) { miTurno = false; quedan = disparosSuyos(); piensaHasta = m.reloj() + PIENSA; }
     plazo = m.reloj() + TURNO;
   }
   const tiroMaquina = () => {
@@ -56,7 +56,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     suyosTiros = [...suyosTiros, i];
     if (r.resultado !== 'agua') m.sonido.mal();
     if (r.fin) return cerrar(false);
-    if (--quedan <= 0) { miTurno = true; quedan = disparosMios(); plazo = m.reloj() + TURNO; } else piensaHasta = m.reloj() + PIENSA;
+    if (r.resultado === 'agua' && --quedan <= 0) { miTurno = true; quedan = disparosMios(); plazo = m.reloj() + TURNO; } else piensaHasta = m.reloj() + PIENSA;
   };
   function cerrar(gane: boolean) {
     cerrada = true;

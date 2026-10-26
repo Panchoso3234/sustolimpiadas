@@ -4,7 +4,8 @@ import { CASILLAS_FLOTA, FLOTA, LADO, aFlote, esHorizontal, flotaValida, moverBa
 import { entero, otro, type Lado, type Reglas } from '../tablero';
 
 // Battleship en vivo: la batalla naval clásica en un mar de 10 × 10 con cinco balsas (5, 4, 3, 3 y 2).
-// Primero cada uno ubica su flota (a mano o al azar); después se dispara por turnos, con reloj. Una vez por batalla
+// Primero cada uno ubica su flota (a mano o al azar); después se dispara por turnos, con reloj. Si aciertas a una balsa,
+// vuelves a disparar hasta fallar. Una vez por batalla
 // se puede usar el radar: dice cuántas casillas con balsa hay en un cuadrado de 3 × 3, sin dañarlas.
 // La mitad de las batallas son Salvo: disparas tantas veces por turno como balsas te queden a flote.
 // shortcut: las flotas viajan en el estado y alguien con la consola podría verlas; la pantalla nunca las muestra
@@ -84,6 +85,8 @@ const empezar = (e: EstadoBattleship, t: number): EstadoBattleship => ({ ...e, t
 function disparar(e: EstadoBattleship, l: Lado, i: number, t: number): EstadoBattleship {
   const tiros = { ...e.tiros, [l]: [...e.tiros[l], i] }, y = { ...e, tiros };
   if (terminada(y)) return { ...y, quedan: 0 };
+  // Acertar no gasta el disparo: se sigue hasta fallar
+  if (e.flotas[otro(l)]!.some((b) => b.casillas.includes(i))) return { ...y, plazo: t + TURNO };
   const quedan = e.quedan - 1;
   if (quedan > 0) return { ...y, quedan, plazo: t + TURNO };
   const sig = otro(l);
@@ -91,7 +94,7 @@ function disparar(e: EstadoBattleship, l: Lado, i: number, t: number): EstadoBat
 }
 
 export const battleship: Reglas<EstadoBattleship> = {
-  id: 'balsas', nombre: 'Battleship', idea: 'Esconde tus cinco balsas y hunde las del rival por turnos. Con radar, reloj y, a veces, modo Salvo.',
+  id: 'balsas', nombre: 'Battleship', idea: 'Esconde tus cinco balsas y hunde las del rival por turnos: si aciertas, vuelves a disparar. Con radar, reloj y, a veces, modo Salvo.',
   inicial(semilla) { return { semilla, salvo: generador(`${semilla}|battleship`)() < 0.5, flotas: { a: null, b: null }, tiros: { a: [], b: [] }, turno: 'a', quedan: 0, radar: { a: null, b: null }, plazo: UBICAR }; },
   accion(e, a, lado, t) {
     if (t < 0) return null;

@@ -69,6 +69,9 @@ export function probarTableros(): string[] {
   bs = battleship.accion(bs, { radar: 44 }, 'a', 3)!;
   igual('battleship: radar una vez', [bs.radar.a !== null, battleship.accion(bs, { radar: 45 }, 'a', 3)], [true, null]);
   bs = { ...bs, salvo: false, quedan: 1 };
+  const agua = [...Array(100).keys()].find((i) => !flotaB.some((b) => b.casillas.includes(i)))!;
+  const tocado = battleship.accion(bs, { i: flotaB[0].casillas[0] }, 'a', 3.5)!;
+  igual('battleship: acertar da otro disparo', [tocado.turno, battleship.accion(tocado, { i: agua }, 'a', 3.6)!.turno], ['a', 'b']);
   for (const i of flotaB.flatMap((b) => b.casillas)) { if (bs.turno === 'b') bs = battleship.accion(bs, { i: bs.tiros.b.length }, 'b', 4)!; bs = battleship.accion(bs, { i }, 'a', 4)!; }
   igual('battleship: hundir todo gana', battleship.marcador(bs, 5), { a: 117, b: bs.tiros.b.filter((i) => flotaA.some((b) => b.casillas.includes(i))).length, fin: true });
   const bsUb = battleship.tic!(battleship.inicial('prueba', 1), UBICAR_BS + 0.1)!;
