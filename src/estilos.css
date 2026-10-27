@@ -444,6 +444,12 @@ body.daltonico { --alga: #56b4e9; --sangre: #e69f00; }
 .cartas[data-cartas="21"], .cartas[data-cartas="22"] { grid-template-columns: repeat(6, 1fr); }
 .carta.medusa { background: #ffe6f2; outline: 2px solid var(--sangre); opacity: 1; }
 .carta.medusa .cara { font-size: clamp(1.4rem, 6vw, 2.2rem); }
+.cartas { margin: 0 auto; }
+.carta.dorada.abierta, .carta.dorada.lista { background: #fff1b8; outline: 3px solid #e3a91c; box-shadow: 0 0 12px #ffd23c99; }
+.carta.avisa { outline: 3px solid var(--sangre); box-shadow: 0 0 14px #ff3b6a99; }
+.carta.estrella { background: #e6f6ff; outline: 2px solid #3f9bd8; opacity: .8; }
+.carta.ilumina { outline: 3px solid #3f9bd8; box-shadow: 0 0 14px #3f9bd899; }
+.carta .cara { font-size: clamp(1.1rem, 5vw, 2.2rem); }
 
 /* Erizos Ocultos (estilo Voltorb Flip): 5×5 casillas más una columna y una fila de pistas */
 .voltorb { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; width: 100%; max-width: 440px; }
@@ -548,8 +554,17 @@ body.foto .cocina-guia, body.foto .cocina-accion { display: none; }
 .mando-accion.segunda { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); background: rgba(255, 176, 46, .85); padding: 12px 18px; font-size: .95rem; }
 .camara-boton { position: absolute; right: 12px; top: 56px; padding: 5px 12px; font-size: .86rem; background: rgba(28, 44, 77, .88); z-index: 5; }
 body.foto .camara-boton, body.foto .mando-accion { display: none; }
-.golf-vista { position: absolute; left: 14px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); padding: 10px 16px; border-radius: 99px; background: rgba(20, 32, 58, .82); color: var(--hueso); touch-action: manipulation; z-index: 2; }
-body.foto .golf-vista { display: none; }
+.golf-controles { position: absolute; right: 10px; top: 58px; display: flex; flex-direction: column; gap: 6px; z-index: 2; }
+.golf-controles .boton { min-width: 44px; padding: 8px 10px; background: rgba(20, 32, 58, .82); color: var(--hueso); touch-action: manipulation; font-size: .95rem; }
+.golf-controles .boton.principal { background: var(--calabaza); color: #1d1206; }
+.golf-controles .boton.apagado { opacity: .5; }
+.golf-idea { position: absolute; left: 50%; transform: translateX(-50%); top: 58px; max-width: min(70%, 520px); padding: 6px 12px; border-radius: 12px; background: rgba(20, 32, 58, .72); color: var(--hueso); font-size: .85rem; text-align: center; pointer-events: none; z-index: 1; }
+body.foto .golf-controles, body.foto .golf-idea { display: none; }
+@media (max-width: 640px) {
+  .golf-controles { top: auto; bottom: calc(134px + env(safe-area-inset-bottom, 0px)); left: 8px; right: 8px; flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 4px; }
+  .golf-controles .boton { min-width: 36px; padding: 6px 8px; font-size: .85rem; }
+  .golf-idea { top: 52px; max-width: 92%; font-size: .74rem; }
+}
 
 /* Capturas: sin barras de desplazamiento */
 body.foto, body.foto * { scrollbar-width: none; }
