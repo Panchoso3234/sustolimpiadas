@@ -1,4 +1,4 @@
--- Las Sustolimpiadas · 27 de octubre · El Susto Diario.
+-- Las Sustolimpiadas · 27 de octubre · La Cuarta (el diario del torneo).
 -- Al terminar cada cruce (cuando ya no queda ningún duelo pendiente), la base llama a la función "diario" de Supabase:
 -- redacta la edición, dibuja las portadas, las guarda en el bucket público "diario", deja la edición en la web
 -- (pestaña Diario) y la publica en el canal del Diario de Discord. Desde la Mesa se puede generar un borrador o publicar a mano.

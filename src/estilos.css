@@ -1197,3 +1197,16 @@ body.foto .tren-misiones { display: none; }
 .diario-encuesta { background: #fffaf0; border: 3px dashed var(--tinta); border-radius: 14px; padding: 12px 16px; }
 @media (max-width: 640px) { .diario-imagenes { grid-template-columns: repeat(2, 1fr); } .diario-barra { grid-template-columns: 96px 1fr auto; } }
 @media (prefers-reduced-motion: reduce) { .diario-ticker > div, .diario-nota, .diario-sello, .diario-ficha, .diario-barra i, .diario-mancheta { animation: none; } }
+.diario-imagenes { grid-template-columns: repeat(5, 1fr); }
+.diario-cronica h3 { font-family: var(--display); font-weight: normal; margin: 14px 0 6px; }
+.diario-entrada { font-size: 1.15rem; line-height: 1.45; margin: 6px 0; }
+.diario-entrada::first-letter { font-family: var(--display); font-size: 3rem; float: left; line-height: .9; margin: 4px 8px 0 0; color: var(--naranjo); }
+.diario-previas { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; padding-top: 10px; }
+.diario-previa { position: relative; background: #1b1430; color: var(--papel); border: 3px solid #1b1430; border-radius: 14px; padding: 14px 16px; animation: diario-entra .5s ease-out both; transition: transform .15s; }
+.diario-previa:hover { transform: translateY(-3px) rotate(-.4deg); }
+.diario-previa.derbi { background: #ffe9c7; color: var(--tinta); border-color: var(--naranjo); }
+.diario-previa h4 { font-family: var(--display); font-weight: normal; font-size: 1.2rem; line-height: 1.15; margin: 0 0 6px; color: var(--amarillo); }
+.diario-previa.derbi h4 { color: var(--tinta); }
+.diario-previa p { margin: 0; }
+.diario-previa ul { margin: 8px 0 0; padding-left: 18px; font-size: .92rem; }
+@media (max-width: 640px) { .diario-imagenes { grid-template-columns: repeat(2, 1fr); } }

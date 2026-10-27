@@ -1,6 +1,6 @@
-// El Susto Diario · Edge Function de Supabase (Deno).
+// La Cuarta · Edge Function de Supabase (Deno).
 // La llama la base (pg_net) al terminar un cruce, o la Mesa con el botón "Generar borrador" / "Publicar".
-// 1) Junta los datos del cruce con la llave de servicio. 2) Redacta la edición (periodista.ts). 3) Dibuja las cuatro
+// 1) Junta los datos del cruce con la llave de servicio. 2) Redacta la edición (periodista.ts). 3) Dibuja las cinco
 // páginas (portadas.ts) con Satori y resvg. 4) Las guarda en el bucket público "diario". 5) Guarda la edición en
 // diario_ediciones. 6) Si se pide publicar, la manda al canal del Diario por su webhook (secretos.discord_webhook_diario).
 // Seguridad: solo responde si trae la clave x-diario-clave que vive en secretos.diario_clave (nadie más la conoce).
@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
   const { error: errGuardar } = await db.from('diario_ediciones').upsert({ cruce, numero: edicion.numero, estado, contenido: edicion, imagenes, actualizado: new Date().toISOString(), ...(publicar ? { publicado: new Date().toISOString() } : {}) });
   if (errGuardar) return json({ error: `guardar: ${errGuardar.message}` }, 500);
 
-  // ── 5. Publicar en Discord: el texto y las cuatro páginas como galería ──
+  // ── 5. Publicar en Discord: el texto y las cinco páginas como galería ──
   let discord = 'no se pidió';
   if (publicar) {
     if (!webhook?.startsWith('https://discord.com/api/webhooks/')) discord = 'falta el webhook del Diario (secretos.discord_webhook_diario)';

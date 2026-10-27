@@ -1,11 +1,11 @@
-// El Susto Diario: el periodista. Recibe lo que pasó en un cruce (duelos con sus rondas, tabla, récords, ausencias) y
+// La Cuarta (el diario del torneo): el periodista. Recibe lo que pasó en un cruce (duelos con sus rondas, tabla, récords, ausencias) y
 // escribe la edición: portada, crónicas, la figura, la polémica, el termómetro de la tabla, los números, la columna del
-// editor y la agenda del próximo cruce. Sin dependencias ni IA: plantillas con mucha variación, elegidas con una semilla
+// editor, la agenda y la crónica (repaso del cruce y la previa del siguiente, con leña al fuego). Sin dependencias ni IA: plantillas con mucha variación, elegidas con una semilla
 // (así la misma edición sale igual si se vuelve a generar). Toda cifra sale de los datos; nunca se inventa un resultado.
 // Tono de tabloide deportivo: picante con lo que pasó en la cancha, nunca con las personas.
 import { CRUCES, calendarioDeEquipos } from './calendario.ts';
 
-export const NOMBRE_DIARIO = 'El Susto Diario';
+export const NOMBRE_DIARIO = 'La Cuarta';
 
 // ───────── Lo que entra ─────────
 export interface Persona { id: string; nombre: string; avatar: string | null }
@@ -33,11 +33,14 @@ export interface Termo { equipo: number; puesto: number; antes: number; puntos: 
 export interface Record_ { juego: string; persona: string; puntaje: number; historico: boolean }
 export interface Cifra { etiqueta: string; valor: string; detalle: string }
 export interface Barra { etiqueta: string; valor: number }
+export interface Previa { a: number; b: number; titular: string; texto: string; derbi: boolean; duelos: { a: string; b: string; juego: string }[] }
+export interface Cronica { titulo: string; entrada: string; repaso: string[]; previas: Previa[] }
 export interface Edicion {
   nombre: string; numero: number; cruce: number; desde: string; hasta: string; jornada: number; generado: string;
   portada: Nota; notas: Nota[]; figura: Nota | null; caido: Nota | null; polemica: Nota | null;
   cruces: Cruce[]; termometro: Termo[]; records: Record_[]; estadisticas: Cifra[]; juegosMasJugados: Barra[]; mejoresJugadores: { persona: string; ganados: number; jugados: number; puntos: number }[];
   columna: { titulo: string; texto: string }; agenda: { cruce: number; desde: string; hasta: string; parejas: { a: number; b: number; derbi: boolean }[] } | null;
+  cronica: Cronica;
   ticker: string[];
   personas: Record<string, { nombre: string; avatar: string | null; equipo: number | null }>;
   equipos: Record<number, string>;
@@ -259,8 +262,9 @@ export function redactar(d: Datos): Edicion {
   notas.sort((a, b) => b.puntaje - a.puntaje);
 
   // Los enfrentamientos de equipos (cuántos duelos ganó cada uno y quién se llevó el bono)
+  const armarCruces = (n: number) => {
   const cruces: Cruce[] = [];
-  for (const x of delCruce) {
+  for (const x of d.duelos.filter((y) => y.cruce === n)) {
     const qa = equipoDe(x.a)?.id, qb = equipoDe(x.b)?.id;
     if (qa == null || qb == null) continue;
     let c = cruces.find((y) => (y.a === qa && y.b === qb) || (y.a === qb && y.b === qa));
@@ -269,7 +273,7 @@ export function redactar(d: Datos): Edicion {
     if (ganadorEquipo === c.a) c.ga++; else if (ganadorEquipo === c.b) c.gb++;
     c.duelos.push({ a: invertido ? x.b : x.a, b: invertido ? x.a : x.b, juego: x.juego, res: x.ganador === 'empate' ? 'empate' : x.ganador ? (invertido ? `${x.puntosB}-${x.puntosA}` : `${x.puntosA}-${x.puntosB}`) : 'pendiente', ganador: !x.ganador ? null : x.ganador === 'empate' ? 'empate' : (x.ganador === 'a') !== invertido ? 'a' : 'b' });
   }
-  for (const a of d.ausencias.filter((x) => x.cruce === d.cruce)) {
+  for (const a of d.ausencias.filter((x) => x.cruce === n)) {
     const q = equipoDe(a.perfil)?.id;
     if (q == null) continue;
     let c = cruces.find((y) => (y.a === q && y.b === a.equipoRival) || (y.a === a.equipoRival && y.b === q));
@@ -277,6 +281,9 @@ export function redactar(d: Datos): Edicion {
     if (c.a === q) c.ga++; else c.gb++;
   }
   for (const c of cruces) c.bono = c.ga >= 2 ? c.a : c.gb >= 2 ? c.b : null;
+  return cruces;
+  };
+  const cruces = armarCruces(d.cruce);
 
   // Termómetro: cómo se movió la tabla
   const termometro: Termo[] = ahora.map((x, i) => { const p0 = hayTabla ? antes.findIndex((y) => y.equipo === x.equipo) + 1 : 0; return { equipo: x.equipo, puesto: i + 1, antes: p0 || i + 1, puntos: x.puntos, delta: (p0 || i + 1) - (i + 1), final: i < 4 }; });
@@ -339,7 +346,7 @@ export function redactar(d: Datos): Edicion {
 
   // Columna del editor: opinión breve con remate
   const columna = {
-    titulo: elegir(['Lo que nos dejó el cruce', 'La pluma del Susto', 'Sin pelos en la lengua', 'Desde la tribuna', 'Opinión: así está la cosa']),
+    titulo: elegir(['Lo que nos dejó el cruce', 'La pluma de La Cuarta', 'Sin pelos en la lengua', 'Desde la tribuna', 'Opinión: así está la cosa']),
     texto: [
       lider ? `${equipoNombre(lider.equipo)} manda con ${miles(lider.puntos)} puntos${termometro[0]?.delta > 0 ? ' y además subió' : ''}.` : '',
       notas[0] ? `El cruce ${d.cruce} quedará marcado por ${notas[0].tipo === 'ausente' ? 'una silla vacía' : `el duelo entre ${nombre(notas[0].protagonistas[0])} y ${nombre(notas[0].protagonistas[1] ?? '')}`}.` : '',
@@ -350,16 +357,71 @@ export function redactar(d: Datos): Edicion {
     ].filter(Boolean).join(' '),
   };
 
+  // Crónica: el repaso de cada enfrentamiento y la previa del próximo cruce, echándole leña al fuego
+  const historial = new Map<number, string[]>(); // por equipo: G, E o P en cada cruce jugado
+  for (let n = 1; n <= d.cruce; n++) for (const c of armarCruces(n)) {
+    const res = (mio: number, otro: number) => (mio > otro ? 'G' : mio < otro ? 'P' : 'E');
+    historial.set(c.a, [...(historial.get(c.a) ?? []), res(c.ga, c.gb)]); historial.set(c.b, [...(historial.get(c.b) ?? []), res(c.gb, c.ga)]);
+  }
+  const forma = (q: number) => {
+    const hq = historial.get(q) ?? [], ultimo = hq[hq.length - 1];
+    let racha = 0; while (racha < hq.length && hq[hq.length - 1 - racha] === ultimo) racha++;
+    if (!ultimo) return 'todavía no estrena su historial';
+    if (ultimo === 'G') return racha >= 2 ? `viene con ${racha} cruces ganados al hilo` : 'viene de ganar su cruce';
+    if (ultimo === 'P') return racha >= 2 ? `arrastra ${racha} cruces perdidos seguidos` : 'viene de perder su cruce';
+    return 'viene de un empate que no dejó contento a nadie';
+  };
+  const puntosDe = (q: number) => ahora.find((x) => x.equipo === q)?.puntos ?? 0;
+  const repaso = cruces.map((c) => {
+    const A = equipoNombre(c.a), B = equipoNombre(c.b);
+    const clave = notas.find((n) => n.duelo !== null && n.protagonistas.every((id) => [c.a, c.b].includes(equipoDe(id)?.id ?? -1)));
+    const W = c.ga > c.gb ? A : B, L = c.ga > c.gb ? B : A, R = `${Math.max(c.ga, c.gb)}-${Math.min(c.ga, c.gb)}`;
+    const base = c.ga === c.gb ? `${A} y ${B} firmaron tablas (${c.ga}-${c.gb}) y nadie se llevó el bono.`
+      : `${llenar(elegir(Math.min(c.ga, c.gb) === 0 ? ['{W} pasó por encima de {L}: {R}', 'Barrida: {W} le ganó {R} a {L}', '{L} no pudo con {W}, que ganó {R}'] : ['{W} le ganó {R} a {L}', '{W} se impuso {R} ante {L}', '{L} lo peleó, pero {W} ganó {R}']), { W, L, R })}.${c.bono != null ? ` Bono de cruce para ${W}.` : ''}`;
+    return clave ? `${base} La nota: «${clave.titular}»` : base;
+  });
+  const segundo = ahora[1], cuarto = ahora[3], quinto = ahora[4], restantes = CRUCES.length - d.cruce;
+  const entrada = [
+    lider && segundo ? (lider.puntos > segundo.puntos ? `${equipoNombre(lider.equipo)} lidera con ${miles(lider.puntos)} puntos y le saca ${miles(lider.puntos - segundo.puntos)} a ${equipoNombre(segundo.equipo)}.` : `${equipoNombre(lider.equipo)} y ${equipoNombre(segundo.equipo)} comparten la punta con ${miles(lider.puntos)} puntos: nadie manda solo.`) : '',
+    cuarto && quinto ? (cuarto.puntos > quinto.puntos ? `La línea de la final está en ${miles(cuarto.puntos)} puntos: ${equipoNombre(quinto.equipo)} quedó a ${miles(cuarto.puntos - quinto.puntos)}, mirando desde afuera.` : `${equipoNombre(quinto.equipo)} tiene los mismos ${miles(cuarto.puntos)} puntos que ${equipoNombre(cuarto.equipo)}, pero hoy se queda afuera de la final por desempate.`) : '',
+    restantes > 0 ? `Quedan ${restantes} ${restantes === 1 ? 'cruce' : 'cruces'} de liga. ${elegir(['Nadie está a salvo.', 'Todavía hay tiempo para remontar, o para hundirse.', 'Aquí no hay calculadora que alcance.', 'Lo que viene no es para débiles.'])}` : 'Se terminó la liga: ahora manda la Arena.',
+  ].filter(Boolean).join(' ');
+  const jProx = proximo ? jornadaDe(proximo.desde) : jornada, mProx = d.puntos.multiplicadores[jProx - 1] ?? 1;
+  const lenaUsada = new Set<string>(); // que la misma pulla no salga dos veces en la edición
+  const previas: Previa[] = proximo && agenda ? agenda.parejas.map((p) => {
+    const pa = puestoAhora(p.a), pb = puestoAhora(p.b), F = pa <= pb ? p.a : p.b, D = F === p.a ? p.b : p.a;
+    const entre = (id: string) => [p.a, p.b].includes(equipoDe(id)?.id ?? -1);
+    const duelosProx = d.duelos.filter((x) => x.cruce === proximo.n && entre(x.a) && entre(x.b));
+    const enJuego = (duelosProx.length || 3) * d.puntos.victoria * mProx + 5 * mProx, gap = Math.abs(puntosDe(p.a) - puntosDe(p.b));
+    const v = { A: equipoNombre(p.a), B: equipoNombre(p.b), F: equipoNombre(F), D: equipoNombre(D) };
+    const titulares = Math.min(pa, pb) === 1 ? ['{F} pone el trono en juego ante {D}', '¿Quién le pone el cascabel a {F}? {D} lo intenta', 'El líder no duerme tranquilo: llega {D}', '{D} va por la cabeza de {F}']
+      : (pa <= 4) !== (pb <= 4) ? ['{A} y {B}, duelo en la frontera de la final', 'La final se juega aquí: {A} contra {B}', '{D} va por el puesto de {F}', 'Uno entra, otro mira: {A} contra {B}']
+      : p.derbi ? ['Derbi en la tabla: {A} contra {B}', 'Vecinos y enemigos: {A} y {B}', '{A} y {B}: el que pierde se queda atrás']
+      : Math.abs(pa - pb) >= 5 ? ['{F} contra {D}: David contra Goliat', '¿Batacazo a la vista? {D} desafía a {F}', '{F} es favorito. {D} no leyó el guion']
+      : ['{A} y {B} se ven las caras', 'Cuenta regresiva: {A} contra {B}', '{A} contra {B}: no hay margen para regalar'];
+    const lena = ['Uno de los dos va a dormir mal esa noche.', 'Si {D} no gana aquí, que vaya pensando en otra cosa.', '{F} no puede regalar nada, y {D} lo sabe.', 'En el papel, {F} es favorito. Pero el papel aguanta todo.', 'Advertencia para {F}: los favoritos también se caen.', 'Para {D}, es la oportunidad de callar bocas.', 'Se aceptan apuestas. La nuestra la guardamos.', 'El que pierda, que no le eche la culpa al lag.'];
+    const libres = lena.filter((x) => !lenaUsada.has(x)), pulla = elegir(libres.length ? libres : lena);
+    lenaUsada.add(pulla);
+    const texto = [
+      `${v.A} llega ${pa}.º con ${miles(puntosDe(p.a))} puntos y ${forma(p.a)}; ${v.B} es ${pb}.º con ${miles(puntosDe(p.b))} y ${forma(p.b)}.`,
+      gap ? `Los separan ${miles(gap)} puntos.` : 'Están igualados en puntos.',
+      `En juego: hasta ${miles(enJuego)} puntos${mProx > 1 ? ` (jornada ${jProx}, todo vale x${mProx})` : ''}.`,
+      llenar(pulla, v),
+    ].join(' ');
+    return { a: p.a, b: p.b, titular: llenar(elegir(titulares), v), texto, derbi: p.derbi, duelos: duelosProx.map((x) => ({ a: x.a, b: x.b, juego: x.juego })) };
+  }) : [];
+  const cronica: Cronica = { titulo: elegir(['La crónica del cruce', 'Lo que pasó y lo que se viene', 'Leña al fuego', 'El cruce, contado de cerca']), entrada, repaso, previas };
+
   const ticker = [
     ...notas.slice(0, 6).map((n) => n.titular),
     ...records.filter((x) => x.historico).slice(0, 3).map((x) => `Récord histórico en ${juego(x.juego)}: ${nombre(x.persona)}, ${miles(x.puntaje)}`),
     lider ? `${equipoNombre(lider.equipo)}, líder con ${miles(lider.puntos)} puntos` : '',
   ].filter(Boolean);
 
-  const usados = new Set<string>([...notas.flatMap((n) => n.protagonistas), ...records.map((x) => x.persona), ...mejoresJugadores.map((x) => x.persona)]);
+  const usados = new Set<string>([...notas.flatMap((n) => n.protagonistas), ...records.map((x) => x.persona), ...mejoresJugadores.map((x) => x.persona), ...previas.flatMap((p) => p.duelos.flatMap((x) => [x.a, x.b]))]);
   return {
     nombre: NOMBRE_DIARIO, numero: d.numero, cruce: d.cruce, desde: fechas.desde, hasta: fechas.hasta, jornada, generado: new Date().toISOString(),
-    portada, notas, figura, caido, polemica, cruces, termometro, records, estadisticas, juegosMasJugados, mejoresJugadores, columna, agenda, ticker,
+    portada, notas, figura, caido, polemica, cruces, termometro, records, estadisticas, juegosMasJugados, mejoresJugadores, columna, agenda, cronica, ticker,
     personas: Object.fromEntries([...usados].map((id) => [id, { nombre: nombre(id), avatar: persona(id)?.avatar ?? null, equipo: equipoDe(id)?.id ?? null }])),
     equipos: Object.fromEntries(d.equipos.map((q) => [q.id, q.nombre])),
     juegos: d.juegos,

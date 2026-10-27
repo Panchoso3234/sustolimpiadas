@@ -1,4 +1,4 @@
-// El Susto Diario: las páginas como imágenes (1080 × 1350, buenas para Discord y el celular). Son árboles de elementos
+// La Cuarta: las páginas como imágenes (1080 × 1350, buenas para Discord y el celular). Son árboles de elementos
 // al estilo React ({ type, props }) que Satori convierte en SVG y resvg en PNG. Estética de tabloide deportivo con
 // noche de Halloween: papel, tinta, naranja calabaza, morado y sellos rojos. Sin emojis (la tipografía no los tiene).
 import { miles, type Edicion, type Nota } from './periodista.ts';
@@ -33,8 +33,8 @@ function cabecera(e: Edicion, seccion: string): Nodo {
       h('div', {}, `EDICIÓN N.º ${e.numero} · CRUCE ${e.cruce}`), h('div', { color: C.amarillo }, seccion.toUpperCase()), h('div', {}, `${e.desde.split('-').reverse().slice(0, 2).join('/')} AL ${e.hasta.split('-').reverse().slice(0, 2).join('/')} · JORNADA ${e.jornada}`),
     ]),
     h('div', { justifyContent: 'center', alignItems: 'center', padding: '18px 40px 10px', borderBottom: `6px solid ${C.tinta}` }, [
-      h('div', { fontFamily: 'Alfa', fontSize: 104, color: C.tinta, letterSpacing: -2, lineHeight: 1 }, 'EL SUSTO'),
-      h('div', { fontFamily: 'Alfa', fontSize: 104, color: C.naranja, letterSpacing: -2, lineHeight: 1, marginLeft: 22 }, 'DIARIO'),
+      h('div', { fontFamily: 'Alfa', fontSize: 104, color: C.tinta, letterSpacing: -2, lineHeight: 1 }, 'LA'),
+      h('div', { fontFamily: 'Alfa', fontSize: 104, color: C.naranja, letterSpacing: -2, lineHeight: 1, marginLeft: 22 }, 'CUARTA'),
     ]),
     h('div', { justifyContent: 'center', fontFamily: 'Nunito', fontWeight: 800, fontSize: 20, color: C.gris, padding: '6px 0', letterSpacing: 4, borderBottom: `2px solid ${C.tinta}` }, 'EL DIARIO OFICIAL DE LAS SUSTOLIMPIADAS · LO QUE PASÓ, SIN FILTRO'),
   ]);
@@ -147,13 +147,37 @@ function tabla(e: Edicion): Nodo {
   ]);
 }
 
-/** Las cuatro páginas de una edición. */
+// ───────── Página 5: la crónica (repaso y previa del próximo cruce) ─────────
+function cronica(e: Edicion): Nodo {
+  const c = e.cronica, previas = c.previas.slice(0, 4), resto = c.previas.length - previas.length;
+  const nombre = (id: string) => recortar(limpio(e.personas[id]?.nombre ?? '?'), 14);
+  return fondo([
+    cabecera(e, 'Crónica'),
+    h('div', { fontFamily: 'Alfa', fontSize: 50, padding: '16px 40px 4px' }, limpio(c.titulo)),
+    h('div', { fontSize: 24, lineHeight: 1.3, color: '#3a3342', padding: '0 40px' }, recortar(limpio(c.entrada), 260)),
+    h('div', { flexDirection: 'column', margin: '14px 40px 0', borderLeft: `8px solid ${C.naranja}`, paddingLeft: 16 }, [
+      h('div', { fontFamily: 'Alfa', fontSize: 26, color: C.rojo }, `Lo que dejó el cruce ${e.cruce}`),
+      ...c.repaso.slice(0, 3).map((t) => h('div', { fontSize: 19, lineHeight: 1.25, marginTop: 4 }, recortar(limpio(t), 220))),
+    ]),
+    h('div', { fontFamily: 'Alfa', fontSize: 34, padding: '16px 40px 6px' }, e.agenda ? `Lo que se viene: cruce ${e.agenda.cruce}` : 'Lo que se viene'),
+    h('div', { flexDirection: 'column', padding: '0 40px', gap: 10 }, previas.map((p) => h('div', { flexDirection: 'column', background: p.derbi ? '#ffe9c7' : C.noche, color: p.derbi ? C.tinta : C.papel, borderRadius: 14, padding: '10px 18px', border: `3px solid ${p.derbi ? C.naranja : C.noche}` }, [
+      h('div', { fontFamily: 'Alfa', fontSize: 25, color: p.derbi ? C.tinta : C.amarillo }, recortar(limpio(p.titular), 60)),
+      h('div', { fontSize: 17, lineHeight: 1.25, marginTop: 4 }, recortar(limpio(p.texto), 340)),
+      p.duelos.length ? h('div', { fontSize: 16, fontWeight: 800, marginTop: 4, color: p.derbi ? C.morado : C.naranja }, recortar(p.duelos.map((x) => `${nombre(x.a)} vs ${nombre(x.b)} (${e.juegos[x.juego] ?? x.juego})`).join(' · '), 110)) : h('div', {}, ''),
+    ]))),
+    resto > 0 ? h('div', { fontSize: 19, color: C.gris, padding: '8px 40px 0' }, `Y ${resto} ${resto === 1 ? 'enfrentamiento más' : 'enfrentamientos más'} en la web.`) : h('div', {}, ''),
+    pie('La crónica completa, duelo por duelo, en la web'),
+  ]);
+}
+
+/** Las cinco páginas de una edición. */
 export function paginas(e: Edicion): Pagina[] {
   return [
     { nombre: 'portada', ancho: ANCHO, alto: ALTO, arbol: portada(e) },
     { nombre: 'resultados', ancho: ANCHO, alto: ALTO, arbol: resultados(e) },
     { nombre: 'estadisticas', ancho: ANCHO, alto: ALTO, arbol: estadisticas(e) },
     { nombre: 'tabla', ancho: ANCHO, alto: ALTO, arbol: tabla(e) },
+    { nombre: 'cronica', ancho: ANCHO, alto: ALTO, arbol: cronica(e) },
   ];
 }
 /** Las tipografías (libres, de Google Fonts por fontsource): titulares Alfa Slab One y texto Nunito. */

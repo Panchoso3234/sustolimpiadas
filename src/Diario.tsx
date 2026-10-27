@@ -3,7 +3,7 @@ import { supabase, useSesion } from './nucleo/supabase';
 import type { Edicion, Nota } from '../supabase/functions/_shared/periodista.ts';
 import { CRUCES } from '../supabase/functions/_shared/calendario.ts';
 
-// El Susto Diario en la web: el archivo de ediciones (una por cruce) y cada edición completa, con estilo de tabloide.
+// La Cuarta (el diario del torneo) en la web: el archivo de ediciones (una por cruce) y cada edición completa, con estilo de tabloide.
 // Las redacta y dibuja la función "diario" de Supabase al terminar cada cruce. La organización ve también los
 // borradores y puede generarlos o publicarlos desde aquí. Las reacciones de los lectores alimentan la mejora continua.
 
@@ -31,7 +31,7 @@ export function Diario({ sub }: { sub: string }) {
   const hoy = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10), terminados = CRUCES.filter((c) => c.hasta < hoy);
   return (
     <div class="pagina diario-portal">
-      <header class="diario-mancheta"><span>EL SUSTO</span> <b>DIARIO</b></header>
+      <header class="diario-mancheta"><span>LA</span> <b>CUARTA</b></header>
       <p class="diario-lema">El diario oficial de las Sustolimpiadas · una edición al terminar cada cruce · lo que pasó, sin filtro</p>
       {aviso && <p class="aviso atencion">{aviso}</p>}
       {!filas.length && <p class="tenue">La primera edición sale apenas termine el próximo cruce. Aquí vas a encontrar todas.</p>}
@@ -97,7 +97,7 @@ function EdicionVista({ fila, admin, pedir, aviso }: { fila: Fila; admin: boolea
       <header class="diario-cabeza">
         <span>Edición N.º {e.numero} · Cruce {e.cruce}</span><span>{fecha(e.desde)} al {fecha(e.hasta)} · Jornada {e.jornada}</span>
       </header>
-      <header class="diario-mancheta"><span>EL SUSTO</span> <b>DIARIO</b></header>
+      <header class="diario-mancheta"><span>LA</span> <b>CUARTA</b></header>
       <p class="diario-lema">El diario oficial de las Sustolimpiadas · lo que pasó, sin filtro</p>
       {fila.estado === 'borrador' && <p class="aviso atencion">BORRADOR: solo la organización lo ve.</p>}
       {admin && <div class="fila"><button class="boton" onClick={() => pedir(e.cruce, false)}>Generar de nuevo</button><button class="boton principal" onClick={() => pedir(e.cruce, true)}>{fila.estado === 'publicado' ? 'Publicar otra vez en Discord' : 'Publicar en Discord'}</button>{aviso && <span class="tenue chico">{aviso}</span>}</div>}
@@ -152,6 +152,23 @@ function EdicionVista({ fila, admin, pedir, aviso }: { fila: Fila; admin: boolea
         <section class="diario-agenda">
           <h2>Se viene el cruce {e.agenda.cruce} <span class="chico">({fecha(e.agenda.desde)} al {fecha(e.agenda.hasta)})</span></h2>
           <div class="fila">{e.agenda.parejas.map((p, i) => <span key={i} class={`diario-pareja${p.derbi ? ' derbi' : ''}`}>{e.equipos[p.a]} vs {e.equipos[p.b]}{p.derbi ? ' · DERBI' : ''}</span>)}</div>
+        </section>
+      )}
+
+      {e.cronica && (
+        <section class="diario-cronica">
+          <h2 class="diario-seccion">Crónica · {e.cronica.titulo}</h2>
+          <p class="diario-entrada">{e.cronica.entrada}</p>
+          {e.cronica.repaso.length > 0 && <><h3>Lo que dejó el cruce {e.cruce}</h3><ul class="diario-lista">{e.cronica.repaso.map((t, i) => <li key={i}>{t}</li>)}</ul></>}
+          {e.cronica.previas.length > 0 && <h3>Lo que se viene{e.agenda ? `: cruce ${e.agenda.cruce}` : ''}</h3>}
+          <div class="diario-previas">{e.cronica.previas.map((p, i) => (
+            <article key={i} class={`diario-previa${p.derbi ? ' derbi' : ''}`}>
+              {p.derbi && <span class="diario-sello">DERBI</span>}
+              <h4>{p.titular}</h4>
+              <p>{p.texto}</p>
+              {p.duelos.length > 0 && <ul>{p.duelos.map((x, j) => <li key={j}><b>{nombre(x.a)}</b> vs <b>{nombre(x.b)}</b> · {e.juegos[x.juego] ?? x.juego}</li>)}</ul>}
+            </article>
+          ))}</div>
         </section>
       )}
 
