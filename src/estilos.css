@@ -1219,3 +1219,42 @@ body.foto .tren-misiones { display: none; }
 .diario .diario-seccion, .diario-portal .diario-seccion, .diario .diario-encuesta h2 { color: var(--tinta); }
 .diario .sigla, .diario-portal .sigla { color: #b4500f; }
 .diario-destacados .sigla { color: var(--amarillo); }
+
+/* ───────── TSUKIBET ───────── */
+.tsukibet-cabeza { padding: 18px 22px; border-radius: 16px; background: radial-gradient(circle at 85% 20%, rgba(255, 224, 138, .25), transparent 40%), linear-gradient(135deg, #2a1550, #14203a); border: 2px solid #c9a227; }
+.tsukibet-logo { font-family: var(--display) !important; font-size: clamp(2.2rem, 8vw, 3.4rem) !important; letter-spacing: 1px !important; color: var(--hueso) !important; margin: 0 0 6px; text-shadow: 0 4px 0 #0b1222; }
+.tsukibet-logo b { color: #ffd23c; font-weight: normal; }
+.tsukibet-reloj { background: #ffd23c; color: #14203a; font-weight: 800; border-radius: 99px; padding: 3px 12px; animation: tsukibet-late 2s ease-in-out infinite; }
+@keyframes tsukibet-late { 50% { transform: scale(1.05); } }
+.tsukibet-parejas { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.tsukibet-pareja { background: var(--noche); border: 2px solid var(--linea); border-radius: 16px; padding: 12px; transition: border-color .2s; }
+.tsukibet-pareja.lista { border-color: #c9a227; }
+.tsukibet-equipos { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; gap: 8px; }
+.tsukibet-vs { align-self: center; font-family: var(--display); color: #ffd23c; }
+.tsukibet-equipo { display: flex; flex-direction: column; gap: 4px; text-align: left; font: inherit; color: var(--hueso); background: var(--tabla); border: 2px solid var(--linea); border-radius: 12px; padding: 10px; cursor: pointer; transition: transform .12s, background .2s, border-color .2s; }
+.tsukibet-equipo:hover:not(:disabled) { transform: translateY(-2px); border-color: #ffd23c; }
+.tsukibet-equipo:disabled { cursor: default; opacity: .8; }
+.tsukibet-equipo b { font-family: var(--display); font-weight: normal; font-size: 1.1rem; }
+.tsukibet-equipo small { color: var(--tenue); font-size: .78rem; line-height: 1.25; overflow-wrap: anywhere; }
+.tsukibet-equipo.elegido { background: linear-gradient(135deg, #c9a227, #ffd23c); color: #14203a; border-color: #ffd23c; box-shadow: 0 0 0 3px rgba(255, 210, 60, .3); }
+.tsukibet-equipo.elegido small { color: #3a2f12; }
+.tsukibet-marcador { margin-top: 10px; align-items: center; }
+.tsukibet-resultados { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 12px; }
+.tsukibet-resultados .fila { align-items: center; flex-wrap: nowrap; }
+.tsukibet-barra { flex: 1; height: 12px; border-radius: 99px; background: #7a4bb8; overflow: hidden; min-width: 60px; }
+.tsukibet-barra i { display: block; height: 100%; width: var(--parte); background: #ffd23c; }
+.tsukibet-bien { color: var(--alga); font-weight: 800; }
+.tsukibet-mal { color: var(--sangre); font-weight: 800; }
+@media (max-width: 640px) { .tsukibet-parejas { grid-template-columns: 1fr; } }
+
+/* ───────── Declaraciones antes del duelo ───────── */
+.declaraciones { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.declaracion { margin: 0; max-width: none; background: rgba(255, 224, 138, .08); border-left: 4px solid var(--calabaza); border-radius: 0 10px 10px 0; padding: 6px 10px; font-style: italic; }
+.declaracion b { font-style: normal; }
+.declaracion.mia { border-left-color: var(--luna); }
+.declaracion.oculta { opacity: .55; }
+.declaracion .boton { margin-left: 8px; padding: 2px 10px; font-style: normal; }
+.declarar { display: flex; flex-direction: column; gap: 4px; }
+.declarar .fila { align-items: center; flex-wrap: nowrap; }
+.declarar input { flex: 1; min-width: 0; font: inherit; color: var(--hueso); background: var(--noche); border: 2px solid var(--linea); border-radius: 10px; padding: 8px 10px; }
+.declarar input:focus { border-color: var(--calabaza); outline: none; }

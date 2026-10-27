@@ -56,6 +56,11 @@ Deno.serve(async (req) => {
     todas<any>('marcas', 'perfil_id,juego,puntaje,fecha', (q) => q.gte('fecha', fechas.desde).lte('fecha', fechas.hasta)),
     todas<any>('marcas', 'juego,puntaje', (q) => q.lt('fecha', fechas.desde)),
   ]);
+  // TSUKIBET y declaraciones: si sus tablas todavía no existen, la edición sale sin ellos
+  const [tsuki, decl] = await Promise.all([
+    todas<any>('tsukibet', 'cruce,perfil_id,equipo_a,equipo_b,ganador,marcador', (q) => q.in('cruce', [cruce, cruce + 1])).catch(() => []),
+    todas<any>('declaraciones', 'enfrentamiento_id,perfil_id,texto', (q) => q.eq('oculta', false)).catch(() => []),
+  ]);
   const mejorPrevio: Record<string, number> = {};
   for (const m of previas) mejorPrevio[m.juego] = Math.max(mejorPrevio[m.juego] ?? 0, m.puntaje);
   const p = ajustes as Record<string, unknown>, num = (v: unknown, d: number) => (typeof v === 'number' ? v : d);
@@ -67,6 +72,8 @@ Deno.serve(async (req) => {
     ausencias: aus.map((a: any) => ({ cruce: a.cruce, jornada: a.jornada, perfil: a.perfil_id, equipoRival: a.equipo_rival, ausente: a.ausente })),
     marcasCruce: marcasCruce.map((m: any) => ({ perfil: m.perfil_id, juego: m.juego, puntaje: m.puntaje, fecha: m.fecha })), mejorPrevio,
     juegos: Object.fromEntries(nom.map((x: any) => [x.id, x.nombre])),
+    pronosticos: tsuki.map((t: any) => ({ cruce: t.cruce, perfil: t.perfil_id, a: Number(t.equipo_a), b: Number(t.equipo_b), ganador: Number(t.ganador), marcador: t.marcador })),
+    declaraciones: decl.map((x: any) => ({ enf: Number(x.enfrentamiento_id), perfil: x.perfil_id, texto: x.texto })),
     puntos: { victoria: num(p.victoria, 7), empate: num(p.empate, 6), derrota: num(p.derrota, 4), multiplicadores: Array.isArray(p.multiplicadores) ? (p.multiplicadores as number[]) : [1, 1.25, 1.5, 2] },
   };
 

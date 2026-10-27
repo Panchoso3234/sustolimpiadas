@@ -9,6 +9,7 @@ import { TABLEROS } from '../vivo/tableros';
 import { DUELOS } from '../vivo/formatos';
 import { PuntosDuelo } from '../vivo/PuntosDuelo';
 import { Agenda, BotonAvisar, EstadoRival } from './BotonAvisar';
+import { Declaraciones } from './Declaracion';
 
 // Versus en diferido: cada lado juega el mismo desafío a su hora, con un solo intento, y el servidor compara.
 
@@ -48,6 +49,7 @@ export function MisEnVivo() {
               <EstadoRival id={lado === 'a' ? e.b_perfil : e.a_perfil} />
               {hechas < e.rondas ? <span class="fila"><a class="boton principal" href={`#/juegos/vivo/enf-${e.id}`}>Jugar en vivo</a><BotonAvisar id={e.id} /></span> : <span class="tenue chico">Ya jugaste. Falta tu rival.</span>}
               {hechas < e.rondas && <Agenda id={e.id} yo={yo} plazo={e.plazo} />}
+              <Declaraciones enf={e.id} a={e.a_perfil} b={e.b_perfil} personas={datos.personas} editable={!datos.marcas.some((m) => m.enfrentamiento_id === e.id && m.perfil_id === yo)} />
             </li>
           );
         })}
@@ -154,6 +156,7 @@ export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; pres
                           </span>
                         : <span class="tenue chico">Ya jugaste. Falta {e.modo === '1v1' ? 'tu rival' : 'el resto'}.</span>}
                       {e.modo === '1v1' && hechas < total && seJuegaEnVivo(e) && <Agenda id={e.id} yo={yo!} plazo={e.plazo} />}
+                      {e.modo === '1v1' && <Declaraciones enf={e.id} a={e.a_perfil} b={e.b_perfil} personas={datos.personas} editable={!datos.marcas.some((m) => m.enfrentamiento_id === e.id && m.perfil_id === yo)} />}
                     </li>
                   );
                 })}
@@ -341,6 +344,7 @@ function ResultadoDuelo({ e, lado, marcas, personas, equipos }: { e: V.Enfrentam
         <span class="tenue chico"> · {e.modo === '1v1' ? 'rondas ganadas' : 'puntos sumados'}</span></p>
       {e.desempate && <p class="tenue">{e.desempate === 'suma' ? 'Quedaron iguales en rondas: se definió por la suma de puntaje de todas las rondas.' : 'Quedaron iguales en rondas y en la suma: se definió por la mejor ronda de cada uno.'}</p>}
       {e.oficial && e.modo === '1v1' ? <PuntosDuelo id={e.id} /> : lado && <p>{e.oficial ? `Para el torneo: +${puntosVersus(puntos, como, e.jornada)} puntos (jornada ${e.jornada}).` : 'Amistoso: no da puntos del torneo.'}</p>}
+      {e.modo === '1v1' && <Declaraciones enf={e.id} a={e.a_perfil} b={e.b_perfil} personas={personas} editable={false} titulo="Antes del duelo dijeron" />}
       {marcas.length > 0 && <div class="tabla-caja">
         <table class="tabla duelo-detalle">
           <thead><tr><th>{e.modo === '1v1' ? 'Ronda' : 'Integrantes'}</th><th>{n(yo)}</th><th>{n(el)}</th></tr></thead>

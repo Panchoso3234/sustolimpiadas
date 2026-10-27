@@ -4,6 +4,7 @@
 // (así la misma edición sale igual si se vuelve a generar). Toda cifra sale de los datos; nunca se inventa un resultado.
 // Tono de tabloide deportivo: picante con lo que pasó en la cancha, nunca con las personas.
 import { CRUCES, calendarioDeEquipos } from './calendario.ts';
+import { puntuar, reparto, resultadosCruce, type Pronostico } from './tsukibet.ts';
 
 export const NOMBRE_DIARIO = 'La Cuarta';
 
@@ -23,6 +24,8 @@ export interface Datos {
   marcasCruce: MarcaD[]; mejorPrevio: Record<string, number>;
   juegos: Record<string, string>;
   puntos: { victoria: number; empate: number; derrota: number; multiplicadores: number[] };
+  /** TSUKIBET (los de este cruce y el siguiente) y las declaraciones antes de los duelos (sin las ocultas). */
+  pronosticos?: Pronostico[]; declaraciones?: { enf: number; perfil: string; texto: string }[];
 }
 
 // ───────── Lo que sale ─────────
@@ -41,6 +44,7 @@ export interface Edicion {
   cruces: Cruce[]; termometro: Termo[]; records: Record_[]; estadisticas: Cifra[]; juegosMasJugados: Barra[]; mejoresJugadores: { persona: string; ganados: number; jugados: number; puntos: number }[];
   columna: { titulo: string; texto: string }; agenda: { cruce: number; desde: string; hasta: string; parejas: { a: number; b: number; derbi: boolean }[] } | null;
   cronica: Cronica;
+  tsukibet: { participantes: number; plenos: string[]; tabla: { persona: string; puntos: number; aciertos: number }[] } | null;
   ticker: string[];
   personas: Record<string, { nombre: string; avatar: string | null; equipo: number | null }>;
   equipos: Record<number, string>;
@@ -248,9 +252,13 @@ export function redactar(d: Datos): Edicion {
     const M = ambas.length ? `${miles(Math.abs(margen))} puntos` : `${rg} rondas a ${rp}`;
     const v = { G: nombre(G), P: nombre(P), A: nombre(x.a), B: nombre(x.b), J: juego(x.juego), M, R: empate ? 'empatado' : `${rg} a ${rp}`, EG: qG?.nombre ?? 'su equipo', EP: qP?.nombre ?? 'su equipo', PG: String(pG || '-'), PP: String(pP || '-') };
     const titular = llenar(elegir(TITULARES[tipo]), v), lead = llenar(elegir(LEADS[tipo]), v);
+    const dijo = (id: string) => d.declaraciones?.find((y) => y.enf === x.id && y.perfil === id)?.texto;
+    // Si habló antes y perdió, se lo recordamos; si ganó, lo había avisado
+    const frase = empate ? '' : dijo(P) ? `${nombre(P)} había dicho: «${dijo(P)}». Perdió ${rg} a ${rp}. ` : dijo(G) ? `${nombre(G)} lo avisó antes: «${dijo(G)}». ` : '';
+    if (frase) puntaje += dijo(P) ? 8 : 3;
     const detalle = ambas.map((n) => `Ronda ${n}: ${miles(por(ga || empate ? 'a' : 'b', n) ?? 0)} a ${miles(por(ga || empate ? 'b' : 'a', n) ?? 0)}`).join(' · ');
     notas.push({
-      tipo, seccion: SECCIONES[tipo], titular, bajada: lead, cuerpo: detalle ? `${detalle}.` : '', protagonistas: [G, P],
+      tipo, seccion: SECCIONES[tipo], titular, bajada: lead, cuerpo: `${frase}${detalle ? `${detalle}.` : ''}`.trim(), protagonistas: [G, P],
       cifra: ambas.length ? (tipo === 'paliza' ? `+${miles(Math.abs(margen))}` : `${miles(Math.abs(margen))} pts`) : `${rg}-${rp}`, puntaje, duelo: x.id, sello: SELLOS[tipo],
     });
   }
@@ -372,18 +380,26 @@ export function redactar(d: Datos): Edicion {
     return 'viene de un empate que no dejó contento a nadie';
   };
   const puntosDe = (q: number) => ahora.find((x) => x.equipo === q)?.puntos ?? 0;
+  const equipoId = (id: string) => equipoDe(id)?.id ?? null;
+  const delCruceT = (d.pronosticos ?? []).filter((x) => x.cruce === d.cruce);
+  const resT = resultadosCruce(d.cruce, d.duelos.map((x) => ({ cruce: x.cruce, a: x.a, b: x.b, ganador: x.ganador, estado: x.estado })), d.ausencias.map((x) => ({ cruce: x.cruce, perfil: x.perfil, equipoRival: x.equipoRival })), equipoId);
+  const tablaT = puntuar(delCruceT, resT), plenos = tablaT.filter((t) => t.perfecto).map((t) => t.perfil);
+  const tsukibet = delCruceT.length ? { participantes: tablaT.length, plenos, tabla: tablaT.slice(0, 5).map((t) => ({ persona: t.perfil, puntos: t.puntos, aciertos: t.aciertos })) } : null;
   const repaso = cruces.map((c) => {
     const A = equipoNombre(c.a), B = equipoNombre(c.b);
     const clave = notas.find((n) => n.duelo !== null && n.protagonistas.every((id) => [c.a, c.b].includes(equipoDe(id)?.id ?? -1)));
     const W = c.ga > c.gb ? A : B, L = c.ga > c.gb ? B : A, R = `${Math.max(c.ga, c.gb)}-${Math.min(c.ga, c.gb)}`;
     const base = c.ga === c.gb ? `${A} y ${B} firmaron tablas (${c.ga}-${c.gb}) y nadie se llevó el bono.`
       : `${llenar(elegir(Math.min(c.ga, c.gb) === 0 ? ['{W} pasó por encima de {L}: {R}', 'Barrida: {W} le ganó {R} a {L}', '{L} no pudo con {W}, que ganó {R}'] : ['{W} le ganó {R} a {L}', '{W} se impuso {R} ante {L}', '{L} lo peleó, pero {W} ganó {R}']), { W, L, R })}.${c.bono != null ? ` Bono de cruce para ${W}.` : ''}`;
-    return clave ? `${base} La nota: «${clave.titular}»` : base;
+    const ganadorQ = c.ga > c.gb ? c.a : c.gb > c.ga ? c.b : null, creian = ganadorQ != null ? reparto(delCruceT, c.a, c.b, ganadorQ) : null;
+    const fe = creian && creian.total >= 3 && creian.parte < 0.3 ? ` En TSUKIBET solo el ${Math.round(creian.parte * 100)}% creía en ${W}.` : '';
+    return `${base}${fe}${clave ? ` La nota: «${clave.titular}»` : ''}`;
   });
   const segundo = ahora[1], cuarto = ahora[3], quinto = ahora[4], restantes = CRUCES.length - d.cruce;
   const entrada = [
     lider && segundo ? (lider.puntos > segundo.puntos ? `${equipoNombre(lider.equipo)} lidera con ${miles(lider.puntos)} puntos y le saca ${miles(lider.puntos - segundo.puntos)} a ${equipoNombre(segundo.equipo)}.` : `${equipoNombre(lider.equipo)} y ${equipoNombre(segundo.equipo)} comparten la punta con ${miles(lider.puntos)} puntos: nadie manda solo.`) : '',
     cuarto && quinto ? (cuarto.puntos > quinto.puntos ? `La línea de la final está en ${miles(cuarto.puntos)} puntos: ${equipoNombre(quinto.equipo)} quedó a ${miles(cuarto.puntos - quinto.puntos)}, mirando desde afuera.` : `${equipoNombre(quinto.equipo)} tiene los mismos ${miles(cuarto.puntos)} puntos que ${equipoNombre(cuarto.equipo)}, pero hoy se queda afuera de la final por desempate.`) : '',
+    tsukibet ? (plenos.length ? `En TSUKIBET pronosticaron ${tsukibet.participantes} personas y ${plenos.length === 1 ? `solo ${nombre(plenos[0])} acertó todo` : `${plenos.length} hicieron pleno`}.` : `En TSUKIBET pronosticaron ${tsukibet.participantes} personas y nadie acertó todo.`) : '',
     restantes > 0 ? `Quedan ${restantes} ${restantes === 1 ? 'cruce' : 'cruces'} de liga. ${elegir(['Nadie está a salvo.', 'Todavía hay tiempo para remontar, o para hundirse.', 'Aquí no hay calculadora que alcance.', 'Lo que viene no es para débiles.'])}` : 'Se terminó la liga: ahora manda la Arena.',
   ].filter(Boolean).join(' ');
   const jProx = proximo ? jornadaDe(proximo.desde) : jornada, mProx = d.puntos.multiplicadores[jProx - 1] ?? 1;
@@ -407,7 +423,9 @@ export function redactar(d: Datos): Edicion {
       gap ? `Los separan ${miles(gap)} puntos.` : 'Están igualados en puntos.',
       `En juego: hasta ${miles(enJuego)} puntos${mProx > 1 ? ` (jornada ${jProx}, todo vale x${mProx})` : ''}.`,
       llenar(pulla, v),
-    ].join(' ');
+      (() => { const r = reparto((d.pronosticos ?? []).filter((x) => x.cruce === proximo.n), p.a, p.b, p.a); return r.total >= 3 ? `En TSUKIBET, el ${Math.round(Math.max(r.parte, 1 - r.parte) * 100)}% va con ${r.parte >= 0.5 ? v.A : v.B}.` : ''; })(),
+      (() => { const f = d.declaraciones?.find((y) => duelosProx.some((x) => x.id === y.enf)); return f ? `Y ya hablaron: ${nombre(f.perfil)} dijo «${f.texto}».` : ''; })(),
+    ].filter(Boolean).join(' ');
     return { a: p.a, b: p.b, titular: llenar(elegir(titulares), v), texto, derbi: p.derbi, duelos: duelosProx.map((x) => ({ a: x.a, b: x.b, juego: x.juego })) };
   }) : [];
   const cronica: Cronica = { titulo: elegir(['La crónica del cruce', 'Lo que pasó y lo que se viene', 'Leña al fuego', 'El cruce, contado de cerca']), entrada, repaso, previas };
@@ -418,10 +436,10 @@ export function redactar(d: Datos): Edicion {
     lider ? `${equipoNombre(lider.equipo)}, líder con ${miles(lider.puntos)} puntos` : '',
   ].filter(Boolean);
 
-  const usados = new Set<string>([...notas.flatMap((n) => n.protagonistas), ...records.map((x) => x.persona), ...mejoresJugadores.map((x) => x.persona), ...previas.flatMap((p) => p.duelos.flatMap((x) => [x.a, x.b]))]);
+  const usados = new Set<string>([...notas.flatMap((n) => n.protagonistas), ...records.map((x) => x.persona), ...mejoresJugadores.map((x) => x.persona), ...previas.flatMap((p) => p.duelos.flatMap((x) => [x.a, x.b])), ...(tsukibet?.tabla.map((t) => t.persona) ?? []), ...(d.declaraciones ?? []).map((x) => x.perfil)]);
   return {
     nombre: NOMBRE_DIARIO, numero: d.numero, cruce: d.cruce, desde: fechas.desde, hasta: fechas.hasta, jornada, generado: new Date().toISOString(),
-    portada, notas, figura, caido, polemica, cruces, termometro, records, estadisticas, juegosMasJugados, mejoresJugadores, columna, agenda, cronica, ticker,
+    portada, notas, figura, caido, polemica, cruces, termometro, records, estadisticas, juegosMasJugados, mejoresJugadores, columna, agenda, cronica, tsukibet, ticker,
     personas: Object.fromEntries([...usados].map((id) => [id, { nombre: nombre(id), avatar: persona(id)?.avatar ?? null, equipo: equipoDe(id)?.id ?? null }])),
     equipos: Object.fromEntries(d.equipos.map((q) => [q.id, q.nombre])),
     juegos: d.juegos,

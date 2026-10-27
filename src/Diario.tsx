@@ -186,6 +186,15 @@ function EdicionVista({ fila, admin, pedir, aviso, anterior, siguiente }: { fila
         </section>
       )}
 
+      {e.tsukibet && (
+        <section class="diario-columna">
+          <span class="sigla">TSUKIBET del cruce {e.cruce}</span>
+          <h3>{e.tsukibet.plenos.length ? `Pleno para ${e.tsukibet.plenos.map(nombre).join(', ')}` : 'Nadie hizo pleno'}</h3>
+          <p>{e.tsukibet.participantes} personas pronosticaron. <a href="#/progreso/tsukibet">Ver la tabla completa</a></p>
+          <ol class="diario-lista">{e.tsukibet.tabla.map((t) => <li key={t.persona}><b>{nombre(t.persona)}</b> · {t.puntos} pts · {t.aciertos} aciertos</li>)}</ol>
+        </section>
+      )}
+
       {e.cronica && (
         <section class="diario-cronica">
           <h2 class="diario-seccion">Crónica · {e.cronica.titulo}</h2>

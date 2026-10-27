@@ -2,8 +2,8 @@
 -- Al terminar cada cruce (cuando ya no queda ningún duelo pendiente), la base llama a la función "diario" de Supabase:
 -- redacta la edición, dibuja las portadas, las guarda en el bucket público "diario", deja la edición en la web
 -- (pestaña Diario) y la publica en el canal del Diario de Discord. Desde la Mesa se puede generar un borrador o publicar a mano.
--- Antes de ejecutar: desplegar la función (npx supabase functions deploy diario --no-verify-jwt --project-ref glkoujvomcnpqdpakbxa)
--- y guardar el webhook del canal (ver el paso de abajo, que se ejecuta aparte). Se puede volver a ejecutar sin problema.
+-- Antes: guardar el webhook del canal de noticias en secretos (discord_webhook_diario). La función se puede desplegar
+-- después (npx supabase functions deploy diario --no-verify-jwt --project-ref glkoujvomcnpqdpakbxa). Se puede volver a ejecutar sin problema.
 
 -- ───────── Ediciones ─────────
 create table if not exists public.diario_ediciones (

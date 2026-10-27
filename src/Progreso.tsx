@@ -1,3 +1,4 @@
+import { Tsukibet } from './Tsukibet';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { supabase, useSesion } from './nucleo/supabase';
 import { juegoPorId } from './juegos/catalogo';
@@ -13,6 +14,7 @@ const PESTANAS = [
   { ruta: 'pase', titulo: 'Pase de temporada' },
   { ruta: 'logros', titulo: 'Logros' },
   { ruta: 'semana', titulo: 'Mi semana' },
+  { ruta: 'tsukibet', titulo: 'TSUKIBET' },
   { ruta: 'adivinos', titulo: 'Adivinos' },
 ];
 const SITIO = 'https://panchoso3234.github.io/sustolimpiadas/';
@@ -52,7 +54,8 @@ export function Progreso({ sub }: { sub: string }) {
       <nav class="modos" aria-label="Secciones del progreso">
         {PESTANAS.map((p) => <a key={p.ruta} href={`#/progreso/${p.ruta}`} class={pestana === p.ruta ? 'activa' : ''}>{p.titulo}</a>)}
       </nav>
-      {pestana === 'adivinos' ? <Adivinos usuarioId={sesion.usuarioId} />
+      {pestana === 'tsukibet' ? <Tsukibet />
+        : pestana === 'adivinos' ? <Adivinos usuarioId={sesion.usuarioId} />
         : !sesion.usuarioId && !muestra ? <p class="aviso atencion">Entra con Discord para ver tu pase, tus logros y tu semana: se calculan de las partidas guardadas en la tabla.</p>
         : !datos || !xp ? <p class="tenue">Calculando tu progreso…</p>
         : pestana === 'logros' ? <Logros lista={lista} />

@@ -12,6 +12,7 @@ import { escucharSalas, type InfoSala } from './vivo/vestibulo';
 
 /** Las últimas novedades del sitio (la más reciente primero). */
 const NOVEDADES: { fecha: string; texto: string }[] = [
+  { fecha: '2026-10-27', texto: 'TSUKIBET (en Progreso): pronostica quién gana cada enfrentamiento del próximo cruce. Y antes de cada duelo puedes dejar tu declaración en Mis enfrentamientos: tu rival la ve y La Cuarta la cita.' },
   { fecha: '2026-10-27', texto: 'Nueva sección ¡El Diario!: La Cuarta, el diario del torneo, sale al terminar cada cruce con lo que pasó, estadísticas, la tabla y la crónica de lo que se viene. Ordenado por jornadas y para leer de corrido.' },
   { fecha: '2026-10-26', texto: 'CONECTA4 y Battleship ya son juegos del torneo: desafío contra la máquina que da puntos, en vivo contra otra persona y en el sorteo de los cruces. Con Pop Out, Salvo, radar y reloj.' },
   { fecha: '2026-10-26', texto: 'Bomberman 2.0 (tres arenas, mejoras clásicas, calavera y puntaje por puesto) y Angry Birds 2.0 (diez niveles con piedra, hielo, sandías especiales y viento). Sus marcas antiguas se borran.' },
