@@ -57,6 +57,8 @@ export function MesaLiga() {
     const uso = (j: string) => duelos.filter((d) => d.cruce && d.juego === j && d.creado.slice(0, 10) >= (VERSION_NUEVA[j] ?? '')).length;
     return V.mezclar(juegosDuelo(cruce).filter((j) => !excluir.includes(j))).sort((a, b) => uso(a) - uso(b));
   };
+  /** Un equipo disuelto: sin integrantes ni pendientes. Sigue en el calendario (para no reordenarlo) y su rival descansa. */
+  const vacio = (id: number) => { const q = equipos.find((x) => x.id === id); return !!q && !q.miembros.length && !q.pendientes?.length; };
   /** Sortea rivales dentro de cada par de equipos y un juego distinto para cada duelo del cruce (hay más juegos que duelos). */
   const preparar = (n: number, juegosFijos?: string[]) => {
     const juegos = juegosFijos ?? juegosPorUso(n);
@@ -159,7 +161,7 @@ export function MesaLiga() {
           return (
             <li key={i} class={`${ahora ? 'ahora' : ''}${hechos.length ? ' creado' : ''}`}>
               <div class="liga-cruce-cabeza"><b>Cruce {i + 1}</b><span class="tenue chico">{c ? `${V.fechaCorta(c.desde)} al ${V.fechaCorta(c.hasta)} · jornada ${jornadaDe(c.desde)}` : 'sin fecha'}{ahora ? ' · EN CURSO' : ''}</span></div>
-              <ul>{r.parejas.map(([a, b]) => <li key={`${a}-${b}`}>{nombreEquipo(a)} <span class="tenue">vs</span> {nombreEquipo(b)}</li>)}</ul>
+              <ul>{r.parejas.map(([a, b]) => <li key={`${a}-${b}`}>{vacio(a) || vacio(b) ? <>Descansa: {nombreEquipo(vacio(a) ? b : a)} <span class="tenue chico">(su rival se disolvió)</span></> : <>{nombreEquipo(a)} <span class="tenue">vs</span> {nombreEquipo(b)}</>}</li>)}</ul>
               {r.descansa != null && <span class="chico tenue">Descansa: {nombreEquipo(r.descansa)}</span>}
               {hechos.length
                 ? <span class="chico">{cerrados} de {hechos.length} duelos cerrados · {[...new Set(hechos.map((d) => nombreVersus('1v1', d.juego)))].join(', ')}</span>

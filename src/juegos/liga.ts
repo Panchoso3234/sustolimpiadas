@@ -134,7 +134,8 @@ export function calcularLiga(equipos: Equipo[], personas: Persona[], duelos: Enf
     const bono = BONO_CRUCE * (p.multiplicadores[reg.jornada - 1] ?? 1);
     linea.puntos += bono; linea.bonos += bono; linea.porJornada[reg.jornada - 1] += bono;
   }
-  const tabla = [...lineas.values()].sort((a, b) => b.puntos - a.puntos || b.ganados - a.ganados);
+  // Un equipo que se disolvió (sin integrantes) sigue en el calendario para no reordenarlo, pero no en la tabla
+  const tabla = [...lineas.values()].filter((l) => l.equipo.miembros.length || l.equipo.pendientes?.length).sort((a, b) => b.puntos - a.puntos || b.ganados - a.ganados);
   const personal = [...jugadores.values()].sort((a, b) => b.puntos - a.puntos || b.ganados - a.ganados);
   // Quiénes van a la final si el torneo terminara hoy: participantes (sin staff) de los 4 primeros, más los mejores personales
   const hayPuntos = tabla.some((l) => l.puntos > 0);
