@@ -42,6 +42,7 @@ export async function abrir(url, { ancho = 1280, alto = 720, escala = 1 } = {}) 
   await cdp('Page.navigate', { url });
   return {
     errores,
+    cdp,
     consola,
     async js(expr) { const r = await cdp('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }); return r.result?.result?.value; },
     async clic(selector) { return this.js(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (!e) return false; e.click(); return true; })()`); },

@@ -23,6 +23,10 @@ export const marcarRecorrido = (visto: boolean) => escribir('susto.recorrido', v
 export const avisosVistos = (): string[] => leer('susto.avisos', []);
 export const marcarAvisos = (claves: string[]) => escribir('susto.avisos', [...new Set([...avisosVistos(), ...claves])].slice(-300));
 
+/** Ediciones del diario ya leídas en este navegador (por cruce), para marcar las nuevas. */
+export const diarioLeido = (): number[] => leer('susto.diarioLeido', []);
+export const marcarDiario = (cruce: number) => escribir('susto.diarioLeido', [...new Set([...diarioLeido(), cruce])]);
+
 /** Último puesto conocido en la tabla de hoy de cada juego, para avisar si alguien te supera. */
 export const puestosVistos = (): Record<string, number> => leer('susto.puestos', {});
 export const guardarPuestos = (p: Record<string, number>) => escribir('susto.puestos', p);

@@ -89,6 +89,11 @@ Deno.serve(async (req) => {
   const estado = publicar || previa?.estado === 'publicado' ? 'publicado' : 'borrador';
   const { error: errGuardar } = await db.from('diario_ediciones').upsert({ cruce, numero: edicion.numero, estado, contenido: edicion, imagenes, actualizado: new Date().toISOString(), ...(publicar ? { publicado: new Date().toISOString() } : {}) });
   if (errGuardar) return json({ error: `guardar: ${errGuardar.message}` }, 500);
+  // La primera vez que se publica, a todos les llega el aviso a la campana de la web
+  if (publicar && previa?.estado !== 'publicado') {
+    const texto = `Salió La Cuarta del cruce ${cruce}: ${edicion.portada.titular}`.slice(0, 300);
+    await db.from('avisos').insert(per.map((x: any) => ({ perfil_id: x.id, tipo: 'diario', texto, enlace: `#/diario/${cruce}` })));
+  }
 
   // ── 5. Publicar en Discord: el texto y las cinco páginas como galería ──
   let discord = 'no se pidió';

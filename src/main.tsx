@@ -45,7 +45,7 @@ const RUTAS = [
   { ruta: 'personaje', titulo: 'Mi personaje' },
   { ruta: 'juegos', titulo: 'Juegos' },
   { ruta: 'progreso', titulo: 'Progreso' },
-  { ruta: 'diario', titulo: 'Diario' },
+  { ruta: 'diario', titulo: '¡El Diario!' },
   { ruta: 'arena', titulo: 'Arena' },
 ];
 

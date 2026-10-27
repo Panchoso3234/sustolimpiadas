@@ -93,6 +93,12 @@ revoke all on function public.diario_automatico() from public, anon, authenticat
 select cron.unschedule('diario-cruces') where exists (select 1 from cron.job where jobname = 'diario-cruces');
 select cron.schedule('diario-cruces', '20 3 * * *', 'select public.diario_automatico()');
 
+-- ───────── Aviso de lanzamiento en la campana de todas las cuentas (una sola vez por persona) ─────────
+insert into public.avisos (perfil_id, tipo, texto, enlace)
+select p.id, 'diario-nuevo', 'Nueva sección ¡El Diario!: La Cuarta te contará todas las noticias del torneo, jornada por jornada.', '#/diario'
+from public.perfiles p
+where not exists (select 1 from public.avisos a where a.perfil_id = p.id and a.tipo = 'diario-nuevo');
+
 -- Comprobación
 select 'clave lista' as diario, exists (select 1 from public.secretos where clave = 'diario_clave') as ok
 union all select 'webhook del canal', exists (select 1 from public.secretos where clave = 'discord_webhook_diario')

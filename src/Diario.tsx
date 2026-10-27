@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'preact/hooks';
 import { supabase, useSesion } from './nucleo/supabase';
 import type { Edicion, Nota } from '../supabase/functions/_shared/periodista.ts';
-import { CRUCES } from '../supabase/functions/_shared/calendario.ts';
+import { CRUCES, JORNADAS } from './juegos/liga';
+import { diarioLeido, marcarDiario } from './nucleo/preferencias';
 
 // La Cuarta (el diario del torneo) en la web: el archivo de ediciones (una por cruce) y cada edición completa, con estilo de tabloide.
 // Las redacta y dibuja la función "diario" de Supabase al terminar cada cruce. La organización ve también los
@@ -15,7 +16,7 @@ const fecha = (f: string) => f.split('-').reverse().slice(0, 2).join('/');
 export function Diario({ sub }: { sub: string }) {
   const sesion = useSesion(), admin = sesion.perfil?.rol === 'admin';
   const [filas, setFilas] = useState<Fila[] | null>(null), [aviso, setAviso] = useState('');
-  const cargar = () => supabase.from('diario_ediciones').select('cruce,numero,estado,contenido,imagenes,publicado').order('cruce', { ascending: false }).then(({ data, error }) => { if (error) setAviso('Todavía no hay diario (falta ejecutar su SQL).'); setFilas((data ?? []) as Fila[]); });
+  const cargar = () => supabase.from('diario_ediciones').select('cruce,numero,estado,contenido,imagenes,publicado').order('cruce', { ascending: false }).then(({ data, error }) => { if (error && admin) setAviso('Todavía no hay diario (falta ejecutar su SQL).'); setFilas((data ?? []) as Fila[]); });
   useEffect(() => { cargar(); }, [sesion.usuarioId]);
   const pedir = async (cruce: number, publicar: boolean) => {
     setAviso(publicar ? `Publicando la edición del cruce ${cruce}…` : `Generando el borrador del cruce ${cruce}…`);
@@ -25,19 +26,36 @@ export function Diario({ sub }: { sub: string }) {
     setTimeout(cargar, 9000);
   };
   if (filas === null) return <div class="pagina"><p class="tenue">Cargando el diario…</p></div>;
-  const n = Number(sub);
-  const fila = filas.find((x) => x.cruce === n);
-  if (sub && fila) return <EdicionVista fila={fila} admin={admin} pedir={pedir} aviso={aviso} />;
+  const fila = /^\d+$/.test(sub) ? filas.find((x) => x.cruce === Number(sub)) : undefined;
+  if (fila) {
+    // Para leer de corrido: la edición anterior y la siguiente (en orden de cruce)
+    const orden = [...filas].sort((a, b) => a.cruce - b.cruce), i = orden.indexOf(fila);
+    return <EdicionVista fila={fila} admin={admin} pedir={pedir} aviso={aviso} anterior={orden[i - 1]?.cruce ?? null} siguiente={orden[i + 1]?.cruce ?? null} />;
+  }
   const hoy = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10), terminados = CRUCES.filter((c) => c.hasta < hoy);
+  // Las jornadas que ya empezaron; se abre la pedida en la ruta (#/diario/j2) o la última con ediciones
+  const jornadas = JORNADAS.filter((j) => j.desde <= hoy || filas.some((x) => j.cruces.includes(x.cruce)));
+  const pedida = /^j\d$/.test(sub) ? Number(sub.slice(1)) : null;
+  const conEdiciones = jornadas.filter((j) => filas.some((x) => j.cruces.includes(x.cruce)));
+  const elegida = jornadas.find((j) => j.n === pedida) ?? conEdiciones[conEdiciones.length - 1] ?? jornadas[jornadas.length - 1] ?? JORNADAS[0];
+  const leidas = diarioLeido(), deLaJornada = filas.filter((x) => elegida.cruces.includes(x.cruce)).sort((a, b) => a.cruce - b.cruce);
   return (
     <div class="pagina diario-portal">
-      <header class="diario-mancheta"><span>LA</span> <b>CUARTA</b></header>
-      <p class="diario-lema">El diario oficial de las Sustolimpiadas · una edición al terminar cada cruce · lo que pasó, sin filtro</p>
+      <header class="diario-mancheta"><span>¡EL</span> <b>DIARIO!</b></header>
+      <p class="diario-lema">Las ediciones de La Cuarta, jornada por jornada · una al terminar cada cruce · lo que pasó, sin filtro</p>
       {aviso && <p class="aviso atencion">{aviso}</p>}
-      {!filas.length && <p class="tenue">La primera edición sale apenas termine el próximo cruce. Aquí vas a encontrar todas.</p>}
+      <nav class="diario-jornadas" aria-label="Jornadas">
+        {jornadas.map((j) => {
+          const nuevas = filas.filter((x) => j.cruces.includes(x.cruce) && x.estado === 'publicado' && !leidas.includes(x.cruce)).length;
+          return <a key={j.n} class={`diario-jornada${j === elegida ? ' activa' : ''}`} href={`#/diario/j${j.n}`} aria-current={j === elegida ? 'page' : undefined}>Jornada {j.n}{nuevas > 0 && <i class="globo">{nuevas}</i>}</a>;
+        })}
+      </nav>
+      <h2 class="diario-seccion">Jornada {elegida.n} <span class="chico tenue">· del {fecha(elegida.desde)} al {fecha(elegida.hasta)} · cruces {elegida.cruces.join(', ')}</span></h2>
+      {!deLaJornada.length && <p class="tenue">Todavía no hay ediciones en esta jornada. Sale una apenas termine cada cruce: {elegida.cruces.map((c) => `cruce ${c}`).join(', ')}.</p>}
       <div class="diario-archivo">
-        {filas.map((x) => (
+        {deLaJornada.map((x) => (
           <a key={x.cruce} class={`diario-tarjeta${x.estado === 'borrador' ? ' borrador' : ''}`} href={`#/diario/${x.cruce}`}>
+            {x.estado === 'publicado' && !leidas.includes(x.cruce) && <span class="diario-sello">NUEVA</span>}
             {x.imagenes[0] && <img src={x.imagenes[0]} alt="" loading="lazy" />}
             <span class="sigla">Edición N.º {x.numero} · cruce {x.cruce}{x.estado === 'borrador' ? ' · BORRADOR' : ''}</span>
             <b>{x.contenido.portada.titular}</b>
@@ -73,9 +91,13 @@ function NotaVista({ e, n, grande = false }: { e: Edicion; n: Nota; grande?: boo
   );
 }
 
-function EdicionVista({ fila, admin, pedir, aviso }: { fila: Fila; admin: boolean; pedir: (c: number, p: boolean) => void; aviso: string }) {
+const PAGINAS: Record<string, string> = { portada: 'Portada', resultados: 'Resultados', estadisticas: 'Estadísticas', tabla: 'La tabla', cronica: 'Crónica' };
+
+function EdicionVista({ fila, admin, pedir, aviso, anterior, siguiente }: { fila: Fila; admin: boolean; pedir: (c: number, p: boolean) => void; aviso: string; anterior: number | null; siguiente: number | null }) {
   const e = fila.contenido, nombre = (id: string) => e.personas[id]?.nombre ?? '?';
-  const [grande, setGrande] = useState<string | null>(null);
+  const [copiado, setCopiado] = useState(false);
+  useEffect(() => { if (fila.estado === 'publicado') marcarDiario(fila.cruce); window.scrollTo(0, 0); }, [fila.cruce]);
+  const copiar = () => navigator.clipboard?.writeText(location.href).then(() => { setCopiado(true); setTimeout(() => setCopiado(false), 2000); }).catch(() => undefined);
   const [votos, setVotos] = useState<Record<string, number>>({}), [mio, setMio] = useState<string | null>(null);
   const sesion = useSesion();
   useEffect(() => {
@@ -97,16 +119,25 @@ function EdicionVista({ fila, admin, pedir, aviso }: { fila: Fila; admin: boolea
       <header class="diario-cabeza">
         <span>Edición N.º {e.numero} · Cruce {e.cruce}</span><span>{fecha(e.desde)} al {fecha(e.hasta)} · Jornada {e.jornada}</span>
       </header>
-      <header class="diario-mancheta"><span>LA</span> <b>CUARTA</b></header>
-      <p class="diario-lema">El diario oficial de las Sustolimpiadas · lo que pasó, sin filtro</p>
+      {!fila.imagenes.length && <header class="diario-mancheta"><span>LA</span> <b>CUARTA</b></header>}
       {fila.estado === 'borrador' && <p class="aviso atencion">BORRADOR: solo la organización lo ve.</p>}
       {admin && <div class="fila"><button class="boton" onClick={() => pedir(e.cruce, false)}>Generar de nuevo</button><button class="boton principal" onClick={() => pedir(e.cruce, true)}>{fila.estado === 'publicado' ? 'Publicar otra vez en Discord' : 'Publicar en Discord'}</button>{aviso && <span class="tenue chico">{aviso}</span>}</div>}
 
+      {/* La edición se lee de corrido: las páginas una debajo de la otra, como una tira */}
+      {fila.imagenes.length > 0 && (
+        <div class="diario-tira">
+          {fila.imagenes.map((src, i) => {
+            const pagina = src.split('/').pop()!.split('.')[0];
+            return <img key={src} src={src} loading={i ? 'lazy' : 'eager'} width={1080} height={1350} alt={i === 0 ? `Portada de La Cuarta, cruce ${e.cruce}: ${e.portada.titular}` : `La Cuarta, cruce ${e.cruce}: ${PAGINAS[pagina] ?? 'página'}`} />;
+          })}
+        </div>
+      )}
+
+      <details class="diario-texto" open={!fila.imagenes.length}>
+      <summary>Leer la edición en texto (con todos los duelos y estadísticas)</summary>
       <section class="diario-portada">
         <NotaVista e={e} n={e.portada} grande />
       </section>
-      <div class="diario-imagenes">{fila.imagenes.map((src) => <button key={src} class="diario-mini" onClick={() => setGrande(src)} aria-label="Ver página en grande"><img src={src} alt="Página del diario" loading="lazy" /></button>)}</div>
-      {grande && <div class="diario-visor" onClick={() => setGrande(null)} role="dialog" aria-label="Página del diario"><img src={grande} alt="" /></div>}
 
       <h2 class="diario-seccion">Lo que pasó</h2>
       <div class="diario-notas">{e.notas.slice(1, 9).map((n, i) => <NotaVista key={i} e={e} n={n} />)}</div>
@@ -171,13 +202,19 @@ function EdicionVista({ fila, admin, pedir, aviso }: { fila: Fila; admin: boolea
           ))}</div>
         </section>
       )}
+      </details>
 
       <section class="bloque diario-encuesta">
         <h2>¿Qué te pareció esta edición?</h2>
         {sesion.usuarioId ? <div class="fila">{REACCIONES.map(([k, t]) => <button key={k} class={`boton${mio === k ? ' principal' : ''}`} onClick={() => votar(k)}>{t} <span class="tenue">{votos[k] ?? 0}</span></button>)}</div> : <p class="tenue chico">Entra con Discord para opinar.</p>}
         <p class="tenue chico">Tus respuestas nos ayudan a mejorar el diario en cada edición.</p>
       </section>
-      <p><a class="boton" href="#/diario">Todas las ediciones</a></p>
+      <nav class="fila diario-pasar" aria-label="Otras ediciones">
+        {anterior !== null && <a class="boton" href={`#/diario/${anterior}`}>← Edición del cruce {anterior}</a>}
+        <a class="boton" href={`#/diario/j${JORNADAS.find((j) => j.cruces.includes(e.cruce))?.n ?? 1}`}>Volver a la jornada</a>
+        <button class="boton" onClick={copiar}>{copiado ? 'Enlace copiado' : 'Copiar enlace'}</button>
+        {siguiente !== null && <a class="boton principal" href={`#/diario/${siguiente}`}>Edición del cruce {siguiente} →</a>}
+      </nav>
     </div>
   );
 }
