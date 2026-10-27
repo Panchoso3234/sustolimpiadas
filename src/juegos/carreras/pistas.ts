@@ -23,7 +23,7 @@ export function rodillos(c: Contexto): Promise<Partida> {
     barras(z, y) {
       piso(0, y, z, 18);
       for (let b = 0; b < 3; b++) barras.push({ x: rango(-1, 1), y, z: z - 4 - b * 5, largo: 7.4, vel: signo() * (1.6 + nivel * 0.25 + r() * 0.5), fase: r() * 6.28, alta: b > 0 && r() < 0.45 });
-      gema(signo() * 3.3, y, z - 12);
+      gema(signo() * 2.4, y, z - 12); // no al borde: un golpe de barra ahí te bota a la lava sin remedio
       return 18;
     },
     dobles(z, y) {
@@ -57,9 +57,9 @@ export function rodillos(c: Contexto): Promise<Partida> {
     },
     columnas(z, y) {
       piso(0, y, z, 3);
-      for (let i = 0; i < 5; i++) bloques.push({ x: (i % 2 ? 1 : -1) * rango(0.5, 1.8), y: y + 0.4, z: z - 4.5 - i * 2.9, w: 1.9, h: 4, d: 1.9, color: PIEDRA_2, mueve: { eje: 'y', amp: 0.7, vel: 1.4 + r() * 0.6, fase: r() * 6.28 } });
+      // La gema va sobre la tercera columna (antes flotaba entre columnas y no había dónde pararse para tomarla)
+      for (let i = 0; i < 5; i++) { const x = (i % 2 ? 1 : -1) * rango(0.5, 1.8); bloques.push({ x, y: y + 0.4, z: z - 4.5 - i * 2.9, w: 1.9, h: 4, d: 1.9, color: PIEDRA_2, mueve: { eje: 'y', amp: 0.7, vel: 1.4 + r() * 0.6, fase: r() * 6.28 } }); if (i === 2) gema(x, y + 2.4, z - 4.5 - i * 2.9, 50); }
       piso(0, y, z - 18.5, 2.5);
-      gema(0, y + 1.2, z - 10.3, 50);
       return 20;
     },
     islas(z, y) {
@@ -72,7 +72,7 @@ export function rodillos(c: Contexto): Promise<Partida> {
     rocas(z, y) {
       piso(0, y, z, 18, 7);
       for (let i = 0; i < 3; i++) rocas.push({ x: -2.3 + i * 2.3, y, z0: z - 17.5, z1: z - 0.5, vel: 6 + nivel * 0.5 + r() * 2, fase: r() * 17, radio: 0.75 });
-      gema(signo() * 3.1, y, z - 9, 25);
+      gema(signo() * 1.15, y, z - 9, 25); // entre dos carriles de rocas, lejos del borde
       return 18;
     },
     martillos(z, y) {
@@ -110,7 +110,7 @@ export function rodillos(c: Contexto): Promise<Partida> {
       martillos.push({ x: 0, y: y + 5, z: z - 10, largo: 4.1, amp: 1.05, vel: 2 + r() * 0.5, fase: r() * 6.28 });
       bloques.push({ x: 0, y: y + 5.5, z: z - 10, w: 9, h: 0.4, d: 0.4, color: '#3a2c28', adorno: true });
       barras.push({ x: 0, y, z: z - 15, largo: 7.4, vel: signo() * (2.2 + nivel * 0.25), fase: r() * 6.28, alta: true });
-      gema(signo() * 3.2, y, z - 7.5, 25);
+      gema(signo() * 2.6, y, z - 7.5, 25);
       return 18;
     },
   };

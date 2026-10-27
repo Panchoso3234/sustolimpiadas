@@ -52,7 +52,7 @@ export const NIVELES: Nivel[] = [
     ],
     guardias: [[[1, 5], [10, 5]], [[15, 1], [15, 8], [9, 8]]],
     camaras: [{ x: 8, z: 1, ang: ABAJO + 0.5, barre: 0.7 }],
-    laseres: [{ celdas: [[11, 9]], prendido: 2, apagado: 1.4, desfase: 0 }],
+    laseres: [{ celdas: [[11, 9]], prendido: 2, apagado: 1.8, desfase: 0 }],
   },
   {
     nombre: 'La Bóveda',

@@ -419,6 +419,8 @@ export async function crearCarrera(c: Contexto, pista: Pista): Promise<Partida> 
   });
 
   if (DEV) (window as unknown as Record<string, unknown>).__carrera = () => ({ x: p.x, y: p.y, z: p.z, sumado, hitos: hitoSig, caidas, fallos, terminado, lava: lava ? alturaLava(e.reloj()) : null });
+  // Solo en pruebas: las gemas y un salto directo a un punto (para revisar que cada gema se pueda tomar sin caer)
+  if (DEV) Object.assign(window as unknown as Record<string, unknown>, { __gemas: () => gemas.map((g) => ({ ...g.g, tomada: g.tomada })), __ir: (x: number, y: number, z: number) => { p.set(x, y, z); v.set(0, 0, 0); } });
   // Solo en pruebas: dónde están las puertas buenas que siguen cerradas (para el bot que juega perfecto)
   // Solo en pruebas: los bloques donde se puede pisar (para el bot que recorre Lava Loca)
   if (DEV) (window as unknown as Record<string, unknown>).__pisos = () => piezas.filter((x) => choca(x) && x.b.tipo !== 'falsa' && x.b.tipo !== 'real').map((x) => ({ x: x.b.x, y: x.b.y, z: x.b.z, w: x.b.w, d: x.b.d, tipo: x.b.tipo ?? '' }));

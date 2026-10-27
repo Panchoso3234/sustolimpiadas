@@ -593,6 +593,9 @@ body.foto ::-webkit-scrollbar { display: none; }
 .conchas-sacar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; width: min(100%, 460px); padding: 0 10px; }
 .conchas-sacar .boton { padding: 4px 0; font-size: 0.72rem; min-width: 0; }
 .concha.ultima { box-shadow: 0 0 0 3px #ffffffaa; }
+.conchas-col.sacada { background: #ffd23c33; }
+.conchas-col.baja .concha { animation: baja-concha 0.5s ease-in; }
+@keyframes baja-concha { from { transform: translateY(-100%); opacity: 0.4; } to { transform: none; opacity: 1; } }
 .concha { transition: background 0.15s; }
 .mesa-tablero .tablero-conchas, .mesa-tablero .mares { margin: 0 auto; }
 .mesa-tablero .mares { justify-content: center; }

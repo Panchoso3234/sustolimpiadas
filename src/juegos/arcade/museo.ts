@@ -203,7 +203,8 @@ export async function crear(c: Contexto): Promise<Partida> {
     for (const gd of guardias) { gd.x = gd.ronda[0].x; gd.z = gd.ronda[0].z; gd.i = 1 % gd.ronda.length; gd.paso = 1; gd.ruta = []; gd.modo = 'ronda'; gd.espera = t + 1; }
   };
 
-  await armarNivel(0);
+  // Solo en pruebas: ?piso=N empieza en ese piso
+  await armarNivel(import.meta.env.DEV ? Math.max(0, Math.min(NIVELES.length - 1, Number(new URLSearchParams(location.search).get('piso') ?? 1) - 1)) : 0);
   let cargando = false;
   e.hud.tiempo(mmss(DURA)); e.hud.puntos(0);
 
@@ -211,7 +212,12 @@ export async function crear(c: Contexto): Promise<Partida> {
     const paso = Math.min(dt, 0.05);
     for (const v of botin.values()) v.rotation.y += paso * 2;
     if (tesoro) { tesoro.rotation.y += paso * 1.5; tesoro.position.y = 0.95 + Math.sin(t * 2) * 0.06; }
-    for (const l of laseres) { const on = (t + l.desfase) % (l.prendido + l.apagado) < l.prendido; for (const m of l.mallas) { m.visible = on || Math.sin(t * 20) > 0.6; (m.material as THREE.MeshBasicMaterial).opacity = on ? 1 : 0.3; m.userData.on = on; } }
+    // Láser: encendido, rojo fuerte; apagado, tenue y quieto; en el último medio segundo antes de encenderse, parpadea de aviso
+    // (antes parpadeaba todo el rato que estaba apagado y parecía encendido: no se sabía cuándo cruzar)
+    for (const l of laseres) {
+      const fase = (t + l.desfase) % (l.prendido + l.apagado), on = fase < l.prendido, avisa = !on && l.prendido + l.apagado - fase < 0.5;
+      for (const m of l.mallas) { const mt = m.material as THREE.MeshBasicMaterial; mt.transparent = true; m.visible = on || !avisa || Math.sin(t * 30) > 0; mt.opacity = on ? 1 : avisa ? 0.7 : 0.12; m.userData.on = on; }
+    }
     if (empezado && !terminado && !cargando) {
       // El ladrón: corre o va en puntillas, y choca con los muros
       const puntillas = mando.pulsada, mx = mando.x, mz = mando.z, largo = Math.hypot(mx, mz), mueve = largo > 0.15 && t > quieto;

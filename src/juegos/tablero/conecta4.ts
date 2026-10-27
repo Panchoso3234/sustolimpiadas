@@ -63,7 +63,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     azar = generador(`${c.semilla}|c4|${k}`);
     plazo = m.reloj() + TURNO;
     piensaHasta = conf().empiezo ? -1 : m.reloj() + PIENSA;
-    m.hud.aviso(`Partida ${k + 1}: ${conf().empiezo ? 'empiezas tú' : 'empieza la máquina'}${conf().popout ? ' · Pop Out' : ''}`, 'oro', 1.8);
+    m.hud.aviso(`Partida ${k + 1}: ${conf().empiezo ? 'empiezas tú' : 'empieza la máquina'}${conf().popout ? ' · Pop Out: se puede sacar una concha propia de abajo' : ''}`, 'oro', conf().popout ? 3.5 : 1.8);
   };
   seguir.addEventListener('click', siguiente);
   repetir.addEventListener('click', () => { if (cerrada) repitiendo = 0; });
@@ -96,7 +96,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     chips.forEach((ch, i) => ch.classList.toggle('actual', i === k % PARTIDAS.length && !c.libre));
     const miTurno = !fin && e.turno === yo() && t > 0;
     pintar(ev, {
-      popout: p.popout, jugadas: vista, yo: yo(), puedo: miTurno && repitiendo < 0,
+      popout: p.popout, jugadas: vista, yo: yo(), puedo: miTurno && repitiendo < 0, rival: 'La máquina',
       titulo: `Partida ${k + 1}${c.libre ? '' : ` de ${PARTIDAS.length}`} · máquina ${NOMBRE_DIF[p.dif]} · ${p.popout ? 'Pop Out' : 'clásico'} · tú eres ${yo() === 1 ? 'naranja' : 'blanca'}`,
       texto: repitiendo >= 0 ? `Repetición: jugada ${Math.floor(repitiendo)} de ${jugadas.length}` : fin ? (e.empate ? 'Empate: el tablero se llenó.' : e.ganador === yo() ? '¡Ganaste!' : 'Ganó la máquina.') : miTurno ? 'Tu turno' : 'La máquina está pensando…',
     });

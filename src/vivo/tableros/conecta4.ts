@@ -26,14 +26,20 @@ export function tableroConecta4(m: Mesa, jugar: (j: number) => void) {
     return b;
   });
   const nota = m.el('p', 'chico tenue', m.tablero);
+  let vistas = 0;
   /** `yo`: mi ficha (1 o 2), o null si miro. */
-  return (e: EstadoConchas, o: { popout: boolean; jugadas: number[]; yo: 1 | 2 | null; puedo: boolean; titulo: string; texto: string }) => {
+  return (e: EstadoConchas, o: { popout: boolean; jugadas: number[]; yo: 1 | 2 | null; puedo: boolean; titulo: string; texto: string; rival?: string }) => {
     cabeza.textContent = o.titulo;
     turno.textContent = o.texto;
     turno.classList.toggle('mio', o.puedo);
     const posibles = o.puedo ? legales(e.tablero, e.turno, o.popout) : [], ultima = o.jugadas[o.jugadas.length - 1];
+    // Pop Out: si la última jugada fue sacar, esa columna se marca y baja con una animación (si no, parece que las conchas cambian solas)
+    const sacada = ultima !== undefined && esSacar(ultima) ? ultima - SACAR : -1, nueva = o.jugadas.length !== vistas;
+    vistas = o.jugadas.length;
     columnas.forEach(({ b, conchas }, col) => {
       b.disabled = !posibles.includes(col);
+      b.classList.toggle('sacada', col === sacada);
+      if (nueva && col === sacada) { b.classList.remove('baja'); void b.offsetWidth; b.classList.add('baja'); }
       conchas.forEach((s, f) => {
         const v = e.tablero[f][col], gana = e.ganador > 0 && e.linea.some(([lf, lc]) => lf === f && lc === col);
         s.className = `concha${v ? ` j${v}` : ''}${gana ? ' gana' : ''}${ultima === col && v && (f === FILAS - 1 || !e.tablero[f + 1][col]) ? ' ultima' : ''}`;
@@ -44,7 +50,9 @@ export function tableroConecta4(m: Mesa, jugar: (j: number) => void) {
     const terminada = !!e.ganador || e.empate;
     // Al final: las jugadas ganadoras que se pasaron
     const perdidas = terminada ? ganadasPerdidas(o.jugadas, o.popout) : [];
-    nota.textContent = terminada && perdidas.length
+    const quien = (o.jugadas.length % 2 === 1 ? 1 : 2) === o.yo ? 'Sacaste' : `${o.rival ?? 'Tu rival'} sacó`;
+    nota.textContent = !terminada && sacada >= 0 ? `⬇ ${quien} una concha propia del fondo de la columna ${sacada + 1}: las de arriba bajaron un lugar.`
+      : terminada && perdidas.length
       ? perdidas.map((x) => `En la jugada ${x.n}, ${x.quien === o.yo ? 'tú' : o.yo ? 'tu rival' : x.quien === 1 ? 'el primero' : 'el segundo'} pudo ganar (${nombreJugada(x.jugada)}).`).join(' ')
       : o.popout ? 'Pop Out: en tu turno puedes poner una concha o sacar una tuya de la fila de abajo. Si al sacar quedan cuatro en línea de los dos, gana quien sacó.' : '';
   };
@@ -83,7 +91,7 @@ export const conecta4: Reglas<EstadoConecta4> = {
       const nombre = (l: Lado) => (l === yo ? 'Tú' : nombres[l]);
       const texto = terminada ? (c.empate ? 'Empate: el tablero se llenó.' : `${nombre(ladoDe(c.ganador as 1 | 2))} ${ladoDe(c.ganador as 1 | 2) === yo ? 'ganaste' : 'ganó'} con cuatro en línea.`)
         : t < 0 ? 'Prepárate…' : `${puedo ? 'Tu turno' : `Turno de ${nombres[deTurno]}`} (${c.turno === 1 ? 'naranja' : 'blanca'}) · ${quedan} s`;
-      pintar(c, { popout: e.popout, jugadas: e.jugadas, yo: yo ? ficha(yo) : null, puedo, titulo: `${e.popout ? 'Pop Out' : 'Clásico'} · ${nombres.a} (naranja) contra ${nombres.b} (blanca)`, texto });
+      pintar(c, { popout: e.popout, jugadas: e.jugadas, yo: yo ? ficha(yo) : null, puedo, rival: nombres[yo ? (yo === 'a' ? 'b' : 'a') : e.jugadas.length % 2 === 1 ? 'a' : 'b'], titulo: `${e.popout ? 'Pop Out' : 'Clásico'} · ${nombres.a} (naranja) contra ${nombres.b} (blanca)`, texto });
     };
   },
 };
