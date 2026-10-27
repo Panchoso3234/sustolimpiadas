@@ -29,6 +29,7 @@ const Admin = () => <Seccion clave="admin" cargar={() => import('./paginas').the
 const Portal = (p: { sub: string; extra: string }) => <Seccion clave="portal" cargar={() => import('./juegos/Portal').then((m) => m.Portal as unknown as Comp)} props={p} />;
 const Progreso = (p: { sub: string }) => <Seccion clave="progreso" cargar={() => import('./Progreso').then((m) => m.Progreso as unknown as Comp)} props={p} />;
 const PanelConectados = (p: { cerrar: () => void; yo: string | null }) => <Seccion clave="conectados" cargar={() => import('./Conectados').then((m) => m.PanelConectados as unknown as Comp)} props={p} />;
+const Diario = (p: { sub: string }) => <Seccion clave="diario" cargar={() => import('./Diario').then((m) => m.Diario as unknown as Comp)} props={p} />;
 const Perfil = (p: { id: string }) => <Seccion clave="perfil" cargar={() => import('./Perfil').then((m) => m.Perfil as unknown as Comp)} props={p} />;
 
 // Si se publicó una versión nueva mientras la página estaba abierta, los archivos de los juegos cambian de nombre y la
@@ -44,6 +45,7 @@ const RUTAS = [
   { ruta: 'personaje', titulo: 'Mi personaje' },
   { ruta: 'juegos', titulo: 'Juegos' },
   { ruta: 'progreso', titulo: 'Progreso' },
+  { ruta: 'diario', titulo: 'Diario' },
   { ruta: 'arena', titulo: 'Arena' },
 ];
 
@@ -91,6 +93,7 @@ function App() {
           : seccion === 'arena' ? <Arena />
           : seccion === 'admin' ? <Admin />
           : seccion === 'progreso' ? <Progreso sub={sub} />
+          : seccion === 'diario' ? <Diario sub={sub} />
           : seccion === 'perfil' ? <Perfil key={sub} id={sub} />
           : seccion === 'ajustes' ? <Ajustes alVerRecorrido={() => setRecorrido(true)} />
           : seccion === 'isla' ? <Isla />
