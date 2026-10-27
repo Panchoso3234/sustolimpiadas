@@ -6,11 +6,20 @@
 --     Chima contra Thecrytik, Golpe Maestro (nuevo)
 --     Choi Yena contra Faby, Serpientes (nuevo; PUCHAMON no se usa)
 --   Mismo plazo del cruce (28/10, 23:59), al mejor de 3. Al crearlos, el bot anuncia solo los duelos nuevos.
+-- Si el Equipo 12 no existe (se borró), lo recrea con el número 36 y restaura las dos victorias por ausencia del cruce 1.
 -- Ejecutar UNA vez.
 
 begin;
 
+-- El Equipo 12 se había borrado de la tabla: se recrea con su mismo número (36), para que el calendario de cruces no cambie
+insert into public.equipos (id, nombre) overriding system value
+select 36, 'Equipo 12' where not exists (select 1 from public.equipos where id = 36);
 update public.equipos set nombre = 'Equipo 12' where id = 36;
+-- Al borrarlo se fueron en cascada las victorias por ausencia del cruce 1 contra el Equipo 12: se restauran
+insert into public.ausencias (cruce, jornada, perfil_id, equipo_rival, ausente)
+select x.cruce, x.jornada, x.perfil::uuid, 36, x.ausente
+from (values (1::smallint, 1::smallint, 'd6cff624-3095-48b3-8b20-e4381092f000', 'Bubu'), (1::smallint, 1::smallint, '1165612d-d842-4386-a6fd-9fedfd73b198', 'Insterstellarglow')) as x (cruce, jornada, perfil, ausente)
+where not exists (select 1 from public.ausencias a where a.cruce = x.cruce and a.perfil_id = x.perfil::uuid);
 update public.equipo_miembros set equipo_id = 36 where perfil_id = '4c124c13-48bf-47fb-ab71-ec37439d76b9' and equipo_id = 34; -- LaL: Equipo 10 → 12
 update public.equipo_miembros set equipo_id = 36 where perfil_id = 'bd688fcd-ca39-4784-acc0-3e3c09fdd033' and equipo_id = 35; -- Faby: Equipo 11 → 12
 insert into public.equipo_miembros (perfil_id, equipo_id)
