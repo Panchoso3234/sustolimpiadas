@@ -239,8 +239,9 @@ begin
   select nombre into v_quien from public.perfiles where id = new.perfil_id;
   select nombre into v_que from public.gacha_objetos where id = new.objeto_id;
   select nombre into v_donde from public.gacha_banners where id = new.banner_id;
-  perform public.avisar_discord(format('**%s** consiguió un objeto de 5 estrellas en el Gachapón: **%s** (banner %s, deseo número %s). https://panchoso3234.github.io/sustolimpiadas/#/gachapon',
-    coalesce(v_quien, 'Alguien'), coalesce(v_que, new.objeto_id), coalesce(v_donde, new.banner_id), coalesce(new.numero::text, '?')));
+  -- public.mencion etiqueta con @ a quien tiene Discord vinculado (si no, pone su nombre en negrita)
+  perform public.avisar_discord(format('%s consiguió un objeto de 5 estrellas en el Gachapón: **%s** (banner %s, deseo número %s). https://panchoso3234.github.io/sustolimpiadas/#/gachapon',
+    public.mencion(new.perfil_id), coalesce(v_que, new.objeto_id), coalesce(v_donde, new.banner_id), coalesce(new.numero::text, '?')));
   insert into public.avisos (perfil_id, tipo, texto, enlace)
   select p.id, 'gachapon', left(coalesce(v_quien, 'Alguien') || ' consiguió ' || coalesce(v_que, 'un objeto') || ' (5 estrellas) en el Gachapón.', 300), '#/gachapon'
   from public.perfiles p where p.id <> new.perfil_id;
