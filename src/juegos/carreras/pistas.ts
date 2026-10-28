@@ -22,14 +22,14 @@ export function rodillos(c: Contexto): Promise<Partida> {
   const TRAMOS: Record<string, Tramo> = {
     barras(z, y) {
       piso(0, y, z, 18);
-      for (let b = 0; b < 3; b++) barras.push({ x: rango(-1, 1), y, z: z - 4 - b * 5, largo: 7.4, vel: signo() * (1.6 + nivel * 0.25 + r() * 0.5), fase: r() * 6.28, alta: b > 0 && r() < 0.45 });
+      for (let b = 0; b < 3; b++) barras.push({ x: rango(-1, 1), y, z: z - 4 - b * 5, largo: 7.4, vel: signo() * (1.3 + nivel * 0.12 + r() * 0.4), fase: r() * 6.28, alta: b > 0 && r() < 0.4 });
       gema(signo() * 2.4, y, z - 12); // no al borde: un golpe de barra ahí te bota a la lava sin remedio
       return 18;
     },
     dobles(z, y) {
       piso(0, y, z, 16);
       for (let b = 0; b < 2; b++) {
-        const zb = z - 5 - b * 7, vel = signo() * (1.5 + nivel * 0.2 + r() * 0.4), fase = r() * 6.28;
+        const zb = z - 5 - b * 7, vel = signo() * (1.2 + nivel * 0.1 + r() * 0.3), fase = r() * 6.28;
         barras.push({ x: 0, y, z: zb, largo: 7.4, vel, fase }, { x: 0, y, z: zb, largo: 7.4, vel, fase: fase + Math.PI / 2, alta: true });
       }
       gema(0, y, z - 8.5, 50);
@@ -43,7 +43,7 @@ export function rodillos(c: Contexto): Promise<Partida> {
     },
     moviles(z, y) {
       piso(0, y, z, 3);
-      for (let i = 0; i < 3; i++) bloques.push({ x: 0, y, z: z - 5 - i * 4, w: 2.8, h: 0.6, d: 2.6, color: TABLON, mueve: { eje: 'x', amp: 2.6, vel: 1.1 + nivel * 0.12 + r() * 0.3, fase: r() * 6.28 } });
+      for (let i = 0; i < 3; i++) bloques.push({ x: 0, y, z: z - 5 - i * 4, w: 2.8, h: 0.6, d: 2.6, color: TABLON, mueve: { eje: 'x', amp: 2.2, vel: 0.9 + nivel * 0.06 + r() * 0.2, fase: r() * 6.28 } });
       piso(0, y, z - 16, 2);
       gema(0, y, z - 13, 25);
       return 18;
@@ -51,27 +51,27 @@ export function rodillos(c: Contexto): Promise<Partida> {
     angosta(z, y) {
       // Pasarela angosta en zigzag, con una gema al borde de cada quiebre
       const tramos = 4;
-      for (let i = 0; i < tramos; i++) { const x = i % 2 ? 1.6 : -1.6; piso(x, y, z - i * 4.2, 4.6, 1.5); if (i > 0) piso((x + (i % 2 ? -1.6 : 1.6)) / 2, y, z - i * 4.2 + 0.2, 0.8, 4.7); }
+      for (let i = 0; i < tramos; i++) { const x = i % 2 ? 1.6 : -1.6; piso(x, y, z - i * 4.2, 4.6, 2.0); if (i > 0) piso((x + (i % 2 ? -1.6 : 1.6)) / 2, y, z - i * 4.2 + 0.2, 0.8, 4.7); }
       gema(1.6, y, z - 12.6, 50);
       return tramos * 4.2;
     },
     columnas(z, y) {
       piso(0, y, z, 3);
       // La gema va sobre la tercera columna (antes flotaba entre columnas y no había dónde pararse para tomarla)
-      for (let i = 0; i < 5; i++) { const x = (i % 2 ? 1 : -1) * rango(0.5, 1.8); bloques.push({ x, y: y + 0.4, z: z - 4.5 - i * 2.9, w: 1.9, h: 4, d: 1.9, color: PIEDRA_2, mueve: { eje: 'y', amp: 0.7, vel: 1.4 + r() * 0.6, fase: r() * 6.28 } }); if (i === 2) gema(x, y + 2.4, z - 4.5 - i * 2.9, 50); }
+      for (let i = 0; i < 5; i++) { const x = (i % 2 ? 1 : -1) * rango(0.5, 1.8); bloques.push({ x, y: y + 0.4, z: z - 4.5 - i * 2.9, w: 1.9, h: 4, d: 1.9, color: PIEDRA_2, mueve: { eje: 'y', amp: 0.5, vel: 1.1 + r() * 0.4, fase: r() * 6.28 } }); if (i === 2) gema(x, y + 2.4, z - 4.5 - i * 2.9, 50); }
       piso(0, y, z - 18.5, 2.5);
       return 20;
     },
     islas(z, y) {
       let zz = z - 1.2;
       piso(0, y, z, 2.4);
-      for (let i = 0; i < 5; i++) { zz -= rango(3.6, 4.4); const x = rango(-1.6, 1.6); bloques.push({ x, y: y + rango(-0.25, 0.3), z: zz, w: 2.6, h: 2, d: 2.6, color: PIEDRA }); if (i === 3) gema(x, y, zz, 25); }
+      for (let i = 0; i < 5; i++) { zz -= rango(3.3, 3.9); const x = rango(-1.4, 1.4); bloques.push({ x, y: y + rango(-0.2, 0.2), z: zz, w: 3.0, h: 2, d: 3.0, color: PIEDRA }); if (i === 3) gema(x, y, zz, 25); }
       piso(0, y, zz - 2.6, 2.4);
       return z - (zz - 3.8);
     },
     rocas(z, y) {
       piso(0, y, z, 18, 7);
-      for (let i = 0; i < 3; i++) rocas.push({ x: -2.3 + i * 2.3, y, z0: z - 17.5, z1: z - 0.5, vel: 6 + nivel * 0.5 + r() * 2, fase: r() * 17, radio: 0.75 });
+      for (let i = 0; i < 3; i++) rocas.push({ x: -2.3 + i * 2.3, y, z0: z - 17.5, z1: z - 0.5, vel: 5 + nivel * 0.3 + r() * 1.5, fase: r() * 17, radio: 0.75 });
       gema(signo() * 1.15, y, z - 9, 25); // entre dos carriles de rocas, lejos del borde
       return 18;
     },
@@ -79,7 +79,7 @@ export function rodillos(c: Contexto): Promise<Partida> {
       piso(0, y, z, 17);
       for (let i = 0; i < 3; i++) {
         const zm = z - 4 - i * 4.8;
-        martillos.push({ x: 0, y: y + 5, z: zm, largo: 4.1, amp: 1.05, vel: 1.8 + nivel * 0.15 + r() * 0.5, fase: r() * 6.28 });
+        martillos.push({ x: 0, y: y + 5, z: zm, largo: 4.1, amp: 1.0, vel: 1.5 + nivel * 0.08 + r() * 0.4, fase: r() * 6.28 });
         // El arco del martillo (adorno)
         bloques.push({ x: -4.3, y: y + 5.3, z: zm, w: 0.4, h: 5.3, d: 0.4, color: '#3a2c28', adorno: true }, { x: 4.3, y: y + 5.3, z: zm, w: 0.4, h: 5.3, d: 0.4, color: '#3a2c28', adorno: true }, { x: 0, y: y + 5.5, z: zm, w: 9, h: 0.4, d: 0.4, color: '#3a2c28', adorno: true });
       }
@@ -106,10 +106,10 @@ export function rodillos(c: Contexto): Promise<Partida> {
     },
     mixto(z, y) {
       piso(0, y, z, 18);
-      barras.push({ x: 0, y, z: z - 4.5, largo: 7.4, vel: signo() * (2 + nivel * 0.25), fase: r() * 6.28 });
-      martillos.push({ x: 0, y: y + 5, z: z - 10, largo: 4.1, amp: 1.05, vel: 2 + r() * 0.5, fase: r() * 6.28 });
+      barras.push({ x: 0, y, z: z - 4.5, largo: 7.4, vel: signo() * (1.6 + nivel * 0.12), fase: r() * 6.28 });
+      martillos.push({ x: 0, y: y + 5, z: z - 10, largo: 4.1, amp: 1.0, vel: 1.6 + r() * 0.4, fase: r() * 6.28 });
       bloques.push({ x: 0, y: y + 5.5, z: z - 10, w: 9, h: 0.4, d: 0.4, color: '#3a2c28', adorno: true });
-      barras.push({ x: 0, y, z: z - 15, largo: 7.4, vel: signo() * (2.2 + nivel * 0.25), fase: r() * 6.28, alta: true });
+      barras.push({ x: 0, y, z: z - 15, largo: 7.4, vel: signo() * (1.8 + nivel * 0.12), fase: r() * 6.28, alta: true });
       gema(signo() * 2.6, y, z - 7.5, 25);
       return 18;
     },
@@ -118,7 +118,8 @@ export function rodillos(c: Contexto): Promise<Partida> {
   const mezclar = (l: string[]) => l.map((x) => [r(), x] as const).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
   // Solo en pruebas: ?tramos=vapor,islas arma la pista con esos tramos, en ese orden
   const forzados = import.meta.env.DEV ? new URLSearchParams(location.search).get('tramos')?.split(',').filter((x) => x in TRAMOS) : null;
-  const orden = forzados?.length ? forzados : [...mezclar(FACILES).slice(0, 2), ...mezclar(DIFICILES).slice(0, 5)];
+  // 28-10: 3 fáciles y 4 difíciles (antes 2 y 5: muchos abandonaban a mitad de camino)
+  const orden = forzados?.length ? forzados : [...mezclar(FACILES).slice(0, 3), ...mezclar(DIFICILES).slice(0, 4)];
 
   // Salida
   bloques.push({ x: 0, y: 0, z: 1.5, w: 8, h: 1, d: 4, color: CONTROL, tipo: 'control' });
@@ -137,7 +138,7 @@ export function rodillos(c: Contexto): Promise<Partida> {
   const fin = z - 2.5;
   return crearCarrera(c, {
     bloques, barras, rocas, martillos, gemas, hitos, inicio: [0, 0.1, 1.5], cielo: '#3a2026', abismo: '#ff5a1e', caida: '¡A la lava!',
-    limite: 150, escenario: 'volcan', medallas: [900, 1250, 1550],
+    limite: 150, escenario: 'volcan', medallas: [900, 1250, 1550], ayuda: true,
     bono: { porSegundo: 5, limpio: 30 },
     progreso: (_x, _y, zz) => zz / fin,
   });

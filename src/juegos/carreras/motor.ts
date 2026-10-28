@@ -56,6 +56,8 @@ export interface Pista {
   /** Puntaje para bronce, plata y oro. */
   medallas: [number, number, number];
   escenario: 'volcan' | 'castillo';
+  /** Ayuda: tras 3 caídas desde el mismo punto de control, los obstáculos van más lentos hasta el siguiente control. */
+  ayuda?: boolean;
 }
 
 const RADIO = 0.38, ALTO = 1.7, VEL = 7.4, GRAVEDAD = -30, SALTO = 11, CORTE = 4.5, ESCALON = 0.3, DEMORA_CAIDA = 0.5;
@@ -184,8 +186,12 @@ export async function crearCarrera(c: Contexto, pista: Pista): Promise<Partida> 
     });
   };
   /** Vuelve al último punto de control: los tablones se reponen y las puertas por delante se cierran otra vez. */
+  // Reloj de los obstáculos: avanza como el tiempo, salvo cuando la ayuda los pone más lentos (así no saltan de posición)
+  let tObs = 0, ritmo = 1, caidasAqui = 0;
+  const RITMO_AYUDA = 0.6, CAIDAS_AYUDA = 3;
   const reaparecer = (t: number, cuenta: 'caida' | 'puerta') => {
     if (cuenta === 'caida') caidas++; else fallos++;
+    if (cuenta === 'caida' && pista.ayuda && ++caidasAqui >= CAIDAS_AYUDA && ritmo === 1) { ritmo = RITMO_AYUDA; e.hud.aviso('Ayuda: los obstáculos de este tramo van más lentos', 'bien', 1.6); }
     limpioDesde = hitoSig + 1; // el tramo en curso ya no es "limpio"
     p.copy(control);
     v.set(0, 0, 0);
@@ -194,7 +200,8 @@ export async function crearCarrera(c: Contexto, pista: Pista): Promise<Partida> 
       if (x.b.tipo === 'cae') { x.pisado = -1; x.fuera = false; x.malla.position.y = x.b.y - x.b.h / 2; x.malla.visible = true; }
       if (x.b.tipo === 'real' && x.fuera && x.b.z < control.z) { x.fuera = false; x.malla.visible = true; }
     }
-    if (cuenta === 'caida') { e.sonido.mal(); e.hud.aviso(pista.caida, 'mal', 0.7); }
+    if (cuenta === 'caida' && ritmo === 1) { e.sonido.mal(); e.hud.aviso(pista.caida, 'mal', 0.7); }
+    else if (cuenta === 'caida') e.sonido.mal();
     aturdido = t + 0.25;
     if (navigator.vibrate) try { navigator.vibrate(40); } catch { /* sin vibración */ }
   };
@@ -211,9 +218,10 @@ export async function crearCarrera(c: Contexto, pista: Pista): Promise<Partida> 
   if (DEV && prueba?.has('oraculo')) for (const x of piezas) if (x.b.tipo === 'real') x.malla.material = mat('#44ff88', 0.6);
 
   const paso = (t: number, dt: number) => {
+    tObs += dt * ritmo;
     // Plataformas que se mueven: avanzan, y si estás parado encima te llevan con ellas
     for (const x of moviles) {
-      const m = x.b.mueve!, antes = { x: x.b.x, y: x.b.y, z: x.b.z }, desvio = m.amp * Math.sin(m.vel * t + m.fase);
+      const m = x.b.mueve!, antes = { x: x.b.x, y: x.b.y, z: x.b.z }, desvio = m.amp * Math.sin(m.vel * tObs + m.fase);
       x.b.x = x.base.x + (m.eje === 'x' ? desvio : 0); x.b.y = x.base.y + (m.eje === 'y' ? desvio : 0); x.b.z = x.base.z + (m.eje === 'z' ? desvio : 0);
       if (!x.fuera) x.malla.position.set(x.b.x, x.b.y - x.b.h / 2, x.b.z);
       if (sobre === x) { p.x += x.b.x - antes.x; p.y += x.b.y - antes.y; p.z += x.b.z - antes.z; }
@@ -276,7 +284,7 @@ export async function crearCarrera(c: Contexto, pista: Pista): Promise<Partida> 
       sobre = x;
       if (b.tipo === 'cae' && x.pisado < 0) x.pisado = t;
       if (b.tipo === 'vapor') { v.y = SALTO * 1.5; v.z -= 6; aire = 1; enSuelo = false; e.sonido.ruido(0.25, 0.15); e.chispas(p.x, p.y, p.z, ['#ffffff', '#dddddd'], 18, 5); }
-      if (b.tipo === 'control' && (control.z !== b.z || control.x !== b.x)) { control.set(b.x, b.y + 0.1, b.z); e.hud.aviso('Punto de control', 'bien', 0.6); e.sonido.efecto('campana', 0.4); }
+      if (b.tipo === 'control' && (control.z !== b.z || control.x !== b.x)) { control.set(b.x, b.y + 0.1, b.z); caidasAqui = 0; ritmo = 1; e.hud.aviso('Punto de control', 'bien', 0.6); e.sonido.efecto('campana', 0.4); }
       if (b.tipo === 'meta') { cruzarHitos(t, true); return terminar(t, true); }
     }
     aire = enSuelo ? 0 : aire + dt;
@@ -290,7 +298,7 @@ export async function crearCarrera(c: Contexto, pista: Pista): Promise<Partida> 
     }
     // Barras que barren (la franja baja se salta; la alta se pasa agachado o barriendo)
     for (const { b, malla } of barras) {
-      const a = b.fase + b.vel * t, ux = Math.cos(a), uz = Math.sin(a);
+      const a = b.fase + b.vel * tObs, ux = Math.cos(a), uz = Math.sin(a);
       malla.rotation.y = -a;
       const [desde, hasta] = b.alta ? [1.05, 1.55] : [0.15, 0.75], cabeza = p.y + alto;
       if (inmortal || p.y > b.y + hasta || cabeza < b.y + desde || t < aturdido) continue;
@@ -301,7 +309,7 @@ export async function crearCarrera(c: Contexto, pista: Pista): Promise<Partida> 
     }
     // Rocas: ruedan hacia ti y vuelven a salir arriba
     for (const { r, malla } of rocas) {
-      const largo = r.z1 - r.z0, z = r.z0 + (((r.vel * t + r.fase) % largo) + largo) % largo;
+      const largo = r.z1 - r.z0, z = r.z0 + (((r.vel * tObs + r.fase) % largo) + largo) % largo;
       malla.position.set(r.x, r.y + r.radio, z);
       malla.rotation.x = z / r.radio;
       if (inmortal || t < aturdido || Math.hypot(p.x - r.x, p.z - z) > r.radio + RADIO || p.y > r.y + r.radio * 1.6) continue;
@@ -309,11 +317,11 @@ export async function crearCarrera(c: Contexto, pista: Pista): Promise<Partida> 
     }
     // Martillos: péndulos que barren de lado
     for (const { m, grupo } of martillos) {
-      const ang = m.amp * Math.sin(m.vel * t + m.fase);
+      const ang = m.amp * Math.sin(m.vel * tObs + m.fase);
       grupo.rotation.z = ang;
       const hx = m.x + Math.sin(ang) * m.largo, hy = m.y - Math.cos(ang) * m.largo;
       if (inmortal || t < aturdido || Math.abs(p.z - m.z) > 0.8 || Math.abs(p.x - hx) > 1.0 || p.y > hy + 0.45 || p.y + alto < hy - 0.45) continue;
-      golpe(t, Math.sign(Math.cos(m.vel * t + m.fase) * m.amp) || 1, 0, 9);
+      golpe(t, Math.sign(Math.cos(m.vel * tObs + m.fase) * m.amp) || 1, 0, 9);
     }
     // Gemas
     for (const g of gemas) {

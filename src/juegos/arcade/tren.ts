@@ -410,7 +410,9 @@ export async function crear(c: Contexto): Promise<Partida> {
   };
 
   /** Altura del piso bajo el corredor en su vía (vías, techo de un tren o una rampa), en qué techo está y si choca de frente. */
-  const pisoYChoque = (carril: number, z: number, y: number, alto: number): { piso: number; choca: Obstaculo | null; techo: Obstaculo | null } => {
+  // desdeTecho: viene de otro techo (cae entre dos trenes). 28-10: el margen de 0,45 m (pensado para la rampa) dejaba subir de un salto normal
+  // (2,61 m) a cualquier tren sin rampa y pasar dos trenes seguidos sin poderes; ahora desde las vías solo se sube por la rampa o con las zapatillas.
+  const pisoYChoque = (carril: number, z: number, y: number, alto: number, desdeTecho = false): { piso: number; choca: Obstaculo | null; techo: Obstaculo | null } => {
     let piso = 0, choca: Obstaculo | null = null, techo: Obstaculo | null = null;
     for (const t of tramos) for (const o of t.obstaculos) {
       if (o.carril !== carril) continue;
@@ -421,7 +423,8 @@ export async function crear(c: Contexto): Promise<Partida> {
         piso = Math.max(piso, rampa);
         if (z <= frente && z >= fondo) {
           // Margen al terminar la rampa: quien venía subiendo entra al techo aunque le falte un poco de altura
-          if (Math.max(y, rampa) >= ALTO_TREN - 0.45 || (o.rampa && y >= ALTO_TREN * 0.55 && z > frente - 2)) { piso = Math.max(piso, ALTO_TREN); techo = o; }
+          const margen = o.rampa || desdeTecho ? 0.45 : 0.05;
+          if (Math.max(y, rampa) >= ALTO_TREN - margen || (o.rampa && y >= ALTO_TREN * 0.55 && z > frente - 2)) { piso = Math.max(piso, ALTO_TREN); techo = o; }
           else if (!rampa) choca = o;
         }
       } else if (z <= o.z + 0.45 && z >= o.z - (o.largo - 0.5) - 0.45) {
@@ -531,7 +534,7 @@ export async function crear(c: Contexto): Promise<Partida> {
         ultimoCambio = t; prueba.gestos++;
         const nuevo = limitar(yo.carril + Math.sign(mx), 0, 2);
         if (nuevo !== yo.carril) {
-          const lado = pisoYChoque(nuevo, yo.z, yo.y, 1.7), deCostado = !!lado.choca && lado.choca.tipo !== 'baja' && lado.choca.tipo !== 'alta';
+          const lado = pisoYChoque(nuevo, yo.z, yo.y, 1.7, yo.techo !== null), deCostado = !!lado.choca && lado.choca.tipo !== 'baja' && lado.choca.tipo !== 'alta';
           // A media rampa no cabes en la vía de al lado: rebota sin castigo
           if (deCostado && yo.suelo > 0.05 && t >= poder.tabla) { e.sonido.efecto('leve', 0.3); e.hud.aviso('No cabes: hay un tren al lado', 'mal', 0.7); }
           else if (deCostado && t >= poder.tabla) {
@@ -557,7 +560,7 @@ export async function crear(c: Contexto): Promise<Partida> {
         yo.x += ((yo.carril - 1) * CARRIL - yo.x) * Math.min(1, sub * 14);
         yo.vy -= GRAVEDAD * sub;
         yo.y += yo.vy * sub;
-        const rodando = t < yo.rueda, { piso, choca, techo } = pisoYChoque(yo.carril, yo.z, yo.y, rodando ? 0.8 : 1.7);
+        const rodando = t < yo.rueda, { piso, choca, techo } = pisoYChoque(yo.carril, yo.z, yo.y, rodando ? 0.8 : 1.7, yo.techo !== null);
         // Combo de techos: cada techo nuevo sin pisar las vías entre medio da un bono
         if (techo && techo !== yo.techo) {
           prueba.techos++; techosTotal++; yo.combo++; comboMax = Math.max(comboMax, yo.combo);
