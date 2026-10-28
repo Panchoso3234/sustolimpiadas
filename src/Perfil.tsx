@@ -7,6 +7,27 @@ import { PUNTOS_BASE, leerPuntos, puntosVersus, type Puntos } from './juegos/pun
 import { cargarDatos, logros, premio, vitrinas, type Logro, type Vitrina } from './juegos/progreso';
 import { Firma } from './Progreso';
 import { cuentaParaLaLiga } from './juegos/liga';
+import { Avatar, Nombre, Portada, useVitrinasGacha } from './gacha/cosmeticos';
+import { OBJETOS } from '../supabase/functions/_shared/gachapon.ts';
+import { Carita } from './personaje/Carita';
+
+/** Cabecera del perfil con lo que lleva puesto del Gachapón: portada, marco, aura, nombre, emblema, título y su colección. */
+function CabeceraGacha({ id, nombre }: { id: string; nombre: string }) {
+  const vit = useVitrinasGacha(), v = vit.get(id);
+  const [coleccion, setColeccion] = useState<number | null>(null);
+  useEffect(() => { supabase.from('gacha_inventario').select('objeto_id', { count: 'exact', head: true }).eq('perfil_id', id).then(({ count }) => setColeccion(count ?? null)); }, [id]);
+  if (!v) return null;
+  return (
+    <Portada id={v.portada}>
+      <span class="gx-muestra-perfil">
+        <Avatar v={v} enLinea tam={72}><Carita perfil={id} tam={72} /></Avatar>
+        <Nombre v={v} nombre={nombre} titulo />
+        <span class="gacha-nivel-chip">Nv {v.nivel}</span>
+        {coleccion !== null && <a class="gacha-nivel-chip" href="#/gachapon/coleccion">Colección {coleccion}/{OBJETOS.length}</a>}
+      </span>
+    </Portada>
+  );
+}
 
 // Perfil de una persona: estadísticas, insignias, resumen de la semana, mejores marcas, duelos e historial.
 // Todo se calcula de las marcas y enfrentamientos que ya existen; no guarda nada nuevo.
@@ -53,6 +74,7 @@ export function Perfil({ id }: { id: string }) {
   return (
     <div class="pagina perfil">
       <div class="sigla">{propio ? 'Mi perfil' : 'Perfil'}</div>
+      <CabeceraGacha id={id} nombre={d.nombre} />
       <h1><Firma nombre={d.nombre} vitrina={d.vitrina} /></h1>
       {d.vitrina && <p class="tenue">Nivel <b>{d.vitrina.nivel}</b> del pase de temporada{premio('efecto', d.vitrina.efecto) ? ` · ${premio('efecto', d.vitrina.efecto)!.icono} al ganar` : ''}{propio && <> · <a href="#/progreso">Ver mi progreso</a></>}</p>}
       {casa && <p class="tenue">Casa: <b>{casa.nombre}</b></p>}

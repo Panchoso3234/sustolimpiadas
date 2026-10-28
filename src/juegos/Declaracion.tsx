@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { supabase, useSesion } from '../nucleo/supabase';
 import type { Persona } from './duelos';
+import { burbuja, useVitrinasGacha } from '../gacha/cosmeticos';
 
 // Declaraciones antes del duelo: cada jugador deja una frase (140 caracteres) que ve su rival y cita La Cuarta.
 // Se puede cambiar hasta empezar a jugar; la base lo comprueba (función declarar). La organización puede ocultarlas.
@@ -10,6 +11,7 @@ const MAX = 140;
 
 export function Declaraciones({ enf, a, b, personas, editable, titulo }: { enf: number; a: string | null; b: string | null; personas: Persona[]; editable: boolean; titulo?: string }) {
   const sesion = useSesion(), yo = sesion.usuarioId, admin = sesion.perfil?.rol === 'admin';
+  const vit = useVitrinasGacha();
   const [frases, setFrases] = useState<Frase[] | null>(null), [borrador, setBorrador] = useState(''), [aviso, setAviso] = useState(''), [editando, setEditando] = useState(false);
   const cargar = () => supabase.from('declaraciones').select('perfil_id,texto,oculta').eq('enfrentamiento_id', enf).then(({ data, error }) => setFrases(error ? null : ((data as Frase[] | null) ?? [])));
   useEffect(() => { cargar(); }, [enf, yo]);
@@ -28,7 +30,7 @@ export function Declaraciones({ enf, a, b, personas, editable, titulo }: { enf: 
     <div class="declaraciones">
       {titulo && otras.length > 0 && <h2>{titulo}</h2>}
       {otras.map((f) => (
-        <p key={f.perfil_id} class={`declaracion${f.oculta ? ' oculta' : ''}`}>
+        <p key={f.perfil_id} class={`declaracion${f.oculta ? ' oculta' : ''}${burbuja(vit.get(f.perfil_id)).class}`} style={burbuja(vit.get(f.perfil_id)).style}>
           <b>{nombre(f.perfil_id)}{f.perfil_id === yo ? ' (tú)' : ''}:</b> «{f.texto}»{f.oculta && <span class="tenue chico"> (oculta por la organización)</span>}
           {admin && <button class="boton chico" onClick={() => ocultar(f)}>{f.oculta ? 'Mostrar' : 'Ocultar'}</button>}
         </p>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import * as V from './juegos/duelos';
 import { escucharConectados, type Conectado } from './nucleo/presencia';
 import { Carita } from './personaje/Carita';
+import { Avatar, Nombre, useVitrinasGacha } from './gacha/cosmeticos';
 
 // Panel de la derecha, como la lista de miembros de Discord: quién está en línea y qué hace, quién se ausentó
 // y quiénes del torneo están desconectados.
@@ -12,6 +13,8 @@ export function PanelConectados({ cerrar, yo }: { cerrar: () => void; yo: string
   const [conectados, setConectados] = useState<Conectado[]>([]);
   const [datos, setDatos] = useState<{ personas: V.Persona[]; equipos: V.Equipo[] } | null>(null);
   const [ahora, setAhora] = useState(Date.now());
+  const vit = useVitrinasGacha();
+  const nivel = (id: string) => { const n = vit.get(id)?.nivel; return n ? <span class="nivel-chip" title="Nivel del pase de temporada">Nv {n}</span> : null; };
   useEffect(() => escucharConectados(setConectados), []);
   useEffect(() => { Promise.all([V.listarPersonas(), V.listarEquipos()]).then(([personas, equipos]) => setDatos({ personas, equipos })); }, []);
   useEffect(() => { const r = setInterval(() => setAhora(Date.now()), 30_000); return () => clearInterval(r); }, []);
@@ -26,9 +29,9 @@ export function PanelConectados({ cerrar, yo }: { cerrar: () => void; yo: string
 
   const fila = (c: Conectado) => (
     <li key={c.id} class={`conectado ${c.estado}${c.actividad.juega ? ' juega' : ''}`}>
-      <a class="conectado-cara" href={`#/perfil/${c.id}`} title={`Perfil de ${c.nombre}`}><Carita perfil={c.id} tam={34} /><i class="punto" aria-hidden="true" /></a>
+      <a class="conectado-cara" href={`#/perfil/${c.id}`} title={`Perfil de ${c.nombre}`}><Avatar v={vit.get(c.id)} enLinea={c.estado === 'activo'}><Carita perfil={c.id} tam={34} /></Avatar><i class="punto" aria-hidden="true" /></a>
       <div class="conectado-texto">
-        <a class="conectado-nombre" href={`#/perfil/${c.id}`}>{c.nombre}{c.id === yo ? ' (tú)' : ''}</a>
+        <a class="conectado-nombre" href={`#/perfil/${c.id}`}><Nombre v={vit.get(c.id)} nombre={c.nombre} extra={c.id === yo ? ' (tú)' : undefined} />{nivel(c.id)}</a>
         <span class="conectado-actividad">
           {c.actividad.enlace && c.id !== yo ? <a href={c.actividad.enlace}>{c.actividad.texto}</a> : c.actividad.texto}
           {c.actividad.juega && <span class="tenue"> · {hace(c.actividad.desde, ahora)}</span>}
@@ -47,8 +50,8 @@ export function PanelConectados({ cerrar, yo }: { cerrar: () => void; yo: string
         <ul>
           {desconectados.map((p) => (
             <li key={p.id} class="conectado fuera">
-              <a class="conectado-cara" href={`#/perfil/${p.id}`}><Carita perfil={p.id} tam={34} /></a>
-              <div class="conectado-texto"><a class="conectado-nombre" href={`#/perfil/${p.id}`}>{p.nombre}</a><span class="conectado-actividad tenue">{equipoDe(p.id)}</span></div>
+              <a class="conectado-cara" href={`#/perfil/${p.id}`}><Avatar v={vit.get(p.id)}><Carita perfil={p.id} tam={34} /></Avatar></a>
+              <div class="conectado-texto"><a class="conectado-nombre" href={`#/perfil/${p.id}`}><Nombre v={vit.get(p.id)} nombre={p.nombre} />{nivel(p.id)}</a><span class="conectado-actividad tenue">{equipoDe(p.id)}</span></div>
             </li>
           ))}
         </ul>

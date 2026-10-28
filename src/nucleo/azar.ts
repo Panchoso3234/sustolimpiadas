@@ -1,4 +1,4 @@
-import { ZONA_HORARIA } from './config';
+import { ZONA_HORARIA } from './config.ts';
 
 /** Número en [0, 1) que depende solo de sus argumentos: mismo resultado en todos los navegadores. */
 export function azar(...partes: (string | number)[]): number {
