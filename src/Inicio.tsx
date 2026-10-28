@@ -12,6 +12,7 @@ import { escucharSalas, type InfoSala } from './vivo/vestibulo';
 
 /** Las últimas novedades del sitio (la más reciente primero). */
 const NOVEDADES: { fecha: string; texto: string }[] = [
+  { fecha: '2026-10-28', texto: 'Lava Loca más llevable: obstáculos más lentos, plataformas más anchas, 3 tramos fáciles y ayuda automática tras 3 caídas en el mismo tramo. Subway Surfers: ya no se sube de un salto a un tren sin rampa.' },
   { fecha: '2026-10-27', texto: 'TSUKIBET (en Progreso): pronostica quién gana cada enfrentamiento del próximo cruce. Y antes de cada duelo puedes dejar tu declaración en Mis enfrentamientos: tu rival la ve y La Cuarta la cita.' },
   { fecha: '2026-10-27', texto: 'Nueva sección ¡El Diario!: La Cuarta, el diario del torneo, sale al terminar cada cruce con lo que pasó, estadísticas, la tabla y la crónica de lo que se viene. Ordenado por jornadas y para leer de corrido.' },
   { fecha: '2026-10-26', texto: 'CONECTA4 y Battleship ya son juegos del torneo: desafío contra la máquina que da puntos, en vivo contra otra persona y en el sorteo de los cruces. Con Pop Out, Salvo, radar y reloj.' },
