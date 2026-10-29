@@ -1,7 +1,7 @@
 // Lo puro del progreso: logros y experiencia del pase. Lo usan la web (progreso.ts) y la función "gachapon" de Supabase,
 // que calcula el nivel y las recompensas en el servidor (así nadie puede inventarse su nivel).
 import { horaChile } from '../nucleo/azar.ts';
-import { JUEGOS, ORDEN_MOTORES, TOPES, juegoPorId } from './catalogo.ts';
+import { JUEGOS, ORDEN_MOTORES, TODOS, TOPES, juegoPorId } from './catalogo.ts';
 
 /** Lo mínimo de un duelo que necesitan los logros y la experiencia. */
 export interface DueloP { estado: string; ganador: string | null; creado?: string }
@@ -11,8 +11,8 @@ export interface Marca { juego: string; puntaje: number; fecha: string; creado: 
 export interface Datos<E extends DueloP = DueloP> { id: string; nombre: string; marcas: Marca[]; duelos: { e: E; lado: 'a' | 'b' }[] }
 
 
-/** Solo cuentan los juegos del catálogo (así no suma inventar nombres de juego). */
-const VALIDOS = new Set(JUEGOS.map((j) => j.id));
+/** Solo cuentan los juegos del catálogo, también los retirados: lo ya jugado no se pierde (inventar nombres de juego no suma). */
+const VALIDOS = new Set(TODOS.map((j) => j.id));
 // ───────── Logros ─────────
 export type Categoria = 'Primeros pasos' | 'Constancia' | 'Duelos y fantasmas' | 'Hazañas' | 'Expertos' | 'Secretos';
 export interface Logro { id: string; nombre: string; como: string; icono: string; categoria: Categoria; secreto?: boolean; tiene: boolean }

@@ -268,7 +268,9 @@ export function Duelo({ id }: { id: number }) {
   const { e } = estado, juego = e ? JUEGOS.find((x) => x.id === e.juego) : undefined;
   // Los que se juegan solo en vivo tienen su propia sala
   if (e && esVivo(e) && e.estado === 'pendiente') { location.hash = `#/juegos/vivo/enf-${e.id}`; return null; }
-  if (!e || (!juego?.listo && !esVivo(e))) return mensaje('Este enfrentamiento no existe');
+  if (!e) return mensaje('Este enfrentamiento no existe');
+  // Un duelo ya jugado se puede ver aunque su juego se haya retirado
+  if (e.estado !== 'cerrado' && !juego?.listo && !esVivo(e)) return mensaje('Este enfrentamiento no existe');
   const lado = V.ladoDe(e, sesion.usuarioId, estado.equipos), volver = `#/juegos/${e.modo}`;
   if (e.estado === 'cerrado') return <ResultadoDuelo e={e} lado={lado} marcas={estado.marcas} personas={estado.personas} equipos={estado.equipos} />;
   if (!lado) return mensaje(sesion.usuarioId ? 'No eres parte de este enfrentamiento' : 'Entra con Discord para jugar');

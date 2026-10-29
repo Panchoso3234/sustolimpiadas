@@ -40,7 +40,8 @@ export const ORDEN_MOTORES: Motor[] = ['G', 'D', 'E', 'F', 'C', 'A', 'B'];
 const j = (numero: number, id: string, nombre: string, motor: Motor, idea: string, premia: string, controles = '', extra: Partial<Juego> = {}): Juego =>
   ({ id, numero, nombre, motor, idea, premia, controles, unidad: 'puntos', listo: controles !== '', ...extra });
 
-const TODOS: Juego[] = [
+/** Todos los juegos, también los retirados (la experiencia del pase cuenta lo que ya se jugó en ellos). */
+export const TODOS: Juego[] = [
   j(1, 'rodillos', 'Lava Loca', 'A', 'Sube por un volcán que se derrumba, sobre un mar de lava: siete tramos de barras, martillos, rocas, tablones que se hunden e islas.', 'Sincronía',
     'Muévete con las flechas o WASD; en celular, arrastra el dedo. Salta con Espacio o el botón Saltar: si lo sueltas antes, el salto es más corto. Las barras rojas se saltan; las naranjas (altas) se pasan agachado (Shift, C o el botón Agacharse), y si te agachas corriendo haces una barrida rápida. Si te caes a la lava vuelves al último punto de control: pierdes tiempo y el bono de tramo limpio. Tienes 2 minutos y medio. Suman los tramos superados (más si los pasas sin caerte), las gemas y, al llegar, el tiempo que te sobra. Las grietas de vapor te lanzan alto. Con el botón Cámara (o la tecla V) miras desde arriba.'),
   j(2, 'puertas', 'Puertas Falsas', 'A', 'Doce muros en cuatro secciones: elige una puerta y corre hacia ella. La falsa te devuelve al comienzo de la sección.', 'Memoria y arrojo',
@@ -134,7 +135,9 @@ export const HORIZONTALES = new Set(['catapulta', 'billar', 'karts', 'tiro', 'de
 
 /** Juegos retirados (El Más Bajo el 23-10; La Palabra Secreta y Luces del Faro el 24-10): no salen en la web ni en los sorteos,
  * ni sus modos 1v1 y 3v3, pero sus marcas viejas conservan el nombre. */
-export const RETIRADOS = new Set(['bajo', 'palabra', 'luces', 'cofre', 'eco']);
+// Retirados: no se ven ni se sortean, pero su código queda intacto. Para traer uno de vuelta, se saca de esta lista.
+// 29-10: PUCHAMON, Cazanúmeros, Tinta Tramposa, Memoria de Pez, Erizos Ocultos, Carrera de Escobas, Torre de Calabazas, Caza del Huevo, Al Agua Pato y Fuchibol.
+export const RETIRADOS = new Set(['bajo', 'palabra', 'luces', 'cofre', 'eco', 'bestias', 'numeros', 'tinta', 'parejas', 'buscaconchas', 'escobas', 'calabazas', 'huevo', 'sumo', 'futbol']);
 export const JUEGOS = TODOS.filter((x) => !RETIRADOS.has(x.id));
 export const juegoPorId = (id: string) => TODOS.find((x) => x.id === id);
 
