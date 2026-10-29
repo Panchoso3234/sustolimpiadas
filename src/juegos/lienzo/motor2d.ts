@@ -10,13 +10,15 @@ import { esLiviano } from '../../nucleo/preferencias';
 // · un lienzo nítido que llena la caja (coordenadas lógicas: ALTO unidades de alto; el ancho sale de la pantalla);
 // · entrada unificada: puntero (mouse o dedo, con su estela) y teclas;
 // · sensación de golpe: temblor, cuadros congelados, partículas y textos que flotan;
+// · con `pixel`, el mundo se dibuja en un lienzo chico y se agranda sin suavizar (pixel art, muy liviano); los textos y
+//   la interfaz van encima, nítidos;
 // · con `tres: true`, una capa Three.js debajo del lienzo 2D (que queda transparente, para textos y partículas). La capa 3D
 //   mide cuántos cuadros por segundo logra y baja sola la resolución si el equipo no da abasto. Sin WebGL, el juego dibuja en 2D.
 
 export const PASO = 1 / 120;
 export interface Particula { x: number; y: number; vx: number; vy: number; vida: number; dura: number; tam: number; color: string; gravedad: number; forma: 'punto' | 'chispa' | 'gota' }
 export interface Flotante { x: number; y: number; texto: string; color: string; tam: number; vida: number; dura: number }
-export interface Puntero { x: number; y: number; abajo: boolean; estela: { x: number; y: number; t: number }[] }
+export interface Puntero { x: number; y: number; abajo: boolean; estela: { x: number; y: number; t: number }[]; /** 'mouse', 'touch' o 'pen' */ tipo: string; /** El puntero está sobre el lienzo. */ dentro: boolean }
 
 /** Calidad de la capa 3D: 0 alta, 1 media, 2 baja (resolución de la imagen). */
 const RESOLUCION = [2, 1.25, 0.85];
@@ -67,7 +69,7 @@ function crearTres(lienzo2d: HTMLCanvasElement) {
 }
 export type Tres = NonNullable<ReturnType<typeof crearTres>>;
 
-export function crearMotor2D(c: Contexto, clase: string, opciones: { alto?: number; fondo?: string; tres?: boolean } = {}) {
+export function crearMotor2D(c: Contexto, clase: string, opciones: { alto?: number; fondo?: string; tres?: boolean; /** Unidades lógicas por píxel del arte (por ejemplo 4: 720 de alto son 180 píxeles). */ pixel?: (ancho: number) => number } = {}) {
   const mesa: Mesa = crearMesa(c.caja, `lienzo2d ${clase}`, c.aspecto);
   const ALTO = opciones.alto ?? 720;
   const lienzo = mesa.el('canvas', 'lienzo2d-canvas', mesa.tablero);
@@ -75,13 +77,15 @@ export function crearMotor2D(c: Contexto, clase: string, opciones: { alto?: numb
   if (tres) lienzo.classList.add('encima');
   const g = lienzo.getContext('2d', { alpha: !!tres })!;
   const alMedir: (() => void)[] = [];
-  let ancho = 1280, escala = 1, dpr = 1;
+  let ancho = 1280, escala = 1, dpr = 1, k = 1;
+  const pix = opciones.pixel ? document.createElement('canvas') : null, gp = pix ? pix.getContext('2d', { alpha: false })! : null;
   const medir = () => {
     const caja = mesa.tablero.getBoundingClientRect(), w = Math.max(320, caja.width || c.caja.clientWidth || 960), h = Math.max(240, caja.height || c.caja.clientHeight || 540);
     dpr = Math.min(2, window.devicePixelRatio || 1);
     lienzo.width = Math.round(w * dpr); lienzo.height = Math.round(h * dpr);
     lienzo.style.width = `${w}px`; lienzo.style.height = `${h}px`;
     escala = (h * dpr) / ALTO; ancho = (w * dpr) / escala;
+    if (pix && opciones.pixel) { k = opciones.pixel(ancho); pix.width = Math.ceil(ancho / k); pix.height = Math.ceil(ALTO / k); gp!.imageSmoothingEnabled = false; }
     if (tres) {
       const resolucion = Math.min(window.devicePixelRatio || 1, RESOLUCION[tres.calidad], Math.sqrt(2.4e6 / (w * h)));
       tres.render.setPixelRatio(resolucion); tres.render.setSize(w, h, false);
@@ -96,13 +100,14 @@ export function crearMotor2D(c: Contexto, clase: string, opciones: { alto?: numb
   observador.observe(mesa.tablero);
 
   // ── Entrada ──
-  const puntero: Puntero = { x: 0, y: 0, abajo: false, estela: [] };
+  const puntero: Puntero = { x: 0, y: 0, abajo: false, estela: [], tipo: 'mouse', dentro: false };
   const teclas = new Set<string>();
   const alTocar: ((x: number, y: number) => void)[] = [], alSoltar: ((x: number, y: number) => void)[] = [], alTecla: ((k: string) => void)[] = [];
   const aLogico = (ev: PointerEvent) => { const b = lienzo.getBoundingClientRect(); return [((ev.clientX - b.left) * dpr) / escala, ((ev.clientY - b.top) * dpr) / escala] as const; };
   lienzo.style.touchAction = 'none';
-  lienzo.addEventListener('pointerdown', (ev) => { ev.preventDefault(); lienzo.setPointerCapture?.(ev.pointerId); const [x, y] = aLogico(ev); puntero.x = x; puntero.y = y; puntero.abajo = true; puntero.estela = [{ x, y, t: tiempo }]; for (const f of alTocar) f(x, y); });
-  lienzo.addEventListener('pointermove', (ev) => { const [x, y] = aLogico(ev); puntero.x = x; puntero.y = y; if (puntero.abajo) puntero.estela.push({ x, y, t: tiempo }); });
+  lienzo.addEventListener('pointerdown', (ev) => { ev.preventDefault(); lienzo.setPointerCapture?.(ev.pointerId); const [x, y] = aLogico(ev); puntero.x = x; puntero.y = y; puntero.tipo = ev.pointerType; puntero.dentro = true; puntero.abajo = true; puntero.estela = [{ x, y, t: tiempo }]; for (const f of alTocar) f(x, y); });
+  lienzo.addEventListener('pointerleave', () => { puntero.dentro = false; });
+  lienzo.addEventListener('pointermove', (ev) => { const [x, y] = aLogico(ev); puntero.x = x; puntero.y = y; puntero.tipo = ev.pointerType; puntero.dentro = true; if (puntero.abajo) puntero.estela.push({ x, y, t: tiempo }); });
   const soltar = (ev: PointerEvent) => { if (!puntero.abajo) return; const [x, y] = aLogico(ev); puntero.abajo = false; for (const f of alSoltar) f(x, y); };
   lienzo.addEventListener('pointerup', soltar); lienzo.addEventListener('pointercancel', soltar);
   mesa.escuchar('keydown', (ev) => { if (ev.repeat) return; const k = ev.key.length === 1 ? ev.key.toLowerCase() : ev.key; teclas.add(k); if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(ev.key)) ev.preventDefault(); for (const f of alTecla) f(k); });
@@ -127,6 +132,7 @@ export function crearMotor2D(c: Contexto, clase: string, opciones: { alto?: numb
   };
 
   // ── Bucle ──
+  let pixeles: ((gp: CanvasRenderingContext2D, alfa: number) => void)[] = [];
   let pasos: ((dt: number) => void)[] = [], dibujos: ((g: CanvasRenderingContext2D, alfa: number) => void)[] = [], antes3d: ((alfa: number) => void)[] = [];
   // Rendimiento: cada 2 s se mira el tiempo medio por cuadro; si pasa de 22 ms (menos de ~45 por segundo) dos veces
   // seguidas, baja la calidad. Los primeros 3 s no cuentan (ahí se compilan los shaders). Nunca vuelve a subir.
@@ -173,12 +179,25 @@ export function crearMotor2D(c: Contexto, clase: string, opciones: { alto?: numb
       tres.render.render(tres.escena, tres.camara);
       perfil.antes += t1 - t0; perfil.render += performance.now() - t1; perfil.n++;
     } else { g.fillStyle = opciones.fondo ?? '#0e1424'; g.fillRect(0, 0, lienzo.width, lienzo.height); }
+    if (pix && gp) {
+      // Mundo en píxeles: el juego dibuja en coordenadas lógicas sobre el lienzo chico; las partículas son cuadrados
+      const t0 = performance.now();
+      gp.setTransform(1, 0, 0, 1, 0, 0); gp.fillStyle = opciones.fondo ?? '#0e1424'; gp.fillRect(0, 0, pix.width, pix.height);
+      gp.setTransform(1 / k, 0, 0, 1 / k, 0, 0);
+      for (const f of pixeles) f(gp, acum / PASO);
+      for (const p of particulas) { gp.fillStyle = p.color; const lado = Math.max(k, Math.round(p.tam * (1 - p.vida / p.dura * 0.5) / k) * k); gp.fillRect(Math.round(p.x / k) * k - lado / 2, Math.round(p.y / k) * k - lado / 2, lado, lado); }
+      // Se agranda sin suavizar; el temblor se mueve de a un píxel entero
+      g.imageSmoothingEnabled = false;
+      g.setTransform(escala, 0, 0, escala, Math.round(tx / k) * k * escala, Math.round(ty / k) * k * escala);
+      g.drawImage(pix, 0, 0, pix.width * k, pix.height * k);
+      perfil.antes += performance.now() - t0;
+    }
     g.setTransform(escala, 0, 0, escala, tx * escala, ty * escala);
     const td = performance.now();
     for (const f of dibujos) f(g, acum / PASO);
-    perfil.d2 += performance.now() - td;
+    perfil.d2 += performance.now() - td; if (!tres) perfil.n++;
     // Partículas y textos encima de todo
-    for (const p of particulas) {
+    if (!pix) for (const p of particulas) {
       const k = 1 - p.vida / p.dura;
       g.globalAlpha = Math.max(0, k);
       g.fillStyle = p.color;
@@ -202,6 +221,16 @@ export function crearMotor2D(c: Contexto, clase: string, opciones: { alto?: numb
   return {
     mesa, g, lienzo, puntero, teclas, efectos, particulas, tres, sacudida,
     get ancho() { return ancho; }, ALTO,
+    /** Modo píxel: unidades lógicas por píxel del arte. */
+    get k() { return k; },
+    /** Modo píxel: el mundo (coordenadas lógicas, sobre el lienzo chico). Se dibuja antes que `alDibujar`. */
+    alPixel(f: (gp: CanvasRenderingContext2D, alfa: number) => void) { pixeles.push(f); },
+    /** Modo píxel: dibuja un sprite (canvas de su tamaño en píxeles) centrado en (x, y), alineado a la grilla. */
+    sprite(img: CanvasImageSource & { width: number; height: number }, x: number, y: number, escalaSprite = 1) {
+      if (!gp) return;
+      const w = img.width * k * escalaSprite, h = img.height * k * escalaSprite;
+      gp.drawImage(img, Math.round((x - w / 2) / k) * k, Math.round((y - h / 2) / k) * k, w, h);
+    },
     get tiempo() { return tiempo; },
     get calma() { return calma; },
     /** Lógica a paso fijo (1/120 s). */

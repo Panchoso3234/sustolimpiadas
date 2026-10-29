@@ -1,7 +1,7 @@
 import { generador } from '../../nucleo/azar';
 import type { Contexto, Partida } from '../marco';
-import * as THREE from 'three';
-import { crearMotor2D, crearMusica, piloto, texturaBrillo, texturaDe } from './motor2d';
+import { crearMotor2D, crearMusica, piloto } from './motor2d';
+import { bola, crearSprite, desdeTexto, girado, media, mezcla, PAL, type Sprite } from './pixel';
 
 // Corte Maestro (29-10): fruta lanzada desde abajo y tú la cortas con trazos del dedo o del mouse. Contrarreloj de 90 s
 // (el del torneo): cada fruta vale 1, los combos de un mismo trazo suman extra y las bombas restan 10 puntos y 5 segundos.
@@ -42,7 +42,7 @@ interface Mitad { x: number; y: number; vx: number; vy: number; giro: number; vg
 interface Mancha { x: number; y: number; r: number; color: string; vida: number; gotas: { dx: number; dy: number; r: number }[] }
 
 export async function crear(c: Contexto): Promise<Partida> {
-  const m = crearMotor2D(c, 'corte', { fondo: '#2a1c14', tres: true });
+  const m = crearMotor2D(c, 'corte', { fondo: '#2a1c14', pixel: () => 4 });
   const musica = crearMusica(m.mesa, 124);
   musica.acordes([[52, 55, 59], [48, 52, 55], [50, 53, 57], [47, 50, 54]]);
   const bot = piloto();
@@ -59,10 +59,11 @@ export async function crear(c: Contexto): Promise<Partida> {
   const r = generador(`${c.semilla}|corte`);
   const cosas: Cosa[] = [], mitades: Mitad[] = [], manchas: Mancha[] = [];
   let ids = 0, proximaOla = 1.2, olas = 0, proximaDorada = 22 + r() * 14, proximoPoder = 14 + r() * 10;
-  const lanzar = (tipo: Cosa['tipo'], x: number, apice: number, vx: number, extra: Partial<Cosa> = {}) => {
-    const fruta = tipo === 'fruta' ? Math.floor(r() * FRUTAS.length) : tipo === 'poder' ? -1 : 2;
+  const rFrenesi = generador(`${c.semilla}|frenesi`);
+  const lanzar = (tipo: Cosa['tipo'], x: number, apice: number, vx: number, extra: Partial<Cosa> = {}, az = r) => {
+    const fruta = tipo === 'fruta' ? Math.floor(az() * FRUTAS.length) : tipo === 'poder' ? -1 : 2;
     const rad = tipo === 'bomba' ? 30 : tipo === 'dorada' ? 40 : tipo === 'poder' ? 30 : FRUTAS[fruta].r;
-    cosas.push({ id: ids++, tipo, fruta, x, y: ALTO + rad + 10, vx, vy: -Math.sqrt(2 * GRAVEDAD * (ALTO + rad + 10 - apice)), giro: r() * 6, vgiro: (r() - 0.5) * 5, r: rad, viva: true, golpes: 0, quietaHasta: 0, ultimoGolpe: -1, ...extra });
+    cosas.push({ id: ids++, tipo, fruta, x, y: ALTO + rad + 10, vx, vy: -Math.sqrt(2 * GRAVEDAD * (ALTO + rad + 10 - apice)), giro: az() * 6, vgiro: (az() - 0.5) * 5, r: rad, viva: true, golpes: 0, quietaHasta: 0, ultimoGolpe: -1, ...extra });
     lanzadas += tipo === 'fruta' ? 1 : 0;
   };
   // Coreografías: sueltas, abanico, lluvia, cruce de lado a lado y torre de 6 (para el combo perfecto)
@@ -120,7 +121,7 @@ export async function crear(c: Contexto): Promise<Partida> {
         o.ultimoGolpe = t; o.golpes++; golpesDorada++;
         if (!o.quietaHasta) { o.quietaHasta = t + 3; o.vx = 0; o.vy = 0; }
         const v = sumar(1);
-        m.efectos.flotar(o.x + (r() - 0.5) * 60, o.y - 40, `+${v}`, '#ffd23c', 28);
+        m.efectos.flotar(o.x + (Math.random() - 0.5) * 60, o.y - 40, `+${v}`, '#ffd23c', 28);
         m.efectos.chispas(o.x, o.y, ['#ffd23c', '#fff6c9'], 8, 260);
         m.mesa.sonido.tono(700 + o.golpes * 40, 0.06, 'square', 0.04);
         if (o.golpes >= 15) reventarDorada(o);
@@ -136,16 +137,17 @@ export async function crear(c: Contexto): Promise<Partida> {
       partir(o, ang);
       combo = t - ultimoCorte < 0.2 || (trazoAbajo && combo > 0) ? combo + 1 : 1;
       ultimoCorte = t; comboX = o.x; comboY = o.y;
-      m.mesa.sonido.tono(320 + r() * 80, 0.09, 'sawtooth', 0.05); m.mesa.sonido.tono(1200 + combo * 90, 0.05, 'triangle', 0.04, 0.01);
+      m.mesa.sonido.tono(320 + Math.random() * 80, 0.09, 'sawtooth', 0.05); m.mesa.sonido.tono(1200 + combo * 90, 0.05, 'triangle', 0.04, 0.01);
     }
   }
   const partir = (o: Cosa, ang: number) => {
     const n = Math.sin(ang), k = -Math.cos(ang), fruta = o.tipo === 'poder' ? -1 : o.fruta;
-    for (const lado of [1, -1] as const) mitades.push({ x: o.x + n * lado * 6, y: o.y + k * lado * 6, vx: o.vx * 0.6 + n * lado * 120, vy: Math.min(o.vy, 0) * 0.4 + k * lado * 120 - 60, giro: ang, vgiro: lado * (2 + r() * 2), corte: ang, lado, fruta, r: o.r, vida: 0 });
+    for (const lado of [1, -1] as const) mitades.push({ x: o.x + n * lado * 6, y: o.y + k * lado * 6, vx: o.vx * 0.6 + n * lado * 120, vy: Math.min(o.vy, 0) * 0.4 + k * lado * 120 - 60, giro: ang, vgiro: lado * (2 + Math.random() * 2), corte: ang, lado, fruta, r: o.r, vida: 0 });
     const color = fruta >= 0 ? FRUTAS[fruta].jugo : '#ffe04a';
     m.efectos.chispas(o.x, o.y, [color, color, '#ffffff'], 16, 340, { forma: 'gota', gravedad: 900, tam: 4 });
     m.efectos.congelar(25);
-    if (!m.calma && manchas.length < 14) manchas.push({ x: o.x, y: o.y, r: o.r * (0.9 + r() * 0.5), color, vida: 0, gotas: Array.from({ length: 7 }, () => ({ dx: (r() - 0.5) * o.r * 3, dy: (r() - 0.5) * o.r * 3, r: 4 + r() * o.r * 0.35 })) });
+    if (!m.calma && manchas.length < 14) manchas.push({ x: o.x, y: o.y, r: o.r * (0.9 + Math.random() * 0.5), color, vida: 0, gotas: [] });
+    tajos.push({ x: o.x, y: o.y, ang, r: o.r, t: m.tiempo });
   };
   const explotar = (o: Cosa) => {
     o.viva = false; bombasCortadas++;
@@ -234,8 +236,8 @@ export async function crear(c: Contexto): Promise<Partida> {
     else if (combo && t - ultimoCorte > 0.45) cerrarCombo();
     const jugado = t - inicio;
     // Olas, fruta dorada y plátanos de poder (todo con la semilla)
-    if (t >= proximaOla) proximaOla = t + ola(jugado) * (activo('frenesi') ? 0.35 : 1);
-    if (activo('frenesi') && r() < dt * 7) { const izq = r() < 0.5; lanzar('fruta', izq ? -20 : m.ancho + 20, 120 + r() * 300, (izq ? 1 : -1) * m.ancho * (0.4 + r() * 0.3)); }
+    if (t >= proximaOla) proximaOla = t + ola(jugado);
+    if (activo('frenesi') && rFrenesi() < dt * 9) { const izq = rFrenesi() < 0.5; lanzar('fruta', izq ? -20 : m.ancho + 20, 120 + rFrenesi() * 300, (izq ? 1 : -1) * m.ancho * (0.4 + rFrenesi() * 0.3), {}, rFrenesi); }
     if (jugado >= proximaDorada && modo !== 'clasico') { proximaDorada = jugado + 25 + r() * 15; lanzar('dorada', m.ancho * (0.3 + r() * 0.4), 200 + r() * 80, 0); }
     if (jugado >= proximoPoder && modo !== 'clasico') { proximoPoder = jugado + 16 + r() * 10; const p = (['congelar', 'frenesi', 'doble'] as Poder[])[Math.floor(r() * 3)]; const x = m.ancho * (0.25 + r() * 0.5); lanzar('poder', x, 150 + r() * 150, (m.ancho / 2 - x) * 0.3, { poder: p }); }
     for (let i = esperas.length - 1; i >= 0; i--) if (t >= esperas[i].t) { esperas[i].f(); esperas.splice(i, 1); }
@@ -269,274 +271,132 @@ export async function crear(c: Contexto): Promise<Partida> {
     m.mesa.hud.extra(act.length ? act.join(' · ') : `${cortadas} cortadas${mejorCombo >= 3 ? ` · mejor combo ${mejorCombo}` : ''}`);
   });
 
-  // ── Dibujo ──
-  const fruta = (g: CanvasRenderingContext2D, f: TipoFruta, rad: number) => {
-    const grad = g.createRadialGradient(-rad * 0.35, -rad * 0.4, rad * 0.1, 0, 0, rad);
-    grad.addColorStop(0, f.piel[0]); grad.addColorStop(1, f.piel[1]);
-    g.fillStyle = grad;
-    if (f.dibujo === 'limon') { g.beginPath(); g.ellipse(0, 0, rad * 1.15, rad * 0.85, 0, 0, Math.PI * 2); g.fill(); g.beginPath(); g.ellipse(rad * 1.15, 0, 6, 4, 0, 0, Math.PI * 2); g.fill(); }
-    else if (f.dibujo === 'frutilla') { g.beginPath(); g.moveTo(0, rad * 1.2); g.bezierCurveTo(-rad * 1.4, rad * 0.2, -rad, -rad, 0, -rad * 0.8); g.bezierCurveTo(rad, -rad, rad * 1.4, rad * 0.2, 0, rad * 1.2); g.fill(); g.fillStyle = f.semillas; for (let i = 0; i < 9; i++) g.fillRect(-rad * 0.6 + (i % 3) * rad * 0.5 + ((i / 3) | 0) * 2, -rad * 0.3 + ((i / 3) | 0) * rad * 0.45, 2.5, 3.5); g.fillStyle = '#3fa34d'; g.beginPath(); for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i - 2) * 0.5; g.moveTo(0, -rad * 0.8); g.lineTo(Math.cos(a) * rad * 0.7, -rad * 0.8 + Math.sin(a) * rad * 0.35 + 8); } g.lineWidth = 5; g.strokeStyle = '#3fa34d'; g.stroke(); return; }
-    else if (f.dibujo === 'pina') { g.beginPath(); g.ellipse(0, 4, rad * 0.8, rad, 0, 0, Math.PI * 2); g.fill(); g.strokeStyle = 'rgba(120,70,10,.55)'; g.lineWidth = 2; for (let i = -3; i <= 3; i++) { g.beginPath(); g.moveTo(i * 10 - 20, -rad); g.lineTo(i * 10 + 20, rad + 4); g.stroke(); g.beginPath(); g.moveTo(i * 10 + 20, -rad); g.lineTo(i * 10 - 20, rad + 4); g.stroke(); } g.fillStyle = '#3f9a3a'; for (let i = -2; i <= 2; i++) { g.beginPath(); g.moveTo(i * 5, -rad + 6); g.lineTo(i * 12, -rad - 26 + Math.abs(i) * 6); g.lineTo(i * 5 + 6, -rad + 6); g.fill(); } return; }
-    else { g.beginPath(); g.arc(0, 0, rad, 0, Math.PI * 2); g.fill(); }
-    if (f.dibujo === 'sandia') { g.strokeStyle = 'rgba(15,60,25,.6)'; g.lineWidth = 5; for (let i = -2; i <= 2; i++) { g.beginPath(); g.ellipse(i * rad * 0.32, 0, rad * 0.12, rad * 0.95, 0, 0, Math.PI * 2); g.stroke(); } }
-    if (f.dibujo === 'kiwi') { g.fillStyle = 'rgba(60,40,20,.35)'; for (let i = 0; i < 20; i++) g.fillRect(Math.cos(i * 2.4) * rad * 0.7, Math.sin(i * 2.4) * rad * 0.7, 2, 2); }
-    if (f.dibujo === 'coco') { g.fillStyle = '#2e1a0c'; for (const [x, y] of [[-6, -8], [6, -8], [0, 2]]) { g.beginPath(); g.arc(x, y, 3.5, 0, Math.PI * 2); g.fill(); } }
-    if (f.dibujo === 'redonda') { g.strokeStyle = '#5a3416'; g.lineWidth = 3; g.beginPath(); g.moveTo(0, -rad + 4); g.lineTo(3, -rad - 10); g.stroke(); g.fillStyle = '#4fae3a'; g.beginPath(); g.ellipse(10, -rad - 6, 10, 5, -0.5, 0, Math.PI * 2); g.fill(); }
-    // Brillo
-    g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.ellipse(-rad * 0.38, -rad * 0.42, rad * 0.28, rad * 0.16, -0.6, 0, Math.PI * 2); g.fill();
-  };
-  const pulpa = (g: CanvasRenderingContext2D, f: TipoFruta, rad: number) => {
-    // Media fruta vista desde el corte: borde de piel, pulpa, centro y semillas
-    g.fillStyle = f.piel[1]; g.beginPath(); g.arc(0, 0, rad, 0, Math.PI); g.fill();
-    g.fillStyle = f.pulpa; g.beginPath(); g.arc(0, 0, rad * (f.dibujo === 'sandia' ? 0.85 : 0.9), 0, Math.PI); g.fill();
-    g.fillStyle = f.centro; g.beginPath(); g.ellipse(0, 0, rad * 0.5, rad * 0.3, 0, 0, Math.PI); g.fill();
-    g.fillStyle = f.semillas;
-    const n = f.dibujo === 'kiwi' ? 14 : f.dibujo === 'sandia' ? 8 : 3;
-    for (let i = 0; i < n; i++) { const a = (i + 0.5) / n * Math.PI, d = rad * (f.dibujo === 'kiwi' ? 0.42 : 0.55); g.beginPath(); g.ellipse(Math.cos(a) * d, Math.sin(a) * d * 0.8, 2.6, 4, a, 0, Math.PI * 2); g.fill(); }
-    g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(-rad, -1, rad * 2, 3);
-  };
-  const bomba = (g: CanvasRenderingContext2D, rad: number, t: number) => {
-    const grad = g.createRadialGradient(-rad * 0.3, -rad * 0.35, 2, 0, 0, rad);
-    grad.addColorStop(0, '#5a5a6a'); grad.addColorStop(1, '#121218');
-    g.fillStyle = grad; g.beginPath(); g.arc(0, 0, rad, 0, Math.PI * 2); g.fill();
-    g.strokeStyle = '#ff2e4d'; g.lineWidth = 3 + Math.sin(t * 18) * 1.5; g.beginPath(); g.arc(0, 0, rad + 3, 0, Math.PI * 2); g.stroke();
-    g.fillStyle = '#7a7a86'; g.fillRect(-7, -rad - 8, 14, 9);
-    g.strokeStyle = '#c9a46a'; g.lineWidth = 3; g.beginPath(); g.moveTo(0, -rad - 8); g.quadraticCurveTo(10, -rad - 20, 6, -rad - 28); g.stroke();
-    g.fillStyle = '#ffffff'; g.font = `900 ${rad * 0.9}px Nunito, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('✕', 0, 2);
-  };
-  const dorada = (g: CanvasRenderingContext2D, rad: number, t: number, golpes: number) => {
-    g.fillStyle = 'rgba(255,210,60,.25)'; g.beginPath(); g.arc(0, 0, rad * 1.5 + Math.sin(t * 8) * 4, 0, Math.PI * 2); g.fill();
-    const grad = g.createRadialGradient(-rad * 0.3, -rad * 0.35, 2, 0, 0, rad);
-    grad.addColorStop(0, '#fff6c9'); grad.addColorStop(0.5, '#ffd23c'); grad.addColorStop(1, '#b07a00');
-    g.fillStyle = grad; g.beginPath(); g.arc(0, 0, rad * (1 + golpes * 0.012), 0, Math.PI * 2); g.fill();
-    g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.ellipse(-rad * 0.35, -rad * 0.4, rad * 0.3, rad * 0.17, -0.6, 0, Math.PI * 2); g.fill();
-  };
-  const platano = (g: CanvasRenderingContext2D, rad: number, p: Poder) => {
-    g.fillStyle = PODERES[p].color; g.globalAlpha = 0.3; g.beginPath(); g.arc(0, 0, rad * 1.4, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1;
-    g.fillStyle = p === 'congelar' ? '#bfe9ff' : p === 'frenesi' ? '#ffc06b' : '#ffe45a';
-    g.strokeStyle = '#7a5a10'; g.lineWidth = 2.5;
-    g.beginPath(); g.moveTo(-rad, -rad * 0.3); g.quadraticCurveTo(0, rad * 1.1, rad, -rad * 0.5); g.quadraticCurveTo(0, rad * 0.4, -rad, -rad * 0.3); g.fill(); g.stroke();
-    g.fillStyle = '#4a3410'; g.fillRect(rad - 4, -rad * 0.6, 7, 6);
-  };
-  const madera = (g: CanvasRenderingContext2D) => {
-    // Tablas de madera de fondo, con vetas
-    const n = Math.ceil(m.ancho / 160);
-    for (let i = 0; i < n; i++) {
-      const x = i * 160, tono = 0.85 + ((i * 37) % 10) / 60;
-      const gr = g.createLinearGradient(x, 0, x + 160, 0);
-      gr.addColorStop(0, `rgb(${Math.round(110 * tono)},${Math.round(72 * tono)},${Math.round(44 * tono)})`); gr.addColorStop(1, `rgb(${Math.round(92 * tono)},${Math.round(58 * tono)},${Math.round(34 * tono)})`);
-      g.fillStyle = gr; g.fillRect(x, 0, 160, ALTO);
-      g.strokeStyle = 'rgba(40,22,10,.25)'; g.lineWidth = 2;
-      for (let v = 0; v < 6; v++) { g.beginPath(); const vx = x + 18 + v * 24; g.moveTo(vx, 0); for (let y = 0; y <= ALTO; y += 60) g.lineTo(vx + Math.sin(y * 0.01 + i + v) * 6, y); g.stroke(); }
-      g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(x, 0, 4, ALTO);
+  // ── Pixel art (8 bits): 1 píxel del arte = 4 unidades del juego (720 de alto son 180 píxeles) ──
+  const tonos = (f: TipoFruta) => ({ borde: mezcla(f.piel[1], '#000000', 0.55), sombra: f.piel[1], base: mezcla(f.piel[0], f.piel[1], 0.3), luz: f.piel[0], brillo: mezcla(f.piel[0], '#ffffff', 0.65) });
+  const SPR_FRUTA = FRUTAS.map((f) => {
+    const rp = f.r / 4, ex = { limon: 1.22, sandia: 1.12, kiwi: 1.1, pina: 0.86 }[f.dibujo as string] ?? 1, ey = { limon: 0.86, pina: 1.12, frutilla: 1.06 }[f.dibujo as string] ?? 1;
+    return bola(rp * ex, rp * ey, tonos(f), (g, w, h) => {
+      const cx = Math.floor(w / 2);
+      g.globalCompositeOperation = 'source-atop';
+      if (f.dibujo === 'sandia') { g.fillStyle = '#1e5c2a'; for (let x = 2; x < w - 1; x += 4) for (let y = 0; y < h; y++) g.fillRect(x + (Math.sin(y * 0.7) > 0 ? 1 : 0), y, 1, 1); }
+      else if (f.dibujo === 'frutilla') { g.fillStyle = f.semillas; for (let y = 3; y < h - 1; y += 3) for (let x = 2 + (y % 2); x < w - 1; x += 3) g.fillRect(x, y, 1, 1); }
+      else if (f.dibujo === 'pina') { g.fillStyle = 'rgba(110,60,10,.75)'; for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if ((x + y) % 4 === 0 || (x - y + 64) % 4 === 0) g.fillRect(x, y, 1, 1); }
+      else if (f.dibujo === 'kiwi' || f.dibujo === 'coco') { g.fillStyle = 'rgba(40,22,8,.45)'; for (let y = 1; y < h; y += 2) for (let x = (y * 3) % 3; x < w; x += 3) g.fillRect(x, y, 1, 1); }
+      g.globalCompositeOperation = 'source-over';
+      // Tallo y hoja (manzanas, durazno, mango, ciruela), corona (piña) y hojas (frutilla), dentro del borde de arriba
+      if (f.dibujo === 'redonda') { g.fillStyle = '#5a3416'; g.fillRect(cx, 0, 1, 3); g.fillStyle = PAL.verde; g.fillRect(cx + 1, 0, 3, 1); g.fillRect(cx + 1, 1, 2, 1); }
+      if (f.dibujo === 'pina' || f.dibujo === 'frutilla') { g.fillStyle = PAL.verde; for (let k = -2; k <= 2; k++) g.fillRect(cx + k * 2, 0, 1, 3 - Math.abs(k)); g.fillStyle = PAL.verdeClaro; g.fillRect(cx, 0, 1, 2); }
+    });
+  });
+  const SPR_MITAD = FRUTAS.map((f) => media(f.r / 4, f.piel[1], f.pulpa, f.centro, f.semillas, f.dibujo === 'kiwi' ? 7 : f.dibujo === 'sandia' ? 6 : 3));
+  const SPR_BOMBA = bola(7.5, 7.5, { borde: PAL.negro, sombra: '#1c1c26', base: '#3a3a48', luz: '#6a6a7a', brillo: '#c9c9d6' }, (g, w) => { g.fillStyle = PAL.gris; g.fillRect(Math.round(w / 2) - 2, 0, 4, 2); });
+  const SPR_MECHA = desdeTexto(['..M', '.M.', 'M..'], { M: PAL.madera });
+  const SPR_CHISPA = [desdeTexto(['.Y.', 'YAY', '.Y.'], { Y: PAL.amarillo, A: '#ffffff' }), desdeTexto(['Y.Y', '.A.', 'Y.Y'], { Y: PAL.naranjo, A: PAL.amarillo })];
+  const SPR_ORO = bola(10, 10, { borde: '#7a5200', sombra: PAL.dorado, base: '#ffc83a', luz: '#ffe88a', brillo: '#ffffff' });
+  const platanoDe = (cuerpo: string, luz: string) => desdeTexto(['.........OO.', '........OYO.', '.......OYYO.', 'O.....OYYLO.', 'OOOOOOYYLO..', '.OYYYYYLLO..', '..OOOOOOO...'], { O: '#5a3a0a', Y: cuerpo, L: luz });
+  const SPR_PODER: Record<Poder, Sprite> = { congelar: platanoDe('#9fe0ff', '#e8f8ff'), frenesi: platanoDe('#ffb04a', '#ffe0a0'), doble: platanoDe('#ffe45a', '#fff6c0') };
+  // Tabla de madera: cuatro tablas de 32 píxeles, cada una con su tono, vetas y nudos al azar; se repiten a lo ancho
+  const SPR_TABLA = crearSprite(128, 180, (g) => {
+    const rt = generador('tabla-pixel');
+    for (const [x0, base, osc] of [[0, '#9a6638', '#7e5028'], [32, '#a8703e', '#8a5a2e'], [64, '#a06a3a', '#82522a'], [96, '#b07646', '#8e5e32']] as const) {
+      g.fillStyle = base; g.fillRect(x0, 0, 32, 180);
+      g.fillStyle = osc; for (let v = 0; v < 6; v++) { const xv = x0 + 3 + v * 5; for (let y = 0; y < 180; y++) g.fillRect(xv + Math.round(Math.sin(y * 0.08 + v + x0) * 1.2), y, 1, 1); }
+      g.fillStyle = '#c8905a'; for (let k = 0; k < 40; k++) g.fillRect(x0 + 1 + Math.floor(rt() * 30), Math.floor(rt() * 180), 1, 3);
+      for (let q = 0; q < (rt() < 0.5 ? 1 : 2); q++) { const nx = x0 + 6 + Math.floor(rt() * 18), ny = 10 + Math.floor(rt() * 160); g.fillStyle = '#5a3416'; g.fillRect(nx, ny, 5, 3); g.fillRect(nx + 1, ny - 1, 3, 5); g.fillStyle = '#7a4a22'; g.fillRect(nx + 2, ny + 1, 1, 1); }
+      g.fillStyle = '#3a2010'; g.fillRect(x0 + 31, 0, 1, 180);
     }
-    const vin = g.createRadialGradient(m.ancho / 2, ALTO / 2, ALTO * 0.3, m.ancho / 2, ALTO / 2, ALTO);
-    vin.addColorStop(0, 'rgba(0,0,0,0)'); vin.addColorStop(1, 'rgba(0,0,0,.45)');
-    g.fillStyle = vin; g.fillRect(0, 0, m.ancho, ALTO);
+  });
+  const manchaDe = new Map<string, Sprite>();
+  const SPR_MANCHA = (color: string) => {
+    let s = manchaDe.get(color);
+    if (!s) { const rm = generador(color); s = crearSprite(24, 24, (g) => { g.fillStyle = color; for (let y = 0; y < 24; y++) for (let x = 0; x < 24; x++) { const d = Math.hypot(x - 12, y - 12); if (d < 6.5 || (d < 11 && rm() < 0.25 * (11 - d) / 4.5)) g.fillRect(x, y, 1, 1); } }); manchaDe.set(color, s); }
+    return s;
   };
-  const textoGrande = (g: CanvasRenderingContext2D, texto: string, x: number, y: number, tam: number, color = '#ffffff') => {
-    g.font = `900 ${tam}px Nunito, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.lineWidth = tam * 0.16; g.strokeStyle = 'rgba(14,20,36,.85)'; g.strokeText(texto, x, y); g.fillStyle = color; g.fillText(texto, x, y);
-  };
+  // Tajos: la línea del corte que atraviesa la fruta, un instante
+  const tajos: { x: number; y: number; ang: number; r: number; t: number }[] = [];
 
-  // ── Capa 3D: fruta con volumen, mitades que muestran la pulpa, tabla iluminada. Sin sombras reales ni postproceso. ──
-  const T = m.tres;
-  if (T) {
-    const E = T.escena;
-    E.environment = T.entorno();
-    E.environmentIntensity = 0.35;
-    E.add(new THREE.HemisphereLight(0xfff1dc, 0x3a2414, 1.1));
-    const sol = new THREE.DirectionalLight(0xfff0d8, 2.2); sol.position.set(-0.5, 0.8, 1); E.add(sol);
-    // Tabla de madera: tablas con vetas, pintadas una vez y repetidas
-    const texMadera = texturaDe(1024, 1024, (cg) => {
-      for (let i = 0; i < 6; i++) {
-        const x = i * 171, tono = 0.85 + ((i * 37) % 10) / 60;
-        const gr = cg.createLinearGradient(x, 0, x + 171, 0);
-        gr.addColorStop(0, `rgb(${Math.round(150 * tono)},${Math.round(98 * tono)},${Math.round(58 * tono)})`); gr.addColorStop(1, `rgb(${Math.round(124 * tono)},${Math.round(78 * tono)},${Math.round(44 * tono)})`);
-        cg.fillStyle = gr; cg.fillRect(x, 0, 171, 1024);
-        cg.strokeStyle = 'rgba(60,32,14,.28)'; cg.lineWidth = 2;
-        for (let v = 0; v < 9; v++) { cg.beginPath(); const vx = x + 10 + v * 18; cg.moveTo(vx, 0); for (let y = 0; y <= 1024; y += 32) cg.lineTo(vx + Math.sin(y * 0.012 + i * 3 + v) * 5, y); cg.stroke(); }
-        cg.fillStyle = 'rgba(70,40,18,.5)'; cg.beginPath(); cg.ellipse(x + 60 + (i * 53) % 60, 200 + (i * 311) % 600, 9, 15, 0, 0, Math.PI * 2); cg.fill();
-        cg.fillStyle = 'rgba(0,0,0,.45)'; cg.fillRect(x, 0, 4, 1024);
-      }
-    }, true);
-    const tabla = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshStandardMaterial({ map: texMadera, bumpMap: texMadera, bumpScale: 2, roughness: 0.75 }));
-    tabla.position.z = -500; E.add(tabla);
-    // Viñeta suave encima de la tabla
-    const vineta = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, toneMapped: false, map: texturaDe(256, 256, (cg) => { const gr = cg.createRadialGradient(128, 128, 60, 128, 128, 182); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.55)'); cg.fillStyle = gr; cg.fillRect(0, 0, 256, 256); }) }));
-    vineta.position.z = 500; E.add(vineta);
-    // Piel y pulpa de cada fruta, pintadas una vez
-    const rt = generador('texturas-corte');
-    const pieles = FRUTAS.map((f) => texturaDe(256, 128, (cg) => {
-      const gr = cg.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, f.piel[0]); gr.addColorStop(0.5, f.piel[0]); gr.addColorStop(1, f.piel[1]);
-      cg.fillStyle = gr; cg.fillRect(0, 0, 256, 128);
-      if (f.dibujo === 'sandia') { cg.fillStyle = 'rgba(15,60,25,.75)'; for (let i = 0; i < 9; i++) { cg.beginPath(); for (let y = 0; y <= 128; y += 8) cg.lineTo(i * 28.4 + Math.sin(y * 0.2 + i) * 4, y); for (let y = 128; y >= 0; y -= 8) cg.lineTo(i * 28.4 + 10 + Math.sin(y * 0.2 + i) * 4, y); cg.fill(); } }
-      else if (f.dibujo === 'frutilla') { cg.fillStyle = f.semillas; for (let i = 0; i < 70; i++) cg.fillRect(rt() * 256, 20 + rt() * 100, 3, 4); }
-      else if (f.dibujo === 'kiwi' || f.dibujo === 'coco') { for (let i = 0; i < 900; i++) { cg.fillStyle = `rgba(${f.dibujo === 'coco' ? '40,22,8' : '60,40,20'},${rt() * 0.4})`; cg.fillRect(rt() * 256, rt() * 128, 1 + rt() * 2, 3 + rt() * 4); } }
-      else if (f.dibujo === 'pina') { cg.strokeStyle = 'rgba(110,60,10,.7)'; cg.lineWidth = 3; for (let i = -10; i < 20; i++) { cg.beginPath(); cg.moveTo(i * 22, 0); cg.lineTo(i * 22 + 128, 128); cg.stroke(); cg.beginPath(); cg.moveTo(i * 22 + 128, 0); cg.lineTo(i * 22, 128); cg.stroke(); } }
-      else { for (let i = 0; i < 300; i++) { cg.fillStyle = `rgba(255,255,255,${rt() * 0.12})`; cg.fillRect(rt() * 256, rt() * 128, 2, 2); cg.fillStyle = `rgba(0,0,0,${rt() * 0.08})`; cg.fillRect(rt() * 256, rt() * 128, 2, 2); } }
-    }, true));
-    const pulpas = FRUTAS.map((f) => texturaDe(256, 256, (cg) => {
-      cg.fillStyle = f.piel[1]; cg.beginPath(); cg.arc(128, 128, 128, 0, Math.PI * 2); cg.fill();
-      const gr = cg.createRadialGradient(128, 128, 10, 128, 128, 116); gr.addColorStop(0, f.centro); gr.addColorStop(0.45, f.pulpa); gr.addColorStop(1, f.pulpa);
-      cg.fillStyle = gr; cg.beginPath(); cg.arc(128, 128, f.dibujo === 'sandia' ? 108 : 118, 0, Math.PI * 2); cg.fill();
-      if (f.dibujo === 'limon' || f.nombre === 'Naranja') { cg.strokeStyle = 'rgba(255,255,255,.55)'; cg.lineWidth = 3; for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2; cg.beginPath(); cg.moveTo(128, 128); cg.lineTo(128 + Math.cos(a) * 112, 128 + Math.sin(a) * 112); cg.stroke(); } }
-      cg.fillStyle = f.semillas;
-      const n = f.dibujo === 'kiwi' ? 26 : f.dibujo === 'sandia' ? 14 : 5, d = f.dibujo === 'kiwi' ? 40 : 62;
-      for (let k = 0; k < n; k++) { const a = (k / n) * Math.PI * 2; cg.save(); cg.translate(128 + Math.cos(a) * d * (0.8 + rt() * 0.4), 128 + Math.sin(a) * d * (0.8 + rt() * 0.4)); cg.rotate(a); cg.beginPath(); cg.ellipse(0, 0, 4, 7, 0, 0, Math.PI * 2); cg.fill(); cg.restore(); }
-      cg.fillStyle = 'rgba(255,255,255,.18)'; cg.beginPath(); cg.ellipse(100, 92, 40, 18, -0.6, 0, Math.PI * 2); cg.fill();
-    }));
-    const matPiel = FRUTAS.map((f, i) => new THREE.MeshStandardMaterial({ map: pieles[i], roughness: f.dibujo === 'kiwi' || f.dibujo === 'coco' ? 0.95 : 0.35, metalness: 0 }));
-    const matPulpa = FRUTAS.map((_, i) => new THREE.MeshStandardMaterial({ map: pulpas[i], roughness: 0.45 }));
-    const esfera = new THREE.SphereGeometry(1, 28, 18), cupula = new THREE.SphereGeometry(1, 28, 10, 0, Math.PI * 2, 0, Math.PI / 2);
-    const tapa = new THREE.CircleGeometry(1, 28); tapa.rotateX(Math.PI / 2);
-    const matTallo = new THREE.MeshStandardMaterial({ color: 0x5a3416, roughness: 0.8 }), matHoja = new THREE.MeshStandardMaterial({ color: 0x3fa34d, roughness: 0.6 });
-    const tallo = new THREE.CylinderGeometry(0.06, 0.08, 0.45, 6), hoja = new THREE.SphereGeometry(1, 10, 6).scale(0.38, 0.08, 0.18), cono = new THREE.ConeGeometry(0.16, 0.9, 5);
-    // Una plantilla por fruta (cuerpo, tallo, hojas); cada fruta en juego es un clon que comparte geometría y material
-    const plantillas = FRUTAS.map((f, i) => {
-      const grupo = new THREE.Group(), cuerpo = new THREE.Mesh(esfera, matPiel[i]);
-      if (f.dibujo === 'limon') cuerpo.scale.set(1.18, 0.86, 0.86);
-      else if (f.dibujo === 'sandia') cuerpo.scale.set(1.12, 0.95, 0.95);
-      else if (f.dibujo === 'kiwi') cuerpo.scale.set(1.12, 0.86, 0.86);
-      else if (f.dibujo === 'pina') cuerpo.scale.set(0.82, 1.08, 0.82);
-      else if (f.dibujo === 'frutilla') cuerpo.scale.set(0.95, 1.12, 0.95);
-      else if (f.nombre === 'Mango') cuerpo.scale.set(1.12, 0.92, 0.85);
-      grupo.add(cuerpo);
-      if (f.dibujo === 'redonda') { const t1 = new THREE.Mesh(tallo, matTallo); t1.position.y = 1.05; grupo.add(t1); if (f.nombre.startsWith('Manzana') || f.nombre === 'Durazno') { const h1 = new THREE.Mesh(hoja, matHoja); h1.position.set(0.3, 1.12, 0); h1.rotation.z = 0.5; grupo.add(h1); } }
-      if (f.dibujo === 'pina' || f.dibujo === 'frutilla') for (let k = 0; k < (f.dibujo === 'pina' ? 7 : 5); k++) { const c1 = new THREE.Mesh(cono, matHoja), a = (k / 7) * Math.PI * 2; c1.position.set(Math.cos(a) * 0.18, f.dibujo === 'pina' ? 1.35 : 1.05, Math.sin(a) * 0.18); c1.rotation.set(Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5 + (f.dibujo === 'frutilla' ? Math.PI / 2.2 * Math.sign(Math.cos(a) || 1) : 0)); if (f.dibujo === 'frutilla') c1.scale.set(1, 0.6, 1); grupo.add(c1); }
-      return grupo;
-    });
-    const matBomba = new THREE.MeshStandardMaterial({ color: 0x1c1c26, metalness: 0.7, roughness: 0.28, envMapIntensity: 1.5 });
-    const matMecha = new THREE.MeshStandardMaterial({ color: 0xc9a46a, roughness: 0.9 });
-    const matOro = new THREE.MeshStandardMaterial({ color: 0xffc83a, metalness: 1, roughness: 0.18, envMapIntensity: 2.2, emissive: 0x3a2400 });
-    const arco = new THREE.TorusGeometry(0.85, 0.3, 10, 22, 2.3);
-    const matPoder: Record<Poder, THREE.Material> = { congelar: new THREE.MeshStandardMaterial({ color: 0xbfe9ff, roughness: 0.2, emissive: 0x1a4a6a }), frenesi: new THREE.MeshStandardMaterial({ color: 0xffb04a, roughness: 0.35, emissive: 0x5a2000 }), doble: new THREE.MeshStandardMaterial({ color: 0xffe45a, roughness: 0.3, emissive: 0x4a3a00 }) };
-    const nuevoBrillo = (color: THREE.ColorRepresentation, opacidad: number) => new THREE.Sprite(new THREE.SpriteMaterial({ map: texturaBrillo(), color, opacity: opacidad, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
-    const texSombra = texturaDe(64, 64, (cg) => { const gr = cg.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(0,0,0,.55)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); cg.fillStyle = gr; cg.fillRect(0, 0, 64, 64); });
-    const texMancha = texturaDe(128, 128, (cg) => { cg.fillStyle = '#ffffff'; cg.beginPath(); cg.arc(64, 64, 34, 0, Math.PI * 2); cg.fill(); const rm = generador('mancha'); for (let k = 0; k < 9; k++) { const a = rm() * 6.28, d = 30 + rm() * 26; cg.beginPath(); cg.arc(64 + Math.cos(a) * d, 64 + Math.sin(a) * d, 4 + rm() * 9, 0, Math.PI * 2); cg.fill(); } });
-    const geoTapon = new THREE.CylinderGeometry(0.28, 0.3, 0.3, 8), geoMecha = new THREE.TorusGeometry(0.35, 0.05, 5, 10, 1.6);
-    const crear3d = (o: Cosa): THREE.Group => {
-      let g3: THREE.Group;
-      if (o.tipo === 'fruta') g3 = plantillas[o.fruta].clone();
+  m.alPixel((gp) => {
+    const t = m.tiempo, k = m.k;
+    for (let x = 0; x < m.ancho; x += 128 * k) gp.drawImage(SPR_TABLA, x, 0, 128 * k, 180 * k);
+    // Jugo en la tabla, que se seca en tres etapas
+    for (const s of manchas) { gp.globalAlpha = s.vida < 1.1 ? 0.6 : s.vida < 2.2 ? 0.38 : 0.18; m.sprite(SPR_MANCHA(s.color), s.x, s.y, s.r > 40 ? 2 : 1); }
+    gp.globalAlpha = 1;
+    for (const h of mitades) m.sprite(girado(h.fruta >= 0 ? SPR_MITAD[h.fruta] : SPR_ORO, h.giro + (h.lado === 1 ? 0 : Math.PI)), h.x, h.y);
+    for (const o of cosas) {
+      if (o.tipo === 'fruta') m.sprite(girado(SPR_FRUTA[o.fruta], o.giro), o.x, o.y);
       else if (o.tipo === 'bomba') {
-        g3 = new THREE.Group(); g3.add(new THREE.Mesh(esfera, matBomba));
-        const tapon = new THREE.Mesh(geoTapon, matBomba); tapon.position.y = 1; g3.add(tapon);
-        const mecha = new THREE.Mesh(geoMecha, matMecha); mecha.position.set(0.35, 1.15, 0); g3.add(mecha);
-        const chispa = nuevoBrillo(0xffb02a, 1); chispa.position.set(0.68, 1.45, 0.2); chispa.scale.setScalar(0.9); g3.add(chispa);
-        const aviso = nuevoBrillo(0xff2e4d, 0.45); aviso.scale.setScalar(3.2); aviso.position.z = -1; g3.add(aviso);
-        g3.userData.chispa = chispa; g3.userData.aviso = aviso;
-      } else if (o.tipo === 'dorada') { g3 = new THREE.Group(); g3.add(new THREE.Mesh(esfera, matOro)); const b = nuevoBrillo(0xffd23c, 0.55); b.scale.setScalar(3.4); b.position.z = -1; g3.add(b); }
-      else { g3 = new THREE.Group(); g3.add(new THREE.Mesh(arco, matPoder[o.poder!])); const b = nuevoBrillo(PODERES[o.poder!].color, 0.5); b.scale.setScalar(3); b.position.z = -1; g3.add(b); }
-      const sombra = new THREE.Sprite(new THREE.SpriteMaterial({ map: texSombra, depthWrite: false, transparent: true }));
-      sombra.scale.setScalar(2.4); g3.userData.sombra = sombra; E.add(sombra);
-      E.add(g3);
-      return g3;
-    };
-    const mitad3d = (h: Mitad): THREE.Group => {
-      const g3 = new THREE.Group(), piel = h.fruta >= 0 ? matPiel[h.fruta] : matOro, carne = h.fruta >= 0 ? matPulpa[h.fruta] : matOro;
-      g3.add(new THREE.Mesh(cupula, piel), new THREE.Mesh(tapa, carne));
-      g3.rotation.order = 'ZYX';
-      E.add(g3);
-      return g3;
-    };
-    const vivos3d = new Map<number, THREE.Group>(), mitades3d = new Map<Mitad, THREE.Group>(), manchas3d = new Map<Mancha, THREE.Mesh>();
-    const quitar = (g3: THREE.Object3D) => { E.remove(g3); const s = g3.userData.sombra as THREE.Sprite | undefined; if (s) { E.remove(s); s.material.dispose(); } g3.traverse((x) => { const sp = x as THREE.Sprite; if (sp.isSprite) sp.material.dispose(); }); };
-    m.antes3d(() => {
-      const t = m.tiempo, W = m.ancho;
-      tabla.position.set(W / 2, -ALTO / 2, -500); tabla.scale.set(W, ALTO, 1);
-      texMadera.repeat.set(W / 1024, ALTO / 1024);
-      vineta.position.set(W / 2, -ALTO / 2, 500); vineta.scale.set(W, ALTO, 1);
-      // Fruta en el aire, con su sombra en la tabla (más chica y corrida mientras más alta va)
-      const vistos = new Set<number>();
-      for (const o of cosas) {
-        vistos.add(o.id);
-        let g3 = vivos3d.get(o.id);
-        if (!g3) { g3 = crear3d(o); vivos3d.set(o.id, g3); }
-        const quieta = o.tipo === 'dorada' && o.quietaHasta;
-        g3.position.set(o.x, -o.y, 0);
-        g3.scale.setScalar(o.r * (o.tipo === 'dorada' ? 1 + o.golpes * 0.012 : 1));
-        if (quieta) g3.rotation.set(Math.sin(t * 20) * 0.08 * Math.min(1, o.golpes), t * 3, 0);
-        else g3.rotation.set(o.giro * 0.5, o.giro * 0.8, o.giro);
-        if (o.tipo === 'bomba') { (g3.userData.chispa as THREE.Sprite).material.opacity = 0.6 + Math.random() * 0.4; (g3.userData.aviso as THREE.Sprite).material.opacity = 0.3 + 0.25 * Math.sin(t * 14); g3.rotation.set(0, o.giro * 0.4, Math.sin(o.giro) * 0.3); }
-        const s = g3.userData.sombra as THREE.Sprite;
-        s.position.set(o.x + 26, -o.y - 34, -480); s.scale.setScalar(o.r * 2.4);
+        // Aviso rojo que parpadea alrededor de la bomba, y la mecha que chispea
+        if (Math.floor(t * 8) % 2 === 0) { gp.strokeStyle = PAL.rojo; gp.lineWidth = k; gp.beginPath(); gp.arc(o.x, o.y, o.r + 2 * k, 0, Math.PI * 2); gp.stroke(); }
+        m.sprite(SPR_BOMBA, o.x, o.y); m.sprite(SPR_MECHA, o.x + 4 * k, o.y - 9 * k); m.sprite(SPR_CHISPA[Math.floor(t * 12) % 2], o.x + 6 * k, o.y - 11 * k);
+      } else if (o.tipo === 'dorada') { gp.fillStyle = 'rgba(255,210,60,.25)'; gp.beginPath(); gp.arc(o.x, o.y, o.r * 1.5 + Math.round(Math.sin(t * 8)) * k, 0, Math.PI * 2); gp.fill(); m.sprite(SPR_ORO, o.x, o.y); }
+      else { gp.fillStyle = PODERES[o.poder!].color; gp.globalAlpha = 0.3 + 0.15 * Math.sin(t * 10); gp.beginPath(); gp.arc(o.x, o.y, o.r * 1.4, 0, Math.PI * 2); gp.fill(); gp.globalAlpha = 1; m.sprite(girado(SPR_PODER[o.poder!], o.giro), o.x, o.y); }
+    }
+    if (activo('congelar')) { gp.fillStyle = 'rgba(127,216,255,.18)'; gp.fillRect(0, 0, m.ancho, ALTO); }
+  });
+
+  // ── La hoja: una curva suave por los puntos del trazo, ancha en la punta y fina en la cola, con núcleo blanco y brillo ──
+  const curva = (p: { x: number; y: number; t: number }[]) => {
+    const out: { x: number; y: number; t: number }[] = [];
+    for (let i = 0; i < p.length - 1; i++) {
+      const p0 = p[Math.max(0, i - 1)], p1 = p[i], p2 = p[i + 1], p3 = p[Math.min(p.length - 1, i + 2)];
+      for (let s = 0; s < 4; s++) {
+        const u = s / 4, u2 = u * u, u3 = u2 * u, cr = (a: number, b: number, c: number, d: number) => 0.5 * (2 * b + (-a + c) * u + (2 * a - 5 * b + 4 * c - d) * u2 + (-a + 3 * b - 3 * c + d) * u3);
+        out.push({ x: cr(p0.x, p1.x, p2.x, p3.x), y: cr(p0.y, p1.y, p2.y, p3.y), t: p1.t + (p2.t - p1.t) * u });
       }
-      for (const [id, g3] of vivos3d) if (!vistos.has(id)) { quitar(g3); vivos3d.delete(id); }
-      // Mitades: la cara cortada mira a la cámara y dan vueltas al caer
-      for (const h of mitades) {
-        let g3 = mitades3d.get(h);
-        if (!g3) { g3 = mitad3d(h); mitades3d.set(h, g3); }
-        g3.position.set(h.x, -h.y, 20);
-        g3.scale.setScalar(h.r);
-        g3.rotation.set(-0.95 + Math.sin(h.vida * 3) * 0.3 * h.lado, h.vida * 1.5 * h.lado, h.giro + (h.lado === 1 ? 0 : Math.PI));
-      }
-      for (const [h, g3] of mitades3d) if (!mitades.includes(h)) { quitar(g3); mitades3d.delete(h); }
-      // Jugo sobre la tabla, que se seca
-      for (const s of manchas) {
-        let me = manchas3d.get(s);
-        if (!me) { me = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: texMancha, color: s.color, transparent: true, depthWrite: false })); me.rotation.z = s.x; manchas3d.set(s, me); E.add(me); }
-        me.position.set(s.x, -s.y, -490); me.scale.setScalar(s.r * 3.4);
-        (me.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 0.6 * (1 - s.vida / 3.2));
-      }
-      for (const [s, me] of manchas3d) if (!manchas.includes(s)) { E.remove(me); me.geometry.dispose(); (me.material as THREE.Material).dispose(); manchas3d.delete(s); }
+    }
+    out.push(p[p.length - 1]);
+    return out;
+  };
+  const DURA_HOJA = 0.12;
+  const dibujarHoja = (g: CanvasRenderingContext2D, estela: { x: number; y: number; t: number }[], t: number) => {
+    const pts = curva(estela.filter((p) => t - p.t < DURA_HOJA));
+    if (pts.length < 3) return;
+    const n = pts.length, normales = pts.map((p, i) => {
+      const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)], dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1;
+      const vida = Math.max(0, 1 - (t - p.t) / DURA_HOJA), w = 8 * Math.pow(i / (n - 1), 0.75) * (0.35 + 0.65 * vida);
+      return [-dy / l, dx / l, w] as const;
     });
-  }
+    const forma = (s: number) => {
+      g.beginPath();
+      pts.forEach((p, i) => { const [nx, ny, w] = normales[i]; g.lineTo(p.x + nx * w * s, p.y + ny * w * s); });
+      for (let i = n - 1; i >= 0; i--) { const [nx, ny, w] = normales[i]; g.lineTo(pts[i].x - nx * w * s, pts[i].y - ny * w * s); }
+      g.closePath(); g.fill();
+      const punta = pts[n - 1], wp = normales[n - 1][2] * s * 0.55; g.beginPath(); g.arc(punta.x, punta.y, wp, 0, Math.PI * 2); g.fill();
+    };
+    const nombre = hojas[hoja].nombre, brillo = nombre === 'Fuego' ? '#ff6a1a' : nombre === 'Arcoíris' ? `hsl(${(t * 300) % 360} 95% 62%)` : '#7fc4ff';
+    const medio = nombre === 'Fuego' ? '#ffd23c' : nombre === 'Arcoíris' ? `hsl(${(t * 300 + 120) % 360} 95% 75%)` : '#dff0ff';
+    g.globalCompositeOperation = 'lighter';
+    g.globalAlpha = 0.28; g.fillStyle = brillo; forma(2.6);
+    g.globalAlpha = 0.75; g.fillStyle = medio; forma(1.4);
+    g.globalCompositeOperation = 'source-over';
+    g.globalAlpha = 1; g.fillStyle = '#ffffff'; forma(0.6);
+  };
 
   m.alDibujar((g) => {
     const t = m.tiempo;
-    if (!T) {
-    madera(g);
-    // Manchas de jugo en la tabla (se secan)
-    for (const s of manchas) {
-      g.globalAlpha = Math.max(0, 0.55 * (1 - s.vida / 3.2)); g.fillStyle = s.color;
-      g.beginPath(); g.arc(s.x, s.y, s.r, 0, Math.PI * 2); g.fill();
-      for (const d of s.gotas) { g.beginPath(); g.arc(s.x + d.dx, s.y + d.dy, d.r, 0, Math.PI * 2); g.fill(); }
-    }
-    g.globalAlpha = 1;
-    if (activo('congelar')) { g.fillStyle = 'rgba(127,216,255,.16)'; g.fillRect(0, 0, m.ancho, ALTO); }
-    // Mitades que caen girando
-    for (const h of mitades) {
-      g.save(); g.translate(h.x, h.y); g.rotate(h.giro + (h.lado === 1 ? 0 : Math.PI));
-      if (h.fruta >= 0) pulpa(g, FRUTAS[h.fruta], h.r);
-      else { g.fillStyle = '#ffd23c'; g.beginPath(); g.arc(0, 0, h.r, 0, Math.PI); g.fill(); }
-      g.restore();
-    }
-    for (const o of cosas) {
-      g.save(); g.translate(o.x, o.y); g.rotate(o.tipo === 'dorada' ? 0 : o.giro);
-      if (o.tipo === 'fruta') fruta(g, FRUTAS[o.fruta], o.r);
-      else if (o.tipo === 'bomba') bomba(g, o.r, t);
-      else if (o.tipo === 'dorada') dorada(g, o.r, t, o.golpes);
-      else platano(g, o.r, o.poder!);
-      g.restore();
-    }
-    } else if (activo('congelar')) { g.fillStyle = 'rgba(127,216,255,.16)'; g.fillRect(0, 0, m.ancho, ALTO); }
-    for (const o of cosas) if (o.tipo === 'dorada' && o.quietaHasta) textoGrande(g, `×${o.golpes}`, o.x, o.y - o.r - 34, 30, '#ffd23c');
-    // La estela de la hoja
-    const estela = bot ? estelaBot.filter((p) => t - p.t < 0.12) : m.puntero.estela;
-    if (bot) { estelaBot.splice(0, estelaBot.length - estela.length); }
-    if (estela.length > 1) {
-      const [c1, c2] = hojas[hoja].color;
-      // Brillo de la hoja: una pasada ancha y suave en modo aditivo, y el filo encima
-      g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
-      g.strokeStyle = hojas[hoja].nombre === 'Fuego' ? 'rgba(255,120,30,.35)' : hojas[hoja].nombre === 'Arcoíris' ? 'rgba(255,120,200,.3)' : 'rgba(160,200,255,.3)';
-      g.lineWidth = 26; g.beginPath(); g.moveTo(estela[0].x, estela[0].y); for (const p of estela) g.lineTo(p.x, p.y); g.stroke();
+    for (const o of cosas) if (o.tipo === 'dorada' && o.quietaHasta) m.rotulo(`×${o.golpes}`, o.x, o.y - o.r - 34, 30, '#ffd23c');
+    // Tajos: línea blanca nítida en el ángulo exacto del corte, que se apaga en 0,15 s
+    for (let i = tajos.length - 1; i >= 0; i--) {
+      const s = tajos[i], edad = (t - s.t) / 0.15;
+      if (edad >= 1) { tajos.splice(i, 1); continue; }
+      const dx = Math.cos(s.ang) * s.r * 1.4, dy = Math.sin(s.ang) * s.r * 1.4;
+      g.lineCap = 'round'; g.globalCompositeOperation = 'lighter';
+      g.strokeStyle = `rgba(255,240,200,${0.5 * (1 - edad)})`; g.lineWidth = 10 * (1 - edad); g.beginPath(); g.moveTo(s.x - dx, s.y - dy); g.lineTo(s.x + dx, s.y + dy); g.stroke();
       g.globalCompositeOperation = 'source-over';
-      for (let i = 1; i < estela.length; i++) {
-        const k = i / estela.length, a = estela[i - 1], b = estela[i];
-        g.strokeStyle = hojas[hoja].nombre === 'Arcoíris' ? `hsl(${(i * 30 + t * 400) % 360} 90% 65%)` : k > 0.6 ? c1 : c2;
-        g.lineWidth = 3 + k * 9; g.lineCap = 'round'; g.globalAlpha = 0.25 + k * 0.75;
-        g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
-      }
-      g.globalAlpha = 1;
+      g.strokeStyle = `rgba(255,255,255,${1 - edad})`; g.lineWidth = 3 * (1 - edad) + 1; g.beginPath(); g.moveTo(s.x - dx, s.y - dy); g.lineTo(s.x + dx, s.y + dy); g.stroke();
     }
+    const estela = bot ? estelaBot.filter((p) => t - p.t < DURA_HOJA) : m.puntero.estela;
+    if (bot) estelaBot.splice(0, estelaBot.length - estela.length);
+    dibujarHoja(g, estela, t);
+    g.globalAlpha = 1;
     if (destello > 0) { g.fillStyle = `rgba(255,255,255,${destello * (m.calma ? 0.25 : 0.8)})`; g.fillRect(0, 0, m.ancho, ALTO); }
     if (fase === 'inicio') {
       g.fillStyle = 'rgba(14,20,36,.6)'; g.fillRect(0, 0, m.ancho, ALTO);
-      textoGrande(g, 'CORTE MAESTRO', m.ancho / 2, 150, Math.min(72, m.ancho / 9), '#ffcf4a');
-      textoGrande(g, 'Modo libre: elige cómo jugar', m.ancho / 2, 230, 26);
-      textoGrande(g, 'Zen', m.ancho / 4, 380, 52, '#7cffcb'); textoGrande(g, '90 s sin bombas (1)', m.ancho / 4, 440, 20);
-      textoGrande(g, 'Clásico', (m.ancho * 3) / 4, 380, 52, '#ff8a6a'); textoGrande(g, '3 vidas (2)', (m.ancho * 3) / 4, 440, 20);
-      textoGrande(g, `Hoja: ${hojas[hoja].nombre}${hojas.length > 1 ? ' · T para cambiar' : ''}`, m.ancho / 2, 600, 20, '#fff6c9');
+      m.rotulo('CORTE MAESTRO', m.ancho / 2, 150, Math.round(Math.min(72, m.ancho / 9)), '#ffcf4a');
+      m.rotulo('Modo libre: elige cómo jugar', m.ancho / 2, 230, 26);
+      m.rotulo('Zen', m.ancho / 4, 380, 52, '#7cffcb'); m.rotulo('90 s sin bombas (1)', m.ancho / 4, 440, 20);
+      m.rotulo('Clásico', (m.ancho * 3) / 4, 380, 52, '#ff8a6a'); m.rotulo('3 vidas (2)', (m.ancho * 3) / 4, 440, 20);
+      m.rotulo(`Hoja: ${hojas[hoja].nombre}${hojas.length > 1 ? ' · T para cambiar' : ''}`, m.ancho / 2, 600, 20, '#fff6c9');
     }
   });
 

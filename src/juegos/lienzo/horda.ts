@@ -1,9 +1,7 @@
 import { generador } from '../../nucleo/azar';
 import type { Contexto, Partida } from '../marco';
-import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { crearKenney, type Kenney } from '../../personaje/kenney';
-import { crearMotor2D, crearMusica, piloto, texturaBrillo, texturaDe } from './motor2d';
+import { crearMotor2D, crearMusica, piloto } from './motor2d';
+import { bola, crearSprite, desdeTexto, espejo, girado, PAL, silueta, type Sprite } from './pixel';
 
 // Horda Infinita (29-10): solo te mueves; tus armas atacan solas. Oleadas de monstruos llegan desde todos lados, sueltan
 // cristales de experiencia y al subir de nivel eliges 1 de 3 mejoras. Arma al máximo + su objeto pasivo = arma
@@ -59,7 +57,7 @@ interface Antorcha { x: number; y: number }
 interface Oferta { tipo: 'arma' | 'pasivo' | 'oro'; id: string; nivel: number; evoluciona: boolean }
 
 export async function crear(c: Contexto): Promise<Partida> {
-  const m = crearMotor2D(c, 'horda', { fondo: '#2d4a2a', tres: true });
+  const m = crearMotor2D(c, 'horda', { fondo: '#2d4a2a', pixel: (ancho) => 2 * Math.min(1, ancho / 500) });
   const musica = crearMusica(m.mesa, 132);
   musica.acordes([[45, 48, 52], [41, 45, 48], [43, 47, 50], [40, 44, 47]]);
   const bot = piloto();
@@ -271,7 +269,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (fase === 'personaje') { const k = Math.floor((x / m.ancho) * 3); if (desbloqueados[k]) { personaje = k; empezarPartida(); } return; }
     if (fase === 'elegir') { const k = tarjetaEn(x, y); if (k >= 0) elegir(k); return; }
     if (fase === 'cofre') { if (m.tiempo - cofre!.t > 1.2) { fase = 'juego'; cofre = null; if (pendientesNivel > 0) abrirOfertas(); } return; }
-    palanca = { x, y };
+    if (m.puntero.tipo !== 'mouse') palanca = { x, y }; // con el mouse no hace falta apretar: se camina hacia el cursor
   });
   m.alSoltar(() => { palanca = null; });
   m.alTecla((k) => {
@@ -286,8 +284,15 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (T.has('ArrowLeft') || T.has('a')) dx--; if (T.has('ArrowRight') || T.has('d')) dx++;
     if (T.has('ArrowUp') || T.has('w')) dy--; if (T.has('ArrowDown') || T.has('s')) dy++;
     if (palanca && m.puntero.abajo) { const px = m.puntero.x - palanca.x, py = m.puntero.y - palanca.y, l = Math.hypot(px, py); if (l > 8) { dx = px / Math.max(l, 50); dy = py / Math.max(l, 50); } }
+    else if (!dx && !dy && modoMouse()) {
+      // Hacia el cursor; cerca del personaje (zona muerta) se queda quieto, y acelera suave al alejarse
+      const px = m.puntero.x - m.ancho / 2, py = m.puntero.y - ALTO / 2, l = Math.hypot(px, py), muerta = 30;
+      if (l > muerta) { const f = Math.min(1, (l - muerta) / 40); dx = (px / l) * f; dy = (py / l) * f; }
+    }
     return [dx, dy];
   };
+  const modoMouse = () => !bot && m.puntero.tipo === 'mouse' && m.puntero.dentro;
+  let ultimaDir: [number, number] = [0, 0];
 
   // ── Bots de prueba: el bueno huye del grupo y recoge cristales; el torpe camina al azar ──
   const rb = generador('bot-horda');
@@ -313,6 +318,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   m.alPaso((dt) => {
     if (fase === 'fin' || fase === 'personaje') return;
     const dir = bot ? pilotar() : direccion();
+    ultimaDir = dir as [number, number];
     if (fase !== 'juego') return;
     jt += dt;
     // Movimiento
@@ -424,7 +430,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   let destello = 0;
 
   // ── Dibujo ──
-  const zoom = () => Math.min(1, m.ancho / 640);
+  const zoom = () => Math.min(1, m.ancho / 500);
   const tarjetas = () => {
     const vertical = m.ancho < 700, w = vertical ? m.ancho - 40 : Math.min(300, (m.ancho - 80) / 3), h = vertical ? 150 : 300;
     return [0, 1, 2].map((k) => vertical ? { x: 20, y: 140 + k * (h + 16), w, h } : { x: m.ancho / 2 - (w * 3 + 40) / 2 + k * (w + 20), y: 210, w, h });
@@ -435,300 +441,147 @@ export async function crear(c: Contexto): Promise<Partida> {
     g.lineWidth = tam * 0.15; g.strokeStyle = 'rgba(10,14,24,.85)'; g.strokeText(txt, x, y); g.fillStyle = color; g.fillText(txt, x, y);
   };
   const hash = (a: number, b: number) => { let h = (a * 374761393 + b * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
-  const pintarEnemigo = (g: CanvasRenderingContext2D, e: Enemigo, t: number) => {
-    const d = ENEMIGOS[e.tipo], blanco = t - e.golpe < 0.08;
-    g.save(); g.translate(e.x, e.y);
-    const color = blanco ? '#ffffff' : d.color;
-    g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(0, e.r * 0.8, e.r, e.r * 0.35, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = color;
-    const salto = Math.abs(Math.sin(t * 8 + e.id)) * 3;
-    if (e.tipo === 'limo') { g.beginPath(); g.ellipse(0, -salto * 0.5, e.r * (1 + salto * 0.03), e.r * (0.85 - salto * 0.02), 0, Math.PI, 0); g.lineTo(e.r, e.r * 0.5); g.lineTo(-e.r, e.r * 0.5); g.fill(); }
-    else if (e.tipo === 'lobo') { const a = Math.atan2(yo.y - e.y, yo.x - e.x); g.rotate(a); g.beginPath(); g.moveTo(e.r * 1.3, 0); g.lineTo(-e.r, -e.r * 0.8); g.lineTo(-e.r * 0.6, 0); g.lineTo(-e.r, e.r * 0.8); g.closePath(); g.fill(); g.rotate(-a); }
-    else if (e.tipo === 'golem' || e.tipo === 'minijefe') { g.fillRect(-e.r, -e.r - salto * 0.3, e.r * 2, e.r * 1.8); g.fillStyle = 'rgba(0,0,0,.2)'; g.fillRect(-e.r, e.r * 0.3, e.r * 2, e.r * 0.5); }
-    else if (e.tipo === 'hechicero') { g.beginPath(); g.moveTo(0, -e.r * 1.5); g.lineTo(e.r, e.r); g.lineTo(-e.r, e.r); g.closePath(); g.fill(); g.fillStyle = '#ffd23c'; g.beginPath(); g.arc(e.r * 0.9, -e.r * 0.3, 4, 0, Math.PI * 2); g.fill(); }
-    else if (e.tipo === 'avispa') { g.beginPath(); g.ellipse(0, 0, e.r, e.r * 0.7, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = 'rgba(255,255,255,.6)'; g.beginPath(); g.ellipse(-2, -e.r * 0.8, e.r * 0.6, e.r * 0.3 * Math.abs(Math.sin(t * 40)), 0, 0, Math.PI * 2); g.fill(); }
-    else { // jefe
-      g.beginPath(); g.arc(0, 0, e.r, 0, Math.PI * 2); g.fill();
-      g.fillStyle = blanco ? '#ffffff' : '#7a3aff'; g.beginPath(); for (let k = 0; k < 5; k++) { const a = -Math.PI / 2 + (k - 2) * 0.35; g.lineTo(Math.cos(a) * e.r * 1.4, Math.sin(a) * e.r * 1.4); g.lineTo(Math.cos(a + 0.17) * e.r * 0.9, Math.sin(a + 0.17) * e.r * 0.9); } g.fill();
-      if (t < e.carga) { g.strokeStyle = '#ff2e4d'; g.lineWidth = 4; g.beginPath(); g.moveTo(0, 0); g.lineTo(e.cx * 300, e.cy * 300); g.stroke(); }
+  // ── Pixel art (8 bits): cada sprite se dibuja una sola vez; en cada cuadro solo se copian. 1 píxel del arte = 2 del mundo ──
+  const ojos = (x: number, y: number, sep: number, blanco: string = PAL.blanco, pupila: string = PAL.negro) => (g: CanvasRenderingContext2D) => {
+    for (const lado of [-1, 1]) { const ox = Math.round(x + lado * sep); g.fillStyle = blanco; g.fillRect(ox, y, 2, 2); g.fillStyle = pupila; g.fillRect(ox + (lado > 0 ? 1 : 0), y + 1, 1, 1); }
+  };
+  const verde = { borde: '#1e5c2a', sombra: '#3fa34d', base: '#5fd16a', luz: '#9ff08a', brillo: '#e8ffe0' };
+  const lobo = (piernas: string[]) => desdeTexto(['..........O..O', '.........OGOOGO', 'O.......OGGGGGO', 'GO.....OGGGGEGNO', '.GOOOOOGGGGGGGO', '.OGGGGGGGGGLLO', '.OGGGGGGGGLLO', ...piernas], { O: '#3e3e4a', G: '#9aa3b8', L: '#d9dde8', E: PAL.amarillo, N: PAL.negro });
+  const GOLEM = ['...OOOOOO...', '..OLLLLLBO..', '..OBEBBEBO..', '..OBBBBBDO..', 'OOOOOOOOOOOO', 'OLBBBBBBBBDO', 'OBBLBBBBBDDO', 'OBBBBBBBBBDO', 'OOOBBBBBBOOO', '..OBBDDBBO..', '..OBBOOBBO..', '..ODDO.ODDO', '..OOO..OOOO'];
+  const golem = (B: string, D: string, L: string) => desdeTexto(GOLEM, { O: '#3a2010', B, D, L, E: PAL.amarillo });
+  const avispa = (alas: string[], patas: string) => desdeTexto([...alas, '.OYYOYYO.', 'OYOYYOYEO', 'OYOYYOYYO', '.OYYOYYO.', patas], { O: '#1a1a1a', Y: PAL.amarillo, W: '#ffffff', E: PAL.rojo });
+  const HEROE: Record<'frente' | 'espalda' | 'lado', string[]> = {
+    frente: ['..OOOOOO..', '.OHHHHHHO.', 'OHHHHHHHHO', 'OHSSSSSSHO', 'OSSESSESSO', '.OSSSSSSO.', '..OOCCOO..', '.OCCCCCCO.', 'OSOCCDCOSO', 'OSOCCDCOSO', '.OOCCCCOO.', '..OCDDCO..'],
+    espalda: ['..OOOOOO..', '.OHHHHHHO.', 'OHHHHHHHHO', 'OHHHHHHHHO', 'OHHHHHHHHO', '.OHHHHHHO.', '..OOCCOO..', '.OCCCCCCO.', 'OSOCDDCOSO', 'OSOCDDCOSO', '.OOCCCCOO.', '..OCDDCO..'],
+    lado: ['..OOOOO...', '.OHHHHHO..', 'OHHHHHHHO.', 'OHHHSSSSO.', 'OHHSSSESO.', '.OHSSSSSO.', '..OOCCOO..', '..OCCCCO..', '..OCCDSO..', '..OCCDSO..', '..OCCCCO..', '..OCDDCO..'],
+  };
+  const PIERNAS = [['..OCOOCO..', '..OBO.OBO.', '..OOO.OOO.'], ['..OCOOCO..', '.OBO...OBO', '.OOO...OOO']];
+  const COLORES_HEROE = [
+    { H: '#6a3a1a', C: '#3f7bff', D: '#1d3a6e', B: '#4a2c14' },
+    { H: '#e8b04a', C: '#2fcf7a', D: '#1e5c2a', B: '#5a3416' },
+    { H: '#f4f1ea', C: '#7a3ad0', D: '#3a2a5a', B: '#2a1450' },
+  ];
+  const heroe = COLORES_HEROE.map((col) => Object.fromEntries((['frente', 'espalda', 'lado'] as const).map((v) => [v, PIERNAS.map((p) => desdeTexto([...HEROE[v], ...p], { O: PAL.negro, S: PAL.piel, E: PAL.negro, ...col }))])) as Record<'frente' | 'espalda' | 'lado', Sprite[]>);
+  const cristal = (L: string, M: string, D: string) => desdeTexto(['..L..', '.LML.', 'LMMMD', 'MMMMD', '.MMD.', '..D..'], { L, M, D });
+  const SPR = {
+    limo: [bola(7, 6, verde, ojos(7, 5, 3)), bola(8, 5, verde, ojos(8, 4, 3))],
+    lobo: [lobo(['..OGO..OGO', '..OO....OO']), lobo(['...OGO.OGO', '...OO...OO'])],
+    golem: [golem('#a8784a', '#8a6038', '#d9a87a')],
+    minijefe: [golem('#e8483a', '#a8283a', '#ff9a8a')],
+    hechicero: [desdeTexto(['.....O.....', '....OVO....', '...OVVVO...', '..OVVWVVO..', '.OOOOOOOOO.', '..OSSSSSO..', '..OSESESO..', '..OSSSSSO.Y', '...OVVVO..O', '..OVVWVVOOO', '.OVVVWVVVO.', '.OVVVWVVVO.', 'OVVVVWVVVVO', 'OVVVVVVVVVO', 'OOOOOOOOOOO'], { O: '#2a1450', V: PAL.violeta, W: PAL.lila, S: '#e8c9a8', E: PAL.negro, Y: PAL.amarillo })],
+    avispa: [avispa(['..WW.WW..', '..WWWWW..'], '..O...O..'), avispa(['.........', '.........'], 'WWO...OWW')],
+    jefe: [bola(22, 22, { borde: '#120a20', sombra: '#2a1a40', base: '#3a2a5a', luz: '#5a4a8a', brillo: '#8a7ab8' }, (g, w) => {
+      g.fillStyle = PAL.amarillo; for (let k = -2; k <= 2; k++) g.fillRect(Math.round(w / 2 + k * 6 - 2), 2 + Math.abs(k) * 2, 4, 7 - Math.abs(k));
+      g.fillStyle = PAL.dorado; g.fillRect(Math.round(w / 2 - 14), 8, 28, 3);
+      ojos(w / 2 - 1, 20, 7, PAL.rojo, '#5a0010')(g);
+    })],
+    cristal: [cristal('#cfe3ff', PAL.celeste, PAL.azul), cristal('#e0fff0', PAL.menta, PAL.verde), cristal('#ffd0d6', PAL.rojo, PAL.rojoOscuro)],
+    oro: bola(3, 3, { borde: PAL.dorado, sombra: '#e0a020', base: PAL.amarillo, luz: '#fff0a0', brillo: '#ffffff' }),
+    comida: desdeTexto(['...OOOO..', '..ORRRRO.', '.ORRMRRRO', '.ORRRRRRO', '..ORRRROWW', '...OOOO.WW'], { O: '#5a2a10', R: '#c96a3a', M: '#e8955a', W: '#fff1d0' }),
+    iman: desdeTexto(['ORRO.ORRO', 'ORRO.ORRO', 'ORRO.ORRO', 'ORRRRRRRO', '.ORRRRRO.', 'GG.....GG'], { O: '#5a0010', R: PAL.rojo, G: PAL.grisClaro }),
+    bomba: bola(5, 5, { borde: PAL.negro, sombra: '#1a1a22', base: '#3a3a48', luz: '#6a6a7a', brillo: '#b9b9c6' }, (g, w) => { g.fillStyle = PAL.madera; g.fillRect(Math.round(w / 2), 0, 1, 2); }),
+    cofre: desdeTexto(['.OOOOOOOOOO.', 'OMMMMMMMMMMO', 'OMMMMMMMMMMO', 'OYYYYYYYYYYO', 'OMMMMOYOMMMO', 'OMMMMOOOMMMO', 'OMMMMMMMMMMO', 'ODDDDDDDDDDO', '.OOOOOOOOOO.'], { O: '#3a1a08', M: '#9a5a1a', D: '#6a3a10', Y: PAL.amarillo }),
+    antorcha: [0, 1].map((f) => desdeTexto([f ? '..Y..' : '.Y...', f ? '.YRY.' : '.YRY.', 'YRRRY', 'YRARY', '.RAR.', '.OOO.', '..M..', '..M..', '..M..', '..M..', '..M..', '.OOO.'], { Y: PAL.amarillo, R: PAL.naranjo, A: '#fff6c9', O: '#3a2010', M: PAL.cafe })),
+    espada: desdeTexto(['.W.', 'WLW', 'WLW', 'WLW', 'WLW', 'WLW', 'WLW', 'GGG', '.M.', '.M.'], { W: '#dfe6f3', L: '#ffffff', G: PAL.amarillo, M: PAL.cafe }),
+    espadaEvo: desdeTexto(['.W.', 'WLW', 'WLW', 'WLW', 'WLW', 'WLW', 'WLW', 'GGG', '.M.', '.M.'], { W: PAL.hielo, L: '#ffffff', G: PAL.menta, M: PAL.azul }),
+    cuchillo: desdeTexto(['MM.WWW.', 'MMWWWLL', 'MM.WWW.'], { M: PAL.cafe, W: '#dfe6f3', L: '#ffffff' }),
+    lanza: desdeTexto(['MMMMMMMMMMWW.', 'MMMMMMMMMMWLL', 'MMMMMMMMMMWW.'], { M: PAL.lila, W: '#dfe6f3', L: '#ffffff' }),
+    bumeran: desdeTexto(['OOOO...', 'OMMMO..', 'OMOOMO.', '.O..OMO', '.....OO'], { O: '#0a4a30', M: PAL.menta }),
+    orbe: bola(3, 3, { borde: '#4a1a7a', sombra: PAL.violeta, base: '#d06bff', luz: '#f0c0ff', brillo: '#ffffff' }),
+    meteoro: bola(6, 6, { borde: '#7a1a08', sombra: PAL.naranjoOscuro, base: PAL.naranjo, luz: PAL.amarillo, brillo: '#ffffff' }),
+    piedra: bola(6, 4, { borde: PAL.grisOscuro, sombra: PAL.gris, base: '#9a9aa6', luz: PAL.grisClaro }),
+    arbusto: bola(8, 6, { borde: '#0e3a14', sombra: PAL.verdeOscuro, base: '#2f6b2a', luz: PAL.verde, brillo: PAL.verdeClaro }),
+    sombra: crearSprite(14, 5, (g) => { g.fillStyle = 'rgba(0,0,0,.28)'; for (let y = 0; y < 5; y++) { const w = Math.round(14 * Math.sqrt(1 - ((y - 2) / 2.6) ** 2)); g.fillRect(7 - w / 2, y, w, 1); } }),
+  };
+  // Pradera: un mosaico de 128 × 128 píxeles con pasto, matas y flores, que se repite
+  const PASTO = crearSprite(128, 128, (g) => {
+    g.fillStyle = '#4a8a40'; g.fillRect(0, 0, 128, 128);
+    const rp = generador('pasto-pixel');
+    for (let y = 0; y < 128; y++) for (let x = 0; x < 128; x++) {
+      const n = Math.sin(x * 0.11 + Math.sin(y * 0.07) * 2) + Math.sin(y * 0.09 + x * 0.03);
+      if (n > 1.1 && (x + y) % 2 === 0) { g.fillStyle = '#56994a'; g.fillRect(x, y, 1, 1); } else if (n < -1.1 && (x + y) % 2 === 0) { g.fillStyle = '#3f7a38'; g.fillRect(x, y, 1, 1); }
     }
-    // Ojos
-    if (e.tipo !== 'avispa') { g.fillStyle = e.tipo === 'jefe' || e.tipo === 'minijefe' ? '#ffd23c' : '#ffffff'; const ojo = Math.max(2, e.r * 0.18); g.beginPath(); g.arc(-e.r * 0.3, -e.r * 0.15, ojo, 0, Math.PI * 2); g.arc(e.r * 0.3, -e.r * 0.15, ojo, 0, Math.PI * 2); g.fill(); g.fillStyle = '#121218'; g.beginPath(); g.arc(-e.r * 0.3, -e.r * 0.12, ojo * 0.5, 0, Math.PI * 2); g.arc(e.r * 0.3, -e.r * 0.12, ojo * 0.5, 0, Math.PI * 2); g.fill(); }
-    if (e.tipo === 'minijefe' || e.tipo === 'golem') { g.fillStyle = 'rgba(0,0,0,.5)'; g.fillRect(-e.r, -e.r - 12, e.r * 2, 5); g.fillStyle = '#ff5a6a'; g.fillRect(-e.r, -e.r - 12, e.r * 2 * (e.vida / e.max), 5); }
-    g.restore();
-  };
-  const pintarHeroe = (g: CanvasRenderingContext2D, t: number) => {
-    const p = PERSONAJES[personaje], golpeado = jt - yo.golpeado < 0.15, paso = Math.sin(t * 12) * 2;
-    g.save(); g.translate(yo.x, yo.y);
-    g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.ellipse(0, 14, 14, 5, 0, 0, Math.PI * 2); g.fill();
-    const capa = p.id === 'guerrero' ? '#3f7bff' : p.id === 'arquera' ? '#2fcf7a' : '#b06bff';
-    g.fillStyle = golpeado ? '#ffffff' : capa; g.beginPath(); g.moveTo(-12, 12 + paso * 0.3); g.lineTo(12, 12 - paso * 0.3); g.lineTo(8, -6); g.lineTo(-8, -6); g.closePath(); g.fill();
-    g.fillStyle = golpeado ? '#ffffff' : '#ffd9b3'; g.beginPath(); g.arc(0, -12, 9, 0, Math.PI * 2); g.fill();
-    g.fillStyle = p.id === 'maga' ? '#5a2a8a' : p.id === 'arquera' ? '#8a5a2a' : '#c9ced8';
-    if (p.id === 'maga') { g.beginPath(); g.moveTo(-11, -15); g.lineTo(11, -15); g.lineTo(2, -36); g.closePath(); g.fill(); }
-    else { g.beginPath(); g.arc(0, -15, 10, Math.PI, 0); g.fill(); }
-    g.fillStyle = '#121218'; g.fillRect(yo.dirX * 3 - 4, -13, 2.5, 3); g.fillRect(yo.dirX * 3 + 2, -13, 2.5, 3);
-    g.restore();
-    // Barra de vida
-    g.fillStyle = 'rgba(0,0,0,.5)'; g.fillRect(yo.x - 22, yo.y + 22, 44, 6);
-    g.fillStyle = yo.vida / yo.max < 0.3 ? '#ff2e4d' : '#5fd16a'; g.fillRect(yo.x - 22, yo.y + 22, 44 * (yo.vida / yo.max), 6);
-  };
+    for (let k = 0; k < 90; k++) { const x = Math.floor(rp() * 126), y = Math.floor(rp() * 125); g.fillStyle = '#2f6b2a'; g.fillRect(x, y + 1, 1, 2); g.fillRect(x + 1, y, 1, 3); g.fillStyle = '#7fd85a'; g.fillRect(x + 1, y, 1, 1); }
+    const flores = [PAL.amarillo, PAL.rosado, PAL.blanco, PAL.lila];
+    for (let k = 0; k < 14; k++) { const x = 1 + Math.floor(rp() * 125), y = 1 + Math.floor(rp() * 125); g.fillStyle = flores[k % 4]; g.fillRect(x - 1, y, 3, 1); g.fillRect(x, y - 1, 1, 3); g.fillStyle = PAL.amarillo; g.fillRect(x, y, 1, 1); }
+  });
+  const sx = (x: number) => (x - yo.x) * zoom() + m.ancho / 2, sy = (y: number) => (y - yo.y) * zoom() + ALTO / 2;
 
-  // ── Capa 3D: vista isométrica. Los enemigos van por lotes (una llamada de dibujo por tipo, aunque sean 500),
-  // con sombras de mancha; el protagonista es el personaje del jugador. La cámara ve el suelo igual que la vista 2D
-  // (mismas coordenadas en pantalla), así los números, rayos y ondas del lienzo 2D quedan en su lugar. ──
-  const T = m.tres;
-  const INCLINA = 0.75; // la cámara mira el suelo a unos 43° (se ven el volumen y las caras)
-  if (T) {
-    const E = T.escena;
-    E.environment = T.entorno(); E.environmentIntensity = 0.25;
-    E.fog = new THREE.Fog(0x9fc4e8, 1800, 3200);
-    const camara = new THREE.OrthographicCamera(-640, 640, 360, -360, 1, 4000);
-    T.camara = camara;
-    const cielo = new THREE.HemisphereLight(0xdff0ff, 0x3a5a2a, 1.3), sol = new THREE.DirectionalLight(0xfff0d0, 2.1);
-    sol.position.set(-0.5, 1, 0.4); E.add(cielo, sol, sol.target);
-    // Pradera: una textura de pasto con flores que se repite; el plano sigue al jugador y la textura se corre
-    const texPasto = texturaDe(512, 512, (cg) => {
-      cg.fillStyle = '#4a8a40'; cg.fillRect(0, 0, 512, 512);
-      const rp = generador('pasto');
-      for (let k = 0; k < 18; k++) { cg.fillStyle = rp() < 0.5 ? 'rgba(70,130,60,.5)' : 'rgba(50,100,45,.5)'; cg.beginPath(); cg.ellipse(rp() * 512, rp() * 512, 40 + rp() * 80, 30 + rp() * 60, rp() * 3, 0, Math.PI * 2); cg.fill(); }
-      for (let k = 0; k < 2200; k++) { cg.fillStyle = `rgba(${rp() < 0.5 ? '30,70,30' : '120,180,90'},${0.3 + rp() * 0.4})`; cg.fillRect(rp() * 512, rp() * 512, 2, 5 + rp() * 5); }
-      for (let k = 0; k < 40; k++) { cg.fillStyle = ['#ffd23c', '#ff8fc8', '#ffffff', '#b06bff'][k % 4]; const x = rp() * 512, y = rp() * 512; for (let p = 0; p < 4; p++) cg.fillRect(x + Math.cos(p * 1.57) * 3, y + Math.sin(p * 1.57) * 3, 3, 3); }
-    }, true);
-    const suelo = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshStandardMaterial({ map: texPasto, roughness: 1 }));
-    suelo.rotation.x = -Math.PI / 2; E.add(suelo);
-    // Piedras y arbustos fijos del mundo (por casilla, siempre los mismos)
-    const geoPiedra = new THREE.DodecahedronGeometry(1, 0), geoArbusto = new THREE.IcosahedronGeometry(1, 1);
-    const piedras = new THREE.InstancedMesh(geoPiedra, new THREE.MeshStandardMaterial({ color: 0x8a8a96, roughness: 0.9, flatShading: true }), 80);
-    const arbustos = new THREE.InstancedMesh(geoArbusto, new THREE.MeshStandardMaterial({ color: 0x2f6b2a, roughness: 0.9, flatShading: true }), 80);
-    E.add(piedras, arbustos);
-    // Sombras de mancha (una sola malla instanciada para todo lo que pisa el suelo)
-    const texSombra = texturaDe(64, 64, (cg) => { const gr = cg.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(0,0,0,.5)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); cg.fillStyle = gr; cg.fillRect(0, 0, 64, 64); });
-    const geoSombra = new THREE.PlaneGeometry(1, 1); geoSombra.rotateX(-Math.PI / 2);
-    const sombras = new THREE.InstancedMesh(geoSombra, new THREE.MeshBasicMaterial({ map: texSombra, transparent: true, depthWrite: false }), MAX_ENEMIGOS + 20);
-    sombras.position.y = 0.5; E.add(sombras);
-    // Enemigos: cuerpo y ojos en una sola geometría con colores por vértice (el destello del golpe es el color de la instancia)
-    const pintar = (geo: THREE.BufferGeometry, color: string) => { const c3 = new THREE.Color(color), n = geo.attributes.position.count, cs = new Float32Array(n * 3); for (let i = 0; i < n; i++) cs.set([c3.r, c3.g, c3.b], i * 3); geo.setAttribute('color', new THREE.BufferAttribute(cs, 3)); return geo.index ? geo.toNonIndexed() : geo; };
-    const ojos = (x: number, y: number, z: number, r: number, color = '#ffffff') => [-1, 1].flatMap((lado) => [pintar(new THREE.SphereGeometry(r, 8, 6).translate(lado * x, y, z), color), pintar(new THREE.SphereGeometry(r * 0.5, 6, 4).translate(lado * x, y, z + r * 0.7), '#121218')]);
-    const unir = (partes: THREE.BufferGeometry[]) => mergeGeometries(partes.map((p) => (p.index ? p.toNonIndexed() : p)), false)!;
-    const GEO: Record<TipoEnemigo, THREE.BufferGeometry> = {
-      limo: unir([pintar(new THREE.SphereGeometry(1, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.62).scale(1, 0.85, 1).translate(0, 0.25, 0), '#5fd16a'), ...ojos(0.32, 0.55, 0.72, 0.18)]),
-      lobo: unir([pintar(new THREE.ConeGeometry(0.7, 2, 6).rotateX(Math.PI / 2).translate(0, 0.7, 0.1), '#9aa3b8'), pintar(new THREE.ConeGeometry(0.22, 0.5, 4).translate(-0.3, 1.25, 0.5), '#7a8296'), pintar(new THREE.ConeGeometry(0.22, 0.5, 4).translate(0.3, 1.25, 0.5), '#7a8296'), ...ojos(0.25, 0.95, 0.85, 0.13, '#ffd23c')]),
-      golem: unir([pintar(new THREE.BoxGeometry(1.8, 1.5, 1.2).translate(0, 0.9, 0), '#a8784a'), pintar(new THREE.BoxGeometry(1, 0.8, 0.9).translate(0, 2, 0.1), '#8a6038'), pintar(new THREE.BoxGeometry(0.5, 1.2, 0.5).translate(-1.2, 0.8, 0), '#8a6038'), pintar(new THREE.BoxGeometry(0.5, 1.2, 0.5).translate(1.2, 0.8, 0), '#8a6038'), ...ojos(0.25, 2.05, 0.55, 0.13, '#ffd23c')]),
-      hechicero: unir([pintar(new THREE.ConeGeometry(0.9, 2.2, 8).translate(0, 1.1, 0), '#7a3ad0'), pintar(new THREE.SphereGeometry(0.42, 10, 8).translate(0, 2.1, 0), '#e8c9a8'), pintar(new THREE.ConeGeometry(0.5, 1, 8).translate(0, 2.7, 0), '#5a2a9a'), pintar(new THREE.SphereGeometry(0.25, 8, 6).translate(0.9, 1.4, 0.3), '#ffd23c'), ...ojos(0.15, 2.15, 0.38, 0.08, '#121218')]),
-      avispa: unir([pintar(new THREE.SphereGeometry(0.8, 10, 8).scale(1, 0.8, 1.2).translate(0, 1.2, 0), '#ffd23c'), pintar(new THREE.TorusGeometry(0.72, 0.12, 4, 12).translate(0, 1.2, 0), '#1a1a1a'), pintar(new THREE.SphereGeometry(0.6, 6, 4).scale(1.4, 0.2, 0.7).translate(0, 1.85, -0.2), '#ffffff'), ...ojos(0.25, 1.35, 0.85, 0.15, '#121218')]),
-      minijefe: new THREE.BufferGeometry(), jefe: new THREE.BufferGeometry(),
-    };
-    GEO.minijefe = GEO.golem.clone(); // el minijefe es un gólem grande y rojo (lo tiñe el color de la instancia)
-    GEO.jefe = unir([pintar(new THREE.SphereGeometry(1, 20, 14).scale(1, 1.1, 1).translate(0, 1.1, 0), '#3a2a5a'), ...[-2, -1, 0, 1, 2].map((k) => pintar(new THREE.ConeGeometry(0.18, 0.8, 4).translate(k * 0.3, 2.3 - Math.abs(k) * 0.12, 0.2), '#ffd23c')), ...ojos(0.35, 1.4, 0.9, 0.18, '#ff2e4d')]);
-    const matEnemigo = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.05 });
-    const TIPOS = Object.keys(ENEMIGOS) as TipoEnemigo[];
-    const lotes = Object.fromEntries(TIPOS.map((tp) => { const l = new THREE.InstancedMesh(GEO[tp], matEnemigo, tp === 'jefe' ? 2 : tp === 'minijefe' ? 8 : MAX_ENEMIGOS); l.frustumCulled = false; E.add(l); return [tp, l]; })) as unknown as Record<TipoEnemigo, THREE.InstancedMesh>;
-    // Cosas sueltas
-    const geoCristal = new THREE.OctahedronGeometry(1).scale(0.6, 1, 0.6);
-    const cristales = new THREE.InstancedMesh(geoCristal, new THREE.MeshStandardMaterial({ roughness: 0.15, metalness: 0.2, emissive: 0x223366, flatShading: true }), 420);
-    cristales.frustumCulled = false; E.add(cristales);
-    const matOro = new THREE.MeshStandardMaterial({ color: 0xffc83a, metalness: 1, roughness: 0.25, emissive: 0x3a2400 });
-    const OBJ: Record<string, () => THREE.Object3D> = {
-      oro: () => { const me = new THREE.Mesh(new THREE.CylinderGeometry(7, 7, 2.5, 14), matOro); me.rotation.x = Math.PI / 2; return me; },
-      comida: () => { const g3 = new THREE.Group(); const carne = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8).scale(11, 8, 9), new THREE.MeshStandardMaterial({ color: 0xc96a3a, roughness: 0.6 })); const hueso = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 14, 6), new THREE.MeshStandardMaterial({ color: 0xfff1d0 })); hueso.rotation.z = 1.1; hueso.position.set(10, 4, 0); g3.add(carne, hueso); return g3; },
-      iman: () => { const me = new THREE.Mesh(new THREE.TorusGeometry(9, 3, 8, 16, Math.PI), new THREE.MeshStandardMaterial({ color: 0xff2e4d, metalness: 0.4, roughness: 0.3 })); return me; },
-      bomba: () => { const g3 = new THREE.Group(); g3.add(new THREE.Mesh(new THREE.SphereGeometry(10, 14, 10), new THREE.MeshStandardMaterial({ color: 0x1a1a22, metalness: 0.6, roughness: 0.3 }))); const ch = brillo(0xffb02a, 1); ch.position.set(6, 14, 0); ch.scale.setScalar(14); g3.add(ch); return g3; },
-      cofre: () => { const g3 = new THREE.Group(); g3.add(new THREE.Mesh(new THREE.BoxGeometry(34, 20, 22), new THREE.MeshStandardMaterial({ color: 0x9a5a1a, roughness: 0.7 }))); const tapa = new THREE.Mesh(new THREE.BoxGeometry(36, 8, 24), matOro); tapa.position.y = 13; g3.add(tapa); const b = brillo(0xffd23c, 0.6); b.scale.setScalar(110); b.position.y = 10; g3.add(b); return g3; },
-    };
-    const brillo = (color: THREE.ColorRepresentation, op: number) => new THREE.Sprite(new THREE.SpriteMaterial({ map: texturaBrillo(), color, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
-    const objetos = new Map<Suelto, THREE.Object3D>();
-    // Antorchas: palo, fuego y su luz (falsa: un brillo aditivo en el suelo, que de noche se nota)
-    const antorchas3d = new Map<Antorcha, THREE.Group>();
-    const crearAntorcha = () => { const g3 = new THREE.Group(); const palo = new THREE.Mesh(new THREE.CylinderGeometry(3, 4, 34, 6), new THREE.MeshStandardMaterial({ color: 0x5a3a1a })); palo.position.y = 17; const fuego = brillo(0xff8a3a, 1); fuego.position.y = 40; fuego.scale.set(26, 38, 1); const halo = brillo(0xffa040, 0.35); halo.position.y = 30; halo.scale.setScalar(150); g3.add(palo, fuego, halo); g3.userData = { fuego, halo }; E.add(g3); return g3; };
-    // Proyectiles: un lote por clase
-    const geoCuchillo = new THREE.ConeGeometry(3, 18, 4).rotateZ(-Math.PI / 2), geoLanza = new THREE.CylinderGeometry(1.5, 1.5, 34, 5).rotateZ(Math.PI / 2), geoBumeran = new THREE.TorusGeometry(10, 3, 5, 10, 4), geoBola = new THREE.SphereGeometry(1, 10, 8);
-    const loteBala = (geo: THREE.BufferGeometry, color: number, emisivo: number) => { const l = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ color, emissive: emisivo, roughness: 0.3, metalness: 0.5 }), 300); l.frustumCulled = false; E.add(l); return l; };
-    const lCuchillo = loteBala(geoCuchillo, 0xffe08a, 0x553300), lLanza = loteBala(geoLanza, 0xc79bff, 0x401a6a), lBumeran = loteBala(geoBumeran, 0x7cffcb, 0x0a4a30), lBola = loteBala(geoBola, 0xd06bff, 0x8a2ad0);
-    const espadas = Array.from({ length: 5 }, () => { const g3 = new THREE.Group(); const hoja = new THREE.Mesh(new THREE.BoxGeometry(5, 34, 1.5).translate(0, 17, 0), new THREE.MeshStandardMaterial({ color: 0xdfe6f3, metalness: 0.9, roughness: 0.2, emissive: 0x4a5a7a })); const guarda = new THREE.Mesh(new THREE.BoxGeometry(16, 3, 3), new THREE.MeshStandardMaterial({ color: 0xa8784a })); g3.add(hoja, guarda); E.add(g3); g3.visible = false; return { g3, hoja }; });
-    const meteoros3d = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(14, 0), new THREE.MeshStandardMaterial({ color: 0xff7a3a, emissive: 0xff4a10, emissiveIntensity: 1.2, flatShading: true }), 40);
-    meteoros3d.frustumCulled = false; E.add(meteoros3d);
-    const auraSuelo = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: texturaBrillo(), color: 0xff7a3a, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false }));
-    auraSuelo.position.y = 1; E.add(auraSuelo);
-    // El protagonista: el personaje del jugador (mientras carga, una figura simple)
-    const heroe = new THREE.Group(); E.add(heroe);
-    const simple = new THREE.Group();
-    { simple.scale.setScalar(1.35); const capa = new THREE.Mesh(new THREE.ConeGeometry(12, 28, 8).translate(0, 14, 0), new THREE.MeshStandardMaterial({ color: 0x3f7bff })); const cara = new THREE.Mesh(new THREE.SphereGeometry(9, 12, 10).translate(0, 32, 0), new THREE.MeshStandardMaterial({ color: 0xffd9b3 })); simple.add(capa, cara); heroe.add(simple); }
-    // Anillo de luz bajo el protagonista: siempre se sabe dónde está, aunque lo rodeen
-    const anillo = new THREE.Mesh(new THREE.RingGeometry(26, 34, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x7fd8ff, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
-    anillo.position.y = 1.5; E.add(anillo);
-    let avatar: Kenney | null = null, caminando = false;
-    if (c.aspecto) crearKenney(c.aspecto).then((k) => {
-      if (!m.tres) return;
-      const caja = new THREE.Box3().setFromObject(k.grupo), alto = Math.max(0.01, caja.max.y - caja.min.y);
-      k.grupo.scale.multiplyScalar(62 / alto);
-      heroe.remove(simple); heroe.add(k.grupo); avatar = k;
-    }).catch(() => { /* se queda la figura simple */ });
-    const golpeado = new THREE.Color(), mat4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v3 = new THREE.Vector3(), esc = new THREE.Vector3(), eje = new THREE.Vector3(0, 1, 0), BLANCO = new THREE.Color(3, 3, 3);
-    const NORMAL = new THREE.Color(0xffffff), ROJIZO = new THREE.Color(0xff6a5a), giroBumeran = new THREE.Euler(-Math.PI / 2, 0, 0), giroMeteoro = new THREE.Euler();
-    let previo = performance.now();
-    m.antes3d(() => {
-      const ahora = performance.now(), dtReal = Math.min(0.1, (ahora - previo) / 1000); previo = ahora;
-      const t = m.tiempo, z = zoom(), vw = m.ancho / z, vh = ALTO / z;
-      // Cámara: mira al jugador desde arriba a 60°; el alto visible se ajusta para que el suelo coincida con la vista 2D
-      camara.left = -vw / 2; camara.right = vw / 2; camara.top = (vh * Math.sin(INCLINA)) / 2; camara.bottom = -(vh * Math.sin(INCLINA)) / 2;
-      camara.updateProjectionMatrix();
-      const D = 1500, sx = m.sacudida.x / z, sy = m.sacudida.y / z;
-      camara.position.set(yo.x + sx, D * Math.sin(INCLINA), yo.y + D * Math.cos(INCLINA) + sy);
-      camara.lookAt(yo.x + sx, 0, yo.y + sy);
-      // Luz del día que avanza: tarde, atardecer y noche cuando llega el jefe
-      const k = Math.min(1, jt / JEFE_EN), noche = jefe ? 1 : Math.max(0, (k - 0.75) / 0.25);
-      cielo.color.setRGB(0.87 - noche * 0.5, 0.94 - noche * 0.55 - k * 0.1, 1 - noche * 0.3); cielo.intensity = 1.3 - noche * 0.6;
-      sol.color.setRGB(1, 0.94 - k * 0.25, 0.82 - k * 0.4); sol.intensity = 2.1 - noche * 1.5;
-      E.fog!.color.setRGB(0.62 - noche * 0.5, 0.77 - noche * 0.6, 0.91 - noche * 0.6);
-      T.render.setClearColor(E.fog!.color);
-      // Suelo y decoración
-      const lado = Math.max(vw, vh) * 2.2;
-      suelo.position.set(yo.x, 0, yo.y); suelo.scale.set(lado, lado, 1);
-      texPasto.repeat.set(lado / 512, lado / 512); texPasto.offset.set((yo.x - lado / 2) / 512, -(yo.y + lado / 2) / 512);
-      let np = 0, na = 0;
-      const cx0 = Math.floor((yo.x - vw / 2) / 128) - 1, cy0 = Math.floor((yo.y - vh / 2) / 128) - 1;
-      for (let cx = cx0; cx < cx0 + vw / 128 + 3; cx++) for (let cy = cy0; cy < cy0 + vh / 128 + 3; cy++) {
-        const h = hash(cx, cy);
-        if (h > 0.93 && np < 80) { mat4.compose(v3.set(cx * 128 + 64, 4, cy * 128 + 64), q.setFromAxisAngle(eje, h * 30), esc.set(16, 10, 13)); piedras.setMatrixAt(np++, mat4); }
-        else if (h < 0.06 && na < 80) { mat4.compose(v3.set(cx * 128 + 40, 12, cy * 128 + 70), q.identity(), esc.set(26, 18, 22)); arbustos.setMatrixAt(na++, mat4); }
-      }
-      piedras.count = np; arbustos.count = na; piedras.instanceMatrix.needsUpdate = arbustos.instanceMatrix.needsUpdate = true;
-      // Enemigos
-      const cuenta = Object.fromEntries(TIPOS.map((tp) => [tp, 0])) as Record<TipoEnemigo, number>;
-      let ns = 0;
-      for (const e of enemigos) {
-        if (Math.abs(e.x - yo.x) > vw / 2 + 80 || Math.abs(e.y - yo.y) > vh / 2 + 120) continue;
-        const l = lotes[e.tipo], i = cuenta[e.tipo]++;
-        if (i >= (e.tipo === 'jefe' ? 2 : e.tipo === 'minijefe' ? 8 : MAX_ENEMIGOS)) continue;
-        const salto = e.tipo === 'limo' ? Math.abs(Math.sin(t * 7 + e.id)) * 5 : e.tipo === 'avispa' ? 8 + Math.sin(t * 9 + e.id) * 3 : Math.abs(Math.sin(t * 9 + e.id)) * 2;
-        const aplasta = e.tipo === 'limo' ? 1 - Math.abs(Math.sin(t * 7 + e.id)) * 0.15 : 1;
-        mat4.compose(v3.set(e.x, salto, e.y), q.setFromAxisAngle(eje, Math.atan2(yo.x - e.x, yo.y - e.y)), esc.set(e.r * (2 - aplasta), e.r * aplasta, e.r));
-        l.setMatrixAt(i, mat4);
-        l.setColorAt(i, t - e.golpe < 0.08 ? BLANCO : (e.tipo === 'minijefe' ? ROJIZO : NORMAL));
-        if (ns < sombras.count) { mat4.compose(v3.set(e.x, 0, e.y), q.identity(), esc.set(e.r * 2.6, 1, e.r * 2)); sombras.setMatrixAt(ns++, mat4); }
-      }
-      for (const tp of TIPOS) { const l = lotes[tp]; l.count = Math.min(cuenta[tp], tp === 'jefe' ? 2 : tp === 'minijefe' ? 8 : MAX_ENEMIGOS); l.instanceMatrix.needsUpdate = true; if (l.instanceColor) l.instanceColor.needsUpdate = true; }
-      // Protagonista y su sombra
-      heroe.position.set(yo.x, 0, yo.y);
-      anillo.position.set(yo.x, 1.5, yo.y); (anillo.material as THREE.MeshBasicMaterial).color.setHex(yo.vida / yo.max < 0.3 ? 0xff2e4d : 0x7fd8ff);
-      const [dx, dy] = [yo.dirX, yo.dirY], mueve = fase === 'juego' && (bot || m.teclas.size > 0 || (palanca && m.puntero.abajo));
-      heroe.rotation.y = Math.atan2(dx, dy);
-      heroe.visible = !(jt - yo.golpeado < 0.15 && Math.floor(t * 30) % 2 === 0);
-      if (avatar) { if (mueve !== caminando) { caminando = !!mueve; avatar.animar(caminando ? 'sprint' : 'idle'); } (avatar.grupo.userData.avanzar as (d: number) => void)?.(fase === 'juego' ? dtReal : 0); }
-      mat4.compose(v3.set(yo.x, 0, yo.y), q.identity(), esc.set(40, 1, 30)); sombras.setMatrixAt(ns++, mat4);
-      sombras.count = ns; sombras.instanceMatrix.needsUpdate = true;
-      // Cristales y cosas sueltas
-      let nc = 0;
-      const vivos = new Set<Suelto>();
-      for (const s of sueltos) {
-        if (Math.abs(s.x - yo.x) > vw / 2 + 40 || Math.abs(s.y - yo.y) > vh / 2 + 60) continue;
-        if (s.tipo === 'xp') {
-          if (nc >= 420) continue;
-          mat4.compose(v3.set(s.x, 8 + Math.sin(t * 4 + s.x) * 2, s.y), q.setFromAxisAngle(eje, t * 2 + s.y), esc.setScalar(s.valor >= 4 ? 9 : s.valor >= 2 ? 7.5 : 6));
-          cristales.setMatrixAt(nc, mat4); cristales.setColorAt(nc, golpeado.set(s.valor >= 4 ? 0xff5a6a : s.valor >= 2 ? 0x7cffcb : 0x7fb4ff)); nc++;
-          continue;
-        }
-        vivos.add(s);
-        let o3 = objetos.get(s);
-        if (!o3) { o3 = OBJ[s.tipo](); objetos.set(s, o3); E.add(o3); }
-        o3.position.set(s.x, 10 + Math.sin(t * 3 + s.x) * 3, s.y); o3.rotation.y = t * 1.5;
-      }
-      cristales.count = nc; cristales.instanceMatrix.needsUpdate = true; if (cristales.instanceColor) cristales.instanceColor.needsUpdate = true;
-      for (const [s, o3] of objetos) if (!vivos.has(s)) { E.remove(o3); objetos.delete(s); }
-      // Antorchas
-      for (const a of antorchas) { let g3 = antorchas3d.get(a); if (!g3) { g3 = crearAntorcha(); antorchas3d.set(a, g3); } g3.position.set(a.x, 0, a.y); const fu = g3.userData.fuego as THREE.Sprite; fu.scale.set(24 + Math.sin(t * 13 + a.x) * 4, 36 + Math.sin(t * 17) * 5, 1); (g3.userData.halo as THREE.Sprite).material.opacity = 0.15 + noche * 0.4; }
-      for (const [a, g3] of antorchas3d) if (!antorchas.includes(a)) { E.remove(g3); antorchas3d.delete(a); }
-      // Armas
-      const esp = armas.get('espada'), nEsp = esp ? (esp.evo ? 5 : [1, 2, 2, 3, 3][esp.nivel - 1]) : 0;
-      espadas.forEach((s, k) => {
-        s.g3.visible = k < nEsp;
-        if (!s.g3.visible || !esp) return;
-        const lv = esp.nivel + (esp.evo ? 3 : 0), rad = (75 + lv * 4) * mult.area, a = jt * (esp.evo ? 4.5 : 3.2) + (k * Math.PI * 2) / nEsp;
-        s.g3.position.set(yo.x + Math.cos(a) * rad, 18, yo.y + Math.sin(a) * rad);
-        s.g3.rotation.set(-Math.PI / 2, 0, -a - Math.PI / 2); s.g3.scale.setScalar(mult.area);
-        (s.hoja.material as THREE.MeshStandardMaterial).color.setHex(esp.evo ? 0x9fe9ff : 0xdfe6f3);
-      });
-      const n = { c: 0, l: 0, b: 0, e: 0 };
-      for (const b of balas) {
-        const a = Math.atan2(b.vy, b.vx);
-        if (b.enemiga) { mat4.compose(v3.set(b.x, 16, b.y), q.identity(), esc.setScalar(b.r)); lBola.setMatrixAt(n.e++, mat4); continue; }
-        const id = LISTA_ARMAS[b.arma];
-        if (id === 'bumeran') { mat4.compose(v3.set(b.x, 14, b.y), q.setFromEuler((giroBumeran.z = t * 18, giroBumeran)), esc.setScalar(b.r / 10)); lBumeran.setMatrixAt(n.b++, mat4); }
-        else if (id === 'lanza') { mat4.compose(v3.set(b.x, 16, b.y), q.setFromAxisAngle(eje, -a), esc.setScalar(b.r / 9)); lLanza.setMatrixAt(n.l++, mat4); }
-        else { mat4.compose(v3.set(b.x, 16, b.y), q.setFromAxisAngle(eje, -a), esc.setScalar(1)); lCuchillo.setMatrixAt(n.c++, mat4); }
-      }
-      lCuchillo.count = n.c; lLanza.count = n.l; lBumeran.count = n.b; lBola.count = n.e;
-      for (const l of [lCuchillo, lLanza, lBumeran, lBola]) l.instanceMatrix.needsUpdate = true;
-      let nm = 0;
-      for (const me of meteoros) { const k2 = Math.max(0, me.t - jt) / 0.6; if (nm < 40) { mat4.compose(v3.set(me.x + k2 * 160, k2 * 500, me.y - k2 * 60), q.setFromEuler(giroMeteoro.set(t * 5, t * 3, 0)), esc.setScalar(me.r / 60)); meteoros3d.setMatrixAt(nm++, mat4); } }
-      meteoros3d.count = nm; meteoros3d.instanceMatrix.needsUpdate = true;
-      const au = armas.get('aura');
-      auraSuelo.visible = !!au;
-      if (au) { const rad = (70 + (au.nivel + (au.evo ? 3 : 0)) * 10) * mult.area; auraSuelo.position.set(yo.x, 1, yo.y); auraSuelo.scale.set(rad * 2.2, 1, rad * 2.2); (auraSuelo.material as THREE.MeshBasicMaterial).color.setHex(au.evo ? 0xffdc5a : 0xff7a3a); (auraSuelo.material as THREE.MeshBasicMaterial).opacity = 0.35 + Math.sin(t * 6) * 0.08; }
-    });
-  }
-
-  m.alDibujar((g) => {
-    const t = m.tiempo, z = zoom(), vw = m.ancho / z, vh = ALTO / z;
-    g.save();
-    g.scale(z, z);
-    g.translate(vw / 2 - yo.x, vh / 2 - yo.y);
-    if (!T) {
-    // Pradera: pasto con flores y piedras deterministas por casilla
+  m.alPixel((gp) => {
+    const t = m.tiempo, z = zoom(), vw = m.ancho / z, vh = ALTO / z, k = m.k;
+    // Suelo
+    const lado = 128 * k, ox = ((sx(0) % lado) + lado) % lado - lado, oy = ((sy(0) % lado) + lado) % lado - lado;
+    for (let x = ox; x < m.ancho; x += lado) for (let y = oy; y < ALTO; y += lado) gp.drawImage(PASTO, Math.round(x / k) * k, Math.round(y / k) * k, lado, lado);
     const x0 = Math.floor((yo.x - vw / 2) / 128) - 1, y0 = Math.floor((yo.y - vh / 2) / 128) - 1;
-    g.fillStyle = '#3f7a3a'; g.fillRect(yo.x - vw / 2 - 10, yo.y - vh / 2 - 10, vw + 20, vh + 20);
     for (let cx = x0; cx < x0 + vw / 128 + 3; cx++) for (let cy = y0; cy < y0 + vh / 128 + 3; cy++) {
       const h = hash(cx, cy);
-      g.fillStyle = h < 0.5 ? '#457f3f' : '#3a7035'; g.fillRect(cx * 128, cy * 128, 128, 128);
-      for (let k = 0; k < 5; k++) { const hx = hash(cx * 7 + k, cy * 13 - k), hy = hash(cx * 11 - k, cy * 5 + k); g.fillStyle = k === 0 && h > 0.7 ? '#ffd23c' : k === 1 && h > 0.8 ? '#ff8fc8' : 'rgba(30,70,30,.6)'; g.fillRect(cx * 128 + hx * 120, cy * 128 + hy * 120, k < 2 ? 5 : 3, k < 2 ? 5 : 8); }
-      if (h > 0.93) { g.fillStyle = '#7a7a86'; g.beginPath(); g.ellipse(cx * 128 + 64, cy * 128 + 64, 14, 9, 0, 0, Math.PI * 2); g.fill(); }
+      if (h > 0.93) m.sprite(SPR.piedra, sx(cx * 128 + 64), sy(cy * 128 + 64));
+      else if (h < 0.05) m.sprite(SPR.arbusto, sx(cx * 128 + 40), sy(cy * 128 + 70));
     }
-    // Antorchas
-    for (const a of antorchas) { g.fillStyle = '#5a3a1a'; g.fillRect(a.x - 4, a.y - 10, 8, 24); g.fillStyle = '#ff8a3a'; g.beginPath(); g.ellipse(a.x, a.y - 16 + Math.sin(t * 10) * 1.5, 8, 12, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#ffd23c'; g.beginPath(); g.ellipse(a.x, a.y - 14, 4, 7, 0, 0, Math.PI * 2); g.fill(); }
-    }
-    // Meteoros por caer (sombra que crece)
-    for (const me of meteoros) { const k = Math.max(0, 1 - Math.max(0, me.t - jt) / 0.6); g.fillStyle = `rgba(255,60,40,${0.15 + k * 0.25})`; g.beginPath(); g.arc(me.x, me.y, me.r * k, 0, Math.PI * 2); g.fill(); }
-    if (!T) {
-    // Cosas sueltas
-    for (const s of sueltos) {
-      if (s.tipo === 'xp') { g.fillStyle = s.valor >= 4 ? '#ff5a6a' : s.valor >= 2 ? '#7cffcb' : '#7fb4ff'; g.beginPath(); g.moveTo(s.x, s.y - 7); g.lineTo(s.x + 5, s.y); g.lineTo(s.x, s.y + 7); g.lineTo(s.x - 5, s.y); g.closePath(); g.fill(); }
-      else if (s.tipo === 'oro') { g.fillStyle = '#ffd23c'; g.beginPath(); g.arc(s.x, s.y, 7, 0, Math.PI * 2); g.fill(); g.fillStyle = '#b07a00'; g.fillRect(s.x - 1, s.y - 4, 2, 8); }
-      else if (s.tipo === 'comida') { g.fillStyle = '#c96a3a'; g.beginPath(); g.ellipse(s.x, s.y, 11, 8, 0.4, 0, Math.PI * 2); g.fill(); g.fillStyle = '#fff1d0'; g.fillRect(s.x + 6, s.y - 9, 4, 8); }
-      else if (s.tipo === 'iman') { g.strokeStyle = '#ff2e4d'; g.lineWidth = 6; g.beginPath(); g.arc(s.x, s.y, 9, Math.PI, 0); g.stroke(); g.fillStyle = '#dfe6f3'; g.fillRect(s.x - 12, s.y, 6, 6); g.fillRect(s.x + 6, s.y, 6, 6); }
-      else if (s.tipo === 'bomba') { g.fillStyle = '#1a1a22'; g.beginPath(); g.arc(s.x, s.y, 10, 0, Math.PI * 2); g.fill(); g.fillStyle = '#ffd23c'; g.beginPath(); g.arc(s.x + 6, s.y - 11, 3 + Math.sin(t * 20), 0, Math.PI * 2); g.fill(); }
-      else { g.fillStyle = 'rgba(255,210,60,.35)'; g.beginPath(); g.arc(s.x, s.y, 26 + Math.sin(t * 5) * 4, 0, Math.PI * 2); g.fill(); g.fillStyle = '#b06a1a'; g.fillRect(s.x - 16, s.y - 10, 32, 22); g.fillStyle = '#ffd23c'; g.fillRect(s.x - 16, s.y - 4, 32, 4); g.fillRect(s.x - 3, s.y - 6, 6, 8); }
-    }
-    // Aura
+    // Aura, avisos de meteoros y cosas sueltas
     const aura = armas.get('aura');
-    if (aura) { const rad = (70 + (aura.nivel + (aura.evo ? 3 : 0)) * 10) * mult.area, gr = g.createRadialGradient(yo.x, yo.y, rad * 0.3, yo.x, yo.y, rad); gr.addColorStop(0, 'rgba(255,122,58,0)'); gr.addColorStop(0.8, aura.evo ? 'rgba(255,220,90,.28)' : 'rgba(255,122,58,.22)'); gr.addColorStop(1, 'rgba(255,122,58,0)'); g.fillStyle = gr; g.beginPath(); g.arc(yo.x, yo.y, rad, 0, Math.PI * 2); g.fill(); }
-    // Enemigos (de lejos a cerca en y, para que se superpongan bien)
-    const vistos = enemigos.filter((e) => Math.abs(e.x - yo.x) < vw / 2 + 60 && Math.abs(e.y - yo.y) < vh / 2 + 60).sort((a, b) => a.y - b.y);
-    for (const e of vistos) pintarEnemigo(g, e, t);
-    pintarHeroe(g, t);
-    // Espadas
+    if (aura) { const rad = (70 + (aura.nivel + (aura.evo ? 3 : 0)) * 10) * mult.area * z; gp.fillStyle = aura.evo ? 'rgba(255,220,90,.22)' : 'rgba(255,122,58,.2)'; gp.beginPath(); gp.arc(m.ancho / 2, ALTO / 2, rad, 0, Math.PI * 2); gp.fill(); gp.strokeStyle = aura.evo ? 'rgba(255,240,150,.5)' : 'rgba(255,150,80,.45)'; gp.lineWidth = k; gp.stroke(); }
+    for (const me of meteoros) { const q = Math.max(0, 1 - Math.max(0, me.t - jt) / 0.6); gp.fillStyle = `rgba(255,60,40,${0.15 + q * 0.25})`; gp.beginPath(); gp.ellipse(sx(me.x), sy(me.y), me.r * q * z, me.r * q * z * 0.7, 0, 0, Math.PI * 2); gp.fill(); }
+    for (const s of sueltos) {
+      const X = sx(s.x), Y = sy(s.y);
+      if (X < -40 || X > m.ancho + 40 || Y < -40 || Y > ALTO + 40) continue;
+      const salto = Math.round(Math.sin(t * 5 + s.x) * 1.5) * k;
+      if (s.tipo === 'xp') m.sprite(SPR.cristal[s.valor >= 4 ? 2 : s.valor >= 2 ? 1 : 0], X, Y + salto);
+      else if (s.tipo === 'cofre') { gp.fillStyle = 'rgba(255,210,60,.25)'; gp.beginPath(); gp.arc(X, Y, (14 + Math.sin(t * 5) * 2) * k, 0, Math.PI * 2); gp.fill(); m.sprite(SPR.cofre, X, Y + salto); }
+      else m.sprite(SPR[s.tipo], X, Y + salto);
+    }
+    for (const a of antorchas) m.sprite(SPR.antorcha[Math.floor(t * 8 + a.x) & 1], sx(a.x), sy(a.y) - 8 * k);
+    // Enemigos (de atrás hacia adelante) con su sombra y el destello blanco al recibir un golpe
+    const visibles = enemigos.filter((e) => Math.abs(e.x - yo.x) < vw / 2 + 60 && Math.abs(e.y - yo.y) < vh / 2 + 60).sort((a, b) => a.y - b.y);
+    for (const e of visibles) {
+      const X = sx(e.x), Y = sy(e.y), lista = SPR[e.tipo], cuadro = lista[Math.floor(t * 6 + e.id) % lista.length];
+      const escala = e.tipo === 'minijefe' ? 2 : 1, alto = cuadro.height * k * escala;
+      m.sprite(SPR.sombra, X, Y + alto * 0.35, e.r > 20 ? 2 : 1);
+      let img = e.tipo === 'lobo' && e.x > yo.x ? espejo(cuadro) : cuadro;
+      if (t - e.golpe < 0.08) img = silueta(img);
+      m.sprite(img, X, Y - (e.tipo === 'avispa' ? 6 * k : 0), escala);
+      if ((e.tipo === 'golem' || e.tipo === 'minijefe') && e.vida < e.max) { const w = e.r * 2 * z; gp.fillStyle = PAL.negro; gp.fillRect(Math.round((X - w / 2) / k) * k, Math.round((Y - alto * 0.65) / k) * k, w, k); gp.fillStyle = PAL.rojo; gp.fillRect(Math.round((X - w / 2) / k) * k, Math.round((Y - alto * 0.65) / k) * k, w * (e.vida / e.max), k); }
+      if (e.tipo === 'jefe' && t < e.carga) { gp.strokeStyle = PAL.rojo; gp.lineWidth = 2 * k; gp.beginPath(); gp.moveTo(X, Y); gp.lineTo(X + e.cx * 300 * z, Y + e.cy * 300 * z); gp.stroke(); }
+    }
+    // Protagonista: mira hacia donde camina y mueve las piernas
+    const vista = Math.abs(yo.dirX) > Math.abs(yo.dirY) ? 'lado' : yo.dirY < 0 ? 'espalda' : 'frente', anda = fase === 'juego' && (Math.abs(ultimaDir[0]) + Math.abs(ultimaDir[1]) > 0.05);
+    let img = heroe[personaje][vista][anda ? Math.floor(t * 8) % 2 : 0];
+    if (vista === 'lado' && yo.dirX < 0) img = espejo(img);
+    m.sprite(SPR.sombra, m.ancho / 2, ALTO / 2 + 7 * k);
+    if (!(jt - yo.golpeado < 0.15 && Math.floor(t * 30) % 2 === 0)) m.sprite(jt - yo.golpeado < 0.1 ? silueta(img, PAL.rojo) : img, m.ancho / 2, ALTO / 2 - 2 * k);
+    // Armas
     const esp = armas.get('espada');
     if (esp) {
       const lv = esp.nivel + (esp.evo ? 3 : 0), n = esp.evo ? 5 : [1, 2, 2, 3, 3][esp.nivel - 1], rad = (75 + lv * 4) * mult.area;
-      for (let k = 0; k < n; k++) { const a = jt * (esp.evo ? 4.5 : 3.2) + (k * Math.PI * 2) / n; g.save(); g.translate(yo.x + Math.cos(a) * rad, yo.y + Math.sin(a) * rad); g.rotate(a + Math.PI / 2); g.fillStyle = esp.evo ? '#9fe9ff' : '#dfe6f3'; g.beginPath(); g.moveTo(0, -22 * mult.area); g.lineTo(5, 6); g.lineTo(-5, 6); g.closePath(); g.fill(); g.fillStyle = '#a8784a'; g.fillRect(-7, 6, 14, 4); g.restore(); }
+      for (let q = 0; q < n; q++) { const a = jt * (esp.evo ? 4.5 : 3.2) + (q * Math.PI * 2) / n; m.sprite(girado(esp.evo ? SPR.espadaEvo : SPR.espada, a + Math.PI / 2), sx(yo.x + Math.cos(a) * rad), sy(yo.y + Math.sin(a) * rad), mult.area > 1.25 ? 2 : 1); }
     }
-    // Balas
     for (const b of balas) {
-      if (b.enemiga) { g.fillStyle = '#d06bff'; g.beginPath(); g.arc(b.x, b.y, b.r, 0, Math.PI * 2); g.fill(); g.fillStyle = '#ffffff'; g.beginPath(); g.arc(b.x, b.y, b.r * 0.4, 0, Math.PI * 2); g.fill(); continue; }
+      const X = sx(b.x), Y = sy(b.y);
+      if (b.enemiga) { m.sprite(SPR.orbe, X, Y); continue; }
       const id = LISTA_ARMAS[b.arma], a = Math.atan2(b.vy, b.vx);
-      g.save(); g.translate(b.x, b.y);
-      if (id === 'bumeran') { g.rotate(t * 18); g.strokeStyle = ARMAS.bumeran.color; g.lineWidth = 5; g.beginPath(); g.arc(0, 0, b.r, 0, Math.PI * 1.2); g.stroke(); }
-      else if (id === 'lanza') { g.rotate(a); g.fillStyle = ARMAS.lanza.color; g.fillRect(-b.r * 3, -2, b.r * 4, 4); g.beginPath(); g.moveTo(b.r * 1.8, 0); g.lineTo(b.r, -5); g.lineTo(b.r, 5); g.fill(); }
-      else { g.rotate(a); g.fillStyle = ARMAS.cuchillos.color; g.beginPath(); g.moveTo(10, 0); g.lineTo(-6, -3); g.lineTo(-6, 3); g.closePath(); g.fill(); }
-      g.restore();
+      m.sprite(id === 'bumeran' ? girado(SPR.bumeran, t * 18) : girado(id === 'lanza' ? SPR.lanza : SPR.cuchillo, a), X, Y);
     }
-    }
-    for (let k = rayos.length - 1; k >= 0; k--) { const ry = rayos[k], edad = jt - ry.t; if (edad > 0.15) { rayos.splice(k, 1); continue; } g.strokeStyle = '#bfefff'; g.lineWidth = 3; g.globalAlpha = 1 - edad / 0.15; g.beginPath(); ry.puntos.forEach(([x, y], q) => { const jx = q ? (hash(q, Math.floor(t * 30)) - 0.5) * 14 : 0; if (q) g.lineTo(x + jx, y + jx); else g.moveTo(x, y); }); g.stroke(); g.globalAlpha = 1; }
-    for (let k = ondas.length - 1; k >= 0; k--) { const o = ondas[k], edad = (jt - o.t) / 0.35; if (edad > 1) { ondas.splice(k, 1); continue; } g.strokeStyle = o.color; g.globalAlpha = 1 - edad; g.lineWidth = 6; g.beginPath(); g.arc(o.x, o.y, o.r * (0.4 + edad * 0.6), 0, Math.PI * 2); g.stroke(); g.globalAlpha = 1; }
+    for (const me of meteoros) { const q = Math.max(0, me.t - jt) / 0.6; m.sprite(SPR.meteoro, sx(me.x + q * 160), sy(me.y) - q * 260 * z, me.r > 70 ? 2 : 1); }
+    gp.lineCap = 'square';
+    for (let q = rayos.length - 1; q >= 0; q--) { const ry = rayos[q], edad = jt - ry.t; if (edad > 0.15) { rayos.splice(q, 1); continue; } for (const [ancho, color] of [[3 * k, PAL.celeste], [k, '#ffffff']] as const) { gp.strokeStyle = color; gp.lineWidth = ancho; gp.beginPath(); ry.puntos.forEach(([x, y], i) => { const j = i ? Math.round((hash(i, Math.floor(t * 30)) - 0.5) * 4) * k : 0; if (i) gp.lineTo(sx(x) + j, sy(y) + j); else gp.moveTo(sx(x), sy(y)); }); gp.stroke(); } }
+    for (let q = ondas.length - 1; q >= 0; q--) { const o = ondas[q], edad = (jt - o.t) / 0.35; if (edad > 1) { ondas.splice(q, 1); continue; } gp.strokeStyle = o.color; gp.globalAlpha = 1 - edad; gp.lineWidth = 2 * k; gp.beginPath(); gp.arc(sx(o.x), sy(o.y), o.r * (0.4 + edad * 0.6) * z, 0, Math.PI * 2); gp.stroke(); gp.globalAlpha = 1; }
+    // Luz del día: tarde, atardecer y noche cuando llega el jefe
+    const dia = Math.min(1, jt / JEFE_EN), noche = jefe ? 1 : Math.max(0, (dia - 0.75) / 0.25);
+    if (dia > 0.4) { gp.fillStyle = `rgba(255,120,40,${Math.min(0.14, (dia - 0.4) * 0.3) * (1 - noche)})`; gp.fillRect(0, 0, m.ancho, ALTO); }
+    if (noche > 0) { gp.fillStyle = `rgba(20,24,70,${noche * 0.38})`; gp.fillRect(0, 0, m.ancho, ALTO); for (const a of antorchas) { gp.fillStyle = `rgba(255,170,60,${noche * 0.18})`; gp.beginPath(); gp.arc(sx(a.x), sy(a.y), 70 * z, 0, Math.PI * 2); gp.fill(); } }
+  });
+
+  m.alDibujar((g) => {
+    const z = zoom(), vw = m.ancho / z, vh = ALTO / z;
+    g.save();
+    g.scale(z, z);
+    g.translate(vw / 2 - yo.x, vh / 2 - yo.y);
     // Números de daño
-    for (let k = numeros.length - 1; k >= 0; k--) { const n = numeros[k], edad = jt - n.t; if (edad > 0.6) { numeros.splice(k, 1); continue; } m.rotulo(String(n.v), n.x, n.y - edad * 40 - (T ? n.critico ? 30 : 22 : 0), n.critico ? 22 : 15, n.critico ? '#ffd23c' : '#ffffff', 1 - edad / 0.6); }
+    for (let k = numeros.length - 1; k >= 0; k--) { const n = numeros[k], edad = jt - n.t; if (edad > 0.6) { numeros.splice(k, 1); continue; } m.rotulo(String(n.v), n.x, n.y - edad * 40 - 10, n.critico ? 22 : 15, n.critico ? '#ffd23c' : '#ffffff', 1 - edad / 0.6); }
     g.globalAlpha = 1;
     g.restore();
+    // Con el mouse: una flecha junto al personaje muestra hacia dónde va
+    if (modoMouse() && fase === 'juego') { const [dx, dy] = ultimaDir, l = Math.hypot(dx, dy); if (l > 0.05) { const a = Math.atan2(dy, dx), cx = m.ancho / 2 + Math.cos(a) * 46, cy = ALTO / 2 + Math.sin(a) * 46; g.fillStyle = 'rgba(255,255,255,.75)'; g.beginPath(); g.moveTo(cx + Math.cos(a) * 9, cy + Math.sin(a) * 9); g.lineTo(cx + Math.cos(a + 2.4) * 8, cy + Math.sin(a + 2.4) * 8); g.lineTo(cx + Math.cos(a - 2.4) * 8, cy + Math.sin(a - 2.4) * 8); g.fill(); } }
     // Interfaz: barra de experiencia, jefe y pantallas de elección
     const UI = 58;
     g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(0, UI, m.ancho, 10);
@@ -740,7 +593,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     for (const [id, w] of armas) { g.fillStyle = w.evo ? '#ffd23c' : 'rgba(0,0,0,.45)'; g.fillRect(ix, UI + 14, 26, 26); g.fillStyle = ARMAS[id].color; g.fillRect(ix + 4, UI + 18, 18, 18); m.rotulo(String(w.nivel), ix + 20, UI + 36, 11); ix += 30; }
     if (destello > 0) { g.fillStyle = `rgba(255,255,255,${destello * (m.calma ? 0.3 : 0.85)})`; g.fillRect(0, 0, m.ancho, ALTO); destello = Math.max(0, destello - 0.04); }
     if (palanca && m.puntero.abajo) { g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 3; g.beginPath(); g.arc(palanca.x, palanca.y, 50, 0, Math.PI * 2); g.stroke(); g.fillStyle = 'rgba(255,255,255,.35)'; const dx = m.puntero.x - palanca.x, dy = m.puntero.y - palanca.y, l = Math.min(50, Math.hypot(dx, dy)), a = Math.atan2(dy, dx); g.beginPath(); g.arc(palanca.x + Math.cos(a) * l, palanca.y + Math.sin(a) * l, 20, 0, Math.PI * 2); g.fill(); }
-    if (jt < 6 && fase === 'juego' && !bot) m.rotulo('Muévete con WASD, las flechas o arrastrando el dedo: tus armas atacan solas', m.ancho / 2, ALTO - 50, Math.round(Math.min(22, m.ancho / 22)), '#fff6c9');
+    if (jt < 6 && fase === 'juego' && !bot) m.rotulo('Muévete con el mouse (apunta hacia donde quieres ir), WASD o arrastrando el dedo: tus armas atacan solas', m.ancho / 2, ALTO - 50, Math.round(Math.min(22, m.ancho / 22)), '#fff6c9');
     if (fase === 'elegir') {
       g.fillStyle = 'rgba(8,10,20,.72)'; g.fillRect(0, 0, m.ancho, ALTO);
       texto(g, `¡Nivel ${yo.nivel}! Elige una mejora`, m.ancho / 2, 100, Math.min(40, m.ancho / 12), '#ffcf4a');
@@ -806,7 +659,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     });
   }
 
-  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__horda = () => ({ fase, puntos: Math.round(jt * 20) + puntos + oro * 5, seg: Math.round(jt), nivel: yo.nivel, vida: Math.round(yo.vida), muertes, enemigos: enemigos.length, armas: [...armas].map(([id, w]) => `${id}${w.nivel}${w.evo ? '+' : ''}`), terminado });
+  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__horda = () => ({ fase, x: Math.round(yo.x), y: Math.round(yo.y), puntos: Math.round(jt * 20) + puntos + oro * 5, seg: Math.round(jt), nivel: yo.nivel, vida: Math.round(yo.vida), muertes, enemigos: enemigos.length, armas: [...armas].map(([id, w]) => `${id}${w.nivel}${w.evo ? '+' : ''}`), terminado });
   return {
     empezar() { m.empezar(); if (fase === 'juego') empezarPartida(); },
     destruir() { musica.parar(); m.destruir(); },

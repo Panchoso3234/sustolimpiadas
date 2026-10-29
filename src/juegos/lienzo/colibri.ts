@@ -1,8 +1,8 @@
 import { generador } from '../../nucleo/azar';
 import { grabadora } from '../fantasma';
 import type { Contexto, Partida } from '../marco';
-import * as THREE from 'three';
-import { crearMotor2D, crearMusica, piloto, texturaBrillo, texturaDe } from './motor2d';
+import { crearMotor2D, crearMusica, piloto } from './motor2d';
+import { bola, crearSprite, desdeTexto, girado, mezcla, PAL, type Sprite } from './pixel';
 
 // Flappy Colibrí (29-10): un solo botón. Cada toque es un aleteo; la gravedad te baja. Pasa por los huecos entre los pares de
 // obstáculos sin rozarlos. Cuatro mundos (bosque, cañón con viento, ciudad, aurora con hielo que se mueve) cambian cada 25 huecos.
@@ -34,7 +34,7 @@ const REG = 'susto.colibri.record';
 interface Obstaculo { i: number; x: number; centro: number; hueco: number; mueve: { amp: number; vel: number; fase: number } | null; viento: number; flor: boolean; pasado: boolean; florTomada: boolean; minLibre: number }
 
 export async function crear(c: Contexto): Promise<Partida> {
-  const m = crearMotor2D(c, 'colibri', { fondo: '#bfe3ff', tres: true });
+  const m = crearMotor2D(c, 'colibri', { fondo: '#bfe3ff', pixel: () => 4 });
   const musica = crearMusica(m.mesa, 112);
   const bot = piloto();
   let record = 0;
@@ -165,128 +165,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (yo.y > meta && yo.vy > -120) aletear();
   }
 
-  // ── Dibujo ──
-  const nubes = Array.from({ length: 9 }, (_, i) => ({ x: (i * 397) % 2400, y: 60 + ((i * 131) % 220), s: 0.6 + ((i * 7) % 5) / 6 }));
-  const cerros = (semilla: number, alturaBase: number, var1: number) => Array.from({ length: 64 }, (_, i) => alturaBase - Math.abs(Math.sin(i * 0.9 + semilla) * var1 + Math.sin(i * 0.37 + semilla * 2) * var1 * 0.6));
-  const capas = MUNDOS.map((_, k) => ({ lejos: cerros(k * 3.1, 470, 120), medio: cerros(k * 5.7 + 1, 540, 70), cerca: cerros(k * 2.3 + 4, 610, 40) }));
-  const dibujarCapa = (g: CanvasRenderingContext2D, alturas: number[], desplaz: number, color: string, paso = 64) => {
-    g.fillStyle = color; g.beginPath(); g.moveTo(0, ALTO);
-    const n = alturas.length, off = ((desplaz % (paso * n)) + paso * n) % (paso * n), ini = Math.floor(off / paso);
-    for (let k = 0; k <= Math.ceil(m.ancho / paso) + 1; k++) g.lineTo(k * paso - (off % paso), alturas[(ini + k) % n]);
-    g.lineTo(m.ancho, ALTO); g.closePath(); g.fill();
-  };
-  const mundoDe = (d: number) => Math.floor(Math.max(0, (d - PRIMERO) / SEPARACION + 0.5) / 25) % 4;
-  const fondo = (g: CanvasRenderingContext2D, d: number, t: number) => {
-    const w = MUNDOS[mundoDe(d)], k = mundoDe(d), cielo = g.createLinearGradient(0, 0, 0, SUELO);
-    cielo.addColorStop(0, w.cielo[0]); cielo.addColorStop(0.55, w.cielo[1]); cielo.addColorStop(1, w.cielo[2]);
-    g.fillStyle = cielo; g.fillRect(0, 0, m.ancho, ALTO);
-    if (k === 3) {
-      // Estrellas y aurora que ondula
-      g.fillStyle = '#ffffff';
-      for (let s = 0; s < 70; s++) { g.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin(t * 1.3 + s)); g.fillRect((s * 173 - d * 0.02) % m.ancho < 0 ? 0 : ((s * 173 - d * 0.02) % m.ancho + m.ancho) % m.ancho, (s * 61) % 330, 2, 2); }
-      for (let b = 0; b < 3; b++) {
-        const gr = g.createLinearGradient(0, 60, 0, 330); gr.addColorStop(0, 'rgba(124,255,203,0)'); gr.addColorStop(0.5, b === 1 ? 'rgba(180,107,255,.35)' : 'rgba(124,255,203,.35)'); gr.addColorStop(1, 'rgba(124,255,203,0)');
-        g.globalAlpha = 1; g.fillStyle = gr; g.beginPath(); g.moveTo(0, 330);
-        for (let x = 0; x <= m.ancho; x += 30) g.lineTo(x, 120 + b * 50 + Math.sin(x * 0.006 + t * 0.6 + b) * 50);
-        g.lineTo(m.ancho, 330); g.closePath(); g.fill();
-      }
-      g.globalAlpha = 1;
-    } else {
-      // Sol (o sol de atardecer) y nubes
-      g.fillStyle = k === 2 ? 'rgba(255,190,120,.9)' : 'rgba(255,250,220,.85)';
-      g.beginPath(); g.arc(m.ancho * 0.78, k === 2 ? 360 : 130, k === 2 ? 70 : 46, 0, Math.PI * 2); g.fill();
-      for (const n of nubes) {
-        const x = ((n.x - d * 0.06) % (m.ancho + 300) + m.ancho + 300) % (m.ancho + 300) - 150;
-        g.fillStyle = k === 2 ? 'rgba(255,180,190,.55)' : 'rgba(255,255,255,.8)';
-        g.beginPath(); g.ellipse(x, n.y, 70 * n.s, 22 * n.s, 0, 0, Math.PI * 2); g.ellipse(x + 40 * n.s, n.y - 12 * n.s, 46 * n.s, 22 * n.s, 0, 0, Math.PI * 2); g.ellipse(x - 38 * n.s, n.y - 6 * n.s, 40 * n.s, 18 * n.s, 0, 0, Math.PI * 2); g.fill();
-      }
-    }
-    dibujarCapa(g, capas[k].lejos, d * 0.12, w.lejos);
-    dibujarCapa(g, capas[k].medio, d * 0.3, w.medio, 48);
-    if (k === 2) {
-      // Edificios con ventanas encendidas
-      for (let b = 0; b < 30; b++) {
-        const bw = 60 + ((b * 37) % 50), bh = 120 + ((b * 71) % 170), x = ((b * 113 - d * 0.5) % 3400 + 3400) % 3400 - 200;
-        if (x > m.ancho) continue;
-        g.fillStyle = w.cerca; g.fillRect(x, SUELO - bh, bw, bh);
-        g.fillStyle = 'rgba(255,214,120,.75)';
-        for (let fy = SUELO - bh + 12; fy < SUELO - 14; fy += 20) for (let fx = x + 8; fx < x + bw - 10; fx += 16) if (((fx * 7 + fy * 3 + b) % 5) > 1) g.fillRect(fx, fy, 7, 9);
-      }
-    } else dibujarCapa(g, capas[k].cerca, d * 0.55, w.cerca, 40);
-    // Suelo con textura que corre
-    const sg = g.createLinearGradient(0, SUELO, 0, ALTO); sg.addColorStop(0, w.suelo[0]); sg.addColorStop(1, w.suelo[1]);
-    g.fillStyle = sg; g.fillRect(0, SUELO, m.ancho, ALTO - SUELO);
-    g.fillStyle = 'rgba(0,0,0,.12)';
-    for (let x = -((d) % 36); x < m.ancho; x += 36) g.fillRect(x, SUELO + 8, 18, 4);
-    g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(0, SUELO, m.ancho, 4);
-  };
-  const obstaculo = (g: CanvasRenderingContext2D, o: Obstaculo, sx: number, cy: number) => {
-    const k = Math.floor(o.i / 25) % 4, w = MUNDOS[k], arriba = cy - o.hueco / 2, abajo = cy + o.hueco / 2;
-    const cuerpo = g.createLinearGradient(sx, 0, sx + ANCHO_OBS, 0);
-    cuerpo.addColorStop(0, w.obs[2]); cuerpo.addColorStop(0.35, w.obs[1]); cuerpo.addColorStop(1, w.obs[0]);
-    g.globalAlpha = k === 3 ? 0.88 : 1;
-    g.fillStyle = cuerpo;
-    g.fillRect(sx, -10, ANCHO_OBS, arriba + 10); g.fillRect(sx, abajo, ANCHO_OBS, SUELO - abajo);
-    // Remate de cada pieza según el mundo: corteza, estratos de roca, cornisa o filo de hielo
-    g.fillStyle = w.obs[2];
-    if (k === 0) { g.fillRect(sx - 6, arriba - 24, ANCHO_OBS + 12, 24); g.fillRect(sx - 6, abajo, ANCHO_OBS + 12, 24); g.fillStyle = '#4f8f3c'; g.fillRect(sx - 6, abajo - 6, ANCHO_OBS + 12, 8); g.fillRect(sx - 6, arriba - 2, ANCHO_OBS + 12, 6); g.fillStyle = 'rgba(0,0,0,.15)'; for (let yy = abajo + 40; yy < SUELO; yy += 34) g.fillRect(sx + 14, yy, ANCHO_OBS - 28, 3); for (let yy = arriba - 40; yy > 0; yy -= 34) g.fillRect(sx + 14, yy, ANCHO_OBS - 28, 3); }
-    else if (k === 1) { g.fillStyle = 'rgba(80,30,10,.18)'; for (let yy = abajo + 18; yy < SUELO; yy += 22) g.fillRect(sx, yy, ANCHO_OBS, 6); for (let yy = arriba - 18; yy > 0; yy -= 22) g.fillRect(sx, yy, ANCHO_OBS, 6); g.fillStyle = w.obs[2]; g.beginPath(); g.moveTo(sx - 8, arriba); g.lineTo(sx + ANCHO_OBS + 8, arriba); g.lineTo(sx + ANCHO_OBS - 10, arriba - 22); g.lineTo(sx + 12, arriba - 18); g.fill(); g.beginPath(); g.moveTo(sx - 8, abajo); g.lineTo(sx + ANCHO_OBS + 8, abajo); g.lineTo(sx + ANCHO_OBS - 14, abajo + 20); g.lineTo(sx + 8, abajo + 24); g.fill(); }
-    else if (k === 2) { g.fillRect(sx - 8, arriba - 16, ANCHO_OBS + 16, 16); g.fillRect(sx - 8, abajo, ANCHO_OBS + 16, 16); g.fillStyle = 'rgba(255,214,120,.7)'; for (let yy = abajo + 30; yy < SUELO - 10; yy += 26) for (let xx = sx + 12; xx < sx + ANCHO_OBS - 14; xx += 22) g.fillRect(xx, yy, 10, 12); for (let yy = arriba - 40; yy > 0; yy -= 26) for (let xx = sx + 12; xx < sx + ANCHO_OBS - 14; xx += 22) g.fillRect(xx, yy, 10, 12); }
-    else { g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.moveTo(sx, arriba); g.lineTo(sx + ANCHO_OBS / 2, arriba + 26); g.lineTo(sx + ANCHO_OBS, arriba); g.fill(); g.beginPath(); g.moveTo(sx, abajo); g.lineTo(sx + ANCHO_OBS / 2, abajo - 26); g.lineTo(sx + ANCHO_OBS, abajo); g.fill(); g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(sx + 10, 0, 8, arriba); g.fillRect(sx + 10, abajo, 8, SUELO - abajo); }
-    g.globalAlpha = 1;
-    // Viento: corrientes que suben o bajan
-    if (o.viento) {
-      g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 3;
-      for (let s = 0; s < 7; s++) { const x0 = sx - SEPARACION * 0.5 + s * 30, fase = ((m.tiempo * 260 * Math.sign(o.viento) + s * 80) % 600 + 600) % 600; g.beginPath(); g.moveTo(x0, fase); g.lineTo(x0, fase + 40 * -Math.sign(o.viento)); g.stroke(); }
-    }
-    // Flor de néctar en el hueco
-    if (o.flor && !o.florTomada) {
-      const fx = sx + ANCHO_OBS / 2, fy = cy + Math.sin(m.tiempo * 3 + o.i) * 5;
-      for (let p = 0; p < 5; p++) { const a = (p / 5) * Math.PI * 2 + m.tiempo; g.fillStyle = '#ff8fc8'; g.beginPath(); g.ellipse(fx + Math.cos(a) * 9, fy + Math.sin(a) * 9, 8, 5, a, 0, Math.PI * 2); g.fill(); }
-      g.fillStyle = '#ffd23c'; g.beginPath(); g.arc(fx, fy, 6, 0, Math.PI * 2); g.fill();
-    }
-  };
-  const ave = (g: CanvasRenderingContext2D, x: number, y: number, giro: number, aleteo: number, t: number, fantasma = false) => {
-    g.save(); g.translate(x, y); g.rotate(giro * 0.75);
-    if (fantasma) g.globalAlpha = 0.35;
-    const [c1, c2] = traje.nombre === 'Arcoíris' ? [`hsl(${(t * 120) % 360} 85% 60%)`, `hsl(${(t * 120 + 120) % 360} 85% 45%)`] : traje.cuerpo;
-    // Alas: un borrón que bate rápido (más rápido justo después de aletear)
-    const bate = Math.sin(t * (t - aleteo < 0.25 ? 70 : 38)), ala = g.createLinearGradient(0, -20, 0, 6);
-    ala.addColorStop(0, 'rgba(255,255,255,.1)'); ala.addColorStop(1, traje.ala);
-    g.fillStyle = ala; g.globalAlpha = (fantasma ? 0.3 : 0.75);
-    g.beginPath(); g.ellipse(-2, -6, 8, 22 * Math.abs(bate) + 4, -0.5 + bate * 0.3, 0, Math.PI * 2); g.fill();
-    g.globalAlpha = fantasma ? 0.35 : 1;
-    // Cola, cuerpo, garganta, ojo y pico largo
-    g.fillStyle = c2; g.beginPath(); g.moveTo(-14, 2); g.lineTo(-30, -4); g.lineTo(-30, 8); g.closePath(); g.fill();
-    const cuerpo = g.createLinearGradient(-14, -10, 14, 10); cuerpo.addColorStop(0, c1); cuerpo.addColorStop(1, c2);
-    g.fillStyle = cuerpo; g.beginPath(); g.ellipse(0, 0, 17, 11, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = traje.garganta; g.beginPath(); g.ellipse(9, 4, 7, 5, 0.3, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#ffffff'; g.beginPath(); g.arc(9, -3, 3.6, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#0e1424'; g.beginPath(); g.arc(10, -3, 2, 0, Math.PI * 2); g.fill();
-    g.strokeStyle = '#2a2a2a'; g.lineWidth = 2.5; g.lineCap = 'round'; g.beginPath(); g.moveTo(15, -1); g.lineTo(36, 1); g.stroke();
-    g.restore();
-    g.globalAlpha = 1;
-  };
-  const textoGrande = (g: CanvasRenderingContext2D, texto: string, x: number, y: number, tam: number, color = '#ffffff') => {
-    g.font = `900 ${tam}px Nunito, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.lineWidth = tam * 0.16; g.strokeStyle = 'rgba(14,20,36,.8)'; g.strokeText(texto, x, y); g.fillStyle = color; g.fillText(texto, x, y);
-  };
-  const escena = (g: CanvasRenderingContext2D, d: number, t: number, y: number, giro: number, aleteo: number) => {
-    fondo(g, d, t);
-    const x = xAve();
-    for (const o of obs) { const sx = x + (o.x - d); if (sx < m.ancho + 40 && sx + ANCHO_OBS > -40) obstaculo(g, o, sx, centroEn(o, t)); }
-    // Fantasma del líder: su colibrí transparente a su altura (y dónde cayó)
-    if (lider && fase !== 'espera') {
-      const tt = t - inicioVuelo, n = lider.ruta.length / 3, k = tt / lider.paso;
-      if (k < n - 1) { const a = Math.floor(k), f = k - a, gy = (lider.ruta[a * 3 + 1] * (1 - f) + lider.ruta[a * 3 + 4] * f) * 10, gd = (lider.ruta[a * 3] * (1 - f) + lider.ruta[a * 3 + 3] * f) * 100; ave(g, x + gd - d, gy, 0, t, t, true); g.font = '800 16px Nunito, sans-serif'; g.fillStyle = 'rgba(255,255,255,.7)'; g.textAlign = 'center'; g.fillText(c.fantasma!.nombre, x + gd - d, gy - 30); }
-      else { const gd = lider.ruta[(n - 1) * 3] * 100, sx = x + gd - d; if (sx > -40 && sx < m.ancho + 40) { g.strokeStyle = 'rgba(255,255,255,.6)'; g.setLineDash([8, 8]); g.beginPath(); g.moveTo(sx, 0); g.lineTo(sx, SUELO); g.stroke(); g.setLineDash([]); g.font = '800 16px Nunito, sans-serif'; g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.fillText(`Aquí cayó ${c.fantasma!.nombre}`, sx, 40); } }
-    }
-    if (t < turboHasta) { g.fillStyle = 'rgba(255,210,60,.25)'; g.beginPath(); g.arc(x, y, 30 + Math.sin(t * 20) * 3, 0, Math.PI * 2); g.fill(); }
-    ave(g, x, y, giro, aleteo, t);
-  };
-
-  // ── Capa 3D: paralaje con capas que solo se desplazan (nada se repinta), obstáculos con volumen y un colibrí iridiscente ──
-  const T = m.tres;
+  // ── Pixel art (8 bits): 1 píxel del arte = 4 unidades del juego (720 de alto son 180 píxeles) ──
   // Lo que se ve en este momento: en vivo, o el cuadro de la repetición en cámara lenta
   const vista = () => {
     if (fase === 'repeticion' || fase === 'fin') {
@@ -303,196 +182,119 @@ export async function crear(c: Contexto): Promise<Partida> {
     const a = Math.floor(k), f = k - a;
     return { cayo: false, sx: xAve() + (lider.ruta[a * 3] * (1 - f) + lider.ruta[a * 3 + 3] * f) * 100 - d, y: (lider.ruta[a * 3 + 1] * (1 - f) + lider.ruta[a * 3 + 4] * f) * 10 };
   };
-  if (T) {
-    const E = T.escena;
-    E.environment = T.entorno(); E.environmentIntensity = 0.35;
-    const cielo = new THREE.HemisphereLight(0xffffff, 0x445533, 1.2); E.add(cielo);
-    const sol = new THREE.DirectionalLight(0xfff2dd, 2); sol.position.set(0.6, 0.7, 1); E.add(sol);
-    // Fondo de cada mundo: cielo, tres cordilleras (o edificios) y suelo, pintados una vez
-    const cordillera = (ancho: number, alto: number, color: string, semilla: number, alturaMin: number, variacion: number) => texturaDe(ancho, alto, (cg) => {
-      cg.fillStyle = color; cg.beginPath(); cg.moveTo(0, alto);
-      for (let x = 0; x <= ancho; x += 8) { const u = (x / ancho) * Math.PI * 2; cg.lineTo(x, alturaMin + variacion * (0.5 + 0.3 * Math.sin(u * 3 + semilla) + 0.2 * Math.sin(u * 7 + semilla * 2) + 0.1 * Math.sin(u * 13 + semilla))); }
-      cg.lineTo(ancho, alto); cg.closePath(); cg.fill();
-      cg.fillStyle = 'rgba(255,255,255,.06)'; for (let k = 0; k < 40; k++) cg.fillRect((k * 97) % ancho, alturaMin + variacion * 0.8 + ((k * 31) % 60), 30, 2);
-    }, true);
-    const edificios = (color: string) => texturaDe(1024, 512, (cg) => {
-      const rb = generador('edificios');
-      let x = 0;
-      while (x < 1024) {
-        const w = 50 + rb() * 60, h = 160 + rb() * 300;
-        cg.fillStyle = color; cg.fillRect(x, 512 - h, w, h);
-        for (let fy = 512 - h + 12; fy < 500; fy += 20) for (let fx = x + 8; fx < x + w - 10; fx += 16) if (rb() > 0.35) { cg.fillStyle = rb() > 0.15 ? 'rgba(255,214,120,.85)' : 'rgba(150,200,255,.7)'; cg.fillRect(fx, fy, 7, 9); }
-        x += w + 4;
-      }
-    }, true);
-    const cieloDe = (c0: string, c1: string, c2: string) => texturaDe(4, 256, (cg) => { const gr = cg.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, c0); gr.addColorStop(0.55, c1); gr.addColorStop(1, c2); cg.fillStyle = gr; cg.fillRect(0, 0, 4, 256); });
-    const sueloDe = (c0: string, c1: string) => texturaDe(256, 64, (cg) => { const gr = cg.createLinearGradient(0, 0, 0, 64); gr.addColorStop(0, c0); gr.addColorStop(1, c1); cg.fillStyle = gr; cg.fillRect(0, 0, 256, 64); cg.fillStyle = 'rgba(255,255,255,.22)'; cg.fillRect(0, 0, 256, 3); cg.fillStyle = 'rgba(0,0,0,.14)'; for (let x = 0; x < 256; x += 36) cg.fillRect(x, 10, 18, 4); }, true);
-    // Las capas se repiten solo a lo ancho: repetir hacia arriba deja una línea en el borde
-    const soloAncho = <X extends THREE.Texture>(t: X) => { t.wrapT = THREE.ClampToEdgeWrapping; return t; };
-    const fondos = MUNDOS.map((w, k) => ({
-      cielo: cieloDe(...w.cielo), suelo: sueloDe(...w.suelo),
-      lejos: soloAncho(cordillera(512, 256, w.lejos, k * 3.1, 70, 140)), medio: soloAncho(cordillera(512, 256, w.medio, k * 5.7 + 1, 120, 100)),
-      cerca: soloAncho(k === 2 ? edificios(w.cerca) : cordillera(1024, 256, w.cerca, k * 2.3 + 4, 150, 70)),
-    }));
-    const plano = (z: number, transparente: boolean) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ transparent: transparente, depthWrite: !transparente, toneMapped: false })); p.position.z = z; E.add(p); return p; };
-    const fCielo = plano(-950, false), fLejos = plano(-900, true), fMedio = plano(-850, true), fCerca = plano(-800, true), fSuelo = plano(300, false);
-    // Sol, nubes, estrellas y aurora
-    const brillo = (color: THREE.ColorRepresentation, op: number) => new THREE.Sprite(new THREE.SpriteMaterial({ map: texturaBrillo(), color, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
-    const astro = brillo(0xfff2c0, 0.9); astro.position.z = -940; E.add(astro);
-    const texNube = texturaDe(256, 128, (cg) => { cg.fillStyle = '#ffffff'; for (const [x, y, rx, ry] of [[128, 78, 90, 34], [90, 60, 50, 36], [160, 52, 60, 40], [60, 80, 40, 24], [200, 80, 44, 24]]) { cg.beginPath(); cg.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); cg.fill(); } });
-    const nubes = Array.from({ length: 8 }, (_, i) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: texNube, transparent: true, depthWrite: false, opacity: 0.85 })); s.position.z = -930 + i; E.add(s); return { s, x: (i * 397) % 2400, y: 60 + ((i * 131) % 220), k: 0.6 + ((i * 7) % 5) / 6 }; });
-    const geoEstrellas = new THREE.BufferGeometry(), pos: number[] = [];
-    for (let k = 0; k < 120; k++) pos.push(((k * 173) % 2600), -((k * 61) % 340), -945);
-    geoEstrellas.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    const estrellas = new THREE.Points(geoEstrellas, new THREE.PointsMaterial({ color: 0xffffff, size: 2.2, sizeAttenuation: false, transparent: true, depthWrite: false })); E.add(estrellas);
-    const texAurora = texturaDe(8, 256, (cg) => { const gr = cg.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, 'rgba(124,255,203,0)'); gr.addColorStop(0.5, 'rgba(124,255,203,.55)'); gr.addColorStop(1, 'rgba(124,255,203,0)'); cg.fillStyle = gr; cg.fillRect(0, 0, 8, 256); });
-    const auroras = [0, 1, 2].map((b) => { const geo = new THREE.PlaneGeometry(1, 1, 40, 1); const me = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: texAurora, color: b === 1 ? 0xb46bff : 0x7cffcb, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); me.position.z = -940 + b; E.add(me); return me; });
-    // Obstáculos: materiales por mundo
-    const corteza = texturaDe(128, 256, (cg) => { cg.fillStyle = '#7a5434'; cg.fillRect(0, 0, 128, 256); const rc = generador('corteza'); for (let k = 0; k < 40; k++) { cg.fillStyle = `rgba(40,24,10,${0.2 + rc() * 0.4})`; const x = rc() * 128; cg.fillRect(x, 0, 2 + rc() * 4, 256); } for (let k = 0; k < 30; k++) { cg.fillStyle = 'rgba(255,230,190,.08)'; cg.fillRect(rc() * 128, rc() * 256, 10, 2); } }, true);
-    const estratos = texturaDe(64, 256, (cg) => { const cs = ['#d58a54', '#c47a4e', '#e3a06c', '#b3683e', '#cf8650']; for (let y = 0; y < 256; y += 16) { cg.fillStyle = cs[(y / 16) % 5]; cg.fillRect(0, y, 64, 16); } cg.fillStyle = 'rgba(0,0,0,.12)'; for (let y = 0; y < 256; y += 16) cg.fillRect(0, y, 64, 2); }, true);
-    const ventanas = texturaDe(128, 128, (cg) => { cg.fillStyle = '#4a5068'; cg.fillRect(0, 0, 128, 128); const rv = generador('ventanas'); for (let y = 8; y < 128; y += 26) for (let x = 10; x < 128; x += 28) { cg.fillStyle = rv() > 0.3 ? '#ffd67a' : '#2a2e40'; cg.fillRect(x, y, 14, 16); } }, true);
-    const ventanasLuz = texturaDe(128, 128, (cg) => { cg.fillStyle = '#000000'; cg.fillRect(0, 0, 128, 128); const rv = generador('ventanas'); for (let y = 8; y < 128; y += 26) for (let x = 10; x < 128; x += 28) { cg.fillStyle = rv() > 0.3 ? '#ffc65a' : '#000000'; cg.fillRect(x, y, 14, 16); } }, true);
-    const MATS = [
-      { cuerpo: new THREE.MeshStandardMaterial({ map: corteza, roughness: 0.92 }), remate: new THREE.MeshStandardMaterial({ color: 0x4a7a2c, roughness: 0.8 }) },
-      { cuerpo: new THREE.MeshStandardMaterial({ map: estratos, roughness: 0.95, flatShading: true }), remate: new THREE.MeshStandardMaterial({ color: 0x9a5530, roughness: 0.9, flatShading: true }) },
-      { cuerpo: new THREE.MeshStandardMaterial({ map: ventanas, emissiveMap: ventanasLuz, emissive: 0xffffff, emissiveIntensity: 0.9, roughness: 0.6 }), remate: new THREE.MeshStandardMaterial({ color: 0x2e3246, roughness: 0.5, metalness: 0.4 }) },
-      { cuerpo: new THREE.MeshStandardMaterial({ color: 0xbfe6ff, roughness: 0.08, metalness: 0.1, transparent: true, opacity: 0.86, emissive: 0x16324a, envMapIntensity: 1.6 }), remate: new THREE.MeshStandardMaterial({ color: 0xe8f7ff, roughness: 0.05, emissive: 0x2a4a6a, envMapIntensity: 2 }) },
-    ];
-    const pieza = (k: number, alto: number): THREE.BufferGeometry => {
-      const geo = k === 0 ? new THREE.CylinderGeometry(ANCHO_OBS / 2, ANCHO_OBS / 2, alto, 16) : k === 1 ? new THREE.CylinderGeometry(ANCHO_OBS / 2 - 2, ANCHO_OBS / 2 + 4, alto, 7) : new THREE.BoxGeometry(ANCHO_OBS, alto, k === 2 ? 80 : 70);
-      const uv = geo.attributes.uv as THREE.BufferAttribute;
-      for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * (k === 2 ? 0.75 : 1), uv.getY(i) * (alto / (k === 2 ? 128 : 256)));
-      return geo;
-    };
-    const geoRemate = [new THREE.CylinderGeometry(54, 54, 22, 16), new THREE.CylinderGeometry(60, 52, 22, 7), new THREE.BoxGeometry(110, 16, 92), new THREE.ConeGeometry(46, 30, 4)];
-    const geoPetalo = new THREE.SphereGeometry(1, 10, 6).scale(9, 5, 3), geoCentro = new THREE.SphereGeometry(6, 10, 8);
-    const matPetalo = new THREE.MeshStandardMaterial({ color: 0xff8fc8, roughness: 0.5, emissive: 0x5a1a3a }), matCentro = new THREE.MeshStandardMaterial({ color: 0xffd23c, emissive: 0x5a4000 });
-    const obs3d = new Map<Obstaculo, THREE.Group>();
-    const crearObs = (o: Obstaculo) => {
-      const k = Math.floor(o.i / 25) % 4, grupo = new THREE.Group(), mt = MATS[k];
-      const arriba = o.centro - o.hueco / 2, abajo = o.centro + o.hueco / 2, extra = o.mueve ? o.mueve.amp + 20 : 20;
-      const hA = arriba + 200 + extra, hB = SUELO - abajo + 120 + extra;
-      const sup = new THREE.Mesh(pieza(k, hA), mt.cuerpo); sup.position.y = -(arriba - hA / 2); grupo.add(sup);
-      const inf = new THREE.Mesh(pieza(k, hB), mt.cuerpo); inf.position.y = -(abajo + hB / 2); grupo.add(inf);
-      const r1 = new THREE.Mesh(geoRemate[k], mt.remate), r2 = new THREE.Mesh(geoRemate[k], mt.remate);
-      r1.position.y = -(arriba - 11); r2.position.y = -(abajo + 11);
-      if (k === 3) { r1.position.y = -(arriba + 14); r1.rotation.z = Math.PI; r2.position.y = -(abajo - 14); r1.rotation.y = r2.rotation.y = Math.PI / 4; }
-      grupo.add(r1, r2);
-      if (o.flor) {
-        const flor = new THREE.Group();
-        for (let p = 0; p < 5; p++) { const pe = new THREE.Mesh(geoPetalo, matPetalo), a = (p / 5) * Math.PI * 2; pe.position.set(Math.cos(a) * 9, Math.sin(a) * 9, 0); pe.rotation.z = a; flor.add(pe); }
-        flor.add(new THREE.Mesh(geoCentro, matCentro));
-        const b = brillo(0xff8fc8, 0.5); b.scale.setScalar(70); b.position.z = -5; flor.add(b);
-        flor.position.set(0, -o.centro, 40); grupo.add(flor); grupo.userData.flor = flor;
-      }
-      E.add(grupo);
-      return grupo;
-    };
-    // El colibrí: cuerpo y cabeza iridiscentes (cambian de color con el ángulo de la luz), alas que baten con estela
-    const crearAve = (fantasma: boolean) => {
-      const g3 = new THREE.Group(), mat = (color: string, extra: THREE.MeshPhysicalMaterialParameters = {}) => new THREE.MeshPhysicalMaterial({ color, roughness: 0.32, metalness: 0.15, iridescence: fantasma ? 0 : 1, iridescenceIOR: 1.45, iridescenceThicknessRange: [250, 700], transparent: fantasma, opacity: fantasma ? 0.4 : 1, depthWrite: !fantasma, ...extra });
-      const cuerpo = mat(traje.cuerpo[0]), lomo = mat(traje.cuerpo[1]), garganta = mat(traje.garganta, { emissive: traje.garganta, emissiveIntensity: 0.25 });
-      const esf = new THREE.SphereGeometry(1, 18, 12);
-      const torso = new THREE.Mesh(esf, cuerpo); torso.scale.set(17, 11, 11); g3.add(torso);
-      const espalda = new THREE.Mesh(esf, lomo); espalda.scale.set(14, 7, 9); espalda.position.set(-3, 4, 0); g3.add(espalda);
-      const cabeza = new THREE.Mesh(esf, cuerpo); cabeza.scale.setScalar(8.5); cabeza.position.set(10, 4, 0); g3.add(cabeza);
-      const gola = new THREE.Mesh(esf, garganta); gola.scale.set(7, 5, 8); gola.position.set(11, -2.5, 1); g3.add(gola);
-      const ojoB = new THREE.Mesh(esf, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: fantasma, opacity: fantasma ? 0.4 : 1 })); ojoB.scale.setScalar(3.2); ojoB.position.set(13, 6, 6.5); g3.add(ojoB);
-      const ojoN = new THREE.Mesh(esf, new THREE.MeshBasicMaterial({ color: 0x0e1424, transparent: fantasma, opacity: fantasma ? 0.4 : 1 })); ojoN.scale.setScalar(1.9); ojoN.position.set(14.2, 6, 8.6); g3.add(ojoN);
-      const pico = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1.6, 22, 6), mat('#2a2a2a', { iridescence: 0 })); pico.rotation.z = -Math.PI / 2 - 0.08; pico.position.set(28, 3, 0); g3.add(pico);
-      const cola = new THREE.Mesh(new THREE.ConeGeometry(5.5, 18, 4), lomo); cola.rotation.z = Math.PI / 2 + 0.15; cola.scale.z = 0.4; cola.position.set(-23, 1, 0); g3.add(cola);
-      const forma = new THREE.Shape(); forma.moveTo(0, 0); forma.bezierCurveTo(-6, 10, -8, 22, -2, 30); forma.bezierCurveTo(4, 22, 5, 8, 0, 0);
-      const geoAla = new THREE.ShapeGeometry(forma, 8);
-      const matAla = new THREE.MeshStandardMaterial({ color: traje.ala, transparent: true, opacity: fantasma ? 0.25 : 0.72, side: THREE.DoubleSide, depthWrite: false, roughness: 0.4 });
-      const alas = [1, -1].map((lado) => { const pivote = new THREE.Group(), a = new THREE.Mesh(geoAla, matAla); pivote.position.set(-1, 6, lado * 5); pivote.add(a); g3.add(pivote); return pivote; });
-      const estela = brillo(traje.ala, fantasma ? 0.1 : 0.3); estela.scale.set(26, 46, 1); estela.position.set(-2, 18, -4); g3.add(estela);
-      E.add(g3);
-      return { g3, alas, estela, cuerpo, lomo };
-    };
-    const ave3d = crearAve(false), fantasma3d = lider ? crearAve(true) : null;
-    const aura = brillo(0xffd23c, 0.5); aura.scale.setScalar(80); E.add(aura);
-    const poseAve = (a: ReturnType<typeof crearAve>, x: number, y: number, giro: number, aleteo: number, t: number) => {
-      a.g3.position.set(x, -y, 100); a.g3.rotation.z = -giro * 0.75;
-      const bate = Math.sin(t * (t - aleteo < 0.25 ? 70 : 38));
-      a.alas[0].rotation.x = 0.25 + bate * 0.9; a.alas[1].rotation.x = -0.25 - bate * 0.9;
-      a.alas[0].rotation.z = a.alas[1].rotation.z = 0.35 + bate * 0.15;
-      a.estela.material.opacity = (t - aleteo < 0.25 ? 0.4 : 0.22);
-    };
-    let mundoVisto = -1;
-    m.antes3d(() => {
-      const v = vista(), W = m.ancho, x = xAve();
-      const k = Math.floor(Math.max(0, (v.d - PRIMERO) / SEPARACION + 0.5) / 25) % 4;
-      if (k !== mundoVisto) {
-        mundoVisto = k;
-        const f = fondos[k];
-        (fCielo.material as THREE.MeshBasicMaterial).map = f.cielo; (fLejos.material as THREE.MeshBasicMaterial).map = f.lejos; (fMedio.material as THREE.MeshBasicMaterial).map = f.medio; (fCerca.material as THREE.MeshBasicMaterial).map = f.cerca; (fSuelo.material as THREE.MeshBasicMaterial).map = f.suelo;
-        for (const p of [fCielo, fLejos, fMedio, fCerca, fSuelo]) (p.material as THREE.MeshBasicMaterial).needsUpdate = true;
-        const luces = [[0xfff2dd, 0x5a7a3a, 1.2, 2], [0xffffff, 0x8a5a3a, 1.3, 2.3], [0xffb0a0, 0x2a1a3a, 0.9, 1.4], [0x9ab8ff, 0x0a1428, 0.7, 1.1]][k];
-        cielo.color.setHex(luces[0]); cielo.groundColor.setHex(luces[1]); cielo.intensity = luces[2]; sol.intensity = luces[3];
-        sol.position.set(k === 2 ? 1 : 0.6, k === 2 ? 0.25 : 0.7, 1);
-        for (const n of nubes) n.s.material.color.setHex(k === 2 ? 0xffb4c0 : 0xffffff);
-        astro.material.color.setHex(k === 2 ? 0xffaa66 : k === 3 ? 0xdfe8ff : 0xfff2c0);
-      }
-      // Capas: cada una se corre a su velocidad (más lejos, más lento)
-      const capa = (p: THREE.Mesh, z: number, alto: number, base: number, factor: number, texAncho: number) => {
-        p.position.set(W / 2, -(base - alto / 2), z); p.scale.set(W, alto, 1);
-        const t = (p.material as THREE.MeshBasicMaterial).map!; t.repeat.set(W / texAncho, 1); t.offset.x = (v.d * factor) / texAncho;
-      };
-      fCielo.position.set(W / 2, -ALTO / 2, -950); fCielo.scale.set(W, ALTO, 1);
-      capa(fLejos, -900, 360, SUELO + 10, 0.12, 900); capa(fMedio, -850, 300, SUELO + 10, 0.3, 700);
-      capa(fCerca, -800, k === 2 ? 340 : 230, SUELO + 10, 0.55, k === 2 ? 1400 : 1000);
-      capa(fSuelo, 300, ALTO - SUELO, ALTO, 1, 256);
-      astro.position.set(W * 0.78, -(k === 2 ? 360 : 130), -940); astro.scale.setScalar(k === 2 ? 260 : k === 3 ? 120 : 190); astro.visible = true;
-      for (const n of nubes) { n.s.visible = k !== 3; const nx = ((n.x - v.d * 0.06) % (W + 300) + W + 300) % (W + 300) - 150; n.s.position.set(nx, -n.y, n.s.position.z); n.s.scale.set(200 * n.k, 100 * n.k, 1); }
-      estrellas.visible = k === 3; (estrellas.material as THREE.PointsMaterial).opacity = 0.6 + 0.4 * Math.sin(v.t * 2);
-      auroras.forEach((a, b) => {
-        a.visible = k === 3;
-        if (!a.visible) return;
-        const p = a.geometry.attributes.position as THREE.BufferAttribute;
-        for (let i = 0; i < p.count; i++) { const u = p.getX(i) + 0.5; p.setY(i, (p.getY(i) > 0 ? 0.5 : -0.5) + Math.sin(u * 7 + v.t * 0.6 + b) * 0.25); }
-        p.needsUpdate = true;
-        a.position.set(W / 2, -(170 + b * 50), -940 + b); a.scale.set(W * 1.1, 200, 1);
-      });
-      // Obstáculos visibles
-      const vistos = new Set<Obstaculo>();
-      for (const o of obs) {
-        const sx = x + (o.x - v.d);
-        if (sx > W + 120 || sx + ANCHO_OBS < -120) continue;
-        vistos.add(o);
-        let g3 = obs3d.get(o);
-        if (!g3) { g3 = crearObs(o); obs3d.set(o, g3); }
-        g3.position.set(sx + ANCHO_OBS / 2, -(centroEn(o, v.t) - o.centro), 0);
-        const flor = g3.userData.flor as THREE.Group | undefined;
-        if (flor) { flor.visible = !o.florTomada; flor.rotation.z = v.t; flor.position.y = -o.centro + Math.sin(v.t * 3 + o.i) * 5; }
-      }
-      for (const [o, g3] of obs3d) if (!vistos.has(o)) { E.remove(g3); g3.traverse((q) => { const me = q as THREE.Mesh; if (me.isMesh && me.geometry !== geoPetalo && me.geometry !== geoCentro && !(geoRemate as THREE.BufferGeometry[]).includes(me.geometry)) me.geometry.dispose(); const sp = q as THREE.Sprite; if (sp.isSprite) sp.material.dispose(); }); obs3d.delete(o); }
-      // Ave, fantasma del líder y turbo
-      if (traje.nombre === 'Arcoíris') { ave3d.cuerpo.color.setHSL((v.t * 0.33) % 1, 0.85, 0.6); ave3d.lomo.color.setHSL((v.t * 0.33 + 0.33) % 1, 0.85, 0.45); }
-      poseAve(ave3d, x, v.y, v.giro, v.aleteo, v.t);
-      if (fantasma3d) { const f = fantasmaEn(v.t, v.d); fantasma3d.g3.visible = !!f && !f.cayo; if (f && !f.cayo) poseAve(fantasma3d, f.sx, f.y, 0, v.t, v.t); }
-      aura.visible = v.t < turboHasta; aura.position.set(x, -v.y, 90); aura.scale.setScalar(80 + Math.sin(v.t * 20) * 6);
-    });
-  }
+  const mundoDe = (d: number) => Math.floor(Math.max(0, (d - PRIMERO) / SEPARACION + 0.5) / 25) % 4;
 
-  // Encima del 3D: las corrientes de viento y el nombre del fantasma (o dónde cayó)
-  const encima = (g: CanvasRenderingContext2D, d: number, t: number) => {
-    const x = xAve();
-    g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 3;
-    for (const o of obs) {
-      if (!o.viento) continue;
-      const sx = x + (o.x - d);
-      if (sx > m.ancho + 200 || sx + ANCHO_OBS < -40) continue;
-      for (let k = 0; k < 7; k++) { const x0 = sx - SEPARACION * 0.5 + k * 30, y0 = ((t * 260 * Math.sign(o.viento) + k * 80) % 600 + 600) % 600; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x0, y0 + 40 * -Math.sign(o.viento)); g.stroke(); }
+  // El colibrí: cuerpo y tres posiciones de las alas, con los colores del traje
+  const CUERPO = ['......OOOO......', '.....OCCCCO.....', 'OO..OCCCCEPO....', 'ODOOCCCCCCCOBBBB', '.ODDDCCCGGGO....', '..ODDDCGGGO.....', '...OOOOOOO......'];
+  const ALAS = [
+    { x: 3, y: 0, filas: ['.WW....', 'WWWW...', 'WWWWW..', '.WWWWW.', '..WWWWO', '...OOO.'] },
+    { x: 3, y: 7, filas: ['OWWWWWO.', 'WWWWWWWO', '.OOOOOO.'] },
+    { x: 3, y: 9, filas: ['...OOO.', '..WWWWO', '.WWWWW.', 'WWWWW..', '.WW....'] },
+  ];
+  const colores = { O: '#14101e', C: traje.cuerpo[0], D: traje.cuerpo[1], G: traje.garganta, W: traje.ala, E: '#ffffff', P: '#14101e', B: '#2a2a2a' };
+  const cuerpo = desdeTexto(CUERPO, colores);
+  const AVE = ALAS.map((ala) => crearSprite(16, 14, (g) => { const w = desdeTexto(ala.filas, colores); if (ala.y > 5) { g.drawImage(cuerpo, 0, 5); g.drawImage(w, ala.x, ala.y); } else { g.drawImage(w, ala.x, ala.y); g.drawImage(cuerpo, 0, 5); } }));
+  const FLOR = desdeTexto(['..P.P..', '.PPPPP.', 'PPPYPPP', '.PYAYP.', 'PPPYPPP', '.PPPPP.', '..P.P..'], { P: PAL.rosado, Y: PAL.amarillo, A: '#fff6c9' });
+
+  // Fondos por mundo: cielo en franjas con tramado, tres cordilleras (o edificios) y suelo; todo se pinta una vez
+  const tramar = (g: CanvasRenderingContext2D, alto: number, colores3: readonly string[]) => {
+    for (let y = 0; y < alto; y++) {
+      const p = (y / alto) * (colores3.length - 1), i = Math.floor(p), f = p - i;
+      for (let x = 0; x < 64; x++) { g.fillStyle = f > [0.12, 0.62, 0.37, 0.87][(x + (y % 2) * 2) % 4] ? colores3[Math.min(colores3.length - 1, i + 1)] : colores3[i]; g.fillRect(x, y, 1, 1); }
     }
+  };
+  const cordillera = (color: string, semilla: number, base: number, variacion: number, nieve?: string) => crearSprite(256, 180, (g) => {
+    for (let x = 0; x < 256; x++) {
+      const u = (x / 256) * Math.PI * 2, h = Math.round(base - variacion * (0.5 + 0.3 * Math.sin(u * 3 + semilla) + 0.2 * Math.sin(u * 7 + semilla * 2) + 0.1 * Math.sin(u * 13 + semilla)));
+      g.fillStyle = color; g.fillRect(x, h, 1, 180 - h);
+      if (nieve && h < base - variacion * 0.75) { g.fillStyle = nieve; g.fillRect(x, h, 1, 2); }
+    }
+  });
+  const edificios = (color: string) => crearSprite(256, 180, (g) => {
+    const rb = generador('edificios-pixel');
+    let x = 0;
+    while (x < 256) {
+      const w = 12 + Math.floor(rb() * 14), h = 40 + Math.floor(rb() * 70);
+      g.fillStyle = color; g.fillRect(x, 180 - h, w, h);
+      for (let fy = 180 - h + 3; fy < 176; fy += 5) for (let fx = x + 2; fx < x + w - 2; fx += 4) if (rb() > 0.35) { g.fillStyle = rb() > 0.15 ? '#ffd67a' : '#96c8ff'; g.fillRect(fx, fy, 2, 2); }
+      x += w + 1;
+    }
+  });
+  const FONDOS = MUNDOS.map((w, k) => ({
+    cielo: crearSprite(64, 180, (g) => tramar(g, 180, k === 3 ? ['#04102a', '#0b2550', '#1a3f6b'] : w.cielo)),
+    lejos: cordillera(w.lejos, k * 3.1, 120, 50, k === 0 || k === 3 ? '#e8f0ff' : undefined),
+    medio: cordillera(w.medio, k * 5.7 + 1, 140, 34),
+    cerca: k === 2 ? edificios(w.cerca) : cordillera(w.cerca, k * 2.3 + 4, 156, 20),
+    suelo: crearSprite(32, 20, (g) => { g.fillStyle = w.suelo[1]; g.fillRect(0, 0, 32, 20); g.fillStyle = w.suelo[0]; g.fillRect(0, 0, 32, 4); g.fillStyle = mezcla(w.suelo[0], '#ffffff', 0.35); g.fillRect(0, 0, 32, 1); g.fillStyle = mezcla(w.suelo[1], '#000000', 0.2); for (let x = 0; x < 32; x += 8) g.fillRect(x, 6, 4, 1); for (let x = 4; x < 32; x += 8) g.fillRect(x, 11, 3, 1); }),
+  }));
+  const NUBE = [desdeTexto(['....WWWW......', '..WWWWWWWW.WW..', '.WWWWWWWWWWWWW.', 'WWWWWWWWWWWWWWW', '.SSSSSSSSSSSSS.'], { W: '#ffffff', S: '#d8e4f0' }), desdeTexto(['...WWW....', '.WWWWWWW..', 'WWWWWWWWWW', '.SSSSSSSS.'], { W: '#ffffff', S: '#d8e4f0' })];
+  const SOL = bola(9, 9, { borde: '#ffe9a0', sombra: '#fff2c0', base: '#fff6d0', luz: '#fffbe8' });
+  // Columnas por mundo (23 píxeles de ancho): tronco con corteza, roca en estratos, edificio con ventanas, pilar de hielo
+  const COLUMNAS = MUNDOS.map((_, k) => crearSprite(23, 200, (g) => {
+    const rc = generador(`columna-${k}`);
+    if (k === 0) { g.fillStyle = '#7a5434'; g.fillRect(0, 0, 23, 200); g.fillStyle = '#5a3a20'; for (let i = 0; i < 9; i++) { const x = 2 + Math.floor(rc() * 19); for (let y = 0; y < 200; y++) if (Math.sin(y * 0.3 + i) > -0.6) g.fillRect(x + (Math.sin(y * 0.15 + i) > 0.5 ? 1 : 0), y, 1, 1); } g.fillStyle = '#9a7048'; g.fillRect(1, 0, 2, 200); g.fillStyle = '#3a2410'; g.fillRect(21, 0, 2, 200); }
+    else if (k === 1) { const cs = ['#d58a54', '#c47a4e', '#e3a06c', '#b3683e', '#cf8650']; for (let y = 0; y < 200; y++) { g.fillStyle = cs[Math.floor(y / 4) % 5]; g.fillRect(0, y, 23, 1); } g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(19, 0, 4, 200); g.fillStyle = 'rgba(255,255,255,.15)'; g.fillRect(0, 0, 2, 200); }
+    else if (k === 2) { g.fillStyle = '#4a5068'; g.fillRect(0, 0, 23, 200); for (let y = 2; y < 200; y += 6) for (let x = 3; x < 20; x += 5) { g.fillStyle = rc() > 0.3 ? '#ffd67a' : '#2a2e40'; g.fillRect(x, y, 3, 3); } g.fillStyle = '#2e3246'; g.fillRect(21, 0, 2, 200); }
+    else { g.fillStyle = '#9fd4f0'; g.fillRect(0, 0, 23, 200); g.fillStyle = '#d8f2ff'; g.fillRect(3, 0, 3, 200); g.fillStyle = '#ffffff'; for (let y = 0; y < 200; y += 9) g.fillRect(4, y, 1, 4); g.fillStyle = '#6aaed0'; g.fillRect(19, 0, 4, 200); }
+  }));
+  const REMATES = [
+    desdeTexto(['OOOOOOOOOOOOOOOOOOOOOOOOOOO', 'OGGGLGGGGGLGGGGGGLGGGGGGGGO', 'OGGGGGGGGGGGGGGGGGGGGGGGGGO', 'OMMMMMMMMMMMMMMMMMMMMMMMMMO', 'OMMMMMMMMMMMMMMMMMMMMMMMMMO', 'OOOOOOOOOOOOOOOOOOOOOOOOOOO'], { O: '#2a1a0a', G: '#4f8f3c', L: '#7fd85a', M: '#6b4a2e' }),
+    desdeTexto(['..OOOOOOOOOOOOOOOOOOOOOO...', '.ORRRRRRLRRRRRRRRRLRRRRRRO.', 'ORRRRRRRRRRRRRRRRRRRRRRRRRO', 'ORRRRRRRRRRRRRRRRRRRRRRRRRO', '.OOOOOOOOOOOOOOOOOOOOOOOOO.'], { O: '#6a3018', R: '#c97f4f', L: '#e6a36f' }),
+    desdeTexto(['OOOOOOOOOOOOOOOOOOOOOOOOOOO', 'OCCCCCCCCCCCCCCCCCCCCCCCCCO', 'OLLLLLLLLLLLLLLLLLLLLLLLLLO', 'OOOOOOOOOOOOOOOOOOOOOOOOOOO'], { O: '#1a1c28', C: '#6b7390', L: '#4a5068' }),
+    desdeTexto(['IIIIIIIIIIIIIIIIIIIIIIIIIII', '.IIIIIIIIIIIIIIIIIIIIIIIII.', '..I.IIII.IIIII.IIIII.III...', '..I..II...III...III...I....', '......I....I.....I.........'], { I: '#e8f7ff' }),
+  ];
+  const nubes = Array.from({ length: 7 }, (_, i) => ({ x: (i * 397) % 2400, y: 60 + ((i * 131) % 200), tipo: i % 2 }));
+
+  m.alPixel((gp) => {
+    const v = vista(), W = m.ancho, x = xAve(), k = m.k, mundo = mundoDe(v.d), F = FONDOS[mundo];
+    for (let px = 0; px < W; px += 64 * k) gp.drawImage(F.cielo, px, 0, 64 * k, ALTO); // en mosaico: estirarlo deformaría el tramado
+    if (mundo === 3) {
+      // Estrellas que titilan y aurora en franjas que ondulan
+      for (let s = 0; s < 60; s++) { if (Math.sin(v.t * 2 + s * 7) > 0.3) { gp.fillStyle = s % 5 ? '#ffffff' : '#bfe9ff'; gp.fillRect(Math.round(((s * 173 - v.d * 0.02) % W + W) % W / k) * k, Math.round(((s * 61) % 330) / k) * k, k, k); } }
+      for (let b = 0; b < 3; b++) { gp.fillStyle = b === 1 ? 'rgba(180,107,255,.28)' : 'rgba(124,255,203,.28)'; for (let px = 0; px < W; px += 2 * k) { const y0 = 120 + b * 45 + Math.sin(px * 0.006 + v.t * 0.6 + b) * 45; gp.fillRect(px, Math.round(y0 / k) * k, 2 * k, Math.round((40 + Math.sin(px * 0.01 + b) * 12) / k) * k); } }
+    } else {
+      m.sprite(SOL, W * 0.78, mundo === 2 ? 360 : 130, mundo === 2 ? 3 : 2);
+      for (const n of nubes) m.sprite(NUBE[n.tipo], ((n.x - v.d * 0.06) % (W + 300) + W + 300) % (W + 300) - 150, n.y, 2);
+    }
+    // Capas con paralaje: cada una se corre a su velocidad
+    const capa = (img: Sprite, factor: number) => { const lado = 256 * k, off = -(((v.d * factor) % lado) + lado) % lado; for (let px = off; px < W; px += lado) gp.drawImage(img, Math.round(px / k) * k, 0, lado, ALTO); };
+    capa(F.lejos, 0.12); capa(F.medio, 0.3); capa(F.cerca, 0.55);
+    // Obstáculos
+    for (const o of obs) {
+      const sx = x + (o.x - v.d);
+      if (sx > W + 40 || sx + ANCHO_OBS < -40) continue;
+      const mk = Math.floor(o.i / 25) % 4, cy = centroEn(o, v.t), arriba = cy - o.hueco / 2, abajo = cy + o.hueco / 2, col = COLUMNAS[mk], X = Math.round(sx / k) * k;
+      const hA = Math.max(1, Math.min(200, Math.round(arriba / k))), hB = Math.max(1, Math.min(200, Math.round((SUELO - abajo) / k)));
+      gp.drawImage(col, 0, 200 - hA, 23, hA, X, Math.round(arriba / k) * k - hA * k, ANCHO_OBS, hA * k);
+      gp.drawImage(col, 0, 0, 23, hB, X, Math.round(abajo / k) * k, ANCHO_OBS, hB * k);
+      const rem = REMATES[mk];
+      if (mk === 3) { gp.save(); gp.translate(X + ANCHO_OBS / 2, Math.round(arriba / k) * k); gp.drawImage(rem, -rem.width * k / 2, 0, rem.width * k, rem.height * k); gp.restore(); gp.save(); gp.translate(X + ANCHO_OBS / 2, Math.round(abajo / k) * k); gp.scale(1, -1); gp.drawImage(rem, -rem.width * k / 2, 0, rem.width * k, rem.height * k); gp.restore(); }
+      else { m.sprite(rem, sx + ANCHO_OBS / 2, arriba - rem.height * k / 2); m.sprite(rem, sx + ANCHO_OBS / 2, abajo + rem.height * k / 2); }
+      if (o.flor && !o.florTomada) m.sprite(FLOR, sx + ANCHO_OBS / 2, cy + Math.round(Math.sin(v.t * 3 + o.i) * 1.5) * k, 2);
+      if (o.viento) { gp.fillStyle = 'rgba(255,255,255,.4)'; for (let q = 0; q < 7; q++) { const x0 = sx - SEPARACION * 0.5 + q * 30, y0 = ((v.t * 260 * Math.sign(o.viento) + q * 80) % 600 + 600) % 600; gp.fillRect(Math.round(x0 / k) * k, Math.round(y0 / k) * k, k, 10 * k); } }
+    }
+    // Suelo que corre
+    const sl = 32 * k, offS = -((v.d % sl) + sl) % sl;
+    for (let px = offS; px < W; px += sl) gp.drawImage(F.suelo, Math.round(px / k) * k, Math.round(SUELO / k) * k, sl, 20 * k);
+    // Fantasma del líder, turbo y el colibrí (gira según su velocidad y bate las alas)
+    const fa = fantasmaEn(v.t, v.d);
+    const cuadroAla = (t: number, aleteo: number) => Math.floor(t * (t - aleteo < 0.25 ? 24 : 12)) % 3;
+    if (fa && !fa.cayo) { gp.globalAlpha = 0.4; m.sprite(AVE[cuadroAla(v.t, v.t)], fa.sx, fa.y, 1); gp.globalAlpha = 1; }
+    if (v.t < turboHasta) { gp.fillStyle = 'rgba(255,210,60,.35)'; gp.beginPath(); gp.arc(x, v.y, (30 + Math.round(Math.sin(v.t * 20)) * 4), 0, Math.PI * 2); gp.fill(); }
+    m.sprite(girado(AVE[cuadroAla(v.t, v.aleteo)], v.giro * 0.75), x, v.y);
+  });
+
+  // Encima, nítidos: el nombre del fantasma (o dónde cayó)
+  const encima = (g: CanvasRenderingContext2D, d: number, t: number) => {
     const fa = fantasmaEn(t, d);
     if (!fa) return;
     if (!fa.cayo) m.rotulo(c.fantasma!.nombre, fa.sx, fa.y - 32, 16, 'rgba(255,255,255,.8)');
-    else if (fa.sx > -40 && fa.sx < m.ancho + 40) { g.strokeStyle = 'rgba(255,255,255,.6)'; g.setLineDash([8, 8]); g.beginPath(); g.moveTo(fa.sx, 0); g.lineTo(fa.sx, SUELO); g.stroke(); g.setLineDash([]); m.rotulo(`Aquí cayó ${c.fantasma!.nombre}`, fa.sx, 40, 16); }
+    else if (fa.sx > -40 && fa.sx < m.ancho + 40) { g.strokeStyle = 'rgba(255,255,255,.6)'; g.setLineDash([8, 8]); g.lineWidth = 2; g.beginPath(); g.moveTo(fa.sx, 0); g.lineTo(fa.sx, SUELO); g.stroke(); g.setLineDash([]); m.rotulo(`Aquí cayó ${c.fantasma!.nombre}`, fa.sx, 40, 16); }
   };
 
   m.alDibujar((g) => {
     const v = vista();
-    if (T) encima(g, v.d, v.t); else escena(g, v.d, v.t, v.y, v.giro, v.aleteo);
+    encima(g, v.d, v.t);
     if (fase === 'repeticion' || fase === 'fin') {
       // Repetición: el último segundo y medio a media velocidad, con el punto del choque marcado
       g.fillStyle = 'rgba(14,20,36,.25)'; g.fillRect(0, 0, m.ancho, ALTO);
