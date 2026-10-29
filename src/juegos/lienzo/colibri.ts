@@ -4,7 +4,7 @@ import type { Contexto, Partida } from '../marco';
 import * as THREE from 'three';
 import { crearMotor2D, crearMusica, piloto, texturaBrillo, texturaDe } from './motor2d';
 
-// Vuelo Colibrí (29-10): un solo botón. Cada toque es un aleteo; la gravedad te baja. Pasa por los huecos entre los pares de
+// Flappy Colibrí (29-10): un solo botón. Cada toque es un aleteo; la gravedad te baja. Pasa por los huecos entre los pares de
 // obstáculos sin rozarlos. Cuatro mundos (bosque, cañón con viento, ciudad, aurora con hielo que se mueve) cambian cada 25 huecos.
 // Puntos: 10 por hueco (× racha de precisión hasta ×3), +5 por pasar "al ras" y +5 por flor de néctar; 3 flores dan 3 s de turbo
 // invencible. Todo sale de la semilla: en un duelo los dos vuelan exactamente los mismos huecos.

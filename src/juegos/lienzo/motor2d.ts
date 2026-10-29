@@ -4,7 +4,7 @@ import { crearMesa, type Mesa } from '../tablero/mesa';
 import { ajustesPartida, type Contexto } from '../marco';
 import { esLiviano } from '../../nucleo/preferencias';
 
-// Motor 2D para los juegos de mucho movimiento dibujados en un lienzo (Vuelo Colibrí, Corte Maestro, Fusión de Gemas,
+// Motor 2D para los juegos de mucho movimiento dibujados en un lienzo (Flappy Colibrí, Corte Maestro, Fusión de Gemas,
 // Horda Infinita). Se apoya en la mesa del sitio (marcador, sonidos, pausa y reloj) y agrega:
 // · física a paso fijo (1/120 s): la misma semilla da exactamente lo mismo en cualquier equipo (duelos justos);
 // · un lienzo nítido que llena la caja (coordenadas lógicas: ALTO unidades de alto; el ancho sale de la pantalla);

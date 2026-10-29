@@ -12,7 +12,7 @@ import { escucharSalas, type InfoSala } from './vivo/vestibulo';
 
 /** Las últimas novedades del sitio (la más reciente primero). */
 const NOVEDADES: { fecha: string; texto: string }[] = [
-  { fecha: '2026-10-29', texto: 'Cuatro juegos nuevos: Vuelo Colibrí (un solo botón, cuatro mundos y medallas), Corte Maestro (corta fruta al vuelo en 90 s), Fusión de Gemas (fusiona tres iguales en una rejilla hexagonal) y Horda Infinita (sobrevive a la horda y evoluciona tus armas). Todos con duelo 1v1, versión 3v3 y modo libre.' },
+  { fecha: '2026-10-29', texto: 'Cuatro juegos nuevos: Flappy Colibrí (un solo botón, cuatro mundos y medallas), Corte Maestro (corta fruta al vuelo en 90 s), Fusión de Gemas (fusiona tres iguales en una rejilla hexagonal) y Horda Infinita (sobrevive a la horda y evoluciona tus armas). Todos con duelo 1v1, versión 3v3 y modo libre.' },
   { fecha: '2026-10-29', texto: 'Se retiran del torneo 10 juegos: PUCHAMON, Cazanúmeros, Tinta Tramposa, Memoria de Pez, Erizos Ocultos, Carrera de Escobas, Torre de Calabazas, Caza del Huevo, Al Agua Pato y Fuchibol. Lo que ya jugaste en ellos sigue contando para tu nivel.' },
   { fecha: '2026-10-28', texto: 'Lava Loca más llevable: obstáculos más lentos, plataformas más anchas, 3 tramos fáciles y ayuda automática tras 3 caídas en el mismo tramo. Subway Surfers: ya no se sube de un salto a un tren sin rampa.' },
   { fecha: '2026-10-27', texto: 'TSUKIBET (en Progreso): pronostica quién gana cada enfrentamiento del próximo cruce. Y antes de cada duelo puedes dejar tu declaración en Mis enfrentamientos: tu rival la ve y La Cuarta la cita.' },
