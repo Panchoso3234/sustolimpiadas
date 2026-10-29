@@ -7,6 +7,16 @@ let lienzoChico: HTMLCanvasElement | null = null;
 /** Foto (JPEG pequeño) del lienzo más grande del juego, o el HTML de su mesa. */
 export function capturar(caja: HTMLElement, ancho: number): { img?: string; html?: string } | null {
   // Los juegos de mesa son HTML (su único lienzo es el personaje de la esquina): se copia la mesa
+  // Juegos de lienzo (motor2d): una o dos capas (3D abajo, 2D encima) que se juntan en una sola foto
+  const capas = [...caja.querySelectorAll<HTMLCanvasElement>('.mesa.lienzo2d canvas.lienzo2d-canvas')];
+  if (capas.length) {
+    lienzoChico ??= document.createElement('canvas');
+    lienzoChico.width = ancho;
+    lienzoChico.height = Math.round((ancho * capas[0].height) / capas[0].width);
+    const g = lienzoChico.getContext('2d');
+    if (!g) return null;
+    try { for (const c of capas) g.drawImage(c, 0, 0, lienzoChico.width, lienzoChico.height); return { img: lienzoChico.toDataURL('image/jpeg', 0.55) }; } catch { return null; }
+  }
   const mesa = caja.querySelector('.mesa');
   if (mesa) return { html: mesa.outerHTML.slice(0, 80000) };
   const lienzos = [...caja.querySelectorAll('canvas')].filter((c) => c.width > 60 && c.height > 60).sort((a, b) => b.width * b.height - a.width * a.height);

@@ -20,7 +20,7 @@ export interface Juego {
 export const TOPES: Record<string, number> = {
   rodillos: 1500, puertas: 1600, huevo: 3400, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, torre: 2400, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2800, parejas: 1900, buscaconchas: 1800, luces: 1800,
   cartero: 4200, cofre: 1300, palabra: 1000, totem: 1000, catapulta: 7000, bolos: 750, minigolf: 1600,
-  karts: 2300, tren: 9000, tanques: 16000, bombas: 2500, agujero: 14000, serpientes: 5000, defensa: 10000, museo: 5000, tiro: 9000, cocina: 6000, billar: 8000, triples: 9000, calabazas: 3500, laberinto: 6000, escobas: 7000, conchas: 2400, balsas: 2200, bloques: 120000, bestias: 15000,
+  karts: 2300, tren: 9000, tanques: 16000, bombas: 2500, agujero: 14000, serpientes: 5000, defensa: 10000, museo: 5000, tiro: 9000, cocina: 6000, billar: 8000, triples: 9000, calabazas: 3500, laberinto: 6000, escobas: 7000, conchas: 2400, balsas: 2200, colibri: 1500, corte: 600, gemas: 25000, horda: 30000, bloques: 120000, bestias: 15000,
 };
 
 
@@ -126,11 +126,19 @@ export const TODOS: Juego[] = [
     'Toca una columna para dejar caer tu concha: gana quien alinea cuatro (en fila, columna o diagonal). En Pop Out también puedes sacar una concha tuya de la fila de abajo con el botón ⬇ Sacar. Tienes 15 s por jugada; si se acaban, la concha cae sola. Ganar vale 250 a 500 según la partida, más 10 por cada jugada menos de 21; el empate vale un 30 %. Al final se marca la jugada ganadora que se te pasó y puedes ver la repetición.'),
   j(42, 'balsas', 'Battleship', 'F', 'La batalla naval clásica: un mar de 10 × 10 con cinco balsas. Tres batallas contra la máquina (la última en modo Salvo), con radar; si aciertas, sigues disparando. En vivo, contra otra persona.', 'Deducción',
     'Primero ubica tu flota: toca una balsa y después la casilla donde la quieres (Girar la pone de pie o acostada; no se pueden tocar entre sí). Después dispara tocando el mar de la máquina: 20 s por turno. Si le atinas a una balsa, vuelves a disparar hasta fallar (la máquina también). El 📡 radar, una vez por batalla, dice cuántas casillas con balsa hay en un cuadrado de 3 × 3. En Salvo disparas tantas veces como balsas te queden. Ganar vale 400, más 8 por cada tiro menos de 65 y 10 por cada casilla tuya a flote; si pierdes, 8 por acierto.'),
+  j(43, 'colibri', 'Vuelo Colibrí', 'G', 'Un colibrí que aletea con un solo botón entre pares de troncos, rocas, edificios y hielo, por cuatro mundos. Una vida, medallas y trajes por récord.', 'Ritmo y pulso',
+    'Toca la pantalla, haz clic o aprieta Espacio para aletear: cada aleteo te sube un poco y la gravedad te baja. Pasa por los huecos sin tocar los obstáculos ni el suelo (el techo no hace daño). Cada hueco vale 10; pasar diez seguidos por el centro sube el multiplicador (hasta x3) y pasar rozando, al ras, suma 5 más. Las flores de néctar suman 5 y tres flores dan 3 s de turbo invencible. Cada 25 huecos cambias de mundo: bosque, cañón (con viento que sube o baja), ciudad (huecos que se mueven) y aurora (hielo). Una sola vida: medallas de bronce (10), plata (30), oro (60) y platino (100). Con más récord desbloqueas trajes nuevos.'),
+  j(44, 'corte', 'Corte Maestro', 'G', 'Fruta lanzada desde abajo que cortas con trazos del dedo o del mouse: combos, fruta dorada, plátanos de poder y bombas que no hay que tocar. 90 segundos.', 'Reflejos y puntería',
+    'Arrastra el dedo o el mouse (con el botón apretado) para cortar: un trazo rápido corta todo lo que cruza. Cada fruta vale 1 y cortarla justo por el centro vale 2. Varias frutas en un mismo trazo dan combo: 3 suman +3, 4 suman +5 y 5 o más, +10. No cortes las bombas (la mecha chispea y tienen un borde rojo): restan 10 puntos y 5 segundos. La fruta dorada se queda quieta 3 s: córtala muchas veces (hasta 15). Los plátanos dan 5 s de poder: Congelar (todo lento), Frenesí (lluvia de fruta) o Doble puntaje. Tienes 90 segundos. Con T cambias la hoja si ganaste otra.'),
+  j(45, 'gemas', 'Fusión de Gemas', 'E', 'Una rejilla hexagonal donde tres gemas iguales se fusionan en una mejor, con cadenas automáticas, prismas, piedras y la gema estrella. En modo libre, el Reto del día.', 'Planificación',
+    'Toca una casilla vacía para poner la gema de Ahora. Tres o más iguales que se tocan se fusionan en la gema siguiente (cuarzo, ámbar, esmeralda, zafiro, rubí, diamante y estrella), en la casilla donde pusiste la última; si esa forma otro grupo, la cadena sigue y cada eslabón multiplica. Al pasar el dedo o el mouse se marca el grupo que formarías. Con G (o el botón) guardas una gema para después. El prisma sirve como cualquier gema; desde el turno 40 caen piedras, que se rompen fusionando a su lado. El martillo (M) rompe una casilla una vez y se recarga con una cadena de 4. Tres diamantes forman una estrella que limpia todo alrededor. Jugar rápido (menos de 2 s por turno) da Flujo: +10 %. Termina cuando se llena la rejilla o a los 4 minutos.'),
+  j(46, 'horda', 'Horda Infinita', 'G', 'Sobrevive a oleadas de monstruos cada vez más grandes: tus armas atacan solas, subes de nivel, eliges mejoras, evolucionas armas y enfrentas al jefe final.', 'Estrategia y sangre fría',
+    'Solo te mueves (WASD, las flechas o arrastrando el dedo): tus armas atacan solas. Los monstruos sueltan cristales; al juntar suficientes subes de nivel y eliges 1 de 3 mejoras (con 1, 2 o 3, o tocando la tarjeta): armas nuevas (espada, cuchillos, rayo, aura, bumerán, meteoros, lanza y escudo) u objetos pasivos. La estrella ★ marca lo que te acerca a una evolución: un arma en nivel 5 con su objeto evoluciona al abrir el cofre de un minijefe. Rompe las antorchas: dan comida, oro, un imán o una bomba. Aguanta 5 minutos; al minuto 4 llega el jefe final. Suman el tiempo, los derrotados, los jefes y el oro. Con N apagas los números de daño.'),
 ];
 
 /** Juegos que en celular se ven mucho mejor de lado: avisan al partir si el teléfono está parado. */
 /** Juegos con modo libre (fase 4): sin reloj ni límite de vidas o intentos, no guarda nada. */
-export const LIBRES = new Set(['rodillos', 'puertas', 'cartero', 'laberinto', 'tinta', 'numeros', 'parejas', 'buscaconchas', 'catapulta', 'minigolf', 'tren', 'serpientes', 'karts', 'bloques', 'bombas', 'conchas', 'balsas']);
+export const LIBRES = new Set(['colibri', 'corte', 'gemas', 'horda', 'rodillos', 'puertas', 'cartero', 'laberinto', 'tinta', 'numeros', 'parejas', 'buscaconchas', 'catapulta', 'minigolf', 'tren', 'serpientes', 'karts', 'bloques', 'bombas', 'conchas', 'balsas']);
 export const HORIZONTALES = new Set(['catapulta', 'billar', 'karts', 'tiro', 'defensa', 'cocina', 'triples', 'escobas', 'bestias']);
 
 /** Juegos retirados (El Más Bajo el 23-10; La Palabra Secreta y Luces del Faro el 24-10): no salen en la web ni en los sorteos,
@@ -163,6 +171,10 @@ const TODOS_VERSUS: TipoVersus[] = [
   v('1v1', 'conchas-linea', 'CONECTA4', 'Los dos contra la misma máquina, o en vivo cara a cara: el primero en alinear cuatro.', 'conchas'),
   v('1v1', 'balsas', 'Battleship', 'Los dos contra la misma flota, o en vivo cara a cara: hunde las balsas del rival.', 'balsas'),
   v('1v1', 'sumo-1v1', 'Al Agua Pato 1v1', 'Los mismos cinco rivales de máquina para cada uno; gana quien aguanta y bota más.', 'sumo'),
+  v('1v1', 'colibri-duelo', 'Duelo de Colibríes', 'Los mismos huecos para los dos: gana quien vuela más lejos.', 'colibri'),
+  v('1v1', 'corte-duelo', 'Duelo de Cuchillos', 'La misma fruta y las mismas bombas para los dos: gana quien corta más.', 'corte'),
+  v('1v1', 'gemas-duelo', 'Duelo de Joyeros', 'Las mismas gemas en el mismo orden para los dos: gana quien fusiona más.', 'gemas'),
+  v('1v1', 'horda-duelo', 'Duelo de Supervivientes', 'Las mismas oleadas y las mismas mejoras ofrecidas: gana quien aguanta más y mejor.', 'horda'),
   v('1v1', 'karts-duelo', 'Duelo de Karts', 'La misma pista y los mismos rivales: gana quien llega mejor.', 'karts'),
   v('1v1', 'tren-duelo', 'Fuga en Paralelo', 'Las mismas vías y los mismos trenes: gana quien llega más lejos.', 'tren'),
   v('1v1', 'tanques-duelo', 'Duelo de Tanques', 'Las mismas cinco oleadas: gana quien hace más puntos.', 'tanques'),
@@ -220,6 +232,10 @@ const TODOS_VERSUS: TipoVersus[] = [
   v('3v3', 'laberinto-equipo', 'Cazafantasmas', 'Los tres recorren el mismo laberinto; suma el equipo.', 'laberinto'),
   v('3v3', 'escobas-equipo', 'Aquelarre', 'Los tres vuelan la misma carrera; suma el equipo.', 'escobas'),
   v('3v3', 'torre-equipo', 'Torres en Equipo', 'Cada integrante levanta su torre; suman los tres.', 'torre'),
+  v('3v3', 'colibri-equipo', 'Bandada', 'Los tres vuelan los mismos huecos; suma el equipo.', 'colibri'),
+  v('3v3', 'corte-equipo', 'Cocina de Cortes', 'Los tres cortan la misma fruta; suma el equipo.', 'corte'),
+  v('3v3', 'gemas-equipo', 'Taller de Joyas', 'Los tres reciben las mismas gemas; suma el equipo.', 'gemas'),
+  v('3v3', 'horda-equipo', 'Última Trinchera', 'Los tres enfrentan la misma horda; suma el equipo.', 'horda'),
   v('3v3', 'bandera', 'Captura la Bandera', 'Robar la bandera rival y traerla a la base.'),
 ];
 // Sin `base` (Captura la Bandera) todavía no hay juego: se oculta hasta que exista

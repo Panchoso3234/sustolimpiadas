@@ -1453,3 +1453,10 @@ body.foto .tren-misiones { display: none; }
 /* Una capa oscura suave entre la placa y el texto: el nombre se lee sobre cualquier placa */
 .gx-placa { position: relative; isolation: isolate; }
 .gx-placa::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: rgba(8, 10, 22, .32); z-index: -1; }
+
+/* ───────── Juegos de lienzo 2D (motor2d): el lienzo llena la pantalla de juego ───────── */
+.mesa.lienzo2d { padding: 0; overflow: hidden; background: #0e1424; display: block; }
+.mesa.lienzo2d .mesa-tablero { position: absolute; inset: 0; margin: 0; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; display: block; }
+.mesa.lienzo2d .lienzo2d-canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
+.mesa.lienzo2d ~ .mesa-avatar { display: none; }
+.mesa.lienzo2d .lienzo2d-canvas.lienzo3d, .mesa.lienzo2d .lienzo2d-canvas.encima { position: absolute; inset: 0; }

@@ -10,7 +10,7 @@ import { supabase } from '../nucleo/supabase';
 
 /** Juegos que graban su recorrido y se pueden jugar contra el fantasma del líder. */
 // Puertas Falsas no: su fantasma mostraría las puertas buenas
-export const CON_FANTASMA = new Set(['escobas', 'tren', 'karts', 'rodillos']);
+export const CON_FANTASMA = new Set(['escobas', 'tren', 'karts', 'rodillos', 'colibri']);
 const PASO = 0.25, MAX_PUNTOS = 500;
 
 export interface Fantasma { nombre: string; puntaje: number; semilla: string; paso: number; ruta: number[] }
