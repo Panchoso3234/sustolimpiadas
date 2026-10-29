@@ -1,7 +1,7 @@
 import { fechaChile, generador } from '../../nucleo/azar';
 import type { Contexto, Partida } from '../marco';
-import * as THREE from 'three';
-import { crearMotor2D, crearMusica, piloto, texturaBrillo, texturaDe } from './motor2d';
+import { crearMotor2D, crearMusica, piloto } from './motor2d';
+import { crearSprite, desdeTexto, mezcla, type Sprite } from './pixel';
 
 // Fusión de Gemas (29-10): una rejilla hexagonal de 7 × 7. Pones una gema por turno; tres o más iguales que se tocan se
 // fusionan en la gema del nivel siguiente, en la casilla donde pusiste la última, y si esa forma otro grupo, sigue la
@@ -59,7 +59,7 @@ function resolver(g: number[], i: number, gema: number, flujo: number): Resoluci
 }
 
 export async function crear(c: Contexto): Promise<Partida> {
-  const m = crearMotor2D(c, 'gemas', { fondo: '#141028', tres: true });
+  const m = crearMotor2D(c, 'gemas', { fondo: '#141028', pixel: (ancho) => (ancho < 700 ? 2 : 3) });
   const musica = crearMusica(m.mesa, 92);
   musica.acordes([[50, 54, 57], [47, 50, 54], [43, 47, 50], [45, 49, 52]]);
   const bot = piloto();
@@ -251,40 +251,6 @@ export async function crear(c: Contexto): Promise<Partida> {
     else if (nivel === 5) { gr.moveTo(-r * 0.9, -r * 0.3); gr.lineTo(-r * 0.5, -r * 0.8); gr.lineTo(r * 0.5, -r * 0.8); gr.lineTo(r * 0.9, -r * 0.3); gr.lineTo(0, r); gr.closePath(); }
     else { for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + (k * Math.PI) / 5, rr = k % 2 ? r * 0.45 : r; gr.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } gr.closePath(); }
   };
-  const gema = (gr: CanvasRenderingContext2D, nivel: number, x: number, y: number, r: number, t: number, latido = 0) => {
-    gr.save(); gr.translate(x, y);
-    const k = 1 + latido * 0.06 * Math.sin(t * 8);
-    gr.scale(k, k);
-    if (nivel === PIEDRA) {
-      const gp = gr.createRadialGradient(-r * 0.3, -r * 0.3, 2, 0, 0, r);
-      gp.addColorStop(0, '#9a9aa8'); gp.addColorStop(1, '#3e3e4a');
-      gr.fillStyle = gp; gr.beginPath(); for (let q = 0; q < 7; q++) { const a = (q / 7) * Math.PI * 2, rr = r * (0.75 + ((q * 37) % 5) / 25); gr.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } gr.closePath(); gr.fill();
-      gr.strokeStyle = 'rgba(0,0,0,.35)'; gr.lineWidth = 2; gr.beginPath(); gr.moveTo(-r * 0.3, -r * 0.4); gr.lineTo(0, 0); gr.lineTo(r * 0.2, r * 0.4); gr.stroke();
-      gr.restore(); return;
-    }
-    if (nivel === PRISMA) {
-      forma(gr, 0, r);
-      const gp = gr.createLinearGradient(-r, -r, r, r);
-      for (let q = 0; q <= 6; q++) gp.addColorStop(q / 6, `hsl(${(q * 60 + t * 120) % 360} 90% 65%)`);
-      gr.fillStyle = gp; gr.fill(); gr.strokeStyle = '#ffffff'; gr.lineWidth = 2; gr.stroke();
-      gr.restore(); return;
-    }
-    const [c1, c2, c3] = NIVELES[nivel].color;
-    if (nivel >= 5) { gr.fillStyle = nivel === 6 ? 'rgba(255,210,60,.3)' : 'rgba(159,233,255,.25)'; gr.beginPath(); gr.arc(0, 0, r * 1.25 + Math.sin(t * 4) * 2, 0, Math.PI * 2); gr.fill(); }
-    // Reflejo que se mueve con el puntero
-    const lx = (m.puntero.x - x) / m.ancho, ly = (m.puntero.y - y) / ALTO;
-    const gp = gr.createRadialGradient(-r * 0.35 + lx * r, -r * 0.4 + ly * r, r * 0.08, 0, 0, r * 1.05);
-    gp.addColorStop(0, c1); gp.addColorStop(0.45, c2); gp.addColorStop(1, c3);
-    forma(gr, nivel, r); gr.fillStyle = gp; gr.fill();
-    gr.strokeStyle = 'rgba(255,255,255,.55)'; gr.lineWidth = 1.5; gr.stroke();
-    // Facetas
-    gr.strokeStyle = 'rgba(255,255,255,.28)'; gr.lineWidth = 1;
-    gr.beginPath(); gr.moveTo(-r * 0.45, -r * 0.2); gr.lineTo(0, -r * 0.5); gr.lineTo(r * 0.45, -r * 0.2); gr.lineTo(0, r * 0.45); gr.closePath(); gr.stroke();
-    gr.fillStyle = 'rgba(255,255,255,.7)'; gr.beginPath(); gr.ellipse(-r * 0.28 + lx * r * 0.4, -r * 0.42 + ly * r * 0.4, r * 0.16, r * 0.08, -0.6, 0, Math.PI * 2); gr.fill();
-    const brillo = (Math.sin(t * 2 + x * 0.05 + y * 0.03) + 1) / 2;
-    if (brillo > 0.93) { gr.fillStyle = '#ffffff'; gr.globalAlpha = (brillo - 0.93) * 14; gr.beginPath(); gr.arc(r * 0.3, -r * 0.3, 3, 0, Math.PI * 2); gr.fill(); gr.globalAlpha = 1; }
-    gr.restore();
-  };
   const texto = (gr: CanvasRenderingContext2D, txt: string, x: number, y: number, tam: number, color = '#ffffff', alinea: CanvasTextAlign = 'center') => {
     gr.font = `900 ${tam}px Nunito, sans-serif`; gr.textAlign = alinea; gr.textBaseline = 'middle';
     gr.lineWidth = tam * 0.14; gr.strokeStyle = 'rgba(10,8,24,.85)'; gr.strokeText(txt, x, y); gr.fillStyle = color; gr.fillText(txt, x, y);
@@ -335,129 +301,111 @@ export async function crear(c: Contexto): Promise<Partida> {
     }
   };
 
-  // ── Capa 3D: gemas talladas con reflejos de verdad (material físico con mapa de entorno), sin postproceso ──
-  const T = m.tres;
-  if (T) {
-    const E = T.escena;
-    E.environment = T.entorno();
-    E.add(new THREE.HemisphereLight(0xc9b8ff, 0x140c28, 0.8));
-    const sol = new THREE.DirectionalLight(0xffffff, 1.4); sol.position.set(-0.4, 0.7, 1); E.add(sol);
-    // Una luz que sigue al puntero: los reflejos de las facetas se mueven con el mouse
-    const luz = new THREE.PointLight(0xfff0d0, 2.4, 0, 0); E.add(luz);
-    // Fondo: cueva de cristal pintada una vez
-    const cueva = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ toneMapped: false, map: texturaDe(1024, 576, (cg) => {
-      const fondo = cg.createRadialGradient(512, 288, 40, 512, 288, 620); fondo.addColorStop(0, '#2c2258'); fondo.addColorStop(1, '#07051a');
-      cg.fillStyle = fondo; cg.fillRect(0, 0, 1024, 576);
-      const rc = generador('cueva');
-      for (let k = 0; k < 26; k++) {
-        const borde = k % 2 ? 576 : 0, x = rc() * 1024, h = 60 + rc() * 140, w = 18 + rc() * 30, dir = borde ? -1 : 1;
-        const gr = cg.createLinearGradient(x, borde, x, borde + dir * h); gr.addColorStop(0, 'rgba(120,90,220,.55)'); gr.addColorStop(1, 'rgba(190,160,255,.12)');
-        cg.fillStyle = gr; cg.beginPath(); cg.moveTo(x - w / 2, borde); cg.lineTo(x + (rc() - 0.5) * 20, borde + dir * h); cg.lineTo(x + w / 2, borde); cg.fill();
+  // ── Pixel art (8 bits): gemas facetadas, casillas de piedra y cueva. Cada sprite se genera una vez por tamaño ──
+  const hex = (h: number, sa: number, l: number) => { const a = sa * Math.min(l, 1 - l), f = (n: number) => { const k = (n + h / 30) % 12, c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); return Math.round(c * 255).toString(16).padStart(2, '0'); }; return `#${f(0)}${f(8)}${f(4)}`; };
+  // Tonos por nivel: contorno, sombra, base, luz y brillo
+  const TONOS = NIVELES.map((n) => [mezcla(n.color[2], '#000000', 0.5), n.color[2], n.color[1], n.color[0], '#ffffff']);
+  const ARCOIRIS = Array.from({ length: 6 }, (_, i) => [hex(i * 60, 0.7, 0.2), hex(i * 60, 0.85, 0.42), hex(i * 60, 0.95, 0.6), hex(i * 60, 1, 0.8), '#ffffff']);
+  const PIEDRA_T = ['#22222c', '#4a4a56', '#6e6e7a', '#9a9aa6', '#c9c9d6'];
+  const cacheGemas = new Map<string, Sprite>();
+  const spriteGema = (nivel: number, radio: number, tono = 0): Sprite => {
+    const rp = Math.max(3, Math.round(radio)), clave = `${nivel}|${rp}|${tono}`;
+    const listo = cacheGemas.get(clave);
+    if (listo) return listo;
+    const lado = rp * 2 + 3, c = lado / 2;
+    const mascara = crearSprite(lado, lado, (g) => { g.translate(c, c); g.fillStyle = '#ffffff'; if (nivel === PIEDRA) { g.beginPath(); g.ellipse(0, 0, rp * 0.9, rp * 0.75, 0, 0, Math.PI * 2); } else forma(g, nivel === PRISMA ? 0 : nivel, rp); g.fill(); });
+    const datos = mascara.getContext('2d')!.getImageData(0, 0, lado, lado).data;
+    const dentro = (x: number, y: number) => x >= 0 && y >= 0 && x < lado && y < lado && datos[(y * lado + x) * 4 + 3] > 127;
+    const pal = nivel === PIEDRA ? PIEDRA_T : nivel === PRISMA ? ARCOIRIS[tono % 6] : TONOS[nivel];
+    const redonda = nivel === 1 || nivel === PIEDRA;
+    const s = crearSprite(lado, lado, (g) => {
+      for (let y = 0; y < lado; y++) for (let x = 0; x < lado; x++) {
+        if (!dentro(x, y)) continue;
+        let color: string;
+        if (!dentro(x - 1, y) || !dentro(x + 1, y) || !dentro(x, y - 1) || !dentro(x, y + 1)) color = pal[0];
+        else {
+          const dx = x + 0.5 - c, dy = y + 0.5 - c, d = Math.hypot(dx, dy) / rp;
+          if (redonda) {
+            // Cabujón y piedra: sombreado esférico
+            const nz = Math.sqrt(Math.max(0, 1 - d * d)), luz = (-0.55 * dx - 0.6 * dy) / rp + 0.6 * nz;
+            color = luz < 0.15 ? pal[1] : luz < 0.62 ? pal[2] : pal[3];
+            if (nivel === 1 && dx < -rp * 0.25 && dx > -rp * 0.55 && dy < -rp * 0.3 && dy > -rp * 0.6) color = pal[4];
+          } else if (d < 0.36) color = (x + y) % 5 === 0 ? pal[2] : pal[3]; // la mesa de la gema, clara
+          else {
+            // Facetas: el ángulo decide qué cara es, y cada cara recibe la luz de arriba a la izquierda
+            const caras = nivel === 2 ? 8 : nivel === 0 ? 6 : 8, ang = Math.atan2(dy, dx), cara = Math.floor(((ang + Math.PI) / (Math.PI * 2)) * caras);
+            const medio = (cara + 0.5) / caras * Math.PI * 2 - Math.PI, luz = Math.cos(medio - Math.atan2(-0.6, -0.55));
+            color = luz > 0.55 ? pal[3] : luz > -0.25 ? pal[2] : pal[1];
+          }
+        }
+        g.fillStyle = color; g.fillRect(x, y, 1, 1);
       }
-      for (let k = 0; k < 160; k++) { cg.fillStyle = `rgba(200,180,255,${0.05 + rc() * 0.3})`; cg.beginPath(); cg.arc(rc() * 1024, rc() * 576, 0.6 + rc() * 2, 0, Math.PI * 2); cg.fill(); }
-    }) }));
-    cueva.position.z = -900; E.add(cueva);
-    // Casillas: una sola malla instanciada (49 hexágonos de piedra con el borde biselado)
-    const geoHex = new THREE.CylinderGeometry(0.86, 1, 0.3, 6, 1); geoHex.rotateX(Math.PI / 2);
-    const casillas = new THREE.InstancedMesh(geoHex, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0, flatShading: true }), N);
-    E.add(casillas);
-    const COLOR_CASILLA = new THREE.Color(0x231c44), COLOR_BAJO = new THREE.Color(0x40357a), COLOR_PREVIA = new THREE.Color(0x8a6414);
-    // Geometrías de cada gema (tamaño 1, de frente a la cámara)
-    const torno = (pts: [number, number][], lados: number) => { const ge = new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), lados); return ge; };
-    const extruir = (forma: THREE.Shape) => { const ge = new THREE.ExtrudeGeometry(forma, { depth: 0.35, bevelEnabled: true, bevelThickness: 0.22, bevelSize: 0.16, bevelSegments: 1, curveSegments: 8 }); ge.center(); ge.computeBoundingSphere(); ge.scale(1 / ge.boundingSphere!.radius, 1 / ge.boundingSphere!.radius, 1 / ge.boundingSphere!.radius); return ge; };
-    const corazon = new THREE.Shape(); corazon.moveTo(0, -1); corazon.bezierCurveTo(-1.3, -0.1, -0.8, 1.05, 0, 0.45); corazon.bezierCurveTo(0.8, 1.05, 1.3, -0.1, 0, -1);
-    const estrella = new THREE.Shape(); for (let k = 0; k < 10; k++) { const a = Math.PI / 2 + (k * Math.PI) / 5, rr = k % 2 ? 0.45 : 1; if (k) estrella.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); else estrella.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
-    const brillante = torno([[0, -1], [0.98, 0.12], [0.72, 0.42], [0.42, 0.5], [0, 0.5]], 8); brillante.rotateX(Math.PI / 2);
-    const esmeralda = new THREE.CylinderGeometry(0.62, 0.92, 0.55, 8, 1); esmeralda.rotateX(Math.PI / 2); esmeralda.scale(0.85, 1.08, 1);
-    const geos: THREE.BufferGeometry[] = [
-      torno([[0, -1], [0.55, -0.72], [0.55, 0.45], [0, 1]], 6), // cuarzo: prisma hexagonal con punta
-      new THREE.IcosahedronGeometry(0.92, 1).scale(0.86, 1, 0.62), // ámbar: cabujón
-      esmeralda,
-      new THREE.OctahedronGeometry(1).scale(0.74, 1.05, 0.5), // zafiro
-      extruir(corazon), // rubí
-      brillante, // diamante: talla brillante, la mesa hacia la cámara
-      extruir(estrella),
-    ];
-    const piedraGeo = new THREE.DodecahedronGeometry(0.85, 0).scale(1, 0.9, 0.7);
-    // Material estándar (liviano) para casi todas; solo el diamante y el prisma llevan iridiscencia
-    const mats: THREE.Material[] = NIVELES.map((n, k) => k === 5
-      ? new THREE.MeshPhysicalMaterial({ color: 0xcff2ff, metalness: 0, roughness: 0.03, flatShading: true, envMapIntensity: 1.8, iridescence: 0.8, iridescenceIOR: 1.7, emissive: 0x1a4a5a })
-      : new THREE.MeshStandardMaterial({ color: n.color[1], metalness: k === 6 ? 0.8 : 0.1, roughness: k === 1 ? 0.28 : 0.1, flatShading: k !== 1, envMapIntensity: k === 6 ? 1.3 : 0.9, emissive: new THREE.Color(n.color[2]).multiplyScalar(k === 6 ? 0.3 : 0.3) }));
-    const matPrisma = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0.1, roughness: 0.05, flatShading: true, iridescence: 1, iridescenceIOR: 2, iridescenceThicknessRange: [200, 900], envMapIntensity: 1.6 });
-    const matPiedra = new THREE.MeshStandardMaterial({ color: 0x777788, roughness: 0.92, metalness: 0, flatShading: true });
-    // Mallas y brillos reutilizables: cada imagen se toman los que hacen falta y el resto se esconde
-    const mallas: THREE.Mesh[] = [], brillos: THREE.Sprite[] = [];
-    let nMallas = 0, nBrillos = 0;
-    const malla = () => { let o = mallas[nMallas]; if (!o) { o = new THREE.Mesh(geos[0], mats[0]); mallas.push(o); E.add(o); } nMallas++; o.visible = true; return o; };
-    const brillo = (x: number, y: number, r: number, color: string, alfa: number) => {
-      let o = brillos[nBrillos];
-      if (!o) { o = new THREE.Sprite(new THREE.SpriteMaterial({ map: texturaBrillo(), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); brillos.push(o); E.add(o); }
-      nBrillos++; o.visible = true; o.position.set(x, -y, -40); o.scale.set(r, r, 1);
-      o.material.color.set(color); o.material.opacity = alfa;
-    };
-    const mat4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), esc = new THREE.Vector3();
-    m.antes3d(() => {
-      medir();
-      const t = m.tiempo, px = m.puntero.x, py = m.puntero.y;
-      cueva.position.set(m.ancho / 2, -ALTO / 2, -900); cueva.scale.set(Math.max(m.ancho, ALTO * 16 / 9), Math.max(ALTO, m.ancho * 9 / 16), 1);
-      luz.position.set(px || m.ancho / 2, -(py || ALTO / 2), 420);
-      const { bajo, previa } = vistaPrevia();
-      for (let i = 0; i < N; i++) {
-        const [x, y] = centro(i);
-        mat4.compose(v.set(x, -y, -36), q.identity(), esc.set(s * 0.95, s * 0.95, s));
-        casillas.setMatrixAt(i, mat4);
-        casillas.setColorAt(i, previa.includes(i) ? COLOR_PREVIA : i === bajo ? COLOR_BAJO : COLOR_CASILLA);
-      }
-      casillas.instanceMatrix.needsUpdate = true; casillas.instanceColor!.needsUpdate = true;
-      nMallas = 0; nBrillos = 0;
-      cadaGema(t, (nivel, x, y, r, latido) => {
-        const o = malla(), k = 1 + latido * 0.07 * Math.sin(t * 8);
-        o.geometry = nivel === PIEDRA ? piedraGeo : nivel === PRISMA ? geos[0] : geos[nivel];
-        o.material = nivel === PIEDRA ? matPiedra : nivel === PRISMA ? matPrisma : mats[nivel];
-        o.position.set(x, -y, 0);
-        o.scale.setScalar(r * k);
-        // Se inclinan un poco hacia el puntero y se mecen: las facetas cambian de brillo
-        o.rotation.set((py - y) / ALTO * 0.7 + Math.sin(t * 0.9 + x * 0.02) * 0.12, (px - x) / m.ancho * 0.9 + Math.cos(t * 0.7 + y * 0.03) * 0.15, nivel === 0 || nivel === PRISMA ? Math.sin(t * 0.5 + x) * 0.1 : 0);
-        if (nivel >= 4 && nivel < 7) brillo(x, y, r * 3.4, NIVELES[nivel].color[1], 0.28 + 0.12 * Math.sin(t * 3 + x));
-        else if (nivel === PRISMA) brillo(x, y, r * 3.2, `hsl(${(t * 90) % 360} 90% 65%)`, 0.35);
-        if (latido) brillo(x, y, r * 2.6, '#ffffff', 0.12 + 0.1 * Math.sin(t * 8));
-        // Destello que pasa de vez en cuando por una faceta
-        const d = Math.sin(t * 1.7 + x * 0.05 + y * 0.031);
-        if (d > 0.96 && nivel !== PIEDRA) brillo(x + r * 0.35, y - r * 0.35, r * (d - 0.96) * 40, '#ffffff', 0.9);
-      });
-      // Polvo de cristal que flota delante de la cueva
-      for (let k = 0; k < 18; k++) {
-        const x = ((k * 211 + t * (8 + (k % 5) * 3)) % (m.ancho + 40)) - 20, y = (k * 137 + Math.sin(t * 0.4 + k) * 30) % ALTO;
-        brillo(x, y, 6 + (k % 4) * 3, k % 3 ? '#b9a8ff' : '#7fd8ff', 0.25 + 0.2 * Math.sin(t * 1.3 + k));
-      }
-      for (let k = nMallas; k < mallas.length; k++) mallas[k].visible = false;
-      for (let k = nBrillos; k < brillos.length; k++) brillos[k].visible = false;
+      // Brillos: un par de píxeles blancos arriba a la izquierda
+      if (nivel !== PIEDRA) { g.fillStyle = '#ffffff'; const bx = Math.round(c - rp * 0.4), by = Math.round(c - rp * 0.45); if (dentro(bx, by)) g.fillRect(bx, by, 1, 1); if (rp > 6 && dentro(bx + 1, by)) g.fillRect(bx + 1, by, 1, 1); if (rp > 6 && dentro(bx, by + 1)) g.fillRect(bx, by + 1, 1, 1); }
     });
-  }
+    cacheGemas.set(clave, s);
+    return s;
+  };
+  // Casillas: hexágono de piedra con borde iluminado arriba y sombra abajo (normal, bajo el puntero, vista previa)
+  const cacheCasillas = new Map<string, Sprite>();
+  const spriteCasilla = (radio: number, estado: 0 | 1 | 2): Sprite => {
+    const rp = Math.max(4, Math.round(radio)), clave = `${rp}|${estado}`;
+    const listo = cacheCasillas.get(clave);
+    if (listo) return listo;
+    const lado = rp * 2 + 3, c = lado / 2;
+    const mascara = crearSprite(lado, lado, (g) => { g.fillStyle = '#ffffff'; hexa(g, c, c, rp); g.fill(); });
+    const datos = mascara.getContext('2d')!.getImageData(0, 0, lado, lado).data;
+    const dentro = (x: number, y: number) => x >= 0 && y >= 0 && x < lado && y < lado && datos[(y * lado + x) * 4 + 3] > 127;
+    const [base, luz, sombra, borde] = estado === 2 ? ['#5a4410', '#ffcf4a', '#3a2a08', '#1a1004'] : estado === 1 ? ['#3a3070', '#5a4ea0', '#221a48', '#0c0818'] : ['#251d46', '#3a3068', '#15102c', '#0a0716'];
+    const s = crearSprite(lado, lado, (g) => {
+      for (let y = 0; y < lado; y++) for (let x = 0; x < lado; x++) {
+        if (!dentro(x, y)) continue;
+        const arriba = !dentro(x, y - 1) || !dentro(x - 1, y), abajo = !dentro(x, y + 1) || !dentro(x + 1, y);
+        g.fillStyle = arriba && abajo ? borde : !dentro(x, y - 2) || !dentro(x - 2, y) ? luz : !dentro(x, y + 2) || !dentro(x + 2, y) ? sombra : (x * 7 + y * 3) % 11 === 0 ? sombra : base;
+        g.fillRect(x, y, 1, 1);
+      }
+    });
+    cacheCasillas.set(clave, s);
+    return s;
+  };
+  // Cueva de cristal: fondo con tramado, estalactitas y estalagmitas de cristal (se rehace solo si cambia el tamaño)
+  let cueva: Sprite | null = null, claveCueva = '';
+  const pintarCueva = (w: number, h: number) => crearSprite(w, h, (g) => {
+    const cs = ['#07051a', '#110c2c', '#1c1640', '#2a2158'];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const d = Math.hypot((x - w / 2) / w, (y - h / 2) / h) * 2.2, p = Math.max(0, Math.min(2.99, (1 - d) * 3)), i = Math.floor(p), f = p - i;
+      g.fillStyle = f > [0.12, 0.62, 0.37, 0.87][(x % 2) + (y % 2) * 2] ? cs[Math.min(3, i + 1)] : cs[i]; g.fillRect(x, y, 1, 1);
+    }
+    const rc = generador('cueva-pixel');
+    for (let k = 0; k < Math.round(w / 9); k++) {
+      const abajo = k % 2 === 1, x = Math.floor(rc() * w), alto = 10 + Math.floor(rc() * h * 0.22), ancho = 3 + Math.floor(rc() * 5);
+      for (let j = 0; j < alto; j++) { const a = Math.max(1, Math.round(ancho * (1 - j / alto))), y = abajo ? h - 1 - j : j; g.fillStyle = '#4a3a8a'; g.fillRect(x - Math.floor(a / 2), y, a, 1); g.fillStyle = '#7a64c8'; g.fillRect(x - Math.floor(a / 2), y, 1, 1); }
+    }
+  });
+  const DESTELLO = desdeTexto(['..W..', '..W..', 'WWWWW', '..W..', '..W..'], { W: '#ffffff' });
+
+  m.alPixel((gp) => {
+    medir();
+    const t = m.tiempo, k = m.k, aw = Math.ceil(m.ancho / k), ah = Math.ceil(ALTO / k);
+    if (claveCueva !== `${aw}x${ah}`) { claveCueva = `${aw}x${ah}`; cueva = pintarCueva(aw, ah); }
+    gp.drawImage(cueva!, 0, 0, aw * k, ah * k);
+    for (let q = 0; q < 26; q++) if (Math.sin(t * 1.5 + q * 1.7) > 0.55) { gp.fillStyle = q % 3 ? '#b9a8ff' : '#7fd8ff'; gp.fillRect(Math.round(((q * 197) % m.ancho) / k) * k, Math.round(((q * 113) % ALTO) / k) * k, k, k); }
+    const { bajo, previa } = vistaPrevia();
+    for (let i = 0; i < N; i++) { const [x, y] = centro(i); m.sprite(spriteCasilla((s * 0.95) / k, previa.includes(i) ? 2 : i === bajo ? 1 : 0), x, y); }
+    cadaGema(t, (nivel, x, y, r, latido) => {
+      const rr = (r * (1 + latido * 0.08 * Math.sin(t * 8))) / k;
+      if (nivel >= 4 && nivel < 7) { gp.fillStyle = NIVELES[nivel].color[1]; gp.globalAlpha = 0.18 + 0.08 * Math.sin(t * 3 + x); gp.beginPath(); gp.arc(x, y, r * 1.45, 0, Math.PI * 2); gp.fill(); gp.globalAlpha = 1; }
+      m.sprite(spriteGema(nivel, rr, nivel === PRISMA ? Math.floor(t * 6) % 6 : 0), x, y); // solo el prisma cambia de color
+      // Destello que pasa de vez en cuando por una faceta
+      if (nivel !== PIEDRA && Math.sin(t * 1.7 + x * 0.05 + y * 0.031) > 0.965) m.sprite(DESTELLO, x + r * 0.35, y - r * 0.35);
+    });
+    for (const a of anillos) { const q = (t - a.t0) / 0.6; if (q < 0) continue; const [x, y] = centro(a.i); gp.strokeStyle = a.color; gp.globalAlpha = 1 - q; gp.lineWidth = 2 * k; gp.beginPath(); gp.arc(x, y, s * (0.6 + q * 1.6 * a.tam), 0, Math.PI * 2); gp.stroke(); gp.globalAlpha = 1; }
+    if (estrellaAnim) { const q = (t - estrellaAnim.t0) / 2; if (q >= 0 && q < 1) { const [x, y] = centro(estrellaAnim.i); gp.fillStyle = `rgba(255,230,140,${(1 - q) * 0.5})`; gp.beginPath(); gp.arc(x, y, s * (1 + q * 6), 0, Math.PI * 2); gp.fill(); } }
+  });
 
   m.alDibujar((gr) => {
     medir();
     const t = m.tiempo;
-    if (!T) {
-      // Respaldo sin WebGL: fondo, casillas y gemas dibujadas en 2D
-      const fondo = gr.createRadialGradient(m.ancho / 2, ALTO / 2, 50, m.ancho / 2, ALTO / 2, Math.max(m.ancho, ALTO));
-      fondo.addColorStop(0, '#2a2152'); fondo.addColorStop(1, '#0a0818');
-      gr.fillStyle = fondo; gr.fillRect(0, 0, m.ancho, ALTO);
-      for (let k = 0; k < 40; k++) { const x = (k * 197) % m.ancho, y = (k * 113) % ALTO, b = (Math.sin(t * 1.5 + k) + 1) / 2; gr.fillStyle = `rgba(190,170,255,${0.08 + b * 0.25})`; gr.beginPath(); gr.arc(x, y, 1.5 + (k % 3), 0, Math.PI * 2); gr.fill(); }
-      const { bajo, previa } = vistaPrevia();
-      for (let i = 0; i < N; i++) {
-        const [x, y] = centro(i);
-        hexa(gr, x, y, s * 0.96);
-        gr.fillStyle = previa.includes(i) ? 'rgba(255,207,74,.28)' : i === bajo ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.05)';
-        gr.fill(); gr.strokeStyle = previa.includes(i) ? '#ffcf4a' : 'rgba(180,160,255,.22)'; gr.lineWidth = 2; gr.stroke();
-      }
-      cadaGema(t, (nivel, x, y, r, latido) => gema(gr, nivel, x, y, r, t, latido));
-    }
-    for (const a of anillos) { const k = (t - a.t0) / 0.6; if (k < 0) continue; const [x, y] = centro(a.i); gr.strokeStyle = a.color; gr.globalAlpha = 1 - k; gr.lineWidth = 6; gr.beginPath(); gr.arc(x, y, s * (0.6 + k * 1.6 * a.tam), 0, Math.PI * 2); gr.stroke(); gr.globalAlpha = 1; }
-    if (estrellaAnim) {
-      const k = (t - estrellaAnim.t0) / 2;
-      if (k >= 0 && k < 1) { const [x, y] = centro(estrellaAnim.i); gr.fillStyle = `rgba(255,230,140,${(1 - k) * 0.5})`; gr.beginPath(); gr.arc(x, y, s * (1 + k * 6), 0, Math.PI * 2); gr.fill(); }
-    }
     // Panel: textos y botones (las gemas del panel las pone cadaGema). Se guardan como imagen y solo se redibujan
     // cuando algo cambia: escribir texto con borde en cada cuadro es de lo más caro del lienzo 2D.
     const p = panel, b = botones();
