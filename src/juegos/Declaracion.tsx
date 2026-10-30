@@ -3,27 +3,28 @@ import { supabase, useSesion } from '../nucleo/supabase';
 import type { Persona } from './duelos';
 import { burbuja, useVitrinasGacha } from '../gacha/cosmeticos';
 
-// Declaraciones antes del duelo: cada jugador deja una frase (140 caracteres) que ve su rival y cita La Cuarta.
-// Se puede cambiar hasta empezar a jugar; la base lo comprueba (función declarar). La organización puede ocultarlas.
+// Declaraciones antes del duelo y comentarios después: cada jugador deja una frase (140 caracteres) que ve su rival y cita
+// La Cuarta. La de antes se puede cambiar hasta empezar a jugar (función declarar); la de después, con el duelo cerrado
+// (función comentar_duelo). La organización puede ocultarlas.
 
 interface Frase { perfil_id: string; texto: string; oculta: boolean }
 const MAX = 140;
 
-export function Declaraciones({ enf, a, b, personas, editable, titulo }: { enf: number; a: string | null; b: string | null; personas: Persona[]; editable: boolean; titulo?: string }) {
+export function Declaraciones({ enf, a, b, personas, editable, titulo, momento = 'antes' }: { enf: number; a: string | null; b: string | null; personas: Persona[]; editable: boolean; titulo?: string; momento?: 'antes' | 'despues' }) {
   const sesion = useSesion(), yo = sesion.usuarioId, admin = sesion.perfil?.rol === 'admin';
   const vit = useVitrinasGacha();
   const [frases, setFrases] = useState<Frase[] | null>(null), [borrador, setBorrador] = useState(''), [aviso, setAviso] = useState(''), [editando, setEditando] = useState(false);
-  const cargar = () => supabase.from('declaraciones').select('perfil_id,texto,oculta').eq('enfrentamiento_id', enf).then(({ data, error }) => setFrases(error ? null : ((data as Frase[] | null) ?? [])));
-  useEffect(() => { cargar(); }, [enf, yo]);
+  const cargar = () => supabase.from('declaraciones').select('perfil_id,texto,oculta').eq('enfrentamiento_id', enf).eq('momento', momento).then(({ data, error }) => setFrases(error ? null : ((data as Frase[] | null) ?? [])));
+  useEffect(() => { cargar(); }, [enf, yo, momento]);
   if (frases === null) return null; // la tabla todavía no existe
   const nombre = (id: string) => personas.find((p) => p.id === id)?.nombre ?? 'Participante';
   const mia = frases.find((f) => f.perfil_id === yo), soyParte = yo === a || yo === b;
   const guardar = async (texto: string) => {
-    const { data, error } = await supabase.rpc('declarar', { p_enf: enf, p_texto: texto });
+    const { data, error } = await supabase.rpc(momento === 'antes' ? 'declarar' : 'comentar_duelo', { p_enf: enf, p_texto: texto });
     if (error || data) return setAviso(error?.message ?? String(data));
     setAviso(''); setEditando(false); cargar();
   };
-  const ocultar = async (f: Frase) => { await supabase.rpc('ocultar_declaracion', { p_enf: enf, p_perfil: f.perfil_id, p_oculta: !f.oculta }); cargar(); };
+  const ocultar = async (f: Frase) => { await supabase.rpc('ocultar_declaracion', { p_enf: enf, p_perfil: f.perfil_id, p_oculta: !f.oculta, p_momento: momento }); cargar(); };
   const otras = frases.filter((f) => f.perfil_id !== yo || !editable);
 
   return (
@@ -37,11 +38,11 @@ export function Declaraciones({ enf, a, b, personas, editable, titulo }: { enf: 
       ))}
       {editable && soyParte && (editando || !mia ? (
         <form class="declarar" onSubmit={(ev) => { ev.preventDefault(); guardar(borrador); }}>
-          <label class="chico" for={`decl-${enf}`}>Tu declaración antes del duelo (la ve tu rival y la puede citar La Cuarta)</label>
+          <label class="chico" for={`decl-${enf}`}>{momento === 'antes' ? 'Tu declaración antes del duelo' : 'Tu comentario después del duelo'} (la ve tu rival y la puede citar La Cuarta)</label>
           <div class="fila">
-            <input id={`decl-${enf}`} maxLength={MAX} value={borrador} placeholder="Ej.: Este juego es mío." onInput={(ev) => setBorrador((ev.target as HTMLInputElement).value)} />
+            <input id={`decl-${enf}`} maxLength={MAX} value={borrador} placeholder={momento === 'antes' ? 'Ej.: Este juego es mío.' : 'Ej.: ¿Este era el equipo de la muerte?'} onInput={(ev) => setBorrador((ev.target as HTMLInputElement).value)} />
             <span class="tenue chico">{MAX - borrador.length}</span>
-            <button class="boton principal" disabled={!borrador.trim()}>Declarar</button>
+            <button class="boton principal" disabled={!borrador.trim()}>{momento === 'antes' ? 'Declarar' : 'Comentar'}</button>
             {mia && <button type="button" class="boton" onClick={() => setEditando(false)}>Cancelar</button>}
           </div>
         </form>

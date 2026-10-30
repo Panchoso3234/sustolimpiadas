@@ -347,6 +347,7 @@ function ResultadoDuelo({ e, lado, marcas, personas, equipos }: { e: V.Enfrentam
       {e.desempate && <p class="tenue">{e.desempate === 'suma' ? 'Quedaron iguales en rondas: se definió por la suma de puntaje de todas las rondas.' : 'Quedaron iguales en rondas y en la suma: se definió por la mejor ronda de cada uno.'}</p>}
       {e.oficial && e.modo === '1v1' ? <PuntosDuelo id={e.id} /> : lado && <p>{e.oficial ? `Para el torneo: +${puntosVersus(puntos, como, e.jornada)} puntos (jornada ${e.jornada}).` : 'Amistoso: no da puntos del torneo.'}</p>}
       {e.modo === '1v1' && <Declaraciones enf={e.id} a={e.a_perfil} b={e.b_perfil} personas={personas} editable={false} titulo="Antes del duelo dijeron" />}
+      {e.modo === '1v1' && <Declaraciones momento="despues" enf={e.id} a={e.a_perfil} b={e.b_perfil} personas={personas} editable={e.estado === 'cerrado'} titulo="Después del duelo" />}
       {marcas.length > 0 && <div class="tabla-caja">
         <table class="tabla duelo-detalle">
           <thead><tr><th>{e.modo === '1v1' ? 'Ronda' : 'Integrantes'}</th><th>{n(yo)}</th><th>{n(el)}</th></tr></thead>

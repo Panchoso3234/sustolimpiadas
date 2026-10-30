@@ -26,6 +26,8 @@ export interface Datos {
   puntos: { victoria: number; empate: number; derrota: number; multiplicadores: number[] };
   /** TSUKIBET (los de este cruce y el siguiente) y las declaraciones antes de los duelos (sin las ocultas). */
   pronosticos?: Pronostico[]; declaraciones?: { enf: number; perfil: string; texto: string }[];
+  /** Comentarios de los jugadores después del duelo (sin los ocultos). */
+  comentarios?: { enf: number; perfil: string; texto: string }[];
 }
 
 // ───────── Lo que sale ─────────
@@ -256,9 +258,13 @@ export function redactar(d: Datos): Edicion {
     // Si habló antes y perdió, se lo recordamos; si ganó, lo había avisado
     const frase = empate ? '' : dijo(P) ? `${nombre(P)} había dicho: «${dijo(P)}». Perdió ${rg} a ${rp}. ` : dijo(G) ? `${nombre(G)} lo avisó antes: «${dijo(G)}». ` : '';
     if (frase) puntaje += dijo(P) ? 8 : 3;
+    // Lo que dijeron al terminar: primero el que ganó, después el que perdió
+    const comento = (id: string) => d.comentarios?.find((y) => y.enf === x.id && y.perfil === id)?.texto;
+    const despues = [G, P].filter((id) => comento(id)).map((id) => `${nombre(id)}, al terminar: «${comento(id)}». `).join('');
+    if (despues) puntaje += 6;
     const detalle = ambas.map((n) => `Ronda ${n}: ${miles(por(ga || empate ? 'a' : 'b', n) ?? 0)} a ${miles(por(ga || empate ? 'b' : 'a', n) ?? 0)}`).join(' · ');
     notas.push({
-      tipo, seccion: SECCIONES[tipo], titular, bajada: lead, cuerpo: `${frase}${detalle ? `${detalle}.` : ''}`.trim(), protagonistas: [G, P],
+      tipo, seccion: SECCIONES[tipo], titular, bajada: lead, cuerpo: `${frase}${despues}${detalle ? `${detalle}.` : ''}`.trim(), protagonistas: [G, P],
       cifra: ambas.length ? (tipo === 'paliza' ? `+${miles(Math.abs(margen))}` : `${miles(Math.abs(margen))} pts`) : `${rg}-${rp}`, puntaje, duelo: x.id, sello: SELLOS[tipo],
     });
   }
