@@ -148,7 +148,7 @@ function RecordsLiga() {
   useEffect(() => {
     (async () => {
       const [equipos, personas, { lista }, puntos, ausencias] = await Promise.all([V.listarEquipos(), V.listarPersonas(), V.listarEnfrentamientos('1v1'), leerPuntos().catch(() => PUNTOS_BASE), V.listarAusencias()]);
-      const equipoDe = (id: string | null) => equipos.find((q) => id && q.miembros.includes(id)) ?? null;
+      const equipoDe = (id: string | null) => V.equipoParaPuntos(equipos, id);
       const hoy = fechaChile(Date.now()), cruces: Cruce[] = [], barridas: { cruce: number; gana: string; pierde: string }[] = [];
       for (const c of CRUCES.filter((x) => x.desde <= hoy)) {
         const duelos = lista.filter((d) => d.cruce === c.n), aus = ausencias.filter((a) => a.cruce === c.n);

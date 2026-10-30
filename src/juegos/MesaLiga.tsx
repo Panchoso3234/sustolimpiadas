@@ -14,7 +14,7 @@ const RONDAS = 3;
 // Juegos que entran a la liga recién desde un cruce (los nuevos, cuando el cruce en curso ya estaba armado)
 // bestias: entra desde el cruce 2 (25-10)
 // Desde qué cruce entra cada juego a los sorteos (los demás, desde el 1)
-const DESDE_CRUCE: Record<string, number> = { bloques: 2, bestias: 2, rodillos: 2, puertas: 2, huevo: 3, futbol: 3, faro: 3, catapulta: 2, buscaconchas: 3, colibri: 4, corte: 4, gemas: 4, horda: 4 };
+const DESDE_CRUCE: Record<string, number> = { bloques: 2, bestias: 2, rodillos: 2, puertas: 2, huevo: 3, futbol: 3, faro: 3, catapulta: 2, buscaconchas: 3, colibri: 3, corte: 3, gemas: 3, horda: 3 };
 /** Juegos rehechos (versión 2) y desde qué fecha: los duelos de antes no cuentan para "menos usados". */
 const VERSION_NUEVA: Record<string, string> = { rodillos: '2026-10-26', puertas: '2026-10-26', cartero: '2026-10-26', laberinto: '2026-10-26', bombas: '2026-10-26', catapulta: '2026-10-26', conchas: '2026-10-26', balsas: '2026-10-26', minigolf: '2026-10-27', parejas: '2026-10-27', escobas: '2026-10-27' };
 /** Peso de cada juego en el sorteo de los cruces (1 si no está aquí). Los nuevos salen un poco más; con 0, un juego no sale. */

@@ -58,6 +58,16 @@ export async function listarPersonas(): Promise<Persona[]> {
   return (data as Persona[] | null) ?? [];
 }
 
+/**
+ * Quienes dejaron el torneo, con el equipo en que jugaron: sus duelos ya jugados siguen sumando a ese equipo (puntos y
+ * bonos de cruce), pero ya no son parte del equipo ni clasifican. Los duelos no guardan el equipo, por eso va aquí.
+ */
+export const EX_MIEMBROS: Record<string, number> = {
+  '70a6d0e3-66a9-4e1b-946c-971f9582510e': 35, // GiyuuSilly, Equipo 11 (se retiró el 29-10; lo reemplaza Argyrus)
+};
+/** El equipo de un jugador para contar puntos: el actual o, si se retiró, el que tenía. */
+export const equipoParaPuntos = (equipos: Equipo[], id: string | null) => (id ? equipos.find((q) => q.miembros.includes(id) || EX_MIEMBROS[id] === q.id) ?? null : null);
+
 export async function listarEquipos(): Promise<Equipo[]> {
   const [{ data: equipos }, { data: miembros }, { data: pendientes }] = await Promise.all([
     supabase.from('equipos').select('id,nombre,capitan').order('id').then((r) => (r.error ? supabase.from('equipos').select('id,nombre').order('id') : r)),

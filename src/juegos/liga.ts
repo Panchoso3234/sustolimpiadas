@@ -1,5 +1,5 @@
 import { fechaChile } from '../nucleo/azar';
-import type { Ausencia, Persona, Equipo, Enfrentamiento } from './duelos';
+import { EX_MIEMBROS, equipoParaPuntos, type Ausencia, type Persona, type Equipo, type Enfrentamiento } from './duelos';
 import { puntosVersus, type Puntos } from './puntos';
 
 // La liga del torneo (desde el 21 de octubre de 2026). 12 equipos de 3: 8 con un capitán del staff y 4 solo de participantes.
@@ -39,7 +39,7 @@ export interface LineaJugador { id: string; nombre: string; equipo: Equipo | nul
 export const esStaff = (id: string, equipos: Equipo[], personas: Persona[]) => equipos.some((q) => q.capitan === id) || personas.some((p) => p.id === id && p.rol !== 'jugador');
 
 export function calcularLiga(equipos: Equipo[], personas: Persona[], duelos: Enfrentamiento[], p: Puntos, ausencias: Ausencia[] = []) {
-  const equipoDe = (id: string | null) => equipos.find((q) => id && q.miembros.includes(id)) ?? null;
+  const equipoDe = (id: string | null) => equipoParaPuntos(equipos, id);
   const lineas = new Map<number, LineaEquipo>(equipos.map((q) => [q.id, { equipo: q, puntos: 0, porJornada: [0, 0, 0, 0], bonos: 0, ganados: 0, empatados: 0, perdidos: 0, sinJugar: 0, capitan: q.capitan ?? null }]));
   const jugadores = new Map<string, LineaJugador>();
   const jugador = (id: string) => {
@@ -105,9 +105,9 @@ export function calcularLiga(equipos: Equipo[], personas: Persona[], duelos: Enf
   const hayPuntos = tabla.some((l) => l.puntos > 0);
   if (hayPuntos) {
     const top = new Set(tabla.slice(0, EQUIPOS_A_LA_FINAL).map((l) => l.equipo.id));
-    for (const j of personal) if (!j.staff && j.equipo && top.has(j.equipo.id)) j.clasifica = 'equipo';
+    for (const j of personal) if (!j.staff && !(j.id in EX_MIEMBROS) && j.equipo && top.has(j.equipo.id)) j.clasifica = 'equipo';
     let libres = CUPOS_FINAL - personal.filter((j) => j.clasifica).length;
-    for (const j of personal) { if (libres <= 0) break; if (!j.staff && !j.clasifica && j.puntos > 0) { j.clasifica = 'especial'; libres--; } }
+    for (const j of personal) { if (libres <= 0) break; if (!j.staff && !(j.id in EX_MIEMBROS) && !j.clasifica && j.puntos > 0) { j.clasifica = 'especial'; libres--; } }
   }
   return { tabla, personal };
 }
