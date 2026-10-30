@@ -245,8 +245,9 @@ export async function crear(c: Contexto): Promise<Partida> {
   ];
   const nubes = Array.from({ length: 7 }, (_, i) => ({ x: (i * 397) % 2400, y: 60 + ((i * 131) % 200), tipo: i % 2 }));
 
-  m.alPixel((gp) => {
-    const v = vista(), W = m.ancho, x = xAve(), k = m.k, mundo = mundoDe(v.d), F = FONDOS[mundo];
+  // Fondo de un mundo: cielo, sol y nubes (o estrellas y aurora) y las tres capas con paralaje
+  const pintarFondo = (gp: CanvasRenderingContext2D, mundo: number, v: ReturnType<typeof vista>) => {
+    const W = m.ancho, k = m.k, F = FONDOS[mundo];
     for (let px = 0; px < W; px += 64 * k) gp.drawImage(F.cielo, px, 0, 64 * k, ALTO); // en mosaico: estirarlo deformaría el tramado
     if (mundo === 3) {
       // Estrellas que titilan y aurora en franjas que ondulan
@@ -259,6 +260,28 @@ export async function crear(c: Contexto): Promise<Partida> {
     // Capas con paralaje: cada una se corre a su velocidad
     const capa = (img: Sprite, factor: number) => { const lado = 256 * k, off = -(((v.d * factor) % lado) + lado) % lado; for (let px = off; px < W; px += lado) gp.drawImage(img, Math.round(px / k) * k, 0, lado, ALTO); };
     capa(F.lejos, 0.12); capa(F.medio, 0.3); capa(F.cerca, 0.55);
+  };
+  const pintarSuelo = (gp: CanvasRenderingContext2D, mundo: number, d: number) => {
+    const W = m.ancho, k = m.k, sl = 32 * k, offS = -((d % sl) + sl) % sl;
+    for (let px = offS; px < W; px += sl) gp.drawImage(FONDOS[mundo].suelo, Math.round(px / k) * k, Math.round(SUELO / k) * k, sl, 20 * k);
+  };
+  // Cambio de mundo: el nuevo aparece sobre el anterior durante los primeros 2 huecos (unos 2,5 s), sin saltos.
+  // Va por distancia y no por reloj: se pausa con el juego y la repetición del final lo muestra igual.
+  const fundido = (d: number) => {
+    const p = Math.max(0, (d - PRIMERO) / SEPARACION + 0.5), dentro = p % 25, mundo = mundoDe(d);
+    const k = p >= 25 && dentro < 2 ? dentro / 2 : 1;
+    return { mundo, anterior: (mundo + 3) % 4, k: k * k * (3 - 2 * k) };
+  };
+  const conFundido = (gp: CanvasRenderingContext2D, d: number, pintar: (mundo: number) => void) => {
+    const f = fundido(d);
+    if (f.k < 1) { pintar(f.anterior); gp.globalAlpha = f.k; }
+    pintar(f.mundo);
+    gp.globalAlpha = 1;
+  };
+
+  m.alPixel((gp) => {
+    const v = vista(), W = m.ancho, x = xAve(), k = m.k;
+    conFundido(gp, v.d, (mundo) => pintarFondo(gp, mundo, v));
     // Obstáculos
     for (const o of obs) {
       const sx = x + (o.x - v.d);
@@ -274,8 +297,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       if (o.viento) { gp.fillStyle = 'rgba(255,255,255,.4)'; for (let q = 0; q < 7; q++) { const x0 = sx - SEPARACION * 0.5 + q * 30, y0 = ((v.t * 260 * Math.sign(o.viento) + q * 80) % 600 + 600) % 600; gp.fillRect(Math.round(x0 / k) * k, Math.round(y0 / k) * k, k, 10 * k); } }
     }
     // Suelo que corre
-    const sl = 32 * k, offS = -((v.d % sl) + sl) % sl;
-    for (let px = offS; px < W; px += sl) gp.drawImage(F.suelo, Math.round(px / k) * k, Math.round(SUELO / k) * k, sl, 20 * k);
+    conFundido(gp, v.d, (mundo) => pintarSuelo(gp, mundo, v.d));
     // Fantasma del líder, turbo y el colibrí (gira según su velocidad y bate las alas)
     const fa = fantasmaEn(v.t, v.d);
     const cuadroAla = (t: number, aleteo: number) => Math.floor(t * (t - aleteo < 0.25 ? 24 : 12)) % 3;
@@ -306,7 +328,6 @@ export async function crear(c: Contexto): Promise<Partida> {
     const t = m.tiempo;
     m.rotulo(String(huecos), m.ancho / 2, 92, 76);
     if (multiplicador() > 1) m.rotulo(`×${multiplicador()}`, m.ancho / 2 + 70, 60, 30, '#ffcf4a');
-    if (t - avisoMundo < 2.2 && avisoMundo) m.rotulo(MUNDOS[mundoActual].nombre, m.ancho / 2, 180, 40, '#fff6c9');
     if (fase === 'espera') {
       m.rotulo('Toca, haz clic o pulsa Espacio para aletear', m.ancho / 2, ALTO / 2 + 90, Math.round(Math.min(34, m.ancho / 18)));
       m.rotulo(`Traje: ${traje.nombre}${record ? ` · Récord: ${record}` : ''}`, m.ancho / 2, ALTO / 2 + 140, 22, '#fff6c9');
