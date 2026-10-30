@@ -17,6 +17,8 @@ const RONDAS = 3;
 const DESDE_CRUCE: Record<string, number> = { bloques: 2, bestias: 2, rodillos: 2, puertas: 2, huevo: 3, futbol: 3, faro: 3, catapulta: 2, buscaconchas: 3, colibri: 4, corte: 4, gemas: 4, horda: 4 };
 /** Juegos rehechos (versión 2) y desde qué fecha: los duelos de antes no cuentan para "menos usados". */
 const VERSION_NUEVA: Record<string, string> = { rodillos: '2026-10-26', puertas: '2026-10-26', cartero: '2026-10-26', laberinto: '2026-10-26', bombas: '2026-10-26', catapulta: '2026-10-26', conchas: '2026-10-26', balsas: '2026-10-26', minigolf: '2026-10-27', parejas: '2026-10-27', escobas: '2026-10-27' };
+/** Peso de cada juego en el sorteo de los cruces (1 si no está aquí). Los nuevos salen un poco más; con 0, un juego no sale. */
+const PESOS: Record<string, number> = { colibri: 1.8, corte: 1.8, gemas: 1.8, horda: 1.8 };
 const juegosDuelo = (cruce: number) => VERSUS.filter((t) => t.modo === '1v1' && t.base && !t.vivo && juegoPorId(t.base)?.listo && (DESDE_CRUCE[t.base] ?? 1) <= cruce).map((t) => t.base!);
 
 interface Borrador { cruce: number; juegos: string[]; duelos: { a: string; b: string; juego: string; equipos: [number, number] }[] }
@@ -51,17 +53,25 @@ export function MesaLiga() {
     setBorrador(null);
     cargar();
   };
-  /** Todos los juegos de duelo al azar, pero primero los que menos se han jugado en la liga (así van rotando todos). */
-  const juegosPorUso = (cruce: number, excluir: string[] = []) => {
+  /** Probabilidad de cada juego en un cruce: su peso, corregido por cuánto ha salido (los olvidados suben, los repetidos bajan). */
+  const probabilidades = (cruce: number) => {
     // Los juegos rehechos cuentan sus usos desde su versión nueva: en el sorteo valen como recién llegados
     const uso = (j: string) => duelos.filter((d) => d.cruce && d.juego === j && d.creado.slice(0, 10) >= (VERSION_NUEVA[j] ?? '')).length;
-    return V.mezclar(juegosDuelo(cruce).filter((j) => !excluir.includes(j))).sort((a, b) => uso(a) - uso(b));
+    const lista = juegosDuelo(cruce), promedio = lista.reduce((s, j) => s + uso(j), 0) / Math.max(1, lista.length);
+    const pesos = lista.map((j) => (PESOS[j] ?? 1) * Math.min(2, Math.max(0.5, (promedio + 1) / (uso(j) + 1))));
+    const total = pesos.reduce((a, b) => a + b, 0);
+    return lista.map((j, i) => ({ juego: j, p: pesos[i] / total })).sort((a, b) => b.p - a.p);
+  };
+  /** `n` juegos sorteados con esas probabilidades; se pueden repetir dentro del cruce. */
+  const sortearJuegos = (cruce: number, n: number) => {
+    const tabla = probabilidades(cruce);
+    return Array.from({ length: n }, () => { let k = Math.random(); return (tabla.find((x) => (k -= x.p) < 0) ?? tabla[0]).juego; });
   };
   /** Un equipo disuelto: sin integrantes ni pendientes. Sigue en el calendario (para no reordenarlo) y su rival descansa. */
   const vacio = (id: number) => { const q = equipos.find((x) => x.id === id); return !!q && !q.miembros.length && !q.pendientes?.length; };
-  /** Sortea rivales dentro de cada par de equipos y un juego distinto para cada duelo del cruce (hay más juegos que duelos). */
+  /** Sortea rivales dentro de cada par de equipos y un juego para cada duelo del cruce (con pesos; puede repetirse). */
   const preparar = (n: number, juegosFijos?: string[]) => {
-    const juegos = juegosFijos ?? juegosPorUso(n);
+    const juegos = juegosFijos ?? sortearJuegos(n, (calendario[n - 1]?.parejas.length ?? 0) * 3);
     const lista: Borrador['duelos'] = [];
     (calendario[n - 1]?.parejas ?? []).forEach(([ea, eb], k) => {
       const qa = alineacion(equipos.find((q) => q.id === ea)?.miembros ?? []), qb = alineacion(equipos.find((q) => q.id === eb)?.miembros ?? []);
@@ -73,7 +83,7 @@ export function MesaLiga() {
   };
   /** Duelos que le faltan a un cruce ya creado (alguien se vinculó tarde): se agregan sin tocar los que existen. */
   const faltantes = (n: number): Borrador['duelos'] => {
-    const hechos = delCruce(n), juegos = juegosPorUso(n, hechos.map((d) => d.juego)), lista: Borrador['duelos'] = [];
+    const hechos = delCruce(n), juegos = sortearJuegos(n, (calendario[n - 1]?.parejas.length ?? 0) * 3), lista: Borrador['duelos'] = [];
     const ocupados = new Set([...hechos.flatMap((d) => [d.a_perfil, d.b_perfil]), ...ausencias.filter((a) => a.cruce === n).map((a) => a.perfil_id)]);
     for (const [ea, eb] of calendario[n - 1]?.parejas ?? []) {
       const ma = equipos.find((q) => q.id === ea)?.miembros ?? [], mb = equipos.find((q) => q.id === eb)?.miembros ?? [];
@@ -137,6 +147,9 @@ export function MesaLiga() {
         <section class="bloque liga-borrador">
           <h2>Cruce {borrador.cruce} · {delCruce(borrador.cruce).length ? 'duelos que faltan' : 'vista previa'}</h2>
           <p>{new Set(borrador.duelos.map((d) => d.juego)).size} juegos distintos en {borrador.duelos.length} duelos.</p>
+          <details class="chico"><summary>Probabilidad de cada juego en este cruce</summary>
+            <p class="tenue">{probabilidades(borrador.cruce).map((x) => `${nombreVersus('1v1', x.juego)} ${(x.p * 100).toFixed(1)} %`).join(' · ')}</p>
+          </details>
           {(() => {
             // Quienes siguen sin cuenta no pueden tener duelos: su duelo falta hasta que se vinculen
             const ids = new Set((calendario[borrador.cruce - 1]?.parejas ?? []).flat()), faltan = equipos.filter((q) => ids.has(q.id)).flatMap((q) => (q.pendientes ?? []).map((x) => `${x.nombre} (${q.nombre})`));
