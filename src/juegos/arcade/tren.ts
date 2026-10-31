@@ -111,6 +111,10 @@ export async function crear(c: Contexto): Promise<Partida> {
   const tramos: Tramo[] = [];
   const geoBaliza = new THREE.SphereGeometry(0.13, 8, 6), matBaliza = new THREE.MeshBasicMaterial({ color: '#ffb02e' });
   const ocupadaPrevia = [Infinity, Infinity, Infinity]; // por vía, hasta dónde llega lo último puesto (se comparte entre tramos)
+  // Por vía, dónde termina el último tren: una valla o barra pegada detrás queda tapada por él y no da tiempo de reaccionar
+  // (reporte de Ezeqiu, 2026-10-30). Se exigen HUECO_TRAS_TREN metros (medio segundo a 42 m/s). "?sinhueco" reproduce lo antiguo.
+  const colaTren = [Infinity, Infinity, Infinity], HUECO_TRAS_TREN = DEV?.has('sinhueco') ? 0 : 22;
+  let huecoMin = Infinity;
   /** Si un tren de frente en esta vía, al avanzar, dejaría las tres vías tapadas a la vez en algún punto. */
   const cierraElPaso = (carril: number, z: number, nuevos: Obstaculo[]) => {
     const todos = [...tramos.flatMap((t) => t.obstaculos), ...nuevos];
@@ -186,6 +190,7 @@ export async function crear(c: Contexto): Promise<Partida> {
             const cabe = Math.max(1, Math.floor((z - (z0 - TRAMO + 2)) / LARGO_VAGON));
             const n = Math.min(cabe, tipo === 'viene' ? 2 : 1 + Math.floor(r() * 3)), g = new THREE.Group(), rampa = tipo === 'tren' && (r() < 0.55 || RAMPAS);
             ocupada[carril] = z - n * LARGO_VAGON - 2;
+            colaTren[carril] = z - n * LARGO_VAGON;
             for (let v = 0; v < n; v++) {
               const m = (v === 0 ? (tipo === 'viene' ? bala : loco) : vagones[Math.floor(r() * 3)]).clone();
               m.position.z = -v * LARGO_VAGON - LARGO_VAGON / 2;
@@ -214,6 +219,8 @@ export async function crear(c: Contexto): Promise<Partida> {
             // En los techos largos, la última es una moneda grande que vale 10
             if (rampa) for (let q = 0; q < n * 3; q++) lista.push({ x: (carril - 1) * CARRIL, y: ALTO_TREN + 0.8, z: z - 1 - q * 2, tomada: false, valor: n >= 2 && q === n * 3 - 1 ? 10 : undefined });
           } else {
+            if (colaTren[carril] - z < HUECO_TRAS_TREN) continue; // muy pegada a la cola de un tren: la vía queda libre
+            huecoMin = Math.min(huecoMin, colaTren[carril] - z);
             const g = new THREE.Group(), color = tipo === 'baja' ? '#e8443a' : '#ffb02e', avanzado = kTramo * TRAMO >= 1500;
             let largoObs = 0.5;
             if (tipo === 'baja') {
@@ -389,7 +396,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     for (const [a0, a1] of vias[0]) for (const [b0, b1] of vias[1]) for (const [c0, c1] of vias[2]) if (Math.min(a1, b1, c1, yo.z - 3) > Math.max(a0, b0, c0, yo.z - 25)) return true;
     return false;
   };
-  if (DEV) (window as unknown as { __tren: () => unknown }).__tren = () => ({ ...prueba, metros: Math.round(-yo.z), v, terminado, puntaje: puntaje(), bonos, racha: rachaNivel, revivido, practica: !!c.practica, carril: yo.carril, z: yo.z, misiones: misiones.filter((m) => m.hecha).length, flecha: flecha.visible, libre: viaLibre(),
+  if (DEV) (window as unknown as { __tren: () => unknown }).__tren = () => ({ ...prueba, metros: Math.round(-yo.z), v, terminado, puntaje: puntaje(), bonos, racha: rachaNivel, revivido, practica: !!c.practica, carril: yo.carril, z: yo.z, misiones: misiones.filter((m) => m.hecha).length, flecha: flecha.visible, libre: viaLibre(), huecoMin,
     tunelCerca: tramos.some((tr) => tr.obstaculos.some((o) => o.tipo === 'alta' && o.largo > 1 && o.z < yo.z - 4 && o.z > yo.z - 22)) });
   if (DEV) (window as unknown as { __trenTabla: () => void }).__trenTabla = () => { poder.tabla = ultimoT + 8; };
   const terminar = (t: number, porque: string) => {

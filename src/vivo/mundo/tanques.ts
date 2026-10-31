@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { azar } from '../../nucleo/azar';
-import { AN, CLASES, COLS, FILAS, FO, R_TANQUE, TABLEROS, celda, centro, crearBloques, mallaDardo, mallaMina, mallaTanque, montarSala } from '../../juegos/arcade/tanquesPiezas';
+import { AN, CLASES, COLS, FILAS, FO, R_TANQUE, TABLEROS, celda, centro, chocarMuros as chocarMurosEn, crearBloques, mallaDardo, mallaMina, mallaTanque, montarSala } from '../../juegos/arcade/tanquesPiezas';
 import { crearMando } from '../../juegos/mando';
 import type { Contexto, Partida } from '../../juegos/marco';
 import { crearEscenario, limitar, mmss } from '../../juegos/reflejos/motor';
@@ -48,16 +48,7 @@ export const tanquesMundo: JuegoMundo<EstadoTanques, EntradaTanques> = {
     const azarito = () => azar(e.semilla, 'tanques', e.n++);
     e.t += dt;
     const t = e.t, romper = (cx: number, cz: number) => { if (cx < 0 || cz < 0 || cx >= COLS || cz >= FILAS || e.grilla[cz][cx] !== 'c') return false; e.grilla[cz] = e.grilla[cz].slice(0, cx) + '.' + e.grilla[cz].slice(cx + 1); return true; };
-    const chocarMuros = (q: Tq) => {
-      const [cx, cz] = celda(q.x, q.z);
-      for (let a = cx - 1; a <= cx + 1; a++) for (let b = cz - 1; b <= cz + 1; b++) {
-        if (!solido(e, a, b)) continue;
-        const p = centro(a, b), px = limitar(q.x, p.x - 0.6, p.x + 0.6), pz = limitar(q.z, p.z - 0.6, p.z + 0.6), dx = q.x - px, dz = q.z - pz, d = Math.hypot(dx, dz);
-        if (d >= R_TANQUE) continue;
-        if (d === 0) { q.x += Math.sign(q.x - p.x || 1) * 0.05; continue; }
-        q.x = px + (dx / d) * R_TANQUE; q.z = pz + (dz / d) * R_TANQUE;
-      }
-    };
+    const chocarMuros = (q: Tq) => chocarMurosEn(q, (cx, cz) => solido(e, cx, cz));
     const disparar = (i: number) => {
       const q = e.tq[i], datos = i < 2 ? { bala: BALA, rebotes: 1 } : CLASES[q.quien as 'gris' | 'verde'];
       if (e.balas.filter((b) => b.de === i).length >= (i < 2 ? MAX_BALAS : 2)) return;
@@ -127,6 +118,8 @@ export const tanquesMundo: JuegoMundo<EstadoTanques, EntradaTanques> = {
       const s = (junto - d) / 2;
       a.x -= (dx / d) * s; a.z -= (dz / d) * s; b.x += (dx / d) * s; b.z += (dz / d) * s;
     }
+    // El empujón puede meter a uno en un bloque o sacarlo de la mesa (las torretas no se mueven solas): se revisan las paredes
+    for (const q of vivos) chocarMuros(q);
     // Balas: avanzan, rebotan, rompen cajas, se anulan entre sí y le dan a los tanques
     for (let i = e.balas.length - 1; i >= 0; i--) {
       const b = e.balas[i];

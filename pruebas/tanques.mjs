@@ -3,6 +3,7 @@
 import { abrir, esperar, hasta, limpiarPerfiles } from './navegador.mjs';
 
 const veces = Number(process.argv[2] ?? 2), carpeta = process.argv[3];
+let malos = 0; // partidas en que un tanque quedó dentro de un bloque (reporte 2026-10-30): debe ser 0
 for (let i = 0; i < veces; i++) {
   const p = await abrir('http://localhost:5173/?auto=1&piloto=1&rapido=4#/juegos/tanques', { ancho: 1280, alto: 720 });
   await hasta(() => p.js("[...document.querySelectorAll('button')].some((b) => b.textContent.includes('Práctica'))"), 60000);
@@ -17,6 +18,9 @@ for (let i = 0; i < veces; i++) {
   const lineas = await p.js("(document.body.innerText.match(/Resultado[\\s\\S]*?Vidas y tiempo\\s*\\n[^\\n]*/)?.[0] ?? '').replace(/\\n/g, ' ')");
   console.log(`oleada ${s.oleada} · vidas ${s.vidas} · puntaje ${s.puntos} · bajas ${s.bajas} · precisión ${s.disparos ? Math.round((100 * s.impactos) / s.disparos) : 0} % · ${fps} cuadros/s · ${Math.round((Date.now() - inicio) / 1000)} s\n   ${lineas}`);
   if (p.errores.length) console.log('   errores:', p.errores);
+  if (s.dentro > 0) malos++;
   p.cerrar();
 }
+console.log(malos ? `MAL  ${malos} partidas con un tanque dentro de un bloque` : 'OK   ningún tanque quedó dentro de un bloque');
 await limpiarPerfiles();
+process.exit(malos ? 1 : 0);

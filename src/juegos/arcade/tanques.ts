@@ -3,7 +3,7 @@ import { generador } from '../../nucleo/azar';
 import { crearMando } from '../mando';
 import type { Contexto, Partida } from '../marco';
 import { crearEscenario, limitar, mmss } from '../reflejos/motor';
-import { AN, CELDA, CLASES, COLS, FILAS, FO, R_TANQUE, TABLEROS, celda, centro, crearBloques, mallaDardo, mallaMina, mallaTanque, montarSala, type Clase } from './tanquesPiezas';
+import { AN, CELDA, CLASES, COLS, FILAS, FO, R_TANQUE, TABLEROS, celda, centro, chocarMuros as chocarMurosEn, crearBloques, mallaDardo, mallaMina, mallaTanque, montarSala, type Clase } from './tanquesPiezas';
 
 // Tanques de Juguete: ocho oleadas de tanques enemigos sobre una mesa en un cuarto de niño. Las balas de espuma rebotan en
 // las paredes (una vez las tuyas), rompen cajas y se anulan si chocan con una del otro bando. Los enemigos no se dañan
@@ -46,6 +46,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   // ── La pieza y el tablero ──
   const [, tablero] = await Promise.all([montarSala(e), crearBloques(e)]);
   let grilla: string[][] = [];
+  let dentro = 0; // cuadros en que un tanque terminó con el centro dentro de un bloque (debe ser 0)
   const solido = (cx: number, cz: number) => cx < 0 || cz < 0 || cx >= COLS || cz >= FILAS || grilla[cz][cx] !== '.';
   const armar = (n: number) => { grilla = TABLEROS[n % TABLEROS.length].map((f) => f.split('')); tablero.armar(grilla); };
 
@@ -168,17 +169,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     e.hud.aviso(oleada === OLEADAS.length - 1 ? '¡Oleada final: el Jefe!' : `Oleada ${oleada + 1}: ${resumen(OLEADAS[oleada])}`, 'oro', 2);
   };
 
-  /** Empuja un tanque fuera de los bloques y de los bordes. */
-  const chocarMuros = (t: Tanque) => {
-    const [cx, cz] = celda(t.x, t.z);
-    for (let a = cx - 1; a <= cx + 1; a++) for (let b = cz - 1; b <= cz + 1; b++) {
-      if (!solido(a, b)) continue;
-      const p = centro(a, b), px = limitar(t.x, p.x - CELDA / 2, p.x + CELDA / 2), pz = limitar(t.z, p.z - CELDA / 2, p.z + CELDA / 2), dx = t.x - px, dz = t.z - pz, d = Math.hypot(dx, dz);
-      if (d >= R_TANQUE) continue;
-      if (d === 0) { t.x += Math.sign(t.x - p.x || 1) * 0.05; continue; }
-      t.x = px + (dx / d) * R_TANQUE; t.z = pz + (dz / d) * R_TANQUE;
-    }
-  };
+  const chocarMuros = (t: Tanque) => chocarMurosEn(t, solido);
   /** Si hay línea de tiro directa entre dos puntos (sin bloques ni cajas en medio). */
   const aLaVista = (a: { x: number; z: number }, b: { x: number; z: number }) => {
     const pasos = Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.3);
@@ -311,7 +302,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   // ── Piloto de prueba (solo en desarrollo): "?piloto=1" juega solo; "?rapido=N" acelera ──
   const parametros = new URLSearchParams(location.search), piloto = import.meta.env.DEV && parametros.has('piloto');
   const aceleracion = import.meta.env.DEV ? Math.max(1, Number(parametros.get('rapido')) || 1) : 1;
-  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__tanques = () => ({ oleada: oleada + 1, vidas, puntos, bajas, disparos, impactos, terminado, reloj, cola: cola.length, enemigos: enemigos.filter((x) => x.vivo).map((x) => ({ clase: x.clase, celda: celda(x.x, x.z), ve: aLaVista(x, yo) })), yo: celda(yo.x, yo.z) });
+  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__tanques = () => ({ oleada: oleada + 1, vidas, puntos, bajas, disparos, impactos, terminado, reloj, cola: cola.length, enemigos: enemigos.filter((x) => x.vivo).map((x) => ({ clase: x.clase, celda: celda(x.x, x.z), ve: aLaVista(x, yo) })), yo: celda(yo.x, yo.z), dentro });
   const pilotear = (): { mx: number; mz: number; dispara: boolean } => {
     const vivos = enemigos.filter((x) => x.vivo), cerca = vivos.sort((a, b) => Math.hypot(a.x - yo.x, a.z - yo.z) - Math.hypot(b.x - yo.x, b.z - yo.z))[0];
     if (!yo.destino || Math.hypot(yo.destino.x - yo.x, yo.destino.z - yo.z) < 0.4 || r() < 0.02) {
@@ -454,6 +445,9 @@ export async function crear(c: Contexto): Promise<Partida> {
       const s = (junto - d) / 2;
       a.x -= (dx / d) * s; a.z -= (dz / d) * s; b.x += (dx / d) * s; b.z += (dz / d) * s;
     }
+    // El empujón entre tanques puede meter a uno en un bloque: se vuelven a revisar las paredes (antes quedaba dentro, imposible de matar)
+    for (const t of todos) chocarMuros(t);
+    for (const t of todos) if (solido(...celda(t.x, t.z))) dentro++;
     // Balas: avanzan en tramos cortos (no atraviesan paredes delgadas), rebotan, rompen cajas, se anulan con las del
     // otro bando y dañan solo al bando contrario (sin fuego amigo entre enemigos; las tuyas sí pueden dañarte)
     const jefe = enemigos.find((x) => x.vivo && x.clase === 'jefe' && x.furia);

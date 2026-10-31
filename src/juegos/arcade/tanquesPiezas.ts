@@ -33,6 +33,23 @@ export const TABLEROS = [
 ];
 export const celda = (x: number, z: number): [number, number] => [Math.floor((x + AN / 2) / CELDA), Math.floor((z + FO / 2) / CELDA)];
 export const centro = (cx: number, cz: number) => ({ x: -AN / 2 + (cx + 0.5) * CELDA, z: -FO / 2 + (cz + 0.5) * CELDA });
+/** Empuja un tanque fuera de los bloques y de los bordes. Si otro tanque lo metió con el centro dentro de un bloque o fuera
+ *  de la mesa, lo lleva a la celda libre más cercana (antes quedaba ahí, imposible de matar: reporte del 2026-10-30). */
+export const chocarMuros = (t: { x: number; z: number }, solido: (cx: number, cz: number) => boolean) => {
+  if (solido(...celda(t.x, t.z))) {
+    let mejor: { x: number; z: number } | null = null, dm = Infinity;
+    for (let a = 0; a < COLS; a++) for (let b = 0; b < FILAS; b++) { if (solido(a, b)) continue; const p = centro(a, b), d = Math.hypot(p.x - t.x, p.z - t.z); if (d < dm) { dm = d; mejor = p; } }
+    if (mejor) { t.x = mejor.x; t.z = mejor.z; }
+    return;
+  }
+  const [cx, cz] = celda(t.x, t.z);
+  for (let a = cx - 1; a <= cx + 1; a++) for (let b = cz - 1; b <= cz + 1; b++) {
+    if (!solido(a, b)) continue;
+    const p = centro(a, b), px = Math.min(Math.max(t.x, p.x - CELDA / 2), p.x + CELDA / 2), pz = Math.min(Math.max(t.z, p.z - CELDA / 2), p.z + CELDA / 2), dx = t.x - px, dz = t.z - pz, d = Math.hypot(dx, dz);
+    if (d >= R_TANQUE || d === 0) continue;
+    t.x = px + (dx / d) * R_TANQUE; t.z = pz + (dz / d) * R_TANQUE;
+  }
+};
 
 const pintar = (w: number, h: number, f: (g: CanvasRenderingContext2D) => void) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; f(cv.getContext('2d')!); const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
 

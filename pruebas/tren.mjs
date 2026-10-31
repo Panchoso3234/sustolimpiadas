@@ -18,11 +18,14 @@ for (const [nombre, q] of casos) {
     if (q) {
       salida[`${nombre}: ${meta} techos sin morir`] = x.techos >= meta && !x.fin && !x.revivido;
       salida[`${nombre}: se cambió de vía desde un techo sin tropezar`] = x.desdeTecho > 0 && x.tropiezos === 0;
-    } else salida[`${nombre}: ningún tren de frente atraviesa a otro`] = x.cruces === 0;
+    } else {
+      salida[`${nombre}: ningún tren de frente atraviesa a otro`] = x.cruces === 0;
+      salida[`${nombre}: ninguna valla o barra a menos de 22 m detrás de un tren (hay ${x.huecoMin})`] = x.huecoMin >= 22;
+    }
     salida[`${nombre}: sin errores`] = !p.errores.length;
     if (p.errores.length) console.log(p.errores.slice(0, 3));
   } catch (err) { console.log('falló:', err?.message ?? err); } finally { p.cerrar(); }
 }
 for (const [k, v] of Object.entries(salida)) console.log(`${v ? 'OK  ' : 'MAL '} ${k}`);
 await limpiarPerfiles();
-process.exit(Object.values(salida).length === 8 && Object.values(salida).every(Boolean) ? 0 : 1);
+process.exit(Object.values(salida).length === 9 && Object.values(salida).every(Boolean) ? 0 : 1);

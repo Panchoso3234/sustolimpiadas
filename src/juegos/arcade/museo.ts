@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { generador } from '../../nucleo/azar';
 import { aspectoAleatorio } from '../../personaje/catalogo';
+import type { Aspecto } from '../../personaje/catalogo';
 import type { Kenney } from '../../personaje/kenney';
 import { crearMando } from '../mando';
 import type { Contexto, Partida } from '../marco';
@@ -92,6 +93,16 @@ export async function crear(c: Contexto): Promise<Partida> {
   };
   const gema = (color: string, tam: number) => new THREE.Mesh(new THREE.OctahedronGeometry(tam), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.5, flatShading: true, roughness: 0.3 }));
 
+  // Un guardia cuyo modelo no llega (red lenta o caída en la página publicada) usa un muñeco simple. Antes el piso nuevo
+  // quedaba a medio armar esperando ese modelo y el ladrón ya no se podía mover (reporte de Thecrytik, 2026-10-30).
+  // "?colgar=1" (solo en pruebas) simula que los modelos de los guardias de los pisos 2 y 3 nunca llegan.
+  const colgar = import.meta.env.DEV && new URLSearchParams(location.search).has('colgar');
+  const cargarGuardia = (aspecto: Aspecto, n: number) => new Promise<Kenney>((listo) => {
+    let hecho = false;
+    const muneco = () => { if (hecho) return; hecho = true; const g = new THREE.Group(), cuerpo = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.6, 4, 10), mat('#2a4a9a')); cuerpo.position.y = 0.55; g.add(cuerpo); e.escena.add(g); listo({ grupo: g, ranuras: [], animar() {} }); };
+    (colgar && n > 0 ? new Promise<Kenney>(() => {}) : e.personaje(aspecto, 1.3)).then((k) => { if (hecho) e.escena.remove(k.grupo); else { hecho = true; listo(k); } }, muneco);
+    setTimeout(muneco, 8000);
+  });
   const armarNivel = async (n: number) => {
     e.escena.remove(piezas);
     for (const gd of guardias) e.escena.remove(gd.k.grupo);
@@ -153,7 +164,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     // Guardias: un personaje con gorra azul y su linterna
     const datos = NIVELES[n];
     guardias = await Promise.all(datos.guardias.map(async (ronda, k) => {
-      const kk = await e.personaje({ ...aspectoAleatorio(generador(`${c.semilla}|guardia${n}|${k}`)) }, 1.3), puntos = ronda.map(([x, z]) => centro(x, z));
+      const kk = await cargarGuardia({ ...aspectoAleatorio(generador(`${c.semilla}|guardia${n}|${k}`)) }, n), puntos = ronda.map(([x, z]) => centro(x, z));
       // La gorra va dentro del personaje (que está escalado): se compensa para que mida lo mismo en el mundo
       const gorra = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.19, 0.1, 12), mat('#1f3a8a')), s = kk.grupo.scale.y; gorra.scale.setScalar(1 / s); gorra.position.y = 1.3 / s; kk.grupo.add(gorra);
       const c2 = cono(VISTA, '#fff3a0'); piezas.add(c2.malla);
@@ -307,5 +318,6 @@ export async function crear(c: Contexto): Promise<Partida> {
     }
   });
 
+  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__museo = (salir?: boolean) => { if (salir) { tieneTesoro = true; px = salida.x; pz = salida.z; } return { piso: nivel + 1, cargando, guardias: guardias.length }; };
   return { empezar() { e.empezar(); empezado = true; quieto = 1; }, destruir: e.destruir };
 }
