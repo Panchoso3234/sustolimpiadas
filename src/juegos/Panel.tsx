@@ -180,6 +180,29 @@ export function Dashboard() {
       </div>
 
       <section class="bloque">
+        <h2>Cruces anteriores</h2>
+        {(() => {
+          // Cada cruce que ya pasó (o con duelos y anterior al actual), del más reciente al más antiguo, desplegable con sus duelos
+          const pasados = CRUCES.filter((c) => (cruce ? c.n < cruce.n : true) && duelos.some((d) => d.cruce === c.n)).reverse();
+          if (!pasados.length) return <p class="tenue">Todavía no termina ningún cruce.</p>;
+          return pasados.map((c, k) => {
+            const lista = duelos.filter((d) => d.cruce === c.n).sort((x, y) => x.id - y.id), sinJugar = lista.filter((d) => d.no_jugo).length, abiertos = lista.filter((d) => d.estado === 'pendiente').length;
+            const resultado = (d: V.Enfrentamiento) => d.estado === 'pendiente' ? <span class="alerta">pendiente</span> : d.estado === 'anulado' ? 'anulado'
+              : d.no_jugo === 'ambos' ? 'no jugó ninguno' : <>{d.puntos_a} – {d.puntos_b} · {d.ganador === 'empate' ? 'empate' : <b>gana {nombre(d.ganador === 'a' ? d.a_perfil : d.b_perfil)}</b>}{d.no_jugo ? <span class="tenue"> ({nombre(d.no_jugo === 'a' ? d.a_perfil : d.b_perfil)} no se presentó)</span> : null}</>;
+            return (
+              <details key={c.n} open={k === 0}>
+                <summary><b>Cruce {c.n}</b> <span class="tenue chico">{bonita(c.desde)} → {c.cierre ?? bonita(c.hasta)} · {lista.length} duelos{sinJugar ? ` · ${sinJugar} con ausencia` : ''}{abiertos ? ` · ${abiertos} sin cerrar` : ''}</span></summary>
+                <div class="tabla-caja"><table class="tabla">
+                  <thead><tr><th>Duelo</th><th>Juego</th><th>Resultado</th></tr></thead>
+                  <tbody>{lista.map((d) => <tr key={d.id}><td><b>{nombre(d.a_perfil)}</b> vs <b>{nombre(d.b_perfil)}</b> <span class="tenue chico">#{d.id}</span></td><td class="chico">{nombreVersus('1v1', d.juego)}</td><td class="chico">{resultado(d)}</td></tr>)}</tbody>
+                </table></div>
+              </details>
+            );
+          });
+        })()}
+      </section>
+
+      <section class="bloque">
         <h2>Alertas</h2>
         <ul class="lista">
           {sospechosas.length > 0 && <li>⚠️ <b>{sospechosas.length}</b> {sospechosas.length === 1 ? 'marca de hoy supera' : 'marcas de hoy superan'} el tope de su juego: {sospechosas.slice(0, 5).map((m) => `${nombre(m.perfil_id)} en ${juegoPorId(m.juego)?.nombre ?? m.juego} (${m.puntaje})`).join(', ')}. Revísalas en la pestaña Marcas.</li>}
