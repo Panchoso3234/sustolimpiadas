@@ -215,7 +215,16 @@ export const tanquesMundo: JuegoMundo<EstadoTanques, EntradaTanques> = {
           if (m.vivo && !q.vivo) { explotar(m.x, m.z); if (yo && i === indice(yo)) e.hud.aviso(q.vidas > 0 ? `¡Te dieron! Quedan ${q.vidas}` : '¡Fuera de combate!', 'mal', 1.2); }
           if (!m.vivo && q.vivo) { m.x = q.x; m.z = q.z; }
           m.vivo = q.vivo;
-          m.x = suave(m.x, q.x, dt); m.z = suave(m.z, q.z, dt); m.ang = suaveAngulo(m.ang, q.ang, dt); m.mira = suaveAngulo(m.mira, q.mira, dt);
+          if (yo && mando && i === indice(yo) && q.vivo && !v.simulo()) {
+            // Predicción: si no soy el anfitrión, mi tanque se mueve al instante con mi mando (antes esperaba la ida y
+            // vuelta de la red y el anfitrión jugaba con ventaja). Se acerca a la posición real al detenerme o si se aleja mucho.
+            const l = Math.hypot(mando.x, mando.z), anda = l > 0.15;
+            if (anda) { m.x += (mando.x / Math.max(1, l)) * VEL * dt; m.z += (mando.z / Math.max(1, l)) * VEL * dt; m.ang = suaveAngulo(m.ang, Math.atan2(mando.x, mando.z), dt, 9); chocarMurosEn(m, (cx, cz) => solido(es, cx, cz)); }
+            const lejos = Math.hypot(q.x - m.x, q.z - m.z), k = lejos > 2.5 ? 1 : anda && lejos < 1.2 ? 0 : 1 - Math.exp(-6 * dt);
+            m.x += (q.x - m.x) * k; m.z += (q.z - m.z) * k;
+            if (!anda) m.ang = suaveAngulo(m.ang, q.ang, dt);
+            m.mira = suaveAngulo(m.mira, q.mira, dt);
+          } else { m.x = suave(m.x, q.x, dt); m.z = suave(m.z, q.z, dt); m.ang = suaveAngulo(m.ang, q.ang, dt); m.mira = suaveAngulo(m.mira, q.mira, dt); }
           const ve = q.vivo && (i > 1 || es.t >= q.inv - 0.4 || Math.sin(es.t * 30) > 0);
           m.cuerpo.visible = m.torreta.visible = ve; m.sombra.visible = q.vivo;
           m.cuerpo.position.set(m.x, 0, m.z); m.cuerpo.rotation.y = m.ang;

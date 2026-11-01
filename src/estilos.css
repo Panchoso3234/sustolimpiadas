@@ -680,6 +680,22 @@ body.foto .tren-poderes { display: none; }
 .duelo-puntos { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; font-weight: 800; }
 .duelo-puntos li { background: var(--noche-2); border-left: 4px solid var(--luna); border-radius: 8px; padding: 8px 12px; }
 @media (max-width: 760px) { .duelo-zona.con-juego { grid-template-columns: minmax(0, 1fr); } .duelo-mio { height: 62vh; } }
+/* Jugando en pantalla dividida: mi juego a todo el ancho y casi todo el alto; el rival en una ventanita que no tapa los clics */
+.duelo-zona.con-ventanita { position: relative; grid-template-columns: minmax(0, 1fr); }
+.duelo-zona.con-ventanita .duelo-mio { height: max(360px, calc(100dvh - 90px)); }
+.duelo-ventanita { position: absolute; top: 72px; right: 10px; width: min(30%, 300px); z-index: 6; pointer-events: none; opacity: .96; }
+.duelo-ventanita .duelo-pantalla { padding: 4px; box-shadow: 0 6px 18px rgba(0,0,0,.45); }
+.duelo-ventanita .duelo-nombre { font-size: .8rem; }
+.duelo-ventanita.mini .duelo-espejo { display: none; }
+.duelo-ventanita-boton { pointer-events: auto; position: absolute; top: -10px; left: -10px; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--linea); background: var(--noche); color: var(--luna); font-weight: 900; line-height: 1; padding: 0; cursor: pointer; z-index: 1; }
+.duelo-barra-rival { display: flex; justify-content: space-between; gap: 10px; padding: 6px 12px; border-radius: 10px; background: var(--noche-2); border-left: 5px solid var(--color); font-size: .95rem; }
+.duelo-barra-rival span { color: var(--tenue); font-weight: 800; }
+.vivo-pasos { display: flex; flex-wrap: wrap; gap: 6px 14px; list-style: none; padding: 0; margin: 6px 0; counter-reset: paso; font-weight: 800; }
+.vivo-pasos li { counter-increment: paso; color: var(--tenue); }
+.vivo-pasos li::before { content: counter(paso) ". "; }
+.vivo-pasos li.hecho { color: var(--luna); }
+.vivo-pasos li.hecho::before { content: "✓ "; }
+@media (max-width: 760px) { .duelo-ventanita { width: 40%; top: 60px; } .duelo-zona.con-ventanita .duelo-mio { height: max(320px, calc(100dvh - 70px)); } }
 
 /* Récords históricos (top 3 de siempre) con el personaje de cada persona */
 .cara { border-radius: 50%; object-fit: cover; background: #2a1f4e; flex: none; }

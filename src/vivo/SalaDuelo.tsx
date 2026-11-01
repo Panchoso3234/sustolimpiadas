@@ -124,7 +124,7 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
       const lado = x.asientos ? ladoDe(x.asientos, quien) : null;
       if (evento === 'resultado') { if (lado && d.partida === x.partida && puntajeValido(d.puntaje)) { anotar(lado, d.puntaje); if (quien !== yo.id) suyas.current.add(x.partida); } return; }
       if (evento === 'marcador') { if (lado && d.partida === x.partida && puntajeValido(d.puntaje)) setLlevan((v) => ({ ...v, [lado]: d.puntaje as number })); return; }
-      if (evento === 'foto') { if (lado && d.partida === x.partida && String(d.img ?? '').length < 150000 && String(d.html ?? '').length < 90000) { fotos.current[lado] = { img: d.img as string | undefined, html: d.html as string | undefined }; pintarEspejo(lado); } return; }
+      if (evento === 'foto') { if (lado && d.partida === x.partida && String(d.img ?? '').length < 150000 && String(d.html ?? '').length < 90000) { fotos.current[lado] = { img: d.img as string | undefined, html: d.html as string | undefined }; pintarEspejo(lado); medida.current.fotos++; } return; }
       if (evento === 'revancha') { if (Number.isInteger(d.partida) && (d.partida as number) > x.partida && rondaLibre(d.partida as number)) { fijar(nueva(d.partida as number)); s.marcarListo(0); } return; }
       if (evento === 'abandono') { if (d.partida === x.partida && typeof d.ganador === 'string' && x.asientos?.includes(d.ganador) && !x.abandono) fijar({ ...x, abandono: d.ganador, v: x.v + 1 }); return; }
     }, fijos);
@@ -243,6 +243,12 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
       if (mio === vuelta.current) { setFase('nada'); setAviso('No se pudo cargar el juego. Revisa tu conexión.'); }
     }
   };
+  // La ventanita del rival se puede achicar a solo nombre y puntaje (se recuerda en este navegador)
+  const [mini, setMiniCrudo] = useState(() => { try { return localStorage.getItem('susto.vivo.pip') === 'mini'; } catch { return false; } });
+  const setMini = (si: boolean) => { setMiniCrudo(si); try { localStorage.setItem('susto.vivo.pip', si ? 'mini' : 'abierta'); } catch { /* sin almacenamiento */ } };
+  // Al empezar mi partida, la pantalla se acomoda para que el juego quede entero a la vista
+  const zona = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (fase === 'cuenta') zona.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, [fase]);
   const mia = miLado ? leToca(miLado) : false;
   const correJuego = formato === 'mundo' ? !!asientos && !fin && !p.abandono && (!miLado || puntos[miLado] === null || fase !== 'nada') : mia;
   useEffect(() => { if (correJuego && corrida.current !== p.partida) correr(); }, [correJuego, p.partida]);
@@ -267,10 +273,46 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
         setLlevan((v) => ({ ...v, [miLado]: lleva }));
         if (oficial && n % 8 === 0) V.latidoRonda(oficial.e.id, x.partida, lleva);
       }
-      if (formato !== 'mundo' && !SIN_ESPEJO.has(juego) && n % cada === 0 && s.presentes().length > 1) { const f = capturar(caja, formato === 'turnos' ? 360 : 260); if (f) s.enviar('foto', { partida: x.partida, ...f }); }
+      if (formato !== 'mundo' && !SIN_ESPEJO.has(juego) && !document.hidden && n % cada === 0 && s.presentes().length > 1) { const f = capturar(caja, formato === 'turnos' ? 360 : 260); if (f) s.enviar('foto', { partida: x.partida, ...f }); }
     }, 250);
     return () => clearInterval(r);
   }, [fase, miLado, soyAnfitrion]);
+
+  // Medición (Fase 0 del plan de En vivo): cómo fue la conexión y cuán fluido iba el juego en cada partida.
+  // Se guarda una fila por partida en vivo_metricas (si la tabla no existe todavía, se ignora en silencio).
+  const medida = useRef({ desde: 0, cuadros: 0, rtts: [] as number[], directo: 0, muestras: 0, fotos: 0, cortes: 0, guardada: 0 });
+  useEffect(() => {
+    if (fase !== 'jugando') return;
+    const m = medida.current; m.desde = performance.now(); m.cuadros = 0; m.rtts = []; m.directo = 0; m.muestras = 0;
+    let vivo = true;
+    const cuadro = () => { if (!vivo) return; m.cuadros++; requestAnimationFrame(cuadro); };
+    requestAnimationFrame(cuadro);
+    const r = setInterval(() => {
+      const s = sala.current, otro = anfitrionRef.current === s?.clave ? s?.presentes().find((y) => y.clave !== s.clave)?.clave : anfitrionRef.current;
+      if (!s || !otro) return;
+      m.muestras++; if (s.directo(otro)) m.directo++;
+      const c = red.current.get(otro); if (c) m.rtts.push(c.rtt);
+    }, 1000);
+    return () => { vivo = false; clearInterval(r); };
+  }, [fase]);
+  const rivalAqui = presentes.some((x) => x.id === rivalId);
+  useEffect(() => { if (fase === 'jugando' && !rivalAqui) medida.current.cortes++; }, [rivalAqui]);
+  const guardarMedida = (terminoEnVivo: boolean) => {
+    const m = medida.current, x = est.current;
+    if (!m.desde || m.guardada === x.partida || !sesion.usuarioId) return;
+    m.guardada = x.partida;
+    const seg = Math.max(1, (performance.now() - m.desde) / 1000), rtts = m.rtts.length ? m.rtts : [0];
+    supabase.from('vivo_metricas').insert({
+      codigo, juego, formato, oficial: !!oficial, partida: x.partida,
+      conexion: !m.muestras ? 'sin datos' : m.directo === m.muestras ? 'directa' : m.directo === 0 ? 'respaldo' : 'mixta',
+      rtt_medio: Math.round(rtts.reduce((a, b) => a + b, 0) / rtts.length), rtt_max: Math.max(...rtts),
+      fps_medio: Math.round(m.cuadros / seg), fotos_por_seg: Math.round((m.fotos / seg) * 10) / 10, cortes: m.cortes,
+      termino_en_vivo: terminoEnVivo, segundos: Math.round(seg),
+    }).then(() => undefined, () => undefined);
+    m.desde = 0; m.fotos = 0; m.cortes = 0;
+  };
+  useEffect(() => { if (fase === 'listo') guardarMedida(true); }, [fase]);
+  useEffect(() => () => guardarMedida(false), []);
 
   // Mi resultado se repite cada 3 s hasta que el duelo termine: si un mensaje se perdió, el duelo no se queda pegado
   const miPuntaje = miLado ? puntos[miLado] : null;
@@ -325,6 +367,10 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
   );
   // Qué se ve: mi juego (si me toca) y las pantallas de los demás
   const otros = formato === 'mundo' ? [] : LADOS.filter((l) => l !== miLado && (formato === 'dividida' || turno === l));
+  // Mientras juego en pantalla dividida, mi juego va a todo el ancho y el rival en una ventanita (o una barra si no hay espejo).
+  // Antes mi juego tenía 2/3 del ancho y 640 px de alto: menos campo visual (reporte de Infinite, 2026-10-31)
+  const ventanita = formato === 'dividida' && jugandoYo && !!miLado;
+  const barraRival = (l: Lado) => <div key={l} class="duelo-barra-rival" style={`--color:${COLOR_LADO[l]}`}><b>{nombres[l]}</b><span>{puntos[l] !== null ? `terminó · ${puntos[l]}` : `jugando · ${llevan[l]}`}</span></div>;
 
   return (
     <div class="vivo duelo-vivo">
@@ -359,6 +405,15 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
         </ul>
       )}
       {!soyJugador && pareja && idVivo && <Prediccion partida={idVivo} a={{ id: pareja[0], nombre: nombre(pareja[0]) }} b={{ id: pareja[1], nombre: nombre(pareja[1]) }} abierta={!asientos} ganador={ganadorVivo} usuarioId={sesion.usuarioId} />}
+      {!asientos && sentados.length === 2 && (() => {
+        // Pasos a la vista: quién falta y qué tan buena es la conexión antes de partir
+        const aqui = sentados.filter((id) => presentes.some((x) => x.id === id)).length, listosN = sentados.filter((id) => presentes.some((x) => x.id === id && x.listo === p.partida)).length;
+        const claveRival = presentes.find((x) => x.id === rivalId)?.clave, respaldo = soyJugador && !!claveRival && !sala.current?.directo(anfitrionRef.current === sala.current?.clave ? claveRival : anfitrionRef.current ?? '');
+        return <>
+          <ol class="vivo-pasos"><li class={aqui === 2 ? 'hecho' : ''}>Los dos conectados ({aqui}/2)</li><li class={listosN === 2 ? 'hecho' : ''}>Los dos listos ({listosN}/2)</li><li>Cuenta 3-2-1 y a jugar</li></ol>
+          {respaldo && <p class="aviso atencion chico">Tu conexión con la sala va por el respaldo (más lenta): puedes jugar igual, pero verás a tu rival con menos fluidez. Si puedes, usa wifi en vez de datos móviles o recarga la página.</p>}
+        </>;
+      })()}
       {!asientos && (sentados.length < 2 ? <p class="aviso atencion">Esperando a otra persona. Comparte el enlace de la sala.</p>
         : rivalEnOtraRonda ? <p class="aviso atencion">Tu rival está en otra ronda (ya jugó una a su hora): terminen esta ronda en diferido.</p>
         : soyJugador ? <button class="boton principal grande" onClick={() => sala.current?.marcarListo(yoListo ? 0 : p.partida)}>{yoListo ? 'Ya no estoy listo' : '¡Listo!'}</button>
@@ -368,14 +423,20 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
       {mia && fase === 'nada' && corrida.current === p.partida && <div class="fila"><button class="boton principal grande" onClick={() => { setAviso(''); correr(); }}>Reintentar mi partida</button></div>}
       {turno && <p class={`duelo-turno${turno === miLado ? ' mio' : ''}`}>{turno === miLado ? '¡Es tu turno!' : `Es el turno de ${nombres[turno]}`}</p>}
       {asientos && !ganador && (
-        <div class={`duelo-zona ${formato}${jugandoYo || fase === 'listo' ? ' con-juego' : ''}`}>
+        <div ref={zona} class={`duelo-zona ${formato}${ventanita ? ' con-ventanita' : jugandoYo || fase === 'listo' ? ' con-juego' : ''}`}>
+          {ventanita && SIN_ESPEJO.has(juego) && otros.map(barraRival)}
           <div class="sala duelo-mio" hidden={!jugandoYo}>
             <div class="juego-caja" ref={miCaja} />
             {fase === 'cuenta' && (cuenta ? <div class="sala-cuenta" key={cuenta}>{cuenta}</div> : <div class="duelo-cargando">Esperando a que tu rival termine de cargar…</div>)}
             {fase === 'cargando' && <div class="duelo-cargando">Preparando tu partida…</div>}
           </div>
           {!jugandoYo && miLado && puntos[miLado] !== null && <div class="duelo-listo"><b>{puntos[miLado]}</b><span>{formato === 'turnos' || puntos[miLado === 'a' ? 'b' : 'a'] === null ? `Terminaste. Ahora mira a ${nombres[miLado === 'a' ? 'b' : 'a']}.` : 'Terminaste.'}</span></div>}
-          {otros.length > 0 && <div class="duelo-otros">{otros.map((l) => pantallita(l, formato === 'turnos' || !miLado))}</div>}
+          {otros.length > 0 && (ventanita
+            ? !SIN_ESPEJO.has(juego) && <div class={`duelo-ventanita${mini ? ' mini' : ''}`}>
+                <button class="duelo-ventanita-boton" title={mini ? 'Mostrar la pantalla del rival' : 'Achicar'} onClick={() => setMini(!mini)}>{mini ? '▢' : '–'}</button>
+                {otros.map((l) => pantallita(l))}
+              </div>
+            : <div class="duelo-otros">{otros.map((l) => pantallita(l, formato === 'turnos' || !miLado))}</div>)}
         </div>
       )}
       {textoFin && <p class="aviso ok vivo-fin duelo-fin">{textoFin}</p>}
