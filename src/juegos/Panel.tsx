@@ -34,7 +34,7 @@ function tareas(): Map<string, string[]> {
   for (const c of CRUCES) {
     poner(c.desde, `▶ Crear y anunciar el cruce ${c.n} (juegos y rivales)`);
     poner(sumar(c.hasta, -1), `🔔 Recordar el plazo del cruce ${c.n} a quien no ha jugado`);
-    poner(c.hasta, `⏰ Vence el cruce ${c.n} (a las 23:59)`);
+    poner(c.hasta, `⏰ Vence el cruce ${c.n} (${c.cierre ?? 'a las 23:59'})`);
   }
   for (const j of JORNADAS.slice(1)) poner(j.desde, `✖️ Empieza la jornada ${j.n}: anunciar el nuevo multiplicador`);
   poner('2026-10-31', '👻 Noche de Brujas en la isla');

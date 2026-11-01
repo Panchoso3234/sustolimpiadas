@@ -173,7 +173,7 @@ export function MesaLiga() {
           const c = CRUCES[i], hechos = delCruce(i + 1), cerrados = hechos.filter((d) => d.estado === 'cerrado').length, ahora = c && hoy >= c.desde && hoy <= c.hasta;
           return (
             <li key={i} class={`${ahora ? 'ahora' : ''}${hechos.length ? ' creado' : ''}`}>
-              <div class="liga-cruce-cabeza"><b>Cruce {i + 1}</b><span class="tenue chico">{c ? `${V.fechaCorta(c.desde)} al ${V.fechaCorta(c.hasta)} · jornada ${jornadaDe(c.desde)}` : 'sin fecha'}{ahora ? ' · EN CURSO' : ''}</span></div>
+              <div class="liga-cruce-cabeza"><b>Cruce {i + 1}</b><span class="tenue chico">{c ? `${V.fechaCorta(c.desde)} al ${c.cierre ?? V.fechaCorta(c.hasta)} · jornada ${jornadaDe(c.desde)}` : 'sin fecha'}{ahora ? ' · EN CURSO' : ''}</span></div>
               <ul>{r.parejas.map(([a, b]) => <li key={`${a}-${b}`}>{vacio(a) || vacio(b) ? <>Descansa: {nombreEquipo(vacio(a) ? b : a)} <span class="tenue chico">(su rival se disolvió)</span></> : <>{nombreEquipo(a)} <span class="tenue">vs</span> {nombreEquipo(b)}</>}</li>)}</ul>
               {r.descansa != null && <span class="chico tenue">Descansa: {nombreEquipo(r.descansa)}</span>}
               {hechos.length

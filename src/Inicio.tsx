@@ -78,7 +78,7 @@ export function Inicio() {
         <section class={`inicio-cruce${enCurso ? ' en-curso' : ''}`}>
           <div>
             <b>{enCurso ? `Cruce ${cruce.n} de ${CRUCES.length} en curso` : `El cruce ${cruce.n} parte el ${V.fechaCorta(cruce.desde)}`}</b>
-            <span class="tenue">{enCurso ? `Hasta el ${V.fechaCorta(cruce.hasta)} a las 23:59 · ${cuantoFalta(cruce.hasta, ahora)}` : 'Los duelos aparecen apenas se sortean.'}</span>
+            <span class="tenue">{enCurso ? (cruce.cierre ? `Hasta el ${cruce.cierre}` : `Hasta el ${V.fechaCorta(cruce.hasta)} a las 23:59 · ${cuantoFalta(cruce.hasta, ahora)}`) : 'Los duelos aparecen apenas se sortean.'}</span>
           </div>
           <a class="boton" href="#/juegos/posiciones">Ver la tabla oficial</a>
         </section>
