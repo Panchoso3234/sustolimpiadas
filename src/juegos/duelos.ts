@@ -1,4 +1,5 @@
 import { supabase, type Rol } from '../nucleo/supabase';
+import { hayVersionNueva } from '../nucleo/version';
 import { fechaChile } from '../nucleo/azar';
 
 // Acceso a los datos del versus en diferido: personas, equipos, enfrentamientos y sus marcas.
@@ -139,6 +140,8 @@ export async function rondasJugadas(id: number): Promise<{ lado: Lado; ronda: nu
 }
 
 export async function empezarRonda(id: number, ronda: number): Promise<{ semilla?: string; error?: string }> {
+  // Con una versión vieja abierta, se recarga ANTES de empezar: el intento no se gasta
+  if (await hayVersionNueva()) { location.reload(); return { error: 'Hay una versión nueva del sitio: se está recargando…' }; }
   const { data, error } = await supabase.rpc('empezar_ronda', { p_enf: id, p_ronda: ronda });
   if (data === '') return { error: 'Tu partida anterior de esta ronda se cortó después de los primeros 10 segundos, así que vale lo que alcanzaste a llevar. Vuelve a tus enfrentamientos para ver la ronda siguiente.' };
   return error || typeof data !== 'string' ? { error: error?.message ?? 'No se pudo empezar la ronda.' } : { semilla: data };

@@ -1,4 +1,5 @@
 import { render, type ComponentType } from 'preact';
+import { hayVersionNueva } from './nucleo/version';
 import { useEffect, useState } from 'preact/hooks';
 import './estilos.css';
 import { Ajustes, Recorrido, mostrarRecorridoAlInicio } from './Ajustes';
@@ -64,7 +65,7 @@ function App() {
   useEffect(() => escucharConectados((l) => setEnLinea(l.filter((c) => c.estado === 'activo').length)), []);
   useEffect(() => { if (!sesion.cargando) iniciarPresencia(sesion.usuarioId ? { id: sesion.usuarioId, nombre: sesion.perfil?.nombre ?? 'Participante' } : null); }, [sesion.cargando, sesion.usuarioId, sesion.perfil?.nombre]);
   useEffect(() => {
-    const f = () => setRuta(rutaActual());
+    const f = () => { setRuta(rutaActual()); hayVersionNueva().then((n) => { if (n) location.reload(); }); };
     window.addEventListener('hashchange', f);
     return () => window.removeEventListener('hashchange', f);
   }, []);
