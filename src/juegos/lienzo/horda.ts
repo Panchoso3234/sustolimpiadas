@@ -112,13 +112,25 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (guardado.numeros && numeros.length < 120) numeros.push({ x: e.x + (rBotin() - 0.5) * 10, y: e.y - e.r, v, t: jt, critico });
     if (e.vida <= 0) morir(e);
   };
+  // Con muchos cristales (u oro) en el suelo, lo nuevo se suma al más cercano, que crece, en vez de crear otro.
+  // Antes, pasado el tope se borraban los más viejos y se perdía experiencia (reporte de LewVan, 2026-10-31).
+  const TOPE = { xp: 300, oro: 60 }, enSuelo = { xp: 0, oro: 0 }, cuentaXp = { soltada: 0, recogida: 0 };
+  const soltar = (x: number, y: number, tipo: 'xp' | 'oro', valor: number) => {
+    if (tipo === 'xp') cuentaXp.soltada += valor;
+    if (enSuelo[tipo] >= TOPE[tipo]) {
+      let mejor: Suelto | null = null, dm = Infinity;
+      for (const o of sueltos) if (o.tipo === tipo && o.valor > 0) { const d = (o.x - x) ** 2 + (o.y - y) ** 2; if (d < dm) { dm = d; mejor = o; } }
+      if (mejor) { mejor.valor += valor; return; }
+    }
+    enSuelo[tipo]++; sueltos.push({ x, y, tipo, valor, atraido: false });
+  };
   const morir = (e: Enemigo) => {
     muertes++; muertesPorTipo[e.tipo] = (muertesPorTipo[e.tipo] ?? 0) + 1;
     const minuto = Math.floor(jt / 60); muertesPorMinuto[minuto] = (muertesPorMinuto[minuto] ?? 0) + 1;
     const datos = ENEMIGOS[e.tipo];
     puntos += e.tipo === 'minijefe' ? 1000 : e.tipo === 'jefe' ? 5000 : 8;
-    if (datos.xp) sueltos.push({ x: e.x, y: e.y, tipo: 'xp', valor: datos.xp, atraido: false });
-    if (rBotin() < 0.015) sueltos.push({ x: e.x + 8, y: e.y, tipo: 'oro', valor: 5, atraido: false });
+    if (datos.xp) soltar(e.x, e.y, 'xp', datos.xp);
+    if (rBotin() < 0.015) soltar(e.x + 8, e.y, 'oro', 5);
     if (e.tipo === 'minijefe') { minijefes++; sueltos.push({ x: e.x, y: e.y, tipo: 'cofre', valor: 1, atraido: false }); m.efectos.temblar(14); m.mesa.hud.aviso('¡Minijefe derrotado! Suelta un cofre', 'oro', 1.6); }
     if (e.tipo === 'jefe') { jefeMuerto = true; jefe = null; m.efectos.temblar(30); m.efectos.congelar(200); fin = '¡Derrotaste al jefe!'; }
     if (enemigos.length < 250 || e.tipo !== 'avispa') m.efectos.chispas(...pant(e.x, e.y), [datos.color, '#ffffff'], e.r > 20 ? 24 : 5, e.r > 20 ? 400 : 160, { gravedad: 0, dura: 0.35 });
@@ -400,7 +412,6 @@ export async function crear(c: Contexto): Promise<Partida> {
       if (d < 18) { recoger(s); s.valor = -1; }
     }
     for (let k = sueltos.length - 1; k >= 0; k--) if (sueltos[k].valor < 0) sueltos.splice(k, 1);
-    if (sueltos.length > 400) sueltos.splice(0, sueltos.length - 400);
     // Fin por tiempo
     if (jefeMuerto) { puntos += Math.round((DURACION - jt) * 20); terminar(); return; }
     if (jt >= DURACION) { fin = 'Sobreviviste'; terminar(); return; }
@@ -414,7 +425,8 @@ export async function crear(c: Contexto): Promise<Partida> {
   });
   const xpParaNivel = () => 5 + yo.nivel * 6 + Math.max(0, yo.nivel - 20) * 10;
   const recoger = (s: Suelto) => {
-    if (s.tipo === 'xp') { yo.xp += s.valor; while (yo.xp >= xpParaNivel()) { yo.xp -= xpParaNivel(); yo.nivel++; subirNivel(); } if (rBotin() < 0.3) m.mesa.sonido.tono(1100 + rBotin() * 300, 0.04, 'sine', 0.025); }
+    if (s.tipo === 'xp' || s.tipo === 'oro') enSuelo[s.tipo]--;
+    if (s.tipo === 'xp') { cuentaXp.recogida += s.valor; yo.xp += s.valor; while (yo.xp >= xpParaNivel()) { yo.xp -= xpParaNivel(); yo.nivel++; subirNivel(); } if (rBotin() < 0.3) m.mesa.sonido.tono(1100 + rBotin() * 300, 0.04, 'sine', 0.025); }
     else if (s.tipo === 'oro') { oro += s.valor; m.mesa.sonido.tono(1500, 0.06, 'triangle', 0.04); }
     else if (s.tipo === 'comida') { yo.vida = Math.min(yo.max, yo.vida + 30); m.efectos.flotar(m.ancho / 2, ALTO / 2 - 40, '+30 vida', '#7cffcb', 26); }
     else if (s.tipo === 'iman') { for (const o of sueltos) if (o.tipo === 'xp') o.atraido = true; m.mesa.hud.aviso('¡Imán! Todos los cristales vienen a ti', 'oro', 1.2); }
@@ -424,7 +436,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   const romperAntorcha = (t: Antorcha) => {
     const i = antorchas.indexOf(t); if (i < 0) return; antorchas.splice(i, 1);
     const k = rBotin(), tipo: Suelto['tipo'] = k < 0.45 ? 'comida' : k < 0.75 ? 'oro' : k < 0.88 ? 'iman' : 'bomba';
-    sueltos.push({ x: t.x, y: t.y, tipo, valor: tipo === 'oro' ? 25 : 1, atraido: false });
+    if (tipo === 'oro') soltar(t.x, t.y, 'oro', 25); else sueltos.push({ x: t.x, y: t.y, tipo, valor: 1, atraido: false });
     m.efectos.chispas(...pant(t.x, t.y), ['#ffd23c', '#ff6a1a'], 14, 200);
   };
   let destello = 0;
@@ -526,7 +538,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       const X = sx(s.x), Y = sy(s.y);
       if (X < -40 || X > m.ancho + 40 || Y < -40 || Y > ALTO + 40) continue;
       const salto = Math.round(Math.sin(t * 5 + s.x) * 1.5) * k;
-      if (s.tipo === 'xp') m.sprite(SPR.cristal[s.valor >= 4 ? 2 : s.valor >= 2 ? 1 : 0], X, Y + salto);
+      if (s.tipo === 'xp') { if (s.valor >= 20) { gp.fillStyle = 'rgba(255,90,110,.3)'; gp.beginPath(); gp.arc(X, Y, (11 + Math.min(10, s.valor / 20) + Math.sin(t * 6) * 2) * k, 0, Math.PI * 2); gp.fill(); } m.sprite(SPR.cristal[s.valor >= 4 ? 2 : s.valor >= 2 ? 1 : 0], X, Y + salto); }
       else if (s.tipo === 'cofre') { gp.fillStyle = 'rgba(255,210,60,.25)'; gp.beginPath(); gp.arc(X, Y, (14 + Math.sin(t * 5) * 2) * k, 0, Math.PI * 2); gp.fill(); m.sprite(SPR.cofre, X, Y + salto); }
       else m.sprite(SPR[s.tipo], X, Y + salto);
     }
@@ -659,7 +671,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     });
   }
 
-  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__horda = () => ({ fase, x: Math.round(yo.x), y: Math.round(yo.y), puntos: Math.round(jt * 20) + puntos + oro * 5, seg: Math.round(jt), nivel: yo.nivel, vida: Math.round(yo.vida), muertes, enemigos: enemigos.length, armas: [...armas].map(([id, w]) => `${id}${w.nivel}${w.evo ? '+' : ''}`), terminado });
+  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__horda = () => ({ fase, x: Math.round(yo.x), y: Math.round(yo.y), puntos: Math.round(jt * 20) + puntos + oro * 5, seg: Math.round(jt), nivel: yo.nivel, vida: Math.round(yo.vida), muertes, enemigos: enemigos.length, armas: [...armas].map(([id, w]) => `${id}${w.nivel}${w.evo ? '+' : ''}`), terminado, xpSoltada: cuentaXp.soltada, xpRecogida: cuentaXp.recogida, xpSuelo: sueltos.filter((o) => o.tipo === 'xp' && o.valor > 0).reduce((a, o) => a + o.valor, 0), cristales: enSuelo.xp });
   return {
     empezar() { m.empezar(); if (fase === 'juego') empezarPartida(); },
     destruir() { musica.parar(); m.destruir(); },
