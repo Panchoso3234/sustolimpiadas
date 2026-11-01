@@ -14,9 +14,10 @@ const caso = async (piloto) => {
     let maxCristales = 0, x;
     for (let n = 0; n < segundos / 3; n++) { await esperar(3000); x = await p.js('window.__horda()'); maxCristales = Math.max(maxCristales, x.cristales); if (x.terminado) break; }
     const cuadra = x.xpSoltada === x.xpRecogida + x.xpSuelo;
-    console.log(piloto, `${x.seg} s · nivel ${x.nivel} · soltada ${x.xpSoltada} = recogida ${x.xpRecogida} + suelo ${x.xpSuelo} · cristales máx ${maxCristales}`);
+    console.log(piloto, `${x.seg} s · nivel ${x.nivel} · soltada ${x.xpSoltada} = recogida ${x.xpRecogida} + suelo ${x.xpSuelo} · cristales máx ${maxCristales} · murciélago pegado máx ${x.pegado} s · ${x.muertes} derrotados`);
     salida[`piloto ${piloto}: no se pierde experiencia (${x.xpSoltada} soltada, ${x.xpRecogida + x.xpSuelo} recogida o en el suelo)`] = cuadra && x.xpSoltada > 0;
     salida[`piloto ${piloto}: cristales en el suelo ≤ 300 (máx ${maxCristales})`] = maxCristales <= 300;
+    salida[`piloto ${piloto}: ningún murciélago queda pegado más de 1,5 s (máx ${x.pegado} s)`] = x.pegado <= 1.5;
     salida[`piloto ${piloto}: sin errores`] = !p.errores.length;
     if (p.errores.length) console.log(p.errores.slice(0, 3));
   } catch (err) { console.log('falló:', err?.message ?? err); } finally { p.cerrar(); }
@@ -24,4 +25,4 @@ const caso = async (piloto) => {
 await Promise.all(['torpe', 'bueno'].map(caso));
 for (const [k, v] of Object.entries(salida)) console.log(`${v ? 'OK  ' : 'MAL '} ${k}`);
 await limpiarPerfiles();
-process.exit(Object.values(salida).length === 6 && Object.values(salida).every(Boolean) ? 0 : 1);
+process.exit(Object.values(salida).length === 8 && Object.values(salida).every(Boolean) ? 0 : 1);

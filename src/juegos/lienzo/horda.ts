@@ -261,8 +261,9 @@ export async function crear(c: Contexto): Promise<Partida> {
     for (const [id, w] of armas) {
       const lv = w.nivel + (w.evo ? 3 : 0), i = IDX[id];
       if (id === 'espada') {
-        const n = w.evo ? 5 : [1, 2, 2, 3, 3][w.nivel - 1], rad = (75 + lv * 4) * A;
-        for (let k = 0; k < n; k++) { const a = jt * (w.evo ? 4.5 : 3.2) + (k * Math.PI * 2) / n, x = yo.x + Math.cos(a) * rad, y = yo.y + Math.sin(a) * rad; cerca(x, y, 20 * A, (e) => { if (jt > e.cd[i]) { e.cd[i] = jt + 0.4; herir(e, 10 + lv * 4, i, 120, e.x - yo.x, e.y - yo.y); } }); }
+        // Golpea con toda la hoja (de cerca del cuerpo hasta la punta): antes solo la punta, a 80 de distancia, y un enemigo pegado a ti no recibía nada (reporte de YCl, 2026-10-31)
+        const n = w.evo ? 5 : [1, 2, 2, 3, 3][w.nivel - 1], rad = (58 + lv * 4) * A;
+        for (let k = 0; k < n; k++) for (const f of [0.35, 0.7, 1]) { const a = jt * (w.evo ? 4.5 : 3.2) + (k * Math.PI * 2) / n, x = yo.x + Math.cos(a) * rad * f, y = yo.y + Math.sin(a) * rad * f; cerca(x, y, 20 * A, (e) => { if (jt > e.cd[i]) { e.cd[i] = jt + 0.4; herir(e, 10 + lv * 4, i, 120, e.x - yo.x, e.y - yo.y); } }); }
         continue;
       }
       if (id === 'aura') {
@@ -403,7 +404,8 @@ export async function crear(c: Contexto): Promise<Partida> {
       let ex = yo.x - e.x, ey = yo.y - e.y; const d = Math.hypot(ex, ey) || 1; ex /= d; ey /= d;
       let v = e.vel;
       if (e.tipo === 'hechicero') { if (d < 260) v = -e.vel * 0.5; if (jt > e.disparo && d < 500) { e.disparo = jt + 2.6; balas.push({ x: e.x, y: e.y, vx: ex * 210, vy: ey * 210, dano: 7, vida: 3, r: 7, arma: -1, perfora: 1, golpeados: null, enemiga: true }); } }
-      if (e.tipo === 'murcielago') { const w = Math.sin(jt * 6 + e.id) * 0.9, px = -ey; ey += ex * w; ex += px * w; }
+      // Zigzag solo de lejos: de cerca orbitaba pegado al jugador y no se despegaba (reporte de Dai, 2026-10-31)
+      if (e.tipo === 'murcielago' && d > 90) { const w = Math.sin(jt * 6 + e.id) * 0.9, px = -ey; ey += ex * w; ex += px * w; }
       if (e.rumbo) { ex = e.rumbo.x; ey = e.rumbo.y; }
       if (e.tipo === 'hongo') {
         // Se infla al llegar cerca y explota a los 0,7 s (si lo matas antes, no explota)
@@ -422,7 +424,8 @@ export async function crear(c: Contexto): Promise<Partida> {
       }
       e.x += (ex * v + e.empujeX) * dt; e.y += (ey * v + e.empujeY) * dt;
       e.empujeX *= Math.pow(0.002, dt); e.empujeY *= Math.pow(0.002, dt);
-      if (d < e.r + 14) herirJugador(ENEMIGOS[e.tipo].dano);
+      if (d < e.r + 14) { herirJugador(ENEMIGOS[e.tipo].dano); if (e.tipo === 'murcielago') { e.empujeX -= ex * 320; e.empujeY -= ey * 320; } if (import.meta.env.DEV && e.tipo === 'murcielago') pegado = Math.max(pegado, jt - (e.cx || (e.cx = jt))); }
+      else if (import.meta.env.DEV && e.tipo === 'murcielago') e.cx = 0;
       if (d > radioVista() * 2.2 && e.rumbo) e.vida = 0; // la estampida ya pasó
       else if (d > radioVista() * 2.2 && e.tipo !== 'jefe' && e.tipo !== 'minijefe') { const a = Math.atan2(-ey, -ex) + Math.PI + (r() - 0.5); e.x = yo.x + Math.cos(a) * radioVista(); e.y = yo.y + Math.sin(a) * radioVista(); }
     }
@@ -473,7 +476,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     const quedan = Math.max(0, DURACION - jt);
     m.mesa.hud.tiempo(`${Math.floor(quedan / 60)}:${String(Math.floor(quedan % 60)).padStart(2, '0')}`);
     m.mesa.hud.puntos(String(marca));
-    m.mesa.hud.extra(`Nv. ${yo.nivel} · ${muertes} derrotados${oro ? ` · ${oro} oro` : ''}`);
+    m.mesa.hud.extra(`♥ ${Math.ceil(yo.vida)}/${yo.max} · Nv. ${yo.nivel} · ${muertes} derrotados${oro ? ` · ${oro} oro` : ''}`);
     if (!jefe) musica.intensidad = enemigos.length > 150 ? 2 : 1;
   });
   const xpParaNivel = () => 5 + yo.nivel * 6 + Math.max(0, yo.nivel - 20) * 10;
@@ -492,7 +495,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (tipo === 'oro') soltar(t.x, t.y, 'oro', 25); else sueltos.push({ x: t.x, y: t.y, tipo, valor: 1, atraido: false });
     m.efectos.chispas(...pant(t.x, t.y), ['#ffd23c', '#ff6a1a'], 14, 200);
   };
-  let destello = 0;
+  let destello = 0, pegado = 0; // pegado: lo más que un murciélago estuvo seguido tocándote (prueba)
 
   // ── Dibujo ──
   const zoom = () => Math.min(1, m.ancho / 500);
@@ -618,10 +621,13 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (vista === 'lado' && yo.dirX < 0) img = espejo(img);
     m.sprite(SPR.sombra, m.ancho / 2, ALTO / 2 + 7 * k);
     if (!(jt - yo.golpeado < 0.15 && Math.floor(t * 30) % 2 === 0)) m.sprite(jt - yo.golpeado < 0.1 ? silueta(img, PAL.rojo) : img, m.ancho / 2, ALTO / 2 - 2 * k);
+    // Barra de vida bajo el personaje (verde; roja con menos de un tercio)
+    { const w = 16 * k * 2, x0 = Math.round((m.ancho / 2 - w / 2) / k) * k, y0 = Math.round((ALTO / 2 + 14 * k) / k) * k, q = Math.max(0, yo.vida / yo.max);
+      gp.fillStyle = PAL.negro; gp.fillRect(x0 - k, y0 - k, w + 2 * k, 4 * k); gp.fillStyle = q < 0.34 ? PAL.rojo : '#5fd16a'; gp.fillRect(x0, y0, w * q, 2 * k); }
     // Armas
     const esp = armas.get('espada');
     if (esp) {
-      const lv = esp.nivel + (esp.evo ? 3 : 0), n = esp.evo ? 5 : [1, 2, 2, 3, 3][esp.nivel - 1], rad = (75 + lv * 4) * mult.area;
+      const lv = esp.nivel + (esp.evo ? 3 : 0), n = esp.evo ? 5 : [1, 2, 2, 3, 3][esp.nivel - 1], rad = (58 + lv * 4) * mult.area * 0.7;
       for (let q = 0; q < n; q++) { const a = jt * (esp.evo ? 4.5 : 3.2) + (q * Math.PI * 2) / n; m.sprite(girado(esp.evo ? SPR.espadaEvo : SPR.espada, a + Math.PI / 2), sx(yo.x + Math.cos(a) * rad), sy(yo.y + Math.sin(a) * rad), mult.area > 1.25 ? 2 : 1); }
     }
     for (const b of balas) {
@@ -735,7 +741,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     });
   }
 
-  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__horda = () => ({ fase, x: Math.round(yo.x), y: Math.round(yo.y), puntos: Math.round(jt * 20) + puntos + oro * 5, seg: Math.round(jt), nivel: yo.nivel, vida: Math.round(yo.vida), muertes, enemigos: enemigos.length, armas: [...armas].map(([id, w]) => `${id}${w.nivel}${w.evo ? '+' : ''}`), terminado, xpSoltada: cuentaXp.soltada, xpRecogida: cuentaXp.recogida, xpSuelo: sueltos.filter((o) => o.tipo === 'xp' && o.valor > 0).reduce((a, o) => a + o.valor, 0), cristales: enSuelo.xp });
+  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__horda = () => ({ fase, x: Math.round(yo.x), y: Math.round(yo.y), puntos: Math.round(jt * 20) + puntos + oro * 5, seg: Math.round(jt), nivel: yo.nivel, vida: Math.round(yo.vida), muertes, enemigos: enemigos.length, armas: [...armas].map(([id, w]) => `${id}${w.nivel}${w.evo ? '+' : ''}`), terminado, xpSoltada: cuentaXp.soltada, xpRecogida: cuentaXp.recogida, xpSuelo: sueltos.filter((o) => o.tipo === 'xp' && o.valor > 0).reduce((a, o) => a + o.valor, 0), cristales: enSuelo.xp, pegado: Math.round(pegado * 10) / 10 });
   return {
     empezar() { m.empezar(); if (fase === 'juego') empezarPartida(); },
     destruir() { musica.parar(); m.destruir(); },
