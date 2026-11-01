@@ -8,10 +8,12 @@ import { bola, crearSprite, desdeTexto, espejo, girado, PAL, silueta, type Sprit
 // evolucionada (sale de los cofres de los minijefes). En el torneo duras 5 minutos: al minuto 4 llega el jefe.
 // En modo libre son 10 minutos, eliges personaje y el oro guardado da mejoras permanentes.
 // Oleadas, mejoras ofrecidas y botín salen de la semilla.
+// 31-10: al subir de nivel se puede Cambiar (3), Saltar o Descartar (3); Pluma de fénix (revive una vez); eventos de
+// oleada (anillo, estampida, enjambre); murciélagos en zigzag y hongos que explotan al acercarse.
 
 const ALTO = 720;
 type ArmaId = 'espada' | 'cuchillos' | 'rayo' | 'aura' | 'bumeran' | 'meteoros' | 'lanza' | 'escudo';
-type PasivoId = 'velocidad' | 'area' | 'dano' | 'iman' | 'armadura' | 'vida' | 'enfriamiento' | 'suerte';
+type PasivoId = 'velocidad' | 'area' | 'dano' | 'iman' | 'armadura' | 'vida' | 'enfriamiento' | 'suerte' | 'fenix';
 const ARMAS: Record<ArmaId, { nombre: string; color: string; desc: string; pasivo: PasivoId; evo: string }> = {
   espada: { nombre: 'Espada giratoria', color: '#dfe6f3', desc: 'Hojas que giran a tu alrededor', pasivo: 'dano', evo: 'Tormenta de Acero' },
   cuchillos: { nombre: 'Cuchillos', color: '#ffcf4a', desc: 'Lanza cuchillos hacia donde caminas', pasivo: 'enfriamiento', evo: 'Mil Dagas' },
@@ -31,15 +33,18 @@ const PASIVOS: Record<PasivoId, { nombre: string; desc: string; color: string }>
   vida: { nombre: 'Corazón', desc: '+20 de vida máxima y cura', color: '#ff7a3a' },
   enfriamiento: { nombre: 'Reloj de arena', desc: '−8 % de espera entre ataques', color: '#ffcf4a' },
   suerte: { nombre: 'Trébol', desc: '+10 % de golpe crítico', color: '#7fd8ff' },
+  fenix: { nombre: 'Pluma de fénix', desc: 'Revives una vez con media vida', color: '#ff9a3a' },
 };
 const LISTA_ARMAS = Object.keys(ARMAS) as ArmaId[], LISTA_PASIVOS = Object.keys(PASIVOS) as PasivoId[];
-type TipoEnemigo = 'limo' | 'lobo' | 'golem' | 'hechicero' | 'avispa' | 'minijefe' | 'jefe';
+type TipoEnemigo = 'limo' | 'lobo' | 'golem' | 'hechicero' | 'avispa' | 'murcielago' | 'hongo' | 'minijefe' | 'jefe';
 const ENEMIGOS: Record<TipoEnemigo, { nombre: string; vida: number; vel: number; r: number; dano: number; xp: number; color: string }> = {
   limo: { nombre: 'Limos', vida: 10, vel: 72, r: 13, dano: 6, xp: 1, color: '#5fd16a' },
   lobo: { nombre: 'Lobos', vida: 9, vel: 125, r: 12, dano: 7, xp: 1, color: '#9aa3b8' },
   golem: { nombre: 'Gólems', vida: 70, vel: 42, r: 20, dano: 12, xp: 4, color: '#a8784a' },
   hechicero: { nombre: 'Hechiceros', vida: 18, vel: 60, r: 13, dano: 6, xp: 2, color: '#b06bff' },
   avispa: { nombre: 'Avispas', vida: 4, vel: 150, r: 8, dano: 4, xp: 1, color: '#ffd23c' },
+  murcielago: { nombre: 'Murciélagos', vida: 6, vel: 140, r: 9, dano: 5, xp: 1, color: '#7a4ab0' },
+  hongo: { nombre: 'Hongos explosivos', vida: 24, vel: 58, r: 14, dano: 4, xp: 2, color: '#e05a5a' },
   minijefe: { nombre: 'Minijefes', vida: 500, vel: 55, r: 34, dano: 20, xp: 25, color: '#e8483a' },
   jefe: { nombre: 'Jefe', vida: 6000, vel: 70, r: 52, dano: 28, xp: 0, color: '#3a2a5a' },
 };
@@ -50,7 +55,7 @@ const PERSONAJES = [
 ];
 const REG = 'susto.horda';
 
-interface Enemigo { id: number; tipo: TipoEnemigo; x: number; y: number; vida: number; max: number; r: number; vel: number; golpe: number; cd: number[]; empujeX: number; empujeY: number; disparo: number; fase: number; carga: number; cx: number; cy: number }
+interface Enemigo { id: number; tipo: TipoEnemigo; x: number; y: number; vida: number; max: number; r: number; vel: number; golpe: number; cd: number[]; empujeX: number; empujeY: number; disparo: number; fase: number; carga: number; cx: number; cy: number; rumbo?: { x: number; y: number } }
 interface Bala { x: number; y: number; vx: number; vy: number; dano: number; vida: number; r: number; arma: number; perfora: number; golpeados: Set<number> | null; enemiga: boolean; vuelve?: { ox: number; oy: number; ida: number } }
 interface Suelto { x: number; y: number; tipo: 'xp' | 'oro' | 'comida' | 'iman' | 'bomba' | 'cofre'; valor: number; atraido: boolean }
 interface Antorcha { x: number; y: number }
@@ -79,6 +84,8 @@ export async function crear(c: Contexto): Promise<Partida> {
   const numeros: { x: number; y: number; v: number; t: number; critico: boolean }[] = [];
   let jt = 0, ids = 0, puntos = 0, oro = 0, muertes = 0, minijefes = 0, jefeMuerto = false, jefe: Enemigo | null = null, fin = '';
   let proximaAntorcha = 8, proximoMinijefe = c.libre ? 120 : 90, ofertas: Oferta[] = [], cofre: { lista: string[]; t: number } | null = null, pendientesNivel = 0;
+  let cambios = 3, descartes = 3, modoDescartar = false, fenixUsado = false, proximoEvento = 45, nEvento = 0;
+  const descartadas = new Set<string>();
   const danoPorArma: Record<string, number> = {}, muertesPorTipo: Record<string, number> = {}, muertesPorMinuto: number[] = [];
   const nv = (p: PasivoId) => pasivos.get(p) ?? 0;
   const mult = { get vel() { return 1 + nv('velocidad') * 0.08 + PERSONAJES[personaje].vel + permanentes.vel; }, get area() { return 1 + nv('area') * 0.1; }, get dano() { return 1 + nv('dano') * 0.1 + permanentes.dano; }, get espera() { return 1 - nv('enfriamiento') * 0.08; }, get iman() { return 60 * (1 + nv('iman') * 0.3); }, get critico() { return 0.05 + nv('suerte') * 0.1; } };
@@ -142,6 +149,13 @@ export async function crear(c: Contexto): Promise<Partida> {
     yo.vida -= Math.max(1, v - nv('armadura'));
     m.efectos.temblar(8); m.mesa.sonido.tono(160, 0.12, 'sawtooth', 0.08);
     try { navigator.vibrate?.(40); } catch { /* sin vibración */ }
+    if (yo.vida <= 0 && nv('fenix') && !fenixUsado) {
+      // Pluma de fénix: revive una vez con media vida, 2 s invulnerable y empuja a los que están cerca
+      fenixUsado = true; yo.vida = Math.round(yo.max / 2); yo.golpeado = jt + 1.5; destello = 1;
+      for (const e of enemigos) { const dx = e.x - yo.x, dy = e.y - yo.y, d = Math.hypot(dx, dy) || 1; if (d < 220 && e.tipo !== 'jefe') { e.empujeX += (dx / d) * 700; e.empujeY += (dy / d) * 700; } }
+      ondas.push({ x: yo.x, y: yo.y, r: 220, t: jt, color: PASIVOS.fenix.color }); m.mesa.hud.aviso('¡Renaces de las cenizas!', 'oro', 1.6);
+      return;
+    }
     if (yo.vida <= 0) { yo.vida = 0; fin = 'Te derrotaron'; terminar(); }
   };
 
@@ -149,9 +163,9 @@ export async function crear(c: Contexto): Promise<Partida> {
   const queTipo = (t: number): TipoEnemigo => {
     const k = r(), min = t / 60;
     if (min < 1) return k < 0.85 ? 'limo' : 'lobo';
-    if (min < 2) return k < 0.5 ? 'limo' : k < 0.85 ? 'lobo' : 'hechicero';
-    if (min < 3) return k < 0.3 ? 'limo' : k < 0.55 ? 'lobo' : k < 0.75 ? 'golem' : k < 0.88 ? 'hechicero' : 'avispa';
-    return k < 0.2 ? 'limo' : k < 0.4 ? 'lobo' : k < 0.55 ? 'golem' : k < 0.67 ? 'hechicero' : 'avispa';
+    if (min < 2) return k < 0.45 ? 'limo' : k < 0.75 ? 'lobo' : k < 0.88 ? 'hechicero' : 'murcielago';
+    if (min < 3) return k < 0.25 ? 'limo' : k < 0.42 ? 'lobo' : k < 0.57 ? 'golem' : k < 0.69 ? 'hechicero' : k < 0.8 ? 'avispa' : k < 0.9 ? 'murcielago' : 'hongo';
+    return k < 0.17 ? 'limo' : k < 0.32 ? 'lobo' : k < 0.46 ? 'golem' : k < 0.57 ? 'hechicero' : k < 0.69 ? 'avispa' : k < 0.8 ? 'murcielago' : 'hongo';
   };
   const radioVista = () => Math.max(m.ancho / zoom(), ALTO / zoom()) / 2 + 50;
   const aparecer = (tipo: TipoEnemigo, ang = r() * Math.PI * 2, dist = radioVista()) => {
@@ -164,13 +178,30 @@ export async function crear(c: Contexto): Promise<Partida> {
   let acumAparicion = 0;
   const aparicionesPorSegundo = (t: number) => Math.min(30, 3.5 + t * 0.07 + (t > 180 ? (t - 180) * 0.08 : 0));
   const MAX_ENEMIGOS = 500;
+  /** Eventos de oleada cada 55 s (anillo que te encierra, estampida que cruza, enjambre desde cuatro lados). */
+  const evento = (k: number) => {
+    const hay = () => enemigos.length < MAX_ENEMIGOS;
+    if (k === 0) {
+      const n = 26 + Math.floor(jt / 60) * 4;
+      for (let i = 0; i < n && hay(); i++) aparecer(jt > 150 && i % 4 === 0 ? 'golem' : 'limo', (i / n) * Math.PI * 2, 300);
+      m.mesa.hud.aviso('¡Te están rodeando!', 'mal', 1.6);
+    } else if (k === 1) {
+      const a = r() * Math.PI * 2, px = -Math.sin(a), py = Math.cos(a);
+      for (let i = 0; i < 14 && hay(); i++) { const e = aparecer('lobo', a, radioVista()); e.x += px * (i - 6.5) * 34; e.y += py * (i - 6.5) * 34; e.rumbo = { x: -Math.cos(a), y: -Math.sin(a) }; e.vel *= 2.2; }
+      m.mesa.hud.aviso('¡Estampida!', 'mal', 1.6);
+    } else {
+      for (let lado = 0; lado < 4; lado++) { const a = (lado / 4) * Math.PI * 2 + r(); for (let i = 0; i < 6 && hay(); i++) aparecer('avispa', a + (r() - 0.5) * 0.3); }
+      m.mesa.hud.aviso('¡Enjambre!', 'mal', 1.6);
+    }
+  };
 
   // ── Mejoras ──
   const evolucionables = () => LISTA_ARMAS.filter((a) => { const w = armas.get(a); return w && w.nivel >= 5 && !w.evo && nv(ARMAS[a].pasivo) > 0; });
   const generarOfertas = () => {
     const pool: Oferta[] = [];
     for (const a of LISTA_ARMAS) { const w = armas.get(a); if (w ? w.nivel < 5 : armas.size < 6) pool.push({ tipo: 'arma', id: a, nivel: (w?.nivel ?? 0) + 1, evoluciona: false }); }
-    for (const p of LISTA_PASIVOS) { const n = nv(p); if (n ? n < 5 : pasivos.size < 6) pool.push({ tipo: 'pasivo', id: p, nivel: n + 1, evoluciona: false }); }
+    for (const p of LISTA_PASIVOS) { const n = nv(p); if (n ? n < (p === 'fenix' ? 1 : 5) : pasivos.size < 6) pool.push({ tipo: 'pasivo', id: p, nivel: n + 1, evoluciona: false }); }
+    for (let i = pool.length - 1; i >= 0; i--) if (descartadas.has(pool[i].id)) pool.splice(i, 1);
     // Marca lo que acerca a una evolución
     for (const o of pool) o.evoluciona = o.tipo === 'arma' ? !!pasivos.get(ARMAS[o.id as ArmaId].pasivo) || false : LISTA_ARMAS.some((a) => armas.has(a) && ARMAS[a].pasivo === o.id);
     const lista: Oferta[] = [];
@@ -191,13 +222,22 @@ export async function crear(c: Contexto): Promise<Partida> {
     m.mesa.sonido.tono(660, 0.12, 'triangle', 0.08); m.mesa.sonido.tono(990, 0.16, 'triangle', 0.07, 0.07);
   };
   const subirNivel = () => { pendientesNivel++; if (fase === 'juego') abrirOfertas(); };
-  const abrirOfertas = () => { ofertas = generarOfertas(); fase = 'elegir'; pendientesNivel--; m.mesa.sonido.tono(523, 0.2, 'triangle', 0.08); m.mesa.sonido.tono(784, 0.3, 'triangle', 0.08, 0.1); };
+  const abrirOfertas = () => { ofertas = generarOfertas(); fase = 'elegir'; modoDescartar = false; pendientesNivel--; m.mesa.sonido.tono(523, 0.2, 'triangle', 0.08); m.mesa.sonido.tono(784, 0.3, 'triangle', 0.08, 0.1); };
   const elegir = (k: number) => {
     if (fase !== 'elegir' || !ofertas[k]) return;
+    if (modoDescartar) {
+      // Descartar: esa carta no vuelve a salir en la partida y se sortean otras tres
+      modoDescartar = false;
+      if (ofertas[k].tipo !== 'oro') { descartadas.add(ofertas[k].id); descartes--; ofertas = generarOfertas(); m.mesa.sonido.tono(220, 0.15, 'square', 0.05); }
+      return;
+    }
     aplicar(ofertas[k]);
     fase = 'juego';
     if (pendientesNivel > 0) abrirOfertas();
   };
+  const cambiar = () => { if (fase !== 'elegir' || cambios <= 0) return; cambios--; modoDescartar = false; ofertas = generarOfertas(); m.mesa.sonido.tono(880, 0.08, 'triangle', 0.06); };
+  const saltar = () => { if (fase !== 'elegir') return; yo.vida = Math.min(yo.max, yo.vida + 10); fase = 'juego'; if (pendientesNivel > 0) abrirOfertas(); };
+  const alternarDescarte = () => { if (fase === 'elegir' && descartes > 0) modoDescartar = !modoDescartar; };
   const abrirCofre = () => {
     const k = rBotin(), n = k < 0.1 ? 5 : k < 0.4 ? 3 : 1, lista: string[] = [];
     for (let i = 0; i < n; i++) {
@@ -279,13 +319,16 @@ export async function crear(c: Contexto): Promise<Partida> {
   let palanca: { x: number; y: number } | null = null;
   m.alTocar((x, y) => {
     if (fase === 'personaje') { const k = Math.floor((x / m.ancho) * 3); if (desbloqueados[k]) { personaje = k; empezarPartida(); } return; }
-    if (fase === 'elegir') { const k = tarjetaEn(x, y); if (k >= 0) elegir(k); return; }
+    if (fase === 'elegir') { const b = botonEn(x, y); if (b === 0) cambiar(); else if (b === 1) saltar(); else if (b === 2) alternarDescarte(); else { const k = tarjetaEn(x, y); if (k >= 0) elegir(k); } return; }
     if (fase === 'cofre') { if (m.tiempo - cofre!.t > 1.2) { fase = 'juego'; cofre = null; if (pendientesNivel > 0) abrirOfertas(); } return; }
     if (m.puntero.tipo !== 'mouse') palanca = { x, y }; // con el mouse no hace falta apretar: se camina hacia el cursor
   });
   m.alSoltar(() => { palanca = null; });
   m.alTecla((k) => {
     if (fase === 'elegir' && ['1', '2', '3'].includes(k)) elegir(Number(k) - 1);
+    if (fase === 'elegir' && (k === 'r' || k === 'R')) cambiar();
+    if (fase === 'elegir' && (k === 'z' || k === 'Z')) saltar();
+    if (fase === 'elegir' && (k === 'x' || k === 'X')) alternarDescarte();
     if (fase === 'personaje' && ['1', '2', '3'].includes(k) && desbloqueados[Number(k) - 1]) { personaje = Number(k) - 1; empezarPartida(); }
     if (fase === 'cofre' && (k === ' ' || k === 'Enter') && m.tiempo - cofre!.t > 1.2) { fase = 'juego'; cofre = null; if (pendientesNivel > 0) abrirOfertas(); }
     if (k === 'n') { guardado.numeros = !guardado.numeros; m.mesa.hud.aviso(`Números de daño: ${guardado.numeros ? 'sí' : 'no'}`, '', 1); }
@@ -307,9 +350,10 @@ export async function crear(c: Contexto): Promise<Partida> {
   let ultimaDir: [number, number] = [0, 0];
 
   // ── Bots de prueba: el bueno huye del grupo y recoge cristales; el torpe camina al azar ──
-  const rb = generador('bot-horda');
+  const rb = generador('bot-horda'), esperarNivel = import.meta.env.DEV && new URLSearchParams(location.search).has('esperarNivel');
   let botDir = [1, 0], botCambio = 0;
   const pilotar = (): [number, number] => {
+    if (fase === 'elegir' && esperarNivel) return [0, 0]; // prueba: deja la pantalla de elegir a la vista
     if (fase === 'elegir') { const k = bot === 'torpe' ? Math.floor(rb() * 3) : Math.max(0, ofertas.findIndex((o) => o.evoluciona || (o.tipo === 'arma' && armas.has(o.id as ArmaId)))); elegir(k); return [0, 0]; }
     if (fase === 'cofre') { if (m.tiempo - cofre!.t > 1.3) { fase = 'juego'; cofre = null; if (pendientesNivel > 0) abrirOfertas(); } return [0, 0]; }
     if (bot === 'torpe') { if (jt > botCambio) { botCambio = jt + 1; const a = rb() * Math.PI * 2; botDir = [Math.cos(a), Math.sin(a)]; } return botDir as [number, number]; }
@@ -345,10 +389,11 @@ export async function crear(c: Contexto): Promise<Partida> {
       acumAparicion--;
       if (enemigos.length >= MAX_ENEMIGOS) continue;
       const tipo = queTipo(jt);
-      if (tipo === 'avispa') { const a = r() * Math.PI * 2; for (let k = 0; k < 6; k++) aparecer('avispa', a + (r() - 0.5) * 0.3); }
+      if (tipo === 'avispa' || tipo === 'murcielago') { const a = r() * Math.PI * 2; for (let k = 0; k < (tipo === 'avispa' ? 6 : 3); k++) aparecer(tipo, a + (r() - 0.5) * 0.3); }
       else aparecer(tipo);
     }
     if (jt >= proximoMinijefe && jt < JEFE_EN) { proximoMinijefe += c.libre ? 120 : 90; aparecer('minijefe'); m.mesa.hud.aviso('¡Se acerca un minijefe!', 'mal', 1.6); }
+    if (jt >= proximoEvento && !jefe && jt < JEFE_EN - 10) { proximoEvento += 55; evento(nEvento++ % 3); }
     if (!jefe && !jefeMuerto && jt >= JEFE_EN) { jefe = aparecer('jefe'); jefe.vida = jefe.max = Math.round(6000 * (c.libre ? 2 : 1)); m.mesa.hud.aviso('¡EL JEFE FINAL!', 'mal', 2.4); m.efectos.temblar(20); musica.intensidad = 2; musica.acordes([[40, 43, 47], [41, 44, 48], [38, 41, 45], [39, 43, 46]]); }
     if (jt >= proximaAntorcha) { proximaAntorcha = jt + 14 + r() * 10; const a = r() * Math.PI * 2, d = 250 + r() * 250; antorchas.push({ x: yo.x + Math.cos(a) * d, y: yo.y + Math.sin(a) * d }); if (antorchas.length > 8) antorchas.shift(); }
     armarRejilla();
@@ -358,6 +403,13 @@ export async function crear(c: Contexto): Promise<Partida> {
       let ex = yo.x - e.x, ey = yo.y - e.y; const d = Math.hypot(ex, ey) || 1; ex /= d; ey /= d;
       let v = e.vel;
       if (e.tipo === 'hechicero') { if (d < 260) v = -e.vel * 0.5; if (jt > e.disparo && d < 500) { e.disparo = jt + 2.6; balas.push({ x: e.x, y: e.y, vx: ex * 210, vy: ey * 210, dano: 7, vida: 3, r: 7, arma: -1, perfora: 1, golpeados: null, enemiga: true }); } }
+      if (e.tipo === 'murcielago') { const w = Math.sin(jt * 6 + e.id) * 0.9, px = -ey; ey += ex * w; ex += px * w; }
+      if (e.rumbo) { ex = e.rumbo.x; ey = e.rumbo.y; }
+      if (e.tipo === 'hongo') {
+        // Se infla al llegar cerca y explota a los 0,7 s (si lo matas antes, no explota)
+        if (!e.carga && d < 55) e.carga = jt + 0.7;
+        if (e.carga) { v = 0; if (jt >= e.carga) { e.vida = 0; ondas.push({ x: e.x, y: e.y, r: 75, t: jt, color: '#ff6a3a' }); m.efectos.chispas(...pant(e.x, e.y), ['#ff6a3a', '#ffd23c'], 14, 260, { gravedad: 0 }); if (d < 75) herirJugador(18); continue; } }
+      }
       if (e.tipo === 'jefe') {
         // Patrones del jefe: carga, círculo de proyectiles e invocación
         if (jt > e.disparo) {
@@ -371,7 +423,8 @@ export async function crear(c: Contexto): Promise<Partida> {
       e.x += (ex * v + e.empujeX) * dt; e.y += (ey * v + e.empujeY) * dt;
       e.empujeX *= Math.pow(0.002, dt); e.empujeY *= Math.pow(0.002, dt);
       if (d < e.r + 14) herirJugador(ENEMIGOS[e.tipo].dano);
-      if (d > radioVista() * 2.2 && e.tipo !== 'jefe' && e.tipo !== 'minijefe') { const a = Math.atan2(-ey, -ex) + Math.PI + (r() - 0.5); e.x = yo.x + Math.cos(a) * radioVista(); e.y = yo.y + Math.sin(a) * radioVista(); }
+      if (d > radioVista() * 2.2 && e.rumbo) e.vida = 0; // la estampida ya pasó
+      else if (d > radioVista() * 2.2 && e.tipo !== 'jefe' && e.tipo !== 'minijefe') { const a = Math.atan2(-ey, -ex) + Math.PI + (r() - 0.5); e.x = yo.x + Math.cos(a) * radioVista(); e.y = yo.y + Math.sin(a) * radioVista(); }
     }
     // Separación (solo con los de la misma celda: barato y suficiente)
     for (const l2 of rejilla.values()) for (let a = 0; a < l2.length; a++) for (let b = a + 1; b < l2.length && b < a + 6; b++) {
@@ -447,6 +500,8 @@ export async function crear(c: Contexto): Promise<Partida> {
     const vertical = m.ancho < 700, w = vertical ? m.ancho - 40 : Math.min(300, (m.ancho - 80) / 3), h = vertical ? 150 : 300;
     return [0, 1, 2].map((k) => vertical ? { x: 20, y: 140 + k * (h + 16), w, h } : { x: m.ancho / 2 - (w * 3 + 40) / 2 + k * (w + 20), y: 210, w, h });
   };
+  const botones = () => { const w = Math.min(190, (m.ancho - 60) / 3), y = m.ancho < 700 ? ALTO - 70 : 535; return [0, 1, 2].map((k) => ({ x: m.ancho / 2 - (w * 3 + 20) / 2 + k * (w + 10), y, w, h: 46 })); };
+  const botonEn = (x: number, y: number) => botones().findIndex((b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
   const tarjetaEn = (x: number, y: number) => tarjetas().findIndex((t) => x >= t.x && x <= t.x + t.w && y >= t.y && y <= t.y + t.h);
   const texto = (g: CanvasRenderingContext2D, txt: string, x: number, y: number, tam: number, color = '#ffffff', alinea: CanvasTextAlign = 'center') => {
     g.font = `900 ${tam}px Nunito, sans-serif`; g.textAlign = alinea; g.textBaseline = 'middle';
@@ -481,6 +536,8 @@ export async function crear(c: Contexto): Promise<Partida> {
     golem: [golem('#a8784a', '#8a6038', '#d9a87a')],
     minijefe: [golem('#e8483a', '#a8283a', '#ff9a8a')],
     hechicero: [desdeTexto(['.....O.....', '....OVO....', '...OVVVO...', '..OVVWVVO..', '.OOOOOOOOO.', '..OSSSSSO..', '..OSESESO..', '..OSSSSSO.Y', '...OVVVO..O', '..OVVWVVOOO', '.OVVVWVVVO.', '.OVVVWVVVO.', 'OVVVVWVVVVO', 'OVVVVVVVVVO', 'OOOOOOOOOOO'], { O: '#2a1450', V: PAL.violeta, W: PAL.lila, S: '#e8c9a8', E: PAL.negro, Y: PAL.amarillo })],
+    murcielago: [0, 1].map((f) => desdeTexto(f ? ['O.........O', 'OO.......OO', 'OMO.OOO.OMO', 'OMMOMMMOMMO', '.OMMMEMEMO.', '..OMMMMMO..', '...OOOOO...'] : ['...........', '...........', '...OOOOO...', 'OOOOMMMOOOO', 'OMMMMEMEMMO', 'O.OOMMMOO.O', '...OOOOO...'], { O: '#2a1440', M: '#7a4ab0', E: PAL.rojo })),
+    hongo: [desdeTexto(['...OOOOO...', '.OORRRRROO.', 'ORRWRRRWRRO', 'ORRRRRWRRRO', 'OOOOOOOOOOO', '...OSSSO...', '...OSESO...', '...OSSSO...', '....OOO....'], { O: '#5a1010', R: '#e05a5a', W: '#fff1d0', S: '#f4e2c8', E: PAL.negro })],
     avispa: [avispa(['..WW.WW..', '..WWWWW..'], '..O...O..'), avispa(['.........', '.........'], 'WWO...OWW')],
     jefe: [bola(22, 22, { borde: '#120a20', sombra: '#2a1a40', base: '#3a2a5a', luz: '#5a4a8a', brillo: '#8a7ab8' }, (g, w) => {
       g.fillStyle = PAL.amarillo; for (let k = -2; k <= 2; k++) g.fillRect(Math.round(w / 2 + k * 6 - 2), 2 + Math.abs(k) * 2, 4, 7 - Math.abs(k));
@@ -547,7 +604,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     const visibles = enemigos.filter((e) => Math.abs(e.x - yo.x) < vw / 2 + 60 && Math.abs(e.y - yo.y) < vh / 2 + 60).sort((a, b) => a.y - b.y);
     for (const e of visibles) {
       const X = sx(e.x), Y = sy(e.y), lista = SPR[e.tipo], cuadro = lista[Math.floor(t * 6 + e.id) % lista.length];
-      const escala = e.tipo === 'minijefe' ? 2 : 1, alto = cuadro.height * k * escala;
+      const escala = e.tipo === 'minijefe' || (e.tipo === 'hongo' && e.carga && Math.floor(t * 12) % 2) ? 2 : 1, alto = cuadro.height * k * escala;
       m.sprite(SPR.sombra, X, Y + alto * 0.35, e.r > 20 ? 2 : 1);
       let img = e.tipo === 'lobo' && e.x > yo.x ? espejo(cuadro) : cuadro;
       if (t - e.golpe < 0.08) img = silueta(img);
@@ -608,7 +665,14 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (jt < 6 && fase === 'juego' && !bot) m.rotulo('Muévete con el mouse (apunta hacia donde quieres ir), WASD o arrastrando el dedo: tus armas atacan solas', m.ancho / 2, ALTO - 50, Math.round(Math.min(22, m.ancho / 22)), '#fff6c9');
     if (fase === 'elegir') {
       g.fillStyle = 'rgba(8,10,20,.72)'; g.fillRect(0, 0, m.ancho, ALTO);
-      texto(g, `¡Nivel ${yo.nivel}! Elige una mejora`, m.ancho / 2, 100, Math.min(40, m.ancho / 12), '#ffcf4a');
+      texto(g, modoDescartar ? 'Toca la carta que quieres descartar' : `¡Nivel ${yo.nivel}! Elige una mejora`, m.ancho / 2, 100, Math.min(40, m.ancho / 12), modoDescartar ? '#ff8a6a' : '#ffcf4a');
+      const rotulos = [[`Cambiar (R) ×${cambios}`, cambios > 0], ['Saltar (Z) +10 vida', true], [`Descartar (X) ×${descartes}`, descartes > 0]] as const;
+      botones().forEach((b, q) => {
+        const [txt, ok] = rotulos[q];
+        g.fillStyle = q === 2 && modoDescartar ? 'rgba(160,50,40,.95)' : ok ? 'rgba(30,36,60,.95)' : 'rgba(30,36,60,.5)'; g.strokeStyle = ok ? '#c9bfff' : '#4a4a5a'; g.lineWidth = 2;
+        g.beginPath(); g.roundRect(b.x, b.y, b.w, b.h, 10); g.fill(); g.stroke();
+        texto(g, txt, b.x + b.w / 2, b.y + b.h / 2, Math.min(16, b.w / 11), ok ? '#ffffff' : '#6a6a7a');
+      });
       tarjetas().forEach((tj, k) => {
         const o = ofertas[k]; if (!o) return;
         const info = o.tipo === 'arma' ? ARMAS[o.id as ArmaId] : o.tipo === 'pasivo' ? PASIVOS[o.id as PasivoId] : { nombre: 'Bolsa de oro', desc: '+25 de oro y +20 de vida', color: '#ffd23c' };
