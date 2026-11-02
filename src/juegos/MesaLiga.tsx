@@ -19,6 +19,8 @@ const DESDE_CRUCE: Record<string, number> = { pesca: 4, pinball: 4, burbujas: 4,
 const VERSION_NUEVA: Record<string, string> = { rodillos: '2026-10-26', puertas: '2026-10-26', cartero: '2026-10-26', laberinto: '2026-10-26', bombas: '2026-10-26', catapulta: '2026-10-26', conchas: '2026-10-26', balsas: '2026-10-26', minigolf: '2026-10-27', parejas: '2026-10-27', escobas: '2026-10-27' };
 /** Peso de cada juego en el sorteo de los cruces (1 si no está aquí). Los nuevos salen un poco más; con 0, un juego no sale. */
 const PESOS: Record<string, number> = { pesca: 1.8, pinball: 1.8, burbujas: 1.8, cascada: 1.8, lapidas: 1.8, colibri: 1.8, corte: 1.8, gemas: 1.8, horda: 1.8 };
+/** Peso especial solo en un cruce (reemplaza a PESOS ahí). Cruce 4: los 5 juegos nuevos salen en más duelos (pedido de Pancho, 2026-11-02). */
+const PESOS_CRUCE: Record<number, Record<string, number>> = { 4: { pesca: 7, pinball: 7, burbujas: 7, cascada: 7, lapidas: 7 } };
 const juegosDuelo = (cruce: number) => VERSUS.filter((t) => t.modo === '1v1' && t.base && !t.vivo && juegoPorId(t.base)?.listo && (DESDE_CRUCE[t.base] ?? 1) <= cruce).map((t) => t.base!);
 
 interface Borrador { cruce: number; juegos: string[]; duelos: { a: string; b: string; juego: string; equipos: [number, number] }[] }
@@ -58,7 +60,7 @@ export function MesaLiga() {
     // Los juegos rehechos cuentan sus usos desde su versión nueva: en el sorteo valen como recién llegados
     const uso = (j: string) => duelos.filter((d) => d.cruce && d.juego === j && d.creado.slice(0, 10) >= (VERSION_NUEVA[j] ?? '')).length;
     const lista = juegosDuelo(cruce), promedio = lista.reduce((s, j) => s + uso(j), 0) / Math.max(1, lista.length);
-    const pesos = lista.map((j) => (PESOS[j] ?? 1) * Math.min(2, Math.max(0.5, (promedio + 1) / (uso(j) + 1))));
+    const pesos = lista.map((j) => (PESOS_CRUCE[cruce]?.[j] ?? PESOS[j] ?? 1) * Math.min(2, Math.max(0.5, (promedio + 1) / (uso(j) + 1))));
     const total = pesos.reduce((a, b) => a + b, 0);
     return lista.map((j, i) => ({ juego: j, p: pesos[i] / total })).sort((a, b) => b.p - a.p);
   };
