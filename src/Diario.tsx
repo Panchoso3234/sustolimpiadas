@@ -73,6 +73,37 @@ export function Diario({ sub }: { sub: string }) {
   );
 }
 
+/** La columna de Claudio Palma del cruce (si ya se publicó; la organización ve también el borrador). */
+function ColumnaPalma({ cruce }: { cruce: number }) {
+  const [col, setCol] = useState<{ texto: string; estado: string } | null>(null);
+  useEffect(() => {
+    supabase.from('columnas').select('texto,estado').eq('cruce', cruce).maybeSingle().then(async ({ data }) => {
+      // Solo en desarrollo: ?columna=prueba muestra el texto del archivo, para revisar el diseño antes de publicar
+      if (!data && import.meta.env.DEV && location.search.includes('columna=prueba')) {
+        const texto = (await import(`../supabase/columnas/cruce-${cruce}.txt?raw`).catch(() => null))?.default;
+        return setCol(texto ? { texto, estado: 'borrador' } : null);
+      }
+      setCol(data ?? null);
+    });
+  }, [cruce]);
+  if (!col) return null;
+  return (
+    <section class="diario-palma">
+      <span class="diario-sello">OPINIÓN</span>
+      <header class="diario-palma-cabeza">
+        <span class="diario-palma-firma-ico" aria-hidden="true">CP</span>
+        <div>
+          <span class="diario-palma-seccion">La columna · Cruce {cruce}{col.estado === 'borrador' ? ' · BORRADOR (solo la organización la ve)' : ''}</span>
+          <h2>Desde la tribuna</h2>
+          <span class="diario-palma-firma">Por <b>Claudio Palma</b> · columnista de la casa</span>
+        </div>
+      </header>
+      <div class="diario-palma-texto">{col.texto.split(/\n\s*\n/).map((p, i) => <p key={i}>{p.trim()}</p>)}</div>
+      <footer class="diario-palma-pie">Las opiniones de Claudio Palma no representan a la organización. Bueno, a veces sí.</footer>
+    </section>
+  );
+}
+
 function Foto({ e, id, tam = 56 }: { e: Edicion; id: string; tam?: number }) {
   const p = e.personas[id];
   if (p?.avatar) return <img class="diario-foto" src={p.avatar} alt="" width={tam} height={tam} style={`width:${tam}px;height:${tam}px`} />;
@@ -212,6 +243,8 @@ function EdicionVista({ fila, admin, pedir, aviso, anterior, siguiente }: { fila
         </section>
       )}
       </details>
+
+      <ColumnaPalma cruce={e.cruce} />
 
       <section class="bloque diario-encuesta">
         <h2>¿Qué te pareció esta edición?</h2>
