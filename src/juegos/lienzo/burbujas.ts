@@ -166,9 +166,11 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (!c.libre && t >= DURA) { terminar('Se acabó el tiempo'); return; }
     // Apuntar: hacia el puntero, o con las flechas
     if (bot) pilotar();
-    else if (m.teclas.has('ArrowLeft') || m.teclas.has('a')) angulo = apuntarValido(angulo - 1.6 * dt);
-    else if (m.teclas.has('ArrowRight') || m.teclas.has('d')) angulo = apuntarValido(angulo + 1.6 * dt);
-    else if (m.puntero.dentro || m.puntero.abajo) { const [x, y] = aCampo(m.puntero.x, m.puntero.y); if (y < CANON_Y - 10) angulo = apuntarValido(Math.atan2(y - CANON_Y, x - W / 2)); }
+    else if (m.teclas.has('ArrowLeft') || m.teclas.has('a')) angulo = apuntarValido(angulo - (m.teclas.has('Shift') ? 0.4 : 1.6) * dt);
+    else if (m.teclas.has('ArrowRight') || m.teclas.has('d')) angulo = apuntarValido(angulo + (m.teclas.has('Shift') ? 0.4 : 1.6) * dt);
+    // Dedo: se apunta arrastrando hacia los lados en cualquier parte (el dedo no tapa la mira)
+    else if (arrastre && m.puntero.abajo) angulo = apuntarValido(arrastre.ang + (m.puntero.x - arrastre.x) * 0.006);
+    else if (m.puntero.tipo === 'mouse' && m.puntero.dentro) { const [x, y] = aCampo(m.puntero.x, m.puntero.y); if (y < CANON_Y - 10) { const a = apuntarValido(Math.atan2(y - CANON_Y, x - W / 2)); if (Math.abs(a - angulo) > 0.002) angulo = a; } }
     // La burbuja en vuelo sigue su camino ya calculado
     if (disparo) {
       disparo.t += dt;
@@ -186,7 +188,20 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (!c.libre) { const q = Math.max(0, DURA - t); m.mesa.hud.tiempo(`${Math.floor(q / 60)}:${String(Math.floor(q % 60)).padStart(2, '0')}`); }
     m.mesa.hud.extra(`${'♥'.repeat(Math.max(0, vidas))} · Nv ${nivel} · techo ${hastaTecho - disparos}${combo >= 2 ? ` · ×${Math.min(5, combo)}` : ''}`); // corto: el puntaje siempre a la vista
   });
-  m.alSoltar((x, y) => { const [cx, cy] = aCampo(x, y); if (Math.hypot(cx - (W / 2 + 70), cy - CANON_Y) < 30) return cambiarBurbuja(); if (cy < CANON_Y - 10) disparar(); });
+  // Con el dedo: al tocar sobre el cañón se apunta ahí; al arrastrar se afina; al soltar se dispara.
+  // Para cancelar, arrastra hacia abajo antes de soltar. Con el mouse: clic sobre el cañón dispara.
+  let arrastre: { x: number; y: number; ang: number } | null = null;
+  m.alTocar((x, y) => {
+    if (m.puntero.tipo === 'mouse') return;
+    const [cx, cy] = aCampo(x, y);
+    arrastre = { x, y, ang: cy < CANON_Y - 10 ? apuntarValido(Math.atan2(cy - CANON_Y, cx - W / 2)) : angulo };
+  });
+  m.alSoltar((x, y) => {
+    const [cx, cy] = aCampo(x, y), toque = arrastre; arrastre = null;
+    if (Math.hypot(cx - (W / 2 + 70), cy - CANON_Y) < 30) return cambiarBurbuja();
+    if (toque) { if (y - toque.y < 90) disparar(); return; }
+    if (cy < CANON_Y - 10) disparar();
+  });
   m.alTecla((k) => { if (k === ' ' || k === 'ArrowUp' || k === 'w') disparar(); if (k === 'x' || k === 'c') cambiarBurbuja(); });
 
   // ── Bots: el bueno prueba muchos ángulos (con la misma trayectoria del juego) y elige el que más revienta ──
@@ -214,12 +229,23 @@ export async function crear(c: Contexto): Promise<Partida> {
   const aPantalla = (x: number, y: number) => { const s = esc(), [ox, oy] = origen(); return [ox + x * s, oy + y * s] as const; };
   const aCampo = (x: number, y: number) => { const s = esc(), [ox, oy] = origen(); return [(x - ox) / s, (y - oy) / s] as const; };
   const tono = (h: string, k: number) => { const n = parseInt(h.slice(1), 16), f = (s: number) => Math.max(0, Math.min(255, Math.round(((n >> s) & 255) * k))); return `#${((1 << 24) | (f(16) << 16) | (f(8) << 8) | f(0)).toString(16).slice(1)}`; };
-  const BURBUJA = COLORES.map((col) => bola(6.5, 6.5, { borde: tono(col, 0.4), sombra: tono(col, 0.7), base: col, luz: tono(col, 1.35), brillo: '#ffffff' }));
-  const ARCOIRIS = crearSprite(15, 15, (g) => { for (let y = 0; y < 15; y++) for (let x = 0; x < 15; x++) { const d = Math.hypot(x - 7, y - 7); if (d > 7) continue; g.fillStyle = d > 6.2 ? '#1b0e24' : COLORES[Math.floor((x + y) / 5) % 6]; g.fillRect(x, y, 1, 1); } g.fillStyle = '#fff'; g.fillRect(4, 4, 2, 2); });
-  const BOMBA = bola(6.5, 6.5, { borde: '#0e0b16', sombra: '#2a2a36', base: '#4a4a5a', luz: '#8a8a9a', brillo: '#ffffff' }, (g, w) => { g.fillStyle = '#ffd23c'; g.fillRect(Math.round(w / 2), 0, 1, 2); g.fillStyle = '#ff3b5c'; g.fillRect(Math.round(w / 2), 0, 1, 1); });
-  const RAYO = crearSprite(15, 15, (g) => { g.drawImage(BURBUJA[1], 0, 0); g.fillStyle = '#ffffff'; g.fillRect(2, 7, 11, 1); g.fillRect(6, 5, 3, 5); });
+  const juegos = new Map<number, { BURBUJA: Sprite[]; ARCOIRIS: Sprite; BOMBA: Sprite; RAYO: Sprite }>();
+  const juegoDe = (rp: number) => {
+    let j = juegos.get(rp);
+    if (!j) {
+      const lado = Math.ceil(rp * 2) + 2, c = lado / 2;
+      const BURBUJA = COLORES.map((col) => bola(rp, rp, { borde: tono(col, 0.4), sombra: tono(col, 0.7), base: col, luz: tono(col, 1.35), brillo: '#ffffff' }));
+      const ARCOIRIS = crearSprite(lado, lado, (g) => { for (let y = 0; y < lado; y++) for (let x = 0; x < lado; x++) { const d = Math.hypot(x + 0.5 - c, y + 0.5 - c); if (d > rp) continue; g.fillStyle = d > rp - 0.9 ? '#1b0e24' : COLORES[Math.floor(((x + y) / lado) * 3) % 6]; g.fillRect(x, y, 1, 1); } g.fillStyle = '#fff'; g.fillRect(Math.round(c - rp * 0.45), Math.round(c - rp * 0.45), 2, 2); });
+      const BOMBA = bola(rp, rp, { borde: '#0e0b16', sombra: '#2a2a36', base: '#4a4a5a', luz: '#8a8a9a', brillo: '#ffffff' }, (g, w) => { g.fillStyle = '#ffd23c'; g.fillRect(Math.round(w / 2), 0, 1, 2); g.fillStyle = '#ff3b5c'; g.fillRect(Math.round(w / 2), 0, 1, 1); });
+      const RAYO = crearSprite(lado, lado, (g) => { g.drawImage(BURBUJA[1], 0, 0); g.fillStyle = '#ffffff'; g.fillRect(2, Math.round(c), lado - 4, 1); g.fillRect(Math.round(c) - 1, Math.round(c) - 2, 3, 5); });
+      j = { BURBUJA, ARCOIRIS, BOMBA, RAYO }; juegos.set(rp, j);
+    }
+    return j;
+  };
+  /** Radio de las burbujas en píxeles del arte, para la escala de la pantalla (medio píxel menos: quedan a ras). */
+  const radioPx = () => Math.max(3, Math.round(((R * esc()) / m.k) * 2) / 2 - 0.5);
   const CRIATURA = crearSprite(7, 5, (g) => { g.fillStyle = '#fff6c9'; g.fillRect(1, 1, 5, 4); g.fillStyle = '#0e0b16'; g.fillRect(2, 2, 1, 1); g.fillRect(4, 2, 1, 1); });
-  const spriteDe = (b: { color: number; esp: Especial }): Sprite => (b.esp === 'arcoiris' ? ARCOIRIS : b.esp === 'bomba' ? BOMBA : b.esp === 'rayo' ? RAYO : BURBUJA[b.color]);
+  const spriteDe = (b: { color: number; esp: Especial }, rp = radioPx()): Sprite => { const j = juegoDe(rp); return b.esp === 'arcoiris' ? j.ARCOIRIS : b.esp === 'bomba' ? j.BOMBA : b.esp === 'rayo' ? j.RAYO : j.BURBUJA[b.color]; };
   const burbujasFondo = Array.from({ length: 26 }, (_, i) => ({ x: (i * 197) % 1600, v: 10 + (i % 5) * 6, r: 1 + (i % 3) }));
 
   m.alPixel((gp) => {
@@ -233,27 +259,43 @@ export async function crear(c: Contexto): Promise<Partida> {
     // Burbujas
     for (let f = 0; f < grilla.length; f++) for (let j = 0; j < COLS; j++) {
       const b = grilla[f][j]; if (!b) continue;
-      const [x, y] = aPantalla(...pos(f, j)); m.sprite(spriteDe(b), x, y, e);
+      const [x, y] = aPantalla(...pos(f, j)); m.sprite(spriteDe(b), x, y);
       if (b.criatura) m.sprite(CRIATURA, x, y + Math.round(Math.sin(t * 4 + j) * 1) * k, e * 0.9);
     }
-    // Mira: puntos hasta donde va a caer, con el rebote
-    if (!disparo && fase === 'juego') {
-      const clave = `${angulo.toFixed(3)}|${version}`;
-      if (clave !== miraClave) { miraClave = clave; mira = trayectoria(angulo, actual.color); }
-      const tr = mira;
-      if (tr) { gp.fillStyle = 'rgba(255,255,255,.7)'; let acum = 0; for (let i = 0; i < tr.camino.length - 1; i++) { const [x0, y0] = tr.camino[i], [x1, y1] = tr.camino[i + 1], l = Math.hypot(x1 - x0, y1 - y0); for (let d = (24 - (acum % 24)) % 24; d < l; d += 24) { const [sx, sy] = aPantalla(x0 + ((x1 - x0) * d) / l, y0 + ((y1 - y0) * d) / l); gp.fillRect(px(sx) - k, px(sy) - k, 2 * k, 2 * k); } acum += l; } const [dx, dy] = aPantalla(...pos(tr.destino[0], tr.destino[1])); gp.strokeStyle = 'rgba(255,255,255,.5)'; gp.lineWidth = k; gp.strokeRect(px(dx - R * s), px(dy - R * s), px(2 * R * s), px(2 * R * s)); }
-    }
-    if (disparo) { const [x, y] = aPantalla(...disparo.camino[disparo.i]); m.sprite(spriteDe(disparo), x, y, e); }
+    if (disparo) { const [x, y] = aPantalla(...disparo.camino[disparo.i]); m.sprite(spriteDe(disparo), x, y); }
     // Cañón: la burbuja actual y la siguiente
     const [cx, cy] = aPantalla(W / 2, CANON_Y);
-    gp.fillStyle = '#5a6a8a'; for (let d = 0; d < 34 * s; d += k) gp.fillRect(px(cx + Math.cos(angulo) * d) - k, px(cy + Math.sin(angulo) * d) - k, 3 * k, 3 * k);
-    if (!disparo) m.sprite(spriteDe(actual), cx, cy, e);
-    const [nx, ny] = aPantalla(W / 2 + 70, CANON_Y); m.sprite(spriteDe(siguiente), nx, ny, e * 0.75);
+    if (!disparo) m.sprite(spriteDe(actual), cx, cy);
+    const [nx, ny] = aPantalla(W / 2 + 70, CANON_Y); m.sprite(spriteDe(siguiente, Math.max(3, Math.round(radioPx() * 1.6) / 2)), nx, ny);
   });
-  m.alDibujar(() => {
+  m.alDibujar((g) => {
+    // Cañón y mira en la capa nítida: se mueven suaves con el mouse (en el pixel art iban a saltos de 3 unidades)
+    const s = esc(), [cx, cy] = aPantalla(W / 2, CANON_Y);
+    g.lineCap = 'round'; g.strokeStyle = '#3a4a6a'; g.lineWidth = 12 * s; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(angulo) * 40 * s, cy + Math.sin(angulo) * 40 * s); g.stroke();
+    g.strokeStyle = '#8fa0c8'; g.lineWidth = 7 * s; g.stroke();
+    if (!disparo && fase === 'juego') {
+      const clave = `${angulo.toFixed(4)}|${version}`;
+      if (clave !== miraClave) { miraClave = clave; mira = trayectoria(angulo, actual.color); }
+      const tr = mira;
+      if (tr) {
+        // Puntos cada 24 unidades por todo el camino; en cada rebote, un punto más grande
+        g.fillStyle = 'rgba(255,255,255,.8)';
+        let acum = 0;
+        for (let i = 0; i < tr.camino.length - 1; i++) {
+          const [x0, y0] = tr.camino[i], [x1, y1] = tr.camino[i + 1], l = Math.hypot(x1 - x0, y1 - y0);
+          for (let d = (24 - (acum % 24)) % 24; d < l; d += 24) { const [sx, sy] = aPantalla(x0 + ((x1 - x0) * d) / l, y0 + ((y1 - y0) * d) / l); g.beginPath(); g.arc(sx, sy, 2.6 * s, 0, Math.PI * 2); g.fill(); }
+          acum += l;
+          if (i > 0) { const [bx, by] = aPantalla(x0, y0); g.beginPath(); g.arc(bx, by, 4.5 * s, 0, Math.PI * 2); g.fill(); }
+        }
+        // Burbuja fantasma en la casilla exacta donde va a quedar
+        const [dx, dy] = aPantalla(...pos(tr.destino[0], tr.destino[1]));
+        g.globalAlpha = 0.35; g.fillStyle = actual.esp ? '#ffffff' : COLORES[actual.color]; g.beginPath(); g.arc(dx, dy, R * s * 0.9, 0, Math.PI * 2); g.fill();
+        g.globalAlpha = 0.9; g.strokeStyle = '#ffffff'; g.lineWidth = 2; g.setLineDash([4, 4]); g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+      }
+    }
     const [nx, ny] = aPantalla(W / 2 + 70, CANON_Y + 30);
     m.rotulo('siguiente (X)', nx, ny, 13, '#9fc4ff');
-    if (!bot && m.tiempo < 6) m.rotulo('Apunta con el mouse o el dedo y suelta para disparar', m.ancho / 2, aPantalla(0, 610)[1], Math.round(Math.min(22, m.ancho / 24)), '#fff6c9');
+    if (!bot && m.tiempo < 6) m.rotulo(m.puntero.tipo === 'mouse' ? 'Apunta con el mouse y haz clic (Shift + flechas: ajuste fino)' : 'Arrastra a los lados para apuntar y suelta para disparar', m.ancho / 2, aPantalla(0, 610)[1], Math.round(Math.min(22, m.ancho / 24)), '#fff6c9');
   });
 
   let terminado = false;

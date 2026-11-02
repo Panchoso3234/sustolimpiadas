@@ -12,7 +12,9 @@ import { bola, desdeTexto } from './pixel';
 // sub-paso, así que no atraviesa paredes ni flippers aunque el equipo vaya lento. Si queda quieta sin que sostengas
 // un flipper, se la empuja (no se queda trabada).
 
-const W = 480, H = 720, R = 9, G = 980, VMAX = 1500, DURA = 180, BOLAS = 3, SUB = 4;
+// 02-11: pelota de 9 a 12 (se veía chica), gravedad de 980 a 780 (escala de una mesa real) y flippers de 80 a 86:
+// el hueco entre las puntas pasa de 2,3 a 1,3 pelotas. Con eso el bot perfecto duraba 9,8 s por pelota.
+const W = 480, H = 720, R = 12, G = 780, VMAX = 1500, DURA = 180, BOLAS = 3, SUB = 4;
 type Seg = [number, number, number, number];
 const PAREDES: Seg[] = [
   [20, 130, 20, 560], [20, 560, 150, 650], // izquierda y guía al flipper izquierdo
@@ -21,10 +23,16 @@ const PAREDES: Seg[] = [
   [20, 130, 60, 62], [60, 62, 140, 26], [140, 26, 245, 14], [245, 14, 350, 26], [350, 26, 430, 62], [430, 62, 470, 120], // techo curvo
 ];
 const BUMPERS = [[170, 205], [300, 205], [235, 295]].map(([x, y]) => ({ x, y, r: 26, golpe: -9 }));
-// Las velas quedan a 40 de la pared: la pelota (18 de ancho) pasa por detrás y no se encaja (antes quedaba atrapada en una rendija de 16)
+// Las velas quedan a 40 de la pared: la pelota (24 de ancho) pasa por detrás y no se encaja (antes quedaba atrapada en una rendija de 16)
 const VELAS = [300, 345, 390, 435].map((y) => ({ x: 70, y, r: 10, golpe: -9 }));
 const AGUJERO = { x: 395, y: 360, r: 16 };
-const FLIPPER = { largo: 80, reposo: 0.52, arriba: -0.5, vel: 20 };
+const FLIPPER = { largo: 86, reposo: 0.52, arriba: -0.5, vel: 20 };
+// Slingshots: triángulos sobre los flippers; el lado que mira al centro patea la pelota de vuelta a la mesa.
+// Dejan libre el carril de entrada (más de 40 entre el triángulo y la guía de cada lado).
+const SLINGS = [
+  { a: [80, 480], b: [80, 545], c: [128, 577] },
+  { a: [400, 480], b: [400, 545], c: [352, 577] },
+].map((x) => ({ ...x, golpe: -9 }));
 
 interface Bola { x: number; y: number; vx: number; vy: number; enCarril: boolean; quieta: number; atrapada: number }
 interface Flipper { px: number; py: number; lado: 1 | -1; ang: number; w: number; arriba: boolean }
@@ -35,7 +43,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   musica.acordes([[50, 53, 57], [46, 50, 53], [48, 51, 55], [45, 48, 52]]);
   const bot = piloto();
   const r = generador(`${c.semilla}|pinball`);
-  for (const x of [...VELAS, ...BUMPERS]) x.golpe = -9; // son de todo el módulo: cada partida parte limpia
+  for (const x of [...VELAS, ...BUMPERS, ...SLINGS]) x.golpe = -9; // son de todo el módulo: cada partida parte limpia
 
   // ── Estado ──
   const flippers: Flipper[] = [{ px: 150, py: 650, lado: 1, ang: FLIPPER.reposo, w: 0, arriba: false }, { px: 330, py: 650, lado: -1, ang: FLIPPER.reposo, w: 0, arriba: false }];
@@ -53,7 +61,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   };
   // Con 1080 la pelota sube ~595: siempre sale del carril (la salida está 480 más arriba)
   const lanzar = (fuerza: number) => {
-    for (const b of bolas) if (b.enCarril && b.vy === 0) { b.vy = -(1080 + Math.min(1, fuerza) * 420); if (salvaLista) { salvaLista = false; salvaHasta = m.tiempo + 10; } m.mesa.sonido.tono(200, 0.2, 'sawtooth', 0.07); }
+    for (const b of bolas) if (b.enCarril && b.vy === 0) { b.vy = -(1080 + Math.min(1, fuerza) * 420); if (salvaLista) { salvaLista = false; salvaHasta = m.tiempo + 15; } m.mesa.sonido.tono(200, 0.2, 'sawtooth', 0.07); }
   };
   const sacudir = () => {
     const t = m.tiempo; sacudidas = sacudidas.filter((x) => t - x < 10); sacudidas.push(t);
@@ -95,7 +103,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     const enCarril = bolas.some((b) => b.enCarril && b.vy === 0);
     if (bot) pilotar();
     else {
-      const toque = m.puntero.abajo && !enCarril;
+      const toque = m.puntero.abajo && !enCarril && !tocandoBoton;
       flippers[0].arriba = m.teclas.has('ArrowLeft') || m.teclas.has('a') || m.teclas.has('z') || (toque && m.puntero.x < m.ancho / 2);
       flippers[1].arriba = m.teclas.has('ArrowRight') || m.teclas.has('d') || m.teclas.has('m') || (toque && m.puntero.x >= m.ancho / 2);
       const pulsa = m.teclas.has(' ') || m.teclas.has('ArrowDown') || (m.puntero.abajo && enCarril);
@@ -124,6 +132,14 @@ export async function crear(c: Contexto): Promise<Partida> {
         // Velocidad de la superficie del flipper donde toca (gira alrededor de su eje; el derecho gira al revés)
         const [tx, ty] = puntaFlipper(f), wa = f.w * f.lado, rx = b.x - f.px, ry = b.y - f.py;
         if (contraSegmento(b, f.px, f.py, tx, ty, 0.25, -wa * ry, wa * rx) && Math.abs(f.w) > 2) m.mesa.sonido.tono(240, 0.04, 'square', 0.04);
+      }
+      for (const sl of SLINGS) {
+        contraSegmento(b, sl.a[0], sl.a[1], sl.b[0], sl.b[1], 0.4); contraSegmento(b, sl.b[0], sl.b[1], sl.c[0], sl.c[1], 0.4);
+        if (contraSegmento(b, sl.a[0], sl.a[1], sl.c[0], sl.c[1], 0.4)) {
+          const dx = sl.c[0] - sl.a[0], dy = sl.c[1] - sl.a[1], l = Math.hypot(dx, dy), lado = sl.a[0] < W / 2 ? 1 : -1;
+          const nx = (dy / l) * lado, ny = (-dx / l) * lado; // normal hacia el centro de la mesa
+          if (t - sl.golpe > 0.15) { sl.golpe = t; b.vx += nx * 420; b.vy += ny * 420; sumar(10, (sl.a[0] + sl.c[0]) / 2, sl.a[1]); m.mesa.sonido.tono(520, 0.05, 'square', 0.05); }
+        }
       }
       for (const bu of BUMPERS) if (contraCirculo(b, bu.x, bu.y, bu.r)) {
         const d = Math.hypot(b.x - bu.x, b.y - bu.y); b.vx += ((b.x - bu.x) / d) * 380; b.vy += ((b.y - bu.y) / d) * 380;
@@ -165,7 +181,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       // El salvavidas se da una vez por pelota nueva: al salvar, el relanzamiento ya no trae otro (antes se renovaba para siempre)
       if (t < salvaHasta) { salvaHasta = 0; for (let i = 0; i < perdidas; i++) bolas.push(nuevaBola()); m.mesa.hud.aviso('¡Salvada! La pelota vuelve', 'bien', 1); }
       else if (!bolas.length) {
-        m.efectos.temblar(10); m.mesa.sonido.mal(); mult = Math.max(1, mult - 1);
+        m.efectos.temblar(10); m.mesa.sonido.mal();
         if (reserva <= 0 && !c.libre) { terminar('Sin pelotas'); return; }
         if (reserva > 0) reserva--;
         bolas = [nuevaBola()]; salvaLista = true; m.mesa.hud.aviso(`Pelota perdida · quedan ${reserva + 1}`, 'mal', 1.2);
@@ -176,6 +192,11 @@ export async function crear(c: Contexto): Promise<Partida> {
     m.mesa.hud.extra(`Pelotas ${'●'.repeat(Math.max(0, reserva + 1))} · ×${mult}${t < salvaHasta ? ' · salvavidas' : ''}${t < tiltHasta ? ' · TILT' : ''}`);
   });
   m.alTecla((k) => { if (k === 't' || k === 'Shift') sacudir(); });
+  // Botón Sacudir para celular, arriba a la derecha de la mesa
+  let tocandoBoton = false;
+  const botonSacudir = () => { const [x, y] = aPantalla(W - 8, 30); return { x: x - 92, y, w: 92, h: 40 }; };
+  m.alTocar((x, y) => { const b = botonSacudir(); if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) { tocandoBoton = true; sacudir(); } });
+  m.alSoltar(() => { tocandoBoton = false; });
 
   // ── Bots: el bueno golpea cuando la pelota baja hacia su flipper; el torpe golpea al azar ──
   const rb = generador('bot-pinball');
@@ -186,7 +207,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (bot === 'torpe') { flippers[0].arriba = rb() < 0.012; flippers[1].arriba = rb() < 0.012; return; }
     // El bueno: golpea con el flipper de su lado cuando la pelota baja hacia la zona de los flippers
     for (const b of bolas) {
-      if (b.enCarril || b.y < 545 || b.y > 668) continue;
+      if (b.enCarril || b.y < 540 || b.y > 690) continue;
       // Si la tiene atrapada (casi quieta sobre el flipper), suelta y golpea: si no, la sostendría para siempre
       const atrapada = Math.hypot(b.vx, b.vy) < 120;
       if (b.vy > -60) flippers[b.x < W / 2 ? 0 : 1].arriba = atrapada ? Math.floor(m.tiempo * 3) % 2 === 0 : true;
@@ -196,7 +217,8 @@ export async function crear(c: Contexto): Promise<Partida> {
   // ── Dibujo ──
   const esc = () => Math.min(1, (m.ancho - 16) / W), origen = () => { const s = esc(); return [(m.ancho - W * s) / 2, (H - H * s) / 2] as const; };
   const aPantalla = (x: number, y: number) => { const s = esc(), [ox, oy] = origen(); return [ox + x * s, oy + y * s] as const; };
-  const BOLA = bola(5, 5, { borde: '#3a3a48', sombra: '#9aa0b8', base: '#dfe6f3', luz: '#ffffff', brillo: '#ffffff' });
+  const bolas3 = new Map<number, ReturnType<typeof bola>>();
+  const bolaDe = (rp: number) => { let b = bolas3.get(rp); if (!b) { b = bola(rp, rp, { borde: '#2a2a38', sombra: '#8a90a8', base: '#dfe6f3', luz: '#ffffff', brillo: '#ffffff' }); bolas3.set(rp, b); } return b; };
   const CALABAZA = bola(9, 8, { borde: '#6a2a08', sombra: '#c95a10', base: '#ff8a2a', luz: '#ffb36a' }, (g, w, hh) => { g.fillStyle = '#2a1408'; g.fillRect(Math.round(w / 2) - 4, Math.round(hh / 2) - 2, 2, 2); g.fillRect(Math.round(w / 2) + 2, Math.round(hh / 2) - 2, 2, 2); g.fillRect(Math.round(w / 2) - 3, Math.round(hh / 2) + 2, 6, 1); g.fillStyle = '#3fa34d'; g.fillRect(Math.round(w / 2), 0, 2, 2); });
   const FANTASMA = desdeTexto(['...WWWW...', '.WWWWWWWW.', 'WWWWWWWWWW', 'WWOWWWWOWW', 'WWOWWWWOWW', 'WWWWWWWWWW', 'WWWWWWWWWW', 'WWWWWWWWWW', 'W.WW.WW.WW'], { W: '#e8f0ff', O: '#1b1030' });
   const VELA = [false, true].map((on) => desdeTexto(on ? ['..Y..', '.YRY.', '..R..', 'CCCCC', 'CCCCC', 'CCCCC', 'CCCCC'] : ['.....', '.....', '..K..', 'CCCCC', 'CCCCC', 'CCCCC', 'CCCCC'], { Y: '#ffd23c', R: '#ff8a2a', K: '#3a3a48', C: '#f4f1ea' }));
@@ -213,13 +235,23 @@ export async function crear(c: Contexto): Promise<Partida> {
     for (const g of fantasmas) { const [sx, sy] = aPantalla(g.x, g.y + Math.sin(t * 3 + g.x * 0.01) * 4); gp.globalAlpha = t - g.golpe < 0.3 ? 0.4 : 0.9; m.sprite(FANTASMA, sx, sy, escalaPara(FANTASMA, g.r * 2.2)); gp.globalAlpha = 1; }
     const linea = (x0: number, y0: number, x1: number, y1: number, color: string, grosor: number) => { const [a, b] = aPantalla(x0, y0), [c2, d] = aPantalla(x1, y1), n = Math.max(1, Math.ceil(Math.hypot(c2 - a, d - b) / k)); gp.fillStyle = color; for (let i = 0; i <= n; i++) { const x = a + ((c2 - a) * i) / n, y = b + ((d - b) * i) / n; gp.fillRect(px(x) - (grosor * k) / 2, px(y) - (grosor * k) / 2, grosor * k, grosor * k); } };
     for (const [x0, y0, x1, y1] of PAREDES) linea(x0, y0, x1, y1, '#7a5aa0', 2);
-    for (const f of flippers) { const [tx, ty] = puntaFlipper(f); linea(f.px, f.py, tx, ty, t < tiltHasta ? '#5a5a66' : '#ffd23c', 4); }
+    for (const sl of SLINGS) { const on = t - sl.golpe < 0.15; linea(sl.a[0], sl.a[1], sl.b[0], sl.b[1], '#7a5aa0', 2); linea(sl.b[0], sl.b[1], sl.c[0], sl.c[1], '#7a5aa0', 2); linea(sl.a[0], sl.a[1], sl.c[0], sl.c[1], on ? '#ffffff' : '#ff8a2a', 3); }
+    for (const f of flippers) { const [tx, ty] = puntaFlipper(f); linea(f.px, f.py, tx, ty, t < tiltHasta ? '#5a5a66' : Math.abs(f.w) > 2 ? '#fff6c9' : '#ffd23c', 5); }
+    // Aviso: una pelota baja rápido hacia el hueco del centro
+    if (t >= salvaHasta && bolas.some((b) => b.y > 560 && Math.abs(b.x - 240) < 40 && b.vy > 200) && Math.floor(t * 10) % 2 === 0) { const [a, b2] = aPantalla(224, 700); gp.fillStyle = '#ff3b5c'; gp.fillRect(px(a), px(b2), px(32 * s), 2 * k); }
     if (t < salvaHasta) { const [a, b] = aPantalla(240, 700); gp.fillStyle = Math.floor(t * 4) % 2 ? '#7cffcb' : '#3fa37a'; gp.fillRect(px(a) - 3 * k, px(b), 6 * k, 2 * k); }
     if (cargando) { const [a, b] = aPantalla(455, 700); gp.fillStyle = '#ff3b5c'; gp.fillRect(px(a) - k, px(b - carga * 80 * s), 2 * k, px(carga * 80 * s)); }
-    for (const b of bolas) { const [sx, sy] = aPantalla(b.x, b.y); m.sprite(BOLA, sx, sy, escalaPara(BOLA, R * 2)); }
+    // Pelota: halo claro (se ve siempre sobre el fondo oscuro) y sprite nítido del tamaño de su zona de choque
+    const rp = Math.max(3, Math.round((R * s) / k));
+    for (const b of bolas) { const [sx, sy] = aPantalla(b.x, b.y); gp.fillStyle = 'rgba(200,220,255,.18)'; gp.beginPath(); gp.arc(sx, sy, R * s * 1.7, 0, Math.PI * 2); gp.fill(); m.sprite(bolaDe(rp), sx, sy); }
   });
-  m.alDibujar(() => {
+  m.alDibujar((g) => {
     if (fase !== 'juego' || bot) return;
+    if (m.puntero.tipo !== 'mouse') {
+      const b = botonSacudir(); g.fillStyle = 'rgba(20,12,40,.75)'; g.strokeStyle = '#b06bff'; g.lineWidth = 2; g.beginPath(); g.roundRect(b.x, b.y, b.w, b.h, 10); g.fill(); g.stroke();
+      m.rotulo('Sacudir', b.x + b.w / 2, b.y + b.h / 2, 16, '#e8d8ff');
+      const [, yb] = aPantalla(0, 690); m.rotulo('◀ toca aquí', m.ancho * 0.25, yb, 16, 'rgba(255,255,255,.55)'); m.rotulo('toca aquí ▶', m.ancho * 0.75, yb, 16, 'rgba(255,255,255,.55)');
+    }
     if (bolas.some((b) => b.enCarril && b.vy === 0)) m.rotulo('Mantén Espacio (o toca) para cargar y suelta para lanzar', m.ancho / 2, aPantalla(0, 470)[1], Math.round(Math.min(20, m.ancho / 26)), '#fff6c9');
     if (m.tiempo < 8) m.rotulo('Flippers: ← → (o A/D, o toca a cada lado) · T sacude', m.ancho / 2, aPantalla(0, 510)[1], Math.round(Math.min(18, m.ancho / 28)), '#c9bfff');
   });
