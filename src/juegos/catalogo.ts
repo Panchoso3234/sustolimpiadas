@@ -18,6 +18,11 @@ export interface Juego {
 
 /** Puntaje de referencia de cada juego para la experiencia del pase (cerca de él, más experiencia). Desde el 26-10 ya no marca partidas como dudosas: todo puntaje cuenta. */
 export const TOPES: Record<string, number> = {
+  pesca: 12000,
+  pinball: 40000,
+  burbujas: 12000,
+  cascada: 90000,
+  lapidas: 9000,
   rodillos: 1500, puertas: 1600, huevo: 3400, sumo: 1600, futbol: 3000, faro: 1800, bajo: 1000, torre: 2400, cocos: 2600, cangrejos: 1700, numeros: 1300, tinta: 1700, eco: 2800, parejas: 1900, buscaconchas: 1800, luces: 1800,
   cartero: 4200, cofre: 1300, palabra: 1000, totem: 1000, catapulta: 7000, bolos: 750, minigolf: 1600,
   karts: 2300, tren: 9000, tanques: 16000, bombas: 2500, agujero: 14000, serpientes: 5000, defensa: 10000, museo: 5000, tiro: 9000, cocina: 6000, billar: 8000, triples: 9000, calabazas: 3500, laberinto: 6000, escobas: 7000, conchas: 2400, balsas: 2200, colibri: 1500, corte: 600, gemas: 25000, horda: 30000, bloques: 120000, bestias: 15000,
@@ -134,11 +139,21 @@ export const TODOS: Juego[] = [
     'Toca una casilla vacía para poner la gema de Ahora. Tres o más iguales que se tocan se fusionan en la gema siguiente (cuarzo, ámbar, esmeralda, zafiro, rubí, diamante y estrella), en la casilla donde pusiste la última; si esa forma otro grupo, la cadena sigue y cada eslabón multiplica. Al pasar el dedo o el mouse se marca el grupo que formarías. Con G (o el botón) guardas una gema para después. El prisma sirve como cualquier gema; desde el turno 40 caen piedras, que se rompen fusionando a su lado. El martillo (M) rompe una casilla una vez y se recarga con una cadena de 4. Tres diamantes forman una estrella que limpia todo alrededor. Jugar rápido (menos de 2 s por turno) da Flujo: +10 %. Termina cuando se llena la rejilla o a los 4 minutos.'),
   j(46, 'horda', 'Horda Infinita', 'G', 'Sobrevive a oleadas de monstruos cada vez más grandes: tus armas atacan solas, subes de nivel, eliges mejoras, evolucionas armas y enfrentas al jefe final.', 'Estrategia y sangre fría',
     'Solo te mueves: apunta con el mouse hacia donde quieres ir (sin hacer clic), o usa WASD, las flechas o arrastra el dedo. Tus armas atacan solas. Los monstruos sueltan cristales; al juntar suficientes subes de nivel y eliges 1 de 3 mejoras (con 1, 2 o 3, o tocando la tarjeta): armas nuevas (espada, cuchillos, rayo, aura, bumerán, meteoros, lanza y escudo) u objetos pasivos. La estrella ★ marca lo que te acerca a una evolución: un arma en nivel 5 con su objeto evoluciona al abrir el cofre de un minijefe. Rompe las antorchas: dan comida, oro, un imán o una bomba. Aguanta 5 minutos; al minuto 4 llega el jefe final. Suman el tiempo, los derrotados, los jefes y el oro. Con N apagas los números de daño.'),
+  j(47, 'lapidas', 'Rompe Lápidas', 'G', 'Rompe ladrillos en un cementerio de noche: lápidas de 1, 2 y 3 golpes, piedras que no se rompen, poderes (paleta larga, multibola, fuego, imán, láser, barrera), combos y un guardián cada 5 niveles. 2 min 30 s y 3 vidas.', 'Reflejos y puntería',
+    'Mueve la paleta con el mouse, arrastrando el dedo o con las flechas, y lanza la pelota con un toque, un clic o Espacio. Dónde pega la pelota en la paleta decide el ángulo: al centro sube derecho y en las puntas sale de lado. Cada lápida vale 10 por golpe que aguanta; romper varias seguidas sin tocar la paleta sube el combo hasta ×5. Atrapa los poderes que caen. Limpiar un nivel da 200 más un bonus por rapidez; el guardián vale 500. Tienes 3 vidas y 2 min 30 s.'),
+  j(48, 'cascada', 'Candy Cascada', 'E', 'Combina 3 dulces iguales cambiando dos vecinos: rayos, bombas y arcoíris que se combinan entre sí, cascadas que multiplican, y niveles con objetivos (puntos, gelatina, cajas y chocolate) y movimientos contados. 3 minutos.', 'Planificación',
+    'Arrastra un dulce hacia su vecino (o toca uno y después el vecino) para cambiarlos: solo vale si forman 3 o más iguales en línea. 4 en línea hacen un rayo (limpia una fila o columna), una L o una T hacen una bomba (3 × 3) y 5 en línea un arcoíris (cámbialo con cualquier dulce y se lleva todos los de ese color). Cambiar dos especiales entre sí da un efecto aún más grande. Cada nivel tiene un objetivo y movimientos contados; al cumplirlo, los movimientos que sobran explotan en la Cascada final. Si no juegas en 5 s, te muestra una pista. Tienes 3 minutos.'),
+  j(49, 'burbujas', 'Bubble Shot', 'G', 'Dispara burbujas a un techo de burbujas: tres del mismo color revientan y las que quedan colgando caen. Mira con rebote, burbuja siguiente, bombas, arcoíris y rayos, criaturas atrapadas, combos y un techo que baja. 3 minutos y 3 vidas.', 'Puntería y estrategia',
+    'Apunta con el mouse o el dedo (la línea de puntos muestra dónde va a caer, también con el rebote en las paredes) y suelta o haz clic para disparar; con el teclado, flechas y Espacio. Toca la burbuja siguiente (o aprieta X) para cambiarla. Tres o más del mismo color que se tocan revientan (10 cada una, con combo hasta ×5 si revientas en disparos seguidos) y las que quedan colgando caen (20 cada una). La bomba revienta todo alrededor, el arcoíris toma el color de sus vecinas y el rayo se lleva su fila. Rescatar una criatura vale 100 y un disparo con rebote que revienta, 50. El techo baja cada tantos disparos; si las burbujas llegan a la línea roja pierdes una vida. Tienes 3 minutos.'),
+  j(50, 'pinball', 'Pinball Embrujado', 'G', 'Una mesa de pinball en una casona embrujada: flippers con golpe fino, bumpers de calabaza, fantasmas que se mueven, cuatro velas que suben el multiplicador, órbitas con combo, un pasadizo secreto, multibola y salvavidas. 3 minutos y 3 pelotas.', 'Reflejos y pulso',
+    'Flippers: flechas izquierda y derecha (o A y D, o toca cada mitad de la pantalla); mantenlos arriba para atrapar la pelota. Para lanzar, mantén Espacio (o toca) para cargar y suelta. T sacude la mesa (más de 3 veces en 10 s es TILT y los flippers se apagan 3 s). Bumpers 100, fantasmas 250, cada vela 200; encender las cuatro da 2.000 y sube el multiplicador hasta ×5. La órbita por arriba vale 300 y seguidas hacen combo hasta ×3; el pasadizo secreto vale 1.500. Cada 6 fantasmas, multibola. Los primeros 10 s de cada pelota hay salvavidas. Tienes 3 pelotas y 3 minutos.'),
+  j(51, 'pesca', 'Pesca Nocturna', 'G', 'Pesca en un lago de noche: lanza con fuerza, guía el anzuelo y pelea con cada pez sin que se corte el sedal. Peces de común a legendario, carnadas, eventos (cardumen, luna llena y tormenta), combos, basura que resta tiempo, álbum de especies y el Rey del Lago al final. 3 minutos.', 'Paciencia y pulso',
+    'Mantén apretado (Espacio, el mouse o el dedo) para cargar y suelta para lanzar. Mientras el anzuelo baja, guíalo de lado con el mouse, el dedo o las flechas; con flecha arriba (o tocando el cielo) lo recoges antes. Cuando un pez pica, mantén apretado para recoger: la tensión sube, y si llega al rojo se corta el sedal; suelta para aflojar (pero si sueltas más de 4 s, el pez se escapa). C cambia la carnada: brillante atrae a los raros y pesada baja rápido (3 usos cada una). Cada pez vale según su rareza y su tamaño, con combo por capturas seguidas; una especie nueva en el álbum suma 100 y la basura resta 5 s. Al final aparece el Rey del Lago. Tienes 3 minutos.'),
 ];
 
 /** Juegos que en celular se ven mucho mejor de lado: avisan al partir si el teléfono está parado. */
 /** Juegos con modo libre (fase 4): sin reloj ni límite de vidas o intentos, no guarda nada. */
-export const LIBRES = new Set(['colibri', 'corte', 'gemas', 'horda', 'rodillos', 'puertas', 'cartero', 'laberinto', 'tinta', 'numeros', 'parejas', 'buscaconchas', 'catapulta', 'minigolf', 'tren', 'serpientes', 'karts', 'bloques', 'bombas', 'conchas', 'balsas']);
+export const LIBRES = new Set(['pesca', 'pinball', 'burbujas', 'cascada', 'lapidas', 'colibri', 'corte', 'gemas', 'horda', 'rodillos', 'puertas', 'cartero', 'laberinto', 'tinta', 'numeros', 'parejas', 'buscaconchas', 'catapulta', 'minigolf', 'tren', 'serpientes', 'karts', 'bloques', 'bombas', 'conchas', 'balsas']);
 export const HORIZONTALES = new Set(['catapulta', 'billar', 'karts', 'tiro', 'defensa', 'cocina', 'triples', 'escobas', 'bestias']);
 
 /** Juegos retirados (El Más Bajo el 23-10; La Palabra Secreta y Luces del Faro el 24-10): no salen en la web ni en los sorteos,
@@ -174,6 +189,11 @@ const TODOS_VERSUS: TipoVersus[] = [
   v('1v1', 'colibri-duelo', 'Duelo de Colibríes', 'Los mismos huecos para los dos: gana quien vuela más lejos.', 'colibri'),
   v('1v1', 'corte-duelo', 'Duelo de Cuchillos', 'La misma fruta y las mismas bombas para los dos: gana quien corta más.', 'corte'),
   v('1v1', 'gemas-duelo', 'Duelo de Joyeros', 'Las mismas gemas en el mismo orden para los dos: gana quien fusiona más.', 'gemas'),
+  v('1v1', 'lapidas-duelo', 'Duelo de Lápidas', 'Los mismos niveles y los mismos poderes para los dos: gana quien rompe más.', 'lapidas'),
+  v('1v1', 'cascada-duelo', 'Duelo de Dulces', 'Los mismos tableros y los mismos dulces que caen para los dos: gana quien suma más.', 'cascada'),
+  v('1v1', 'burbujas-duelo', 'Duelo de Burbujas', 'Los mismos tableros y las mismas burbujas para los dos: gana quien revienta más.', 'burbujas'),
+  v('1v1', 'pinball-duelo', 'Duelo de Pinball', 'La misma mesa y los mismos fantasmas para los dos: gana quien suma más.', 'pinball'),
+  v('1v1', 'pesca-duelo', 'Duelo de Pesca', 'El mismo lago y los mismos peces para los dos: gana quien pesca más.', 'pesca'),
   v('1v1', 'horda-duelo', 'Duelo de Supervivientes', 'Las mismas oleadas y las mismas mejoras ofrecidas: gana quien aguanta más y mejor.', 'horda'),
   v('1v1', 'karts-duelo', 'Duelo de Karts', 'La misma pista y los mismos rivales: gana quien llega mejor.', 'karts'),
   v('1v1', 'tren-duelo', 'Fuga en Paralelo', 'Las mismas vías y los mismos trenes: gana quien llega más lejos.', 'tren'),
@@ -235,6 +255,11 @@ const TODOS_VERSUS: TipoVersus[] = [
   v('3v3', 'colibri-equipo', 'Bandada', 'Los tres vuelan los mismos huecos; suma el equipo.', 'colibri'),
   v('3v3', 'corte-equipo', 'Cocina de Cortes', 'Los tres cortan la misma fruta; suma el equipo.', 'corte'),
   v('3v3', 'gemas-equipo', 'Taller de Joyas', 'Los tres reciben las mismas gemas; suma el equipo.', 'gemas'),
+  v('3v3', 'lapidas-equipo', 'Cementerio en Equipo', 'Los tres rompen los mismos niveles; suma el equipo.', 'lapidas'),
+  v('3v3', 'cascada-equipo', 'Fábrica de Dulces', 'Los tres juegan los mismos tableros; suma el equipo.', 'cascada'),
+  v('3v3', 'burbujas-equipo', 'Lluvia de Burbujas', 'Los tres juegan los mismos tableros; suma el equipo.', 'burbujas'),
+  v('3v3', 'pinball-equipo', 'Casona en Equipo', 'Los tres juegan la misma mesa; suma el equipo.', 'pinball'),
+  v('3v3', 'pesca-equipo', 'Flota Nocturna', 'Los tres pescan el mismo lago; suma el equipo.', 'pesca'),
   v('3v3', 'horda-equipo', 'Última Trinchera', 'Los tres enfrentan la misma horda; suma el equipo.', 'horda'),
   v('3v3', 'bandera', 'Captura la Bandera', 'Robar la bandera rival y traerla a la base.'),
 ];

@@ -16,6 +16,8 @@ import { esLiviano } from '../../nucleo/preferencias';
 //   mide cuántos cuadros por segundo logra y baja sola la resolución si el equipo no da abasto. Sin WebGL, el juego dibuja en 2D.
 
 export const PASO = 1 / 120;
+/** Solo en pruebas: "?rapido=N" corre el juego N veces más rápido (mismos pasos fijos, misma física). */
+const RAPIDO = import.meta.env.DEV ? Math.max(1, Math.min(8, Number(new URLSearchParams(location.search).get('rapido')) || 1)) : 1;
 export interface Particula { x: number; y: number; vx: number; vy: number; vida: number; dura: number; tam: number; color: string; gravedad: number; forma: 'punto' | 'chispa' | 'gota' }
 export interface Flotante { x: number; y: number; texto: string; color: string; tam: number; vida: number; dura: number }
 export interface Puntero { x: number; y: number; abajo: boolean; estela: { x: number; y: number; t: number }[]; /** 'mouse', 'touch' o 'pen' */ tipo: string; /** El puntero está sobre el lienzo. */ dentro: boolean }
@@ -152,7 +154,7 @@ export function crearMotor2D(c: Contexto, clase: string, opciones: { alto?: numb
     if (!vivo) return;
     cuadro = requestAnimationFrame(bucle);
     const ahora = mesa.reloj(); // se congela con la pausa
-    let dt = Math.min(0.1, Math.max(0, ahora - ultimo));
+    let dt = Math.min(0.1, Math.max(0, ahora - ultimo)) * RAPIDO;
     ultimo = ahora;
     if (performance.now() < congeladoHasta) dt = 0;
     const tp = performance.now();

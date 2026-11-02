@@ -207,7 +207,9 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
     try {
       const [crear, aspecto] = await Promise.all([CARGADORES[juego.id](), aspectoDe(usuario.current)]);
       // En un enfrentamiento el intento se gasta aquí, cuando el juego ya está descargado
-      const semilla = reto ? await reto.empezar() : contra.current?.semilla ?? `${juego.id}|${fecha}|${Math.random().toString(36).slice(2, 10)}`;
+      // Solo en pruebas: "?semilla=x" fija el desafío de la práctica (para comprobar que la misma semilla da lo mismo)
+      const fija = import.meta.env.DEV ? new URLSearchParams(location.search).get('semilla') : null;
+      const semilla = reto ? await reto.empezar() : contra.current?.semilla ?? (fija ? `${juego.id}|${fija}` : `${juego.id}|${fecha}|${Math.random().toString(36).slice(2, 10)}`);
       if (mio !== turno.current || !caja.current) return;
       ajustesPartida.pausable = !reto; // en un enfrentamiento el reloj no se detiene al cambiar de pestaña
       ajustesPartida.vivo = ajustesPartida.foto = false;
