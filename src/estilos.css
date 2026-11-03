@@ -1490,3 +1490,12 @@ body.foto .tren-misiones { display: none; }
 .diario-palma-texto p:first-child::first-letter { float: left; font-family: var(--display); font-size: 3.6em; line-height: .82; color: var(--naranjo); padding: 4px 8px 0 0; }
 @media (min-width: 900px) { .diario-palma-texto p { text-align: justify; } .diario-palma-texto { column-count: 2; column-gap: 34px; column-rule: 2px solid #e6d8bc; } .diario-palma-texto p { break-inside: avoid-column; } }
 .diario-palma-pie { border-top: 2px solid var(--tinta); margin-top: 6px; padding-top: 8px; font-size: .78rem; font-style: italic; color: #5d5566; }
+/* Zona futbolera de la tabla de equipos (de broma, 03-11) */
+.tabla td.zona-futbol { white-space: nowrap; }
+.zona { display: inline-block; font-size: .68rem; font-weight: 800; letter-spacing: .04em; padding: 3px 8px; border-radius: 99px; line-height: 1.2; }
+.zona.campeon { background: linear-gradient(90deg, #ffd23c, #ffb02a); color: #2a1a00; box-shadow: 0 0 10px #ffd23c66; }
+.zona.libertadores { background: #1f6fd1; color: #fff; }
+.zona.sudamericana { background: #2e9e6b; color: #fff; }
+.zona.nada { background: #ffffff14; color: var(--tenue); }
+.zona.baja { background: var(--sangre); color: #fff; }
+@media (max-width: 600px) { .zona { font-size: .6rem; padding: 2px 6px; white-space: normal; } .tabla td.zona-futbol { white-space: normal; min-width: 92px; } }

@@ -7,11 +7,11 @@ import { puntosVersus, type Puntos } from './puntos';
 // al mejor de 3); con 12 equipos nadie descansa. La tabla oficial suma SOLO duelos oficiales creados desde el inicio:
 //  · cada duelo: ganar, empatar o perder según la tabla ajustes (hoy 7, 6 y 4) y no jugar 0, por el multiplicador de la jornada; van al jugador y a su equipo;
 //  · bono de cruce: +5 (por el multiplicador) al equipo que gana 2 de los 3 duelos de su enfrentamiento.
-// A la final (12 lugares) pasan los participantes de los 4 mejores equipos, sin el staff, y se completa con el mejor
-// puntaje personal. El staff juega y suma para su equipo, pero nunca clasifica.
+// A la final pasan los participantes de los 6 mejores equipos, sin el staff (03-11; antes eran 4); si son menos de 12,
+// se completa con el mejor puntaje personal. El staff juega y suma para su equipo, pero nunca clasifica.
 
 export const INICIO = '2026-10-21';
-export const BONO_CRUCE = 5, EQUIPOS_A_LA_FINAL = 4, CUPOS_FINAL = 12;
+export const BONO_CRUCE = 5, EQUIPOS_A_LA_FINAL = 6, CUPOS_FINAL = 12;
 
 import { CRUCES, calendarioLiga, calendarioDeEquipos } from '../../supabase/functions/_shared/calendario.ts';
 export { CRUCES, calendarioLiga, calendarioDeEquipos };
@@ -101,7 +101,7 @@ export function calcularLiga(equipos: Equipo[], personas: Persona[], duelos: Enf
   // Un equipo que se disolvió (sin integrantes) sigue en el calendario para no reordenarlo, pero no en la tabla
   const tabla = [...lineas.values()].filter((l) => l.equipo.miembros.length || l.equipo.pendientes?.length).sort((a, b) => b.puntos - a.puntos || b.ganados - a.ganados);
   const personal = [...jugadores.values()].sort((a, b) => b.puntos - a.puntos || b.ganados - a.ganados);
-  // Quiénes van a la final si el torneo terminara hoy: participantes (sin staff) de los 4 primeros, más los mejores personales
+  // Quiénes van a la final si el torneo terminara hoy: participantes (sin staff) de los 6 primeros, más los mejores personales si faltan para llegar a 12
   const hayPuntos = tabla.some((l) => l.puntos > 0);
   if (hayPuntos) {
     const top = new Set(tabla.slice(0, EQUIPOS_A_LA_FINAL).map((l) => l.equipo.id));

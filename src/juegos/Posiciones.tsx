@@ -9,6 +9,15 @@ import { PUNTOS_BASE, leerPuntos, type Puntos } from './puntos';
 
 const bonito = (n: number) => (Math.round(n * 100) / 100).toLocaleString('es-CL');
 
+/** La "zona" futbolera de cada puesto (de broma, pedido de Pancho del 03-11: no representa nada del torneo). */
+function zonaFutbol(i: number, total: number) {
+  if (i === 0) return <span class="zona campeon">CAMPEÓN FASE 1</span>;
+  if (i === total - 1 && total > 6) return <span class="zona baja">A LA B</span>;
+  if (i <= 2) return <span class="zona libertadores">CLASIFICANDO A LIBERTADORES</span>;
+  if (i <= 5) return <span class="zona sudamericana">CLASIFICANDO A SUDAMERICANA</span>;
+  return <span class="zona nada">NADA</span>;
+}
+
 export function Posiciones() {
   const [datos, setDatos] = useState<{ tabla: LineaEquipo[]; personal: LineaJugador[]; personas: V.Persona[]; puntos: Puntos } | null>(null);
   useEffect(() => {
@@ -33,11 +42,12 @@ export function Posiciones() {
           <h2>Equipos</h2>
           <div class="tabla-caja">
             <table class="tabla posiciones">
-              <thead><tr><th>#</th><th>Equipo</th><th>J1</th><th>J2</th><th>J3</th><th>J4</th><th title="Ganados, empatados y perdidos (y sin jugar)">G-E-P</th><th>Bonos</th><th>Total</th></tr></thead>
+              <thead><tr><th>#</th><th title="De broma: no cambia nada del torneo">Zona</th><th>Equipo</th><th>J1</th><th>J2</th><th>J3</th><th>J4</th><th title="Ganados, empatados y perdidos (y sin jugar)">G-E-P</th><th>Bonos</th><th>Total</th></tr></thead>
               <tbody>
                 {tabla.map((l, i) => (
                   <tr key={l.equipo.id} class={i < EQUIPOS_A_LA_FINAL && l.puntos > 0 ? 'zona-final' : ''}>
                     <td>{i + 1}</td>
+                    <td class="zona-futbol">{zonaFutbol(i, tabla.length)}</td>
                     <td><b>{l.equipo.nombre}</b><br /><span class="tenue chico">{[...l.equipo.miembros.map((id) => `${id === l.capitan ? '⭐ ' : ''}${nombre(id) || 'Participante'}`), ...(l.equipo.pendientes ?? []).map((x) => `${x.es_capitan ? '⭐ ' : ''}${x.nombre} (sin cuenta)`)].join(', ') || 'Sin integrantes'}</span></td>
                     {l.porJornada.map((n, k) => <td key={k} class="tenue">{bonito(n)}</td>)}
                     <td>{l.ganados}-{l.empatados}-{l.perdidos}{l.sinJugar ? <span class="tenue chico"> ({l.sinJugar} sin jugar)</span> : null}</td>
@@ -48,10 +58,10 @@ export function Posiciones() {
               </tbody>
             </table>
           </div>
-          <p class="tenue chico">⭐ Capitán (staff): juega y suma para su equipo, pero no pasa a la final. Resaltados: los {EQUIPOS_A_LA_FINAL} equipos que hoy clasificarían.</p>
+          <p class="tenue chico">⭐ Capitán (staff): juega y suma para su equipo, pero no pasa a la final. Resaltados: los {EQUIPOS_A_LA_FINAL} equipos que hoy clasificarían. La columna Zona es de broma y no cambia nada.</p>
 
           <h2>Puntaje personal y camino a la final</h2>
-          <p class="chico">A la Arena entran {CUPOS_FINAL}: los participantes de los {EQUIPOS_A_LA_FINAL} mejores equipos (sin el staff) y, para completar, los mejores puntajes personales.</p>
+          <p class="chico">A la Arena pasan los {EQUIPOS_A_LA_FINAL} mejores equipos: entran sus participantes (sin el staff) y, si son menos de {CUPOS_FINAL}, se completa con los mejores puntajes personales.</p>
           <div class="tabla-caja">
             <table class="tabla">
               <thead><tr><th>#</th><th>Jugador</th><th>Equipo</th><th>G-E-P</th><th>Puntos</th><th>Si terminara hoy</th></tr></thead>
