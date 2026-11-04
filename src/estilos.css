@@ -1499,3 +1499,16 @@ body.foto .tren-misiones { display: none; }
 .zona.nada { background: #ffffff14; color: var(--tenue); }
 .zona.baja { background: var(--sangre); color: #fff; }
 @media (max-width: 600px) { .zona { font-size: .6rem; padding: 2px 6px; white-space: normal; } .tabla td.zona-futbol { white-space: normal; min-width: 92px; } }
+
+/* Teclas del Faro: elegir canción en práctica */
+.teclas-elegir { position: absolute; inset: 0; z-index: 30; overflow-y: auto; padding: 18px 16px 28px; background: rgba(11, 16, 38, .96); color: #fff6c9; }
+.teclas-elegir h3 { margin: 0 0 10px; }
+.teclas-elegir h4 { margin: 16px 0 6px; color: #ffd23c; }
+.teclas-elegir-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+.teclas-elegir-acciones label { cursor: pointer; }
+.teclas-elegir-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.teclas-elegir-lista button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255, 210, 60, .3); background: #14182c; color: inherit; cursor: pointer; font: inherit; }
+.teclas-elegir-lista button:hover, .teclas-elegir-lista button:focus-visible { border-color: #ffd23c; background: #1d2440; }
+.teclas-elegir-lista b { font-size: 1.1rem; }
+.teclas-elegir-lista span { font-size: .8rem; opacity: .75; }
+.teclas-elegir-error { color: #ff8fc8; }
