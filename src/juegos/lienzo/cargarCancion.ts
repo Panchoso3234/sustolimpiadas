@@ -74,7 +74,7 @@ export function desdeMidi(buf: ArrayBuffer, nombre: string): Cancion {
   // Las notas no se pisan: cada una dura hasta la siguiente, como mucho
   for (let n = 0; n < melodia.length; n++) { const sig = melodia.find((x, j) => j > n && x.t > melodia[n].t); if (sig) melodia[n].dur = Math.min(melodia[n].dur, sig.t - melodia[n].t); }
   const ultima = melodia[melodia.length - 1];
-  return { id: `midi:${nombre}`, titulo: nombre, romaji: 'MIDI cargado', es: 'Tu canción', nivel: 2, bpm: Math.round(60e6 / mpq), notas: melodia, acomp: [], duracion: ultima.t + ultima.dur + 1 };
+  return { id: `midi:${nombre}`, titulo: nombre, japones: '', es: 'Tu canción', nivel: 2, bpm: Math.round(60e6 / mpq), notas: melodia, acomp: [], duracion: ultima.t + ultima.dur + 1 };
 }
 
 // ── Audio ──
@@ -84,7 +84,7 @@ async function desdeAudio(buf: ArrayBuffer, nombre: string): Promise<Cancion> {
   const golpes = detectarGolpes(audio);
   if (golpes.length < 10) throw new Error('No se encontraron suficientes golpes en el audio');
   const notas: Nota[] = golpes.map((g, n) => ({ t: g.t, midi: 60 + g.banda * 4, dur: Math.min(0.9, (golpes[n + 1]?.t ?? g.t + 0.3) - g.t) }));
-  return { id: `audio:${nombre}`, titulo: nombre, romaji: 'Audio cargado', es: 'Tu canción', nivel: 2, bpm: 0, notas, acomp: [], duracion: audio.duration, audio };
+  return { id: `audio:${nombre}`, titulo: nombre, japones: '', es: 'Tu canción', nivel: 2, bpm: 0, notas, acomp: [], duracion: audio.duration, audio };
 }
 
 /** Golpes: subidas de energía (flujo) por encima de un umbral que se adapta a la canción. banda 0 grave, 1 media, 2 aguda. */

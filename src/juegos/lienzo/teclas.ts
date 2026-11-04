@@ -18,23 +18,26 @@ import { cargarArchivo } from './cargarCancion';
 // Nunca hay una fila imposible: las teclas de una canción no se enciman (cada una mide hasta la siguiente) y las dobles
 // van en carriles distintos.
 
-const H = 720, RH = 150, LINEA = H - 130, DURA = 180, VIDAS = 3, FIEBRE_LLENA = 40, FIEBRE_DURA = 10, ENTRE = 2.4;
+const H = 720, RH = 150, LINEA = H - 130, VIDAS = 3, FIEBRE_LLENA = 40, FIEBRE_DURA = 10, ENTRE = 2.4;
 const TECLAS = ['d', 'f', 'j', 'k'];
-interface Fila { t: number; dur: number; alto: number; pps: number; larga: boolean; carriles: number[]; midis: number[]; hechas: number[]; perdida: boolean; sostenido: number; error: number; cancion: number }
+interface Fila { peso: number; t: number; dur: number; alto: number; pps: number; larga: boolean; carriles: number[]; midis: number[]; hechas: number[]; perdida: boolean; sostenido: number; error: number; cancion: number }
 const hz = (midi: number) => 440 * Math.pow(2, (midi - 69) / 12);
 
 export async function crear(c: Contexto): Promise<Partida> {
   const bot = piloto();
   const r = generador(`${c.semilla}|teclas`);
   // ── Canciones de la partida ──
-  const elegir = c.practica && !c.fantasma && !bot ? await elegirCancion(c.caja) : null;
+  // Regla (04-11): cada jugador elige su tranquila, su media y su rápida (también en duelos). Sugeridas: las de la semilla.
+  // En práctica se elige una sola (o se carga un MIDI o mp3). Bots, en vivo y contra el líder: las de la semilla.
+  const sugeridas = ([1, 2, 3] as const).map((n) => { const l = REPERTORIO.filter((x) => x.nivel === n); return l[Math.floor(r() * l.length)].id; });
   const lista: Cancion[] = [];
-  if (elegir) lista.push(elegir);
-  else {
-    const de = (n: 1 | 2 | 3) => { const l = REPERTORIO.filter((x) => x.nivel === n); return cancionPorId(l[Math.floor(r() * l.length)].id); };
-    lista.push(de(1), de(2), de(3));
-    while (lista.reduce((a, x) => a + x.duracion + ENTRE, 0) < DURA + 10) lista.push(de(3)); // por si las tres no alcanzan
-  }
+  if (c.practica && !c.fantasma && !bot) { const x = await elegirCancion(c.caja); if (x) lista.push(x); }
+  else if (!bot && !c.vivo && !c.fantasma) for (const id of await elegirTres(c.caja, sugeridas)) lista.push(cancionPorId(id));
+  if (!lista.length) for (const id of sugeridas) lista.push(cancionPorId(id));
+  // Compensación: dentro de cada grupo, todas las canciones dan el mismo puntaje máximo (las de más notas valen menos por tecla)
+  const notasDe = (k: Cancion) => new Set(k.notas.map((x) => x.t.toFixed(2))).size;
+  const media = (n: number) => { const l = REPERTORIO.filter((x) => x.nivel === n).map((x) => notasDe(cancionPorId(x.id))); return l.reduce((a, b) => a + b, 0) / l.length; };
+  const pesos = lista.map((k) => (k.id.includes(':') ? 1 : media(k.nivel) / notasDe(k)));
   const m = crearMotor2D(c, 'teclas', { fondo: '#0b1026', pixel: (ancho) => (ancho < 500 ? 2 : 3) });
 
   // ── Teclas de todas las canciones (con su tiempo absoluto) ──
@@ -64,7 +67,7 @@ export async function crear(c: Contexto): Promise<Partida> {
         const carriles = [carril], midis = [midi];
         if (grupo.length > 1) { carriles.push((carril + 2) % 4); midis.push(grupo[1].midi); }
         if (new Set(carriles).size !== carriles.length) prueba.imposibles++;
-        propias.push({ t, dur: Math.max(...grupo.map((x) => x.dur)), alto: 0, pps, larga: false, carriles, midis, hechas: [], perdida: false, sostenido: 0, error: 0, cancion: k });
+        propias.push({ peso: pesos[k], t, dur: Math.max(...grupo.map((x) => x.dur)), alto: 0, pps, larga: false, carriles, midis, hechas: [], perdida: false, sostenido: 0, error: 0, cancion: k });
       }
       // Alto de cada tecla: hasta la siguiente (sin encimarse); las notas largas son teclas largas
       propias.forEach((f, i) => {
@@ -92,7 +95,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   const enFiebre = () => m.tiempo < fiebreHasta;
 
   // ── Tocar ──
-  const valor = () => (10 + Math.min(30, Math.floor(racha / 10) * 5)) * (enFiebre() ? 2 : 1);
+  const valor = (f: Fila) => Math.round((10 + Math.min(30, Math.floor(racha / 10) * 5)) * (enFiebre() ? 2 : 1) * f.peso);
   function tocar(carril: number) {
     if (fase !== 'juego') return;
     const f = pendiente();
@@ -100,7 +103,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     const i = f.carriles.indexOf(carril);
     if (i >= 0 && !f.hechas.includes(carril)) {
       f.hechas.push(carril); aciertos++; racha++; mejorRacha = Math.max(mejorRacha, racha);
-      puntos += valor();
+      puntos += valor(f);
       if (!enFiebre()) { fiebre++; if (fiebre >= FIEBRE_LLENA) { fiebre = 0; fiebreHasta = m.tiempo + FIEBRE_DURA; fiebres++; m.mesa.hud.aviso('¡FIEBRE! Puntaje doble', 'oro', 1.4); m.efectos.temblar(6); } }
       if (f.larga) { sostiene = { fila: f, carril }; largas++; }
       destello[carril] = 1;
@@ -122,7 +125,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   }
   const soltar = () => {
     if (!sostiene) return;
-    const f = sostiene.fila, bonus = Math.round(f.sostenido * f.dur * 40) * (enFiebre() ? 2 : 1);
+    const f = sostiene.fila, bonus = Math.round(f.sostenido * f.dur * 40 * (enFiebre() ? 2 : 1) * f.peso);
     if (bonus > 0) { puntos += bonus; const [x, y] = centroCarril(sostiene.carril, Math.max(80, Math.min(H - 60, fondoDe(f) - f.alto))); m.efectos.flotar(x, y, `+${bonus}`, '#7cffcb', 24); }
     sostiene = null;
   };
@@ -141,10 +144,10 @@ export async function crear(c: Contexto): Promise<Partida> {
   m.alPaso((dt) => {
     if (fase !== 'juego') return;
     const t = m.tiempo;
-    if ((!c.libre && t >= DURA) || t > finCanciones + 1.5) { soltar(); terminar(t > finCanciones ? 'Terminó la canción' : 'Se acabó el tiempo'); return; }
+    if (t > finCanciones + 1.5) { soltar(); terminar(lista.length > 1 ? 'Terminaron las canciones' : 'Terminó la canción'); return; } // la partida dura lo que duran las canciones
     // Canción nueva
     let actual = -1; inicios.forEach((x, i) => { if (t >= x - 1) actual = i; });
-    if (actual !== cancion && actual >= 0) { cancion = actual; const k = lista[cancion]; m.mesa.hud.aviso(`♪ ${k.titulo} · ${k.romaji}`, 'oro', 2.2); }
+    if (actual !== cancion && actual >= 0) { cancion = actual; const k = lista[cancion]; m.mesa.hud.aviso(`♪ ${k.titulo} · ${k.es}`, 'oro', 2.2); }
     if (cancion >= 0 && lista[cancion].audio && t >= inicios[cancion] && audioPrevio !== cancion) { audioPrevio = cancion; tocarAudio(cancion); }
     // Acompañamiento (bajo y acordes) a su hora
     while (iAcomp < acomp.length && acomp[iAcomp].t <= t + 0.05) { const a = acomp[iAcomp++]; if (a.t >= t - 0.1) m.mesa.sonido.tono(hz(a.midi), a.dur, 'triangle', a.vol, Math.max(0, a.t - t)); }
@@ -164,7 +167,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     for (let i = 0; i < 4; i++) { destello[i] = Math.max(0, destello[i] - dt * 5); rojo[i] = Math.max(0, rojo[i] - dt * 3); }
     if (bot) pilotar();
     m.mesa.hud.puntos(String(puntos));
-    if (!c.libre) { const q = Math.max(0, Math.min(DURA, finCanciones + 1.5) - t); m.mesa.hud.tiempo(`${Math.floor(q / 60)}:${String(Math.floor(q % 60)).padStart(2, '0')}`); }
+    if (!c.libre) { const q = Math.max(0, finCanciones + 1.5 - t); m.mesa.hud.tiempo(`${Math.floor(q / 60)}:${String(Math.floor(q % 60)).padStart(2, '0')}`); }
     m.mesa.hud.extra(`${c.libre ? '' : `${'♥'.repeat(Math.max(0, vidas))} · `}racha ${racha}${enFiebre() ? ' · ×2' : ''}`); // corto, para el celular
   });
   m.alTecla((k) => { const i = TECLAS.indexOf(k); if (i >= 0 && !bot) tocar(i); });
@@ -263,7 +266,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     c.alTerminar({
       puntaje: puntos,
       lineas: [['Resultado', porque], ['Teclas tocadas', String(aciertos)], ['Mejor racha', String(mejorRacha)], ['Teclas largas', String(largas)], ['Fiebres', String(fiebres)], ['Canciones', tocadas], ['Errores', String(errores)]],
-      detalle: { aciertos, racha: mejorRacha, largas, fiebres, cancion: cancion + 1, errores },
+      detalle: { aciertos, racha: mejorRacha, largas, fiebres, cancion: cancion + 1, errores, canciones: lista.map((x) => x.id) },
     });
   }
 
@@ -284,7 +287,7 @@ function elegirCancion(caja: HTMLElement): Promise<Cancion | null> {
       <div class="teclas-elegir-acciones"><button type="button" data-azar class="boton">Al azar (como en el torneo)</button>
       <label class="boton secundario">Cargar mi canción (MIDI o mp3)<input type="file" accept=".mid,.midi,audio/*" hidden /></label></div>
       <p class="teclas-elegir-error" hidden></p>
-      ${[1, 2, 3].map((n) => `<h4>${nombres[n]}</h4><div class="teclas-elegir-lista">${REPERTORIO.filter((x) => x.nivel === n).map((x) => `<button type="button" data-id="${x.id}"><b lang="ja">${x.titulo}</b><span>${x.romaji} · ${x.es} · ${x.bpm} BPM</span></button>`).join('')}</div>`).join('')}
+      ${[1, 2, 3].map((n) => `<h4>${nombres[n]}</h4><div class="teclas-elegir-lista">${REPERTORIO.filter((x) => x.nivel === n).map((x) => `<button type="button" data-id="${x.id}"><b>${x.titulo}</b><span><span lang="ja">${x.japones}</span> · ${x.es} · ${x.bpm} BPM</span></button>`).join('')}</div>`).join('')}
       <p class="tenue chico">Las canciones que cargas quedan solo en este navegador, para practicar. En el torneo y los duelos suenan las del repertorio.</p>`;
     caja.appendChild(panel);
     const cerrar = (x: Cancion | null) => { panel.remove(); listo(x); };
@@ -298,5 +301,23 @@ function elegirCancion(caja: HTMLElement): Promise<Cancion | null> {
       try { cerrar(await cargarArchivo(archivo)); }
       catch (err) { error.textContent = `No se pudo usar ese archivo: ${err instanceof Error ? err.message : err}`; }
     });
+  });
+}
+
+/** Torneo y duelos: una canción de cada grupo (tranquila, media y rápida). Vienen marcadas las sugeridas. */
+function elegirTres(caja: HTMLElement, sugeridas: string[]): Promise<string[]> {
+  return new Promise((listo) => {
+    const elegidas = [...sugeridas], nombres = ['Tranquila', 'Media', 'Rápida'];
+    const panel = document.createElement('div');
+    panel.className = 'teclas-elegir';
+    panel.innerHTML = `<h3>Teclas del Faro · elige tus 3 canciones</h3>
+      <p class="chico">Una de cada grupo, en este orden. Todas las de un mismo grupo dan el mismo puntaje máximo, así que elige las que más te gusten.</p>
+      <div class="teclas-elegir-acciones"><button type="button" data-empezar class="boton">Empezar</button></div>
+      ${[1, 2, 3].map((n) => `<h4>${n}. ${nombres[n - 1]}</h4><div class="teclas-elegir-lista">${REPERTORIO.filter((x) => x.nivel === n).map((x) => `<button type="button" data-id="${x.id}" data-nivel="${n}"><b>${x.titulo}</b><span><span lang="ja">${x.japones}</span> · ${x.es} · ${x.bpm} BPM</span></button>`).join('')}</div>`).join('')}`;
+    caja.appendChild(panel);
+    const marcar = () => { for (const b of panel.querySelectorAll<HTMLButtonElement>('[data-id]')) b.classList.toggle('elegida', elegidas.includes(b.dataset.id!)); };
+    for (const b of panel.querySelectorAll<HTMLButtonElement>('[data-id]')) b.addEventListener('click', () => { elegidas[Number(b.dataset.nivel) - 1] = b.dataset.id!; marcar(); });
+    panel.querySelector('[data-empezar]')!.addEventListener('click', () => { panel.remove(); listo(elegidas); });
+    marcar();
   });
 }

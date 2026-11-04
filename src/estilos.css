@@ -1512,3 +1512,4 @@ body.foto .tren-misiones { display: none; }
 .teclas-elegir-lista b { font-size: 1.1rem; }
 .teclas-elegir-lista span { font-size: .8rem; opacity: .75; }
 .teclas-elegir-error { color: #ff8fc8; }
+.teclas-elegir-lista button.elegida { border-color: #ffd23c; background: #3a2a10; box-shadow: 0 0 0 2px #ffd23c inset; }

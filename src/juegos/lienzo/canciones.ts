@@ -12,7 +12,8 @@ import { generador } from '../../nucleo/azar';
 
 export interface Nota { t: number; midi: number; dur: number }
 export interface Cancion {
-  id: string; titulo: string; romaji: string; es: string; nivel: 1 | 2 | 3; bpm: number;
+  /** titulo: en rōmaji (japonés con nuestro alfabeto, para que se lea); japones: en kanji y kana. */
+  id: string; titulo: string; japones: string; es: string; nivel: 1 | 2 | 3; bpm: number;
   /** Melodía (lo que se toca): t y dur en segundos desde el inicio de la canción. */
   notas: Nota[];
   /** Acompañamiento (bajo y acordes) que suena solo. */
@@ -109,11 +110,11 @@ function componer(d: Def): Cancion {
       });
     }
   }
-  return { id: d.id, titulo: d.titulo, romaji: d.romaji, es: d.es, nivel: d.nivel, bpm: d.bpm, notas, acomp, duracion: compasN * compas + 0.5 };
+  return { id: d.id, titulo: d.romaji, japones: d.titulo, es: d.es, nivel: d.nivel, bpm: d.bpm, notas, acomp, duracion: compasN * compas + 0.5 };
 }
 
 const cache = new Map<string, Cancion>();
-export const REPERTORIO = DEFS.map((d) => ({ id: d.id, titulo: d.titulo, romaji: d.romaji, es: d.es, nivel: d.nivel, bpm: d.bpm }));
+export const REPERTORIO = DEFS.map((d) => ({ id: d.id, titulo: d.romaji, japones: d.titulo, es: d.es, nivel: d.nivel, bpm: d.bpm }));
 export function cancion(id: string): Cancion {
   let c = cache.get(id);
   if (!c) { const d = DEFS.find((x) => x.id === id) ?? DEFS[0]; c = componer(d); cache.set(id, c); }
