@@ -6,6 +6,7 @@ update public.equipos set nombre = 'Umamigos🪐' where nombre = 'Equipo 2';
 update public.equipos set nombre = 'Los Folanos' where nombre = 'Equipo 3';
 update public.equipos set nombre = 'Aura' where nombre = 'Equipo 5';
 update public.equipos set nombre = 'Seguidores de la Exultación' where nombre = 'Equipo 8';
+update public.equipos set nombre = 'Imperio Pingüino Táctico' where nombre = 'Equipo 6';
 
 -- Comprobación: los 12 equipos con su nombre
 select id, nombre from public.equipos order by id;
