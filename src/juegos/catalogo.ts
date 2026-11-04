@@ -18,6 +18,9 @@ export interface Juego {
 
 /** Puntaje de referencia de cada juego para la experiencia del pase (cerca de él, más experiencia). Desde el 26-10 ya no marca partidas como dudosas: todo puntaje cuenta. */
 export const TOPES: Record<string, number> = {
+  teclas: 45000,
+  salto: 30000,
+  mercado: 12000,
   pesca: 12000,
   pinball: 140000,
   burbujas: 12000,
@@ -149,11 +152,17 @@ export const TODOS: Juego[] = [
     'Flippers: flechas izquierda y derecha (o A y D, o toca cada mitad de la pantalla); mantenlos arriba para atrapar la pelota. Para lanzar, mantén Espacio (o toca) para cargar y suelta. T sacude la mesa (más de 3 veces en 10 s es TILT y los flippers se apagan 3 s). Bumpers 100, fantasmas 250, cada vela 200; encender las cuatro da 2.000 y sube el multiplicador hasta ×5. La órbita por arriba vale 300 y seguidas hacen combo hasta ×3; el pasadizo secreto vale 1.500. Cada 6 fantasmas, multibola. Los primeros 10 s de cada pelota hay salvavidas. Tienes 3 pelotas y 3 minutos.'),
   j(51, 'pesca', 'Pesca Nocturna', 'G', 'Pesca en un lago de noche: lanza con fuerza, guía el anzuelo y pelea con cada pez sin que se corte el sedal. Peces de común a legendario, carnadas, eventos (cardumen, luna llena y tormenta), combos, basura que resta tiempo, álbum de especies y el Rey del Lago al final. 3 minutos.', 'Paciencia y pulso',
     'Mantén apretado (Espacio, el mouse o el dedo) para cargar y suelta para lanzar. Mientras el anzuelo baja, guíalo de lado con el mouse, el dedo o las flechas; con flecha arriba (o tocando el cielo) lo recoges antes. Cuando un pez pica, mantén apretado para recoger: la tensión sube, y si llega al rojo se corta el sedal; suelta para aflojar (pero si sueltas más de 4 s, el pez se escapa). C cambia la carnada: brillante atrae a los raros y pesada baja rápido (3 usos cada una). Cada pez vale según su rareza y su tamaño, con combo por capturas seguidas; una especie nueva en el álbum suma 100 y la basura resta 5 s. Al final aparece el Rey del Lago. Tienes 3 minutos.'),
+  j(52, 'teclas', 'Teclas del Faro', 'G', 'Cuatro carriles de teclas negras que bajan cada vez más rápido junto a un faro: toca solo las negras, la de más abajo primero. Teclas dobles, teclas largas que se mantienen, racha, fiebre con puntaje doble y tres canciones cada vez más rápidas. 3 minutos y 3 vidas.', 'Ritmo y reflejos',
+    'Toca las teclas negras con D, F, J y K (un carril cada una), o tocando o haciendo clic en su carril. Siempre la de más abajo primero. Las dobles se tocan las dos; las largas se mantienen apretadas hasta el final para sumar más. Tocar el blanco o dejar pasar una negra quita una vida (tienes 3). Cada tecla vale 10, y la racha sube su valor (+5 cada 10 seguidas, hasta 40). Con 40 aciertos se llena la barra de fiebre: 10 s de puntaje doble. Cada minuto cambia la canción y todo va más rápido. Cada acierto toca una nota, pero se gana igual en silencio.'),
+  j(53, 'salto', 'Salto Estelar', 'G', 'Un astronauta salta solo de plataforma en plataforma, de la isla hasta el espacio: tú lo mueves a los lados. Plataformas que se mueven, que se rompen y que desaparecen, resortes, cohete, escudo, bichos que se pisan, monedas y la marca de tu récord. 3 minutos y una vida.', 'Reflejos y cálculo',
+    'Muévete con las flechas o A y D, con el mouse, o tocando la mitad izquierda o derecha de la pantalla; el salto es automático. Si sales por un lado, entras por el otro. Las plataformas cafés se rompen (no sirven para saltar) y las celestes claras desaparecen después de un salto. Los resortes te lanzan alto, el cohete te sube 2,6 s y el escudo te salva de un bicho. Pisa a los bichos desde arriba (+100); si te tocan de lado o de abajo, se acaba. Puntaje: 10 por metro de altura máxima, 25 por moneda. Si te caes, se acaba.'),
+  j(54, 'mercado', 'Mercado Loco', 'G', 'Ordena la feria: arrastra cada producto de la cinta a su canasto (frutas, verduras, pescado, pan o huevos) antes de que se caiga. Pedidos con propina, hora punta, huevos frágiles, el casero que regatea, el gato que se roba el pescado y canastos que cambian de lugar. 3 minutos.', 'Rapidez y orden',
+    'Arrastra cada producto con el mouse o el dedo hasta su canasto. Con el teclado, los números 1 a 5 mandan el producto marcado (el que va más adelante) a ese canasto. Bien puesto vale 10 (más con racha); al canasto equivocado resta 15 y si se cae de la cinta resta 10. Los huevos se rompen si los arrastras muy brusco (−20). Completar el pedido del cliente da 50 más una propina que es mayor mientras más rápido lo armes; el casero pide el doble y paga el doble. Toca al gato para espantarlo antes de que se lleve un pescado (−15). La hora punta acelera la cinta y duplica el puntaje, y en el nivel 3 los canastos cambian de lugar.'),
 ];
 
 /** Juegos que en celular se ven mucho mejor de lado: avisan al partir si el teléfono está parado. */
 /** Juegos con modo libre (fase 4): sin reloj ni límite de vidas o intentos, no guarda nada. */
-export const LIBRES = new Set(['pesca', 'pinball', 'burbujas', 'cascada', 'lapidas', 'colibri', 'corte', 'gemas', 'horda', 'rodillos', 'puertas', 'cartero', 'laberinto', 'tinta', 'numeros', 'parejas', 'buscaconchas', 'catapulta', 'minigolf', 'tren', 'serpientes', 'karts', 'bloques', 'bombas', 'conchas', 'balsas']);
+export const LIBRES = new Set(['teclas', 'salto', 'mercado', 'pesca', 'pinball', 'burbujas', 'cascada', 'lapidas', 'colibri', 'corte', 'gemas', 'horda', 'rodillos', 'puertas', 'cartero', 'laberinto', 'tinta', 'numeros', 'parejas', 'buscaconchas', 'catapulta', 'minigolf', 'tren', 'serpientes', 'karts', 'bloques', 'bombas', 'conchas', 'balsas']);
 export const HORIZONTALES = new Set(['catapulta', 'billar', 'karts', 'tiro', 'defensa', 'cocina', 'triples', 'escobas', 'bestias']);
 
 /** Juegos retirados (El Más Bajo el 23-10; La Palabra Secreta y Luces del Faro el 24-10): no salen en la web ni en los sorteos,
@@ -194,6 +203,9 @@ const TODOS_VERSUS: TipoVersus[] = [
   v('1v1', 'burbujas-duelo', 'Duelo de Burbujas', 'Los mismos tableros y las mismas burbujas para los dos: gana quien revienta más.', 'burbujas'),
   v('1v1', 'pinball-duelo', 'Duelo de Pinball', 'La misma mesa y los mismos fantasmas para los dos: gana quien suma más.', 'pinball'),
   v('1v1', 'pesca-duelo', 'Duelo de Pesca', 'El mismo lago y los mismos peces para los dos: gana quien pesca más.', 'pesca'),
+  v('1v1', 'teclas-duelo', 'Duelo de Teclas', 'La misma canción y las mismas teclas para los dos: gana quien suma más.', 'teclas'),
+  v('1v1', 'salto-duelo', 'Duelo Estelar', 'Las mismas plataformas para los dos: gana quien llega más alto.', 'salto'),
+  v('1v1', 'mercado-duelo', 'Duelo de Feria', 'La misma cinta y los mismos pedidos para los dos: gana quien ordena mejor.', 'mercado'),
   v('1v1', 'horda-duelo', 'Duelo de Supervivientes', 'Las mismas oleadas y las mismas mejoras ofrecidas: gana quien aguanta más y mejor.', 'horda'),
   v('1v1', 'karts-duelo', 'Duelo de Karts', 'La misma pista y los mismos rivales: gana quien llega mejor.', 'karts'),
   v('1v1', 'tren-duelo', 'Fuga en Paralelo', 'Las mismas vías y los mismos trenes: gana quien llega más lejos.', 'tren'),
@@ -260,6 +272,9 @@ const TODOS_VERSUS: TipoVersus[] = [
   v('3v3', 'burbujas-equipo', 'Lluvia de Burbujas', 'Los tres juegan los mismos tableros; suma el equipo.', 'burbujas'),
   v('3v3', 'pinball-equipo', 'Casona en Equipo', 'Los tres juegan la misma mesa; suma el equipo.', 'pinball'),
   v('3v3', 'pesca-equipo', 'Flota Nocturna', 'Los tres pescan el mismo lago; suma el equipo.', 'pesca'),
+  v('3v3', 'teclas-equipo', 'Orquesta del Faro', 'Los tres tocan la misma canción; suma el equipo.', 'teclas'),
+  v('3v3', 'salto-equipo', 'Cohete en Equipo', 'Los tres saltan las mismas plataformas; suma el equipo.', 'salto'),
+  v('3v3', 'mercado-equipo', 'Puesto en Equipo', 'Los tres ordenan la misma cinta; suma el equipo.', 'mercado'),
   v('3v3', 'horda-equipo', 'Última Trinchera', 'Los tres enfrentan la misma horda; suma el equipo.', 'horda'),
   v('3v3', 'bandera', 'Captura la Bandera', 'Robar la bandera rival y traerla a la base.'),
 ];

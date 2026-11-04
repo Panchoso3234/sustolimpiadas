@@ -14,11 +14,11 @@ const RONDAS = 3;
 // Juegos que entran a la liga recién desde un cruce (los nuevos, cuando el cruce en curso ya estaba armado)
 // bestias: entra desde el cruce 2 (25-10)
 // Desde qué cruce entra cada juego a los sorteos (los demás, desde el 1)
-const DESDE_CRUCE: Record<string, number> = { pesca: 4, pinball: 4, burbujas: 4, cascada: 4, lapidas: 4, bloques: 2, bestias: 2, rodillos: 2, puertas: 2, huevo: 3, futbol: 3, faro: 3, catapulta: 2, buscaconchas: 3, colibri: 3, corte: 3, gemas: 3, horda: 3 };
+const DESDE_CRUCE: Record<string, number> = { teclas: 6, salto: 6, mercado: 6, pesca: 4, pinball: 4, burbujas: 4, cascada: 4, lapidas: 4, bloques: 2, bestias: 2, rodillos: 2, puertas: 2, huevo: 3, futbol: 3, faro: 3, catapulta: 2, buscaconchas: 3, colibri: 3, corte: 3, gemas: 3, horda: 3 };
 /** Juegos rehechos (versión 2) y desde qué fecha: los duelos de antes no cuentan para "menos usados". */
 const VERSION_NUEVA: Record<string, string> = { rodillos: '2026-10-26', puertas: '2026-10-26', cartero: '2026-10-26', laberinto: '2026-10-26', bombas: '2026-10-26', catapulta: '2026-10-26', conchas: '2026-10-26', balsas: '2026-10-26', minigolf: '2026-10-27', parejas: '2026-10-27', escobas: '2026-10-27' };
 /** Peso de cada juego en el sorteo de los cruces (1 si no está aquí). Los nuevos salen un poco más; con 0, un juego no sale. */
-const PESOS: Record<string, number> = { pesca: 1.8, pinball: 1.8, burbujas: 1.8, cascada: 1.8, lapidas: 1.8, colibri: 1.8, corte: 1.8, gemas: 1.8, horda: 1.8 };
+const PESOS: Record<string, number> = { teclas: 1.8, salto: 1.8, mercado: 1.8, pesca: 1.8, pinball: 1.8, burbujas: 1.8, cascada: 1.8, lapidas: 1.8, colibri: 1.8, corte: 1.8, gemas: 1.8, horda: 1.8 };
 /** Peso especial solo en un cruce (reemplaza a PESOS ahí). Cruce 4: los 5 juegos nuevos salen en más duelos (pedido de Pancho, 2026-11-02). */
 const PESOS_CRUCE: Record<number, Record<string, number>> = { 4: { pesca: 7, pinball: 7, burbujas: 7, cascada: 7, lapidas: 7 } };
 const juegosDuelo = (cruce: number) => VERSUS.filter((t) => t.modo === '1v1' && t.base && !t.vivo && juegoPorId(t.base)?.listo && (DESDE_CRUCE[t.base] ?? 1) <= cruce).map((t) => t.base!);
