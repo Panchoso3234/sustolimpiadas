@@ -18,6 +18,8 @@ export interface Juego {
 
 /** Puntaje de referencia de cada juego para la experiencia del pase (cerca de él, más experiencia). Desde el 26-10 ya no marca partidas como dudosas: todo puntaje cuenta. */
 export const TOPES: Record<string, number> = {
+  cruza: 9000,
+  pulso: 6000,
   teclas: 45000,
   salto: 60000,
   mercado: 15000,
@@ -158,11 +160,15 @@ export const TODOS: Juego[] = [
     'Muévete con las flechas o A y D, con el mouse, o tocando la mitad izquierda o derecha de la pantalla; el salto es automático. Si sales por un lado, entras por el otro. Las plataformas cafés se rompen (no sirven para saltar) y las celestes claras desaparecen después de un salto. Los resortes te lanzan alto, el cohete te sube 2,6 s y el escudo te salva de un bicho. Pisa a los bichos desde arriba (+100); si te tocan de lado o de abajo, se acaba. Puntaje: 10 por metro de altura máxima, 25 por moneda. Si te caes, se acaba.'),
   j(54, 'mercado', 'Mercado Loco', 'G', 'Ordena la feria: arrastra cada producto de la cinta a su canasto (frutas, verduras, pescado, pan o huevos) antes de que se caiga. Pedidos con propina, hora punta, huevos frágiles, el casero que regatea, el gato que se roba el pescado y canastos que cambian de lugar. 3 minutos.', 'Rapidez y orden',
     'Arrastra cada producto con el mouse o el dedo hasta su canasto. Con el teclado, los números 1 a 5 mandan el producto marcado (el que va más adelante) a ese canasto. Bien puesto vale 10 (más con racha); al canasto equivocado resta 15 y si se cae de la cinta resta 10. Los huevos se rompen si los arrastras muy brusco (−20). Completar el pedido del cliente da 50 más una propina que es mayor mientras más rápido lo armes; el casero pide el doble y paga el doble. Toca al gato para espantarlo antes de que se lleve un pescado (−15). La hora punta acelera la cinta y duplica el puntaje, y en el nivel 3 los canastos cambian de lugar.'),
+  j(55, 'cruza', 'Cruza la Isla', 'G', 'Avanza casilla a casilla cruzando calles con autos y camiones, ríos con troncos que a veces se hunden y vías de tren con luz de aviso, por la playa, el pueblo y el volcán. Si te quedas atrás te alcanza la marea. Monedas, racha y personajes para desbloquear. 3 minutos y una vida.', 'Reflejos y decisión',
+    'Avanza con flecha arriba o W (o tocando la pantalla); muévete con las flechas o WASD, o deslizando el dedo hacia ese lado. Los autos, camiones y trenes te atropellan: la luz roja de la vía se enciende antes de que pase el tren. En los ríos solo puedes pararte sobre los troncos, que te llevan (si te sacan de la pantalla, pierdes), y algunos se hunden un rato. En el volcán, los ríos son de lava con rocas. Los árboles no dejan pasar. La marea sube sola y cada vez más rápido: si te alcanza, se acaba. Cada fila nueva vale 10, cada moneda 20, y avanzar rápido seguido da bonus de racha. Las monedas que juntas desbloquean personajes (solo de adorno).'),
+  j(56, 'pulso', 'Pulso Neón', 'G', 'Un cubo avanza solo por pistas de neón: salta pinchos, súbete a bloques, usa lanzadores y anillos, cambia la gravedad y vuela en nave. Tres pistas fijas, cada una más rápida, para aprenderlas de memoria. 3 minutos.', 'Precisión y memoria',
+    'Toca, haz clic o aprieta Espacio para saltar; si mantienes apretado, el cubo salta apenas toca el suelo. Los anillos amarillos dan un salto en el aire si los tocas estando encima. Los lanzadores amarillos del suelo te lanzan alto. El portal amarillo invierte la gravedad (caminas por el techo) y el rosado te convierte en nave: mantén para subir y suelta para bajar; el celeste te devuelve a cubo. Al chocar se parte de nuevo desde el comienzo de la pista (en práctica, desde el último punto). Puntaje: 10 por cada % de tu mejor intento en cada pista, 100 por moneda escondida y 500 por terminar una pista. Las tres pistas son siempre las mismas.'),
 ];
 
 /** Juegos que en celular se ven mucho mejor de lado: avisan al partir si el teléfono está parado. */
 /** Juegos con modo libre (fase 4): sin reloj ni límite de vidas o intentos, no guarda nada. */
-export const LIBRES = new Set(['teclas', 'salto', 'mercado', 'pesca', 'pinball', 'burbujas', 'cascada', 'lapidas', 'colibri', 'corte', 'gemas', 'horda', 'rodillos', 'puertas', 'cartero', 'laberinto', 'tinta', 'numeros', 'parejas', 'buscaconchas', 'catapulta', 'minigolf', 'tren', 'serpientes', 'karts', 'bloques', 'bombas', 'conchas', 'balsas']);
+export const LIBRES = new Set(['cruza', 'pulso', 'teclas', 'salto', 'mercado', 'pesca', 'pinball', 'burbujas', 'cascada', 'lapidas', 'colibri', 'corte', 'gemas', 'horda', 'rodillos', 'puertas', 'cartero', 'laberinto', 'tinta', 'numeros', 'parejas', 'buscaconchas', 'catapulta', 'minigolf', 'tren', 'serpientes', 'karts', 'bloques', 'bombas', 'conchas', 'balsas']);
 export const HORIZONTALES = new Set(['catapulta', 'billar', 'karts', 'tiro', 'defensa', 'cocina', 'triples', 'escobas', 'bestias']);
 
 /** Juegos retirados (El Más Bajo el 23-10; La Palabra Secreta y Luces del Faro el 24-10): no salen en la web ni en los sorteos,
@@ -206,6 +212,8 @@ const TODOS_VERSUS: TipoVersus[] = [
   v('1v1', 'teclas-duelo', 'Duelo de Teclas', 'La misma canción y las mismas teclas para los dos: gana quien suma más.', 'teclas'),
   v('1v1', 'salto-duelo', 'Duelo Estelar', 'Las mismas plataformas para los dos: gana quien llega más alto.', 'salto'),
   v('1v1', 'mercado-duelo', 'Duelo de Feria', 'La misma cinta y los mismos pedidos para los dos: gana quien ordena mejor.', 'mercado'),
+  v('1v1', 'cruza-duelo', 'Duelo en la Isla', 'El mismo mapa y los mismos autos para los dos: gana quien llega más lejos.', 'cruza'),
+  v('1v1', 'pulso-duelo', 'Duelo de Neón', 'Las mismas pistas para los dos: gana quien llega más lejos.', 'pulso'),
   v('1v1', 'horda-duelo', 'Duelo de Supervivientes', 'Las mismas oleadas y las mismas mejoras ofrecidas: gana quien aguanta más y mejor.', 'horda'),
   v('1v1', 'karts-duelo', 'Duelo de Karts', 'La misma pista y los mismos rivales: gana quien llega mejor.', 'karts'),
   v('1v1', 'tren-duelo', 'Fuga en Paralelo', 'Las mismas vías y los mismos trenes: gana quien llega más lejos.', 'tren'),
@@ -275,6 +283,8 @@ const TODOS_VERSUS: TipoVersus[] = [
   v('3v3', 'teclas-equipo', 'Orquesta del Faro', 'Los tres tocan la misma canción; suma el equipo.', 'teclas'),
   v('3v3', 'salto-equipo', 'Cohete en Equipo', 'Los tres saltan las mismas plataformas; suma el equipo.', 'salto'),
   v('3v3', 'mercado-equipo', 'Puesto en Equipo', 'Los tres ordenan la misma cinta; suma el equipo.', 'mercado'),
+  v('3v3', 'cruza-equipo', 'Bandada Isleña', 'Los tres cruzan el mismo mapa; suma el equipo.', 'cruza'),
+  v('3v3', 'pulso-equipo', 'Neón en Equipo', 'Los tres juegan las mismas pistas; suma el equipo.', 'pulso'),
   v('3v3', 'horda-equipo', 'Última Trinchera', 'Los tres enfrentan la misma horda; suma el equipo.', 'horda'),
   v('3v3', 'bandera', 'Captura la Bandera', 'Robar la bandera rival y traerla a la base.'),
 ];

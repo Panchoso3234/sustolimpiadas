@@ -105,6 +105,8 @@ export const CARGADORES: Record<string, () => Promise<CrearJuego>> = {
   teclas: () => import('./lienzo/teclas').then((m) => m.crear),
   salto: () => import('./lienzo/salto').then((m) => m.crear),
   mercado: () => import('./lienzo/mercado').then((m) => m.crear),
+  cruza: () => import('./lienzo/cruza').then((m) => m.crear),
+  pulso: () => import('./lienzo/pulso').then((m) => m.crear),
   pinball: () => import('./lienzo/pinball').then((m) => m.crear),
   burbujas: () => import('./lienzo/burbujas').then((m) => m.crear),
   cascada: () => import('./lienzo/cascada').then((m) => m.crear),

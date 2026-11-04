@@ -21,6 +21,8 @@ export const DUELOS: Record<string, Formato> = {
   teclas: 'dividida',
   salto: 'dividida',
   mercado: 'dividida',
+  cruza: 'dividida',
+  pulso: 'dividida',
   pinball: 'dividida',
   burbujas: 'dividida',
   cascada: 'dividida',
