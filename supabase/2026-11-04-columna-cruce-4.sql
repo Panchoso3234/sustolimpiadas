@@ -1,0 +1,17 @@
+-- Columna de Claudio Palma del cruce 4 (3049 caracteres). Ejecutar UNA vez: publica y avisa.
+insert into public.columnas (cruce, texto) values (4, $columna$Wena cabros. Se cerró el cruce 4 y Claudio Palma vuelve a la tribuna, con café frío y cero filtro. Este cruce tuvo de todo: Pinball reiniciado, burbujas con mira nueva y seis duelos de Candy Cascada, que pa' ser un juego de dulces dejó a más de uno con la boca amarga.
+
+Partamos por la casa. Amantes del Pan le ganó 2-1 al Equipo 7 y sigue arriba en la tabla. Pancho_3 llegó a su duelo contra Dai tirando un "Me va a papear Dai causas Pi pi pi pi pi pi", que no sé qué significa, pero sonaba a miedo. Ganó 2-1 en Candy Cascada. Otra vez 2-1, jefe. Dos cruces seguidos en que el organizador gana raspando y con el corazón en la mano. LewVan sí hizo la pega en serio: 3-0 en Pinball a chakaldelatierra, sin pestañear. ¿Y Fénix? El mismo que en el cruce pasado hizo volar al colibrí se encontró con Baalbierth y perdió 2-0. Del cielo al suelo en una semana, cachai.
+
+El premio a la declaración del cruce es pa' ODIO A MOMOKA: "Si gano me quedo con el pancho (bromita)". Ganó 3-0 en Puertas Falsas contra Nae's. Rey, ganaste, pero el Pancho no se regala, y menos con bromita entre paréntesis. Los Folanos le ganaron 2-1 a Aura, y Umi (Too) se llevó un 3-0 sin despeinarse porque Ratalia otra vez no apareció. Segundo cruce seguido. Ratalia, a esta altura ya eres leyenda urbana. Tsuki salvó el honor de Aura con un 3-0 en Pinball a Ahazui, que en el cruce pasado venía repartiendo 3-0. Hoy le tocó probar su propia receta.
+
+El Imperio Pingüino Táctico estrenó nombre y estrenó triunfo: 2-1 a Umamigos. Pero el chiste se cuenta solo: El Leona Tactico, el táctico del imperio, perdió 3-0 contra Chima. Mucho pingüino, mucha táctica, cero dulces combinados. Lo salvaron YCl, con una remontada de manual en Candy Cascada contra Choi Yena, y andy, que le pasó por encima a Valepzmno con un 3-0 en Bubble Shot. Andy, dos cruces seguidos repartiendo 3-0. Tryhard confirmado.
+
+Ahora, el chisme. Paltita reclamó que la mira de Bubble Shot andaba saltona, se la arreglaron… y perdió 2-1 en Bubble Shot contra o_Maty_o. Le arreglaron la mira y le falló el pulso. Infinite, el de la idea de romper vidrios, también cayó 2-1 con Junior en Bubble Shot, y el vidrio roto fue el suyo. Hishore ganó 3-0 porque Schrödinger otra vez no se asomó, pero no alcanzó: el Equipo 10 le ganó 2-1 al Equipo 9. El gato sigue en la caja, cabros. Ya ni la teoría lo explica.
+
+Seguidores de la Exultación hicieron lo que nadie más este cruce: 3-0 completo al Equipo 11. Datura, PABLINN y Astrea, los tres con 3-0. Argyrus debutó con la bienvenida más brígida posible. Tranquilo, rey, al primer cruce todos llegamos mancos. Y el Equipo 4 le ganó 2-1 al Equipo 12, aunque Thecrytik le sacó a Rigoberto? el Pinball más apretado del cruce por 10.590 puntos. En este Pinball eso es un pelo.
+
+El cruce 5 ya partió y les dejo un encargo. A los que todavía se llaman "Equipo" con número, como cuenta corriente: pónganse nombre, cabros, que así no les puedo hacer el chiste completo. El que se hace el choro y pierde, sale aquí. El que se hace el choro y gana, también. Nos vemos en la próxima.$columna$)
+on conflict (cruce) do update set texto = excluded.texto where public.columnas.estado = 'borrador';
+
+select public.publicar_columna(4::smallint) as resultado; -- vacío (null) = publicada
