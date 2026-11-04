@@ -127,8 +127,9 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (arrastre && !bot) {
       const [x, y] = aCampo(m.puntero.x, m.puntero.y), p = arrastre.p;
       p.x = x - arrastre.dx; p.y = y - arrastre.dy;
-      const [ux, uy, ut] = arrastre.ultimo, rapidez = Math.hypot(x - ux, y - uy) / Math.max(1 / 120, t - ut);
-      arrastre.ultimo = [x, y, t];
+      // La rapidez se mide cada 0,08 s (el mouse avisa a 60 por segundo y la física corre a 120: medir cada paso la duplica)
+      const [ux, uy, ut] = arrastre.ultimo, rapidez = t - ut >= 0.08 ? Math.hypot(x - ux, y - uy) / (t - ut) : 0;
+      if (t - ut >= 0.08) arrastre.ultimo = [x, y, t];
       if (p.clase === 'huevo' && rapidez > 2600) { rotos++; racha = 0; productos = productos.filter((q) => q !== p); arrastre = null; sumar(-20, ...aPantalla(p.x, p.y), '#e8325a'); m.efectos.chispas(...aPantalla(p.x, p.y), ['#fff1c9', '#ffd23c'], 12, 220); m.mesa.hud.aviso('¡Se rompió el huevo! Con cuidado', 'mal', 1); m.mesa.sonido.mal(); }
     }
     if (bot) pilotar();

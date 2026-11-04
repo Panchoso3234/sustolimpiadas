@@ -19,8 +19,8 @@ export interface Juego {
 /** Puntaje de referencia de cada juego para la experiencia del pase (cerca de él, más experiencia). Desde el 26-10 ya no marca partidas como dudosas: todo puntaje cuenta. */
 export const TOPES: Record<string, number> = {
   teclas: 45000,
-  salto: 30000,
-  mercado: 12000,
+  salto: 60000,
+  mercado: 15000,
   pesca: 12000,
   pinball: 140000,
   burbujas: 12000,
