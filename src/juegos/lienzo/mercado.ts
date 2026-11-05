@@ -150,7 +150,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (!arrastre) return;
     const p = arrastre.p, [cx, cy] = aCampo(x, y); arrastre = null; p.agarrado = false;
     if (!productos.includes(p)) return;
-    if (cy > CANASTO_Y - 90) { const g = orden[Math.max(0, Math.min(4, Math.floor(cx / (W / 5))))]; poner(p, g); }
+    if (cy > CANASTO_Y - 90 && cx >= -10 && cx <= W + 10) { const g = orden[Math.max(0, Math.min(4, Math.floor(cx / (W / 5))))]; poner(p, g); } // fuera del puesto no cae en ningún canasto
     // Si no cae en un canasto, vuelve a la cinta donde quedó
   });
   m.alTecla((k) => { const n = Number(k); if (!bot && n >= 1 && n <= 5) { const p = primero(); if (p) poner(p, orden[n - 1]); } });

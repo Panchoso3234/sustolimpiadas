@@ -109,8 +109,8 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (!c.libre && t >= DURA) { terminar('Se acabó el tiempo'); return; }
     if (yo.salto < 1) { yo.salto = Math.min(1, yo.salto + dt / SALTO); if (yo.salto >= 1 && proximo) { const d = proximo; proximo = null; mover(d); } }
     const f = fila(yo.fila);
-    // Arriba de un tronco, el tronco te lleva
-    if (f.tipo === 'rio' && yo.salto >= 1) { yo.x += f.dir * f.vel * dt; if (yo.x < 0.2 || yo.x > COLS - 0.2) { morir(f.tipo === 'rio' && zonaDe(yo.fila) === 2 ? 'La lava te llevó' : 'El río te llevó'); return; } }
+    // Arriba de un tronco, el tronco te lleva; también mientras saltas hacia él (si no, al caer el tronco ya se corrió)
+    if (f.tipo === 'rio') { yo.x += f.dir * f.vel * dt; if (yo.salto < 1) yo.desdeX += f.dir * f.vel * dt; if (yo.x < 0.2 || yo.x > COLS - 0.2) { morir(f.tipo === 'rio' && zonaDe(yo.fila) === 2 ? 'La lava te llevó' : 'El río te llevó'); return; } }
     // Choques (al aterrizar y mientras estás ahí)
     if (yo.salto >= 0.7 && peligro(yo.fila, yo.x, t)) { morir(f.tipo === 'rio' ? (zonaDe(yo.fila) === 2 ? 'Caíste a la lava' : 'Caíste al agua') : f.tipo === 'via' ? 'Te pasó el tren' : 'Te atropelló un auto'); return; }
     // Monedas
@@ -153,7 +153,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       if (n < 0) return false;
       const f = fila(n);
       if (f.tipo === 'pasto') return !f.arboles.includes(Math.floor(x));
-      for (let s = desde; s <= hasta; s += 0.05) { const xx = f.tipo === 'rio' ? x + f.dir * f.vel * Math.max(0, s - desde) : x; if (xx < 0.4 || xx > COLS - 0.4 || peligro(n, xx, t + s)) return false; }
+      for (let s = desde; s <= hasta; s += 0.05) { const xx = f.tipo === 'rio' ? x + f.dir * f.vel * s : x; /* el río lleva desde que empieza el salto */ if (xx < 0.4 || xx > COLS - 0.4 || peligro(n, xx, t + s)) return false; }
       return true;
     };
     const aqui = Math.round(yo.x - 0.5) + 0.5, marg = 0.6;
