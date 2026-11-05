@@ -23,7 +23,7 @@ const TROZOS: string[][][] = [
 ];
 
 export function construir(n: number): Pista {
-  const r = generador(`pulso|pista|${n}`), vel = [300, 335, 370][n];
+  const r = generador(`pulso|pista|${n}`), vel = [300, 335, 370][n], tempo = [120, 132, 146][n];
   const cols: string[][] = [], techo: boolean[] = [], checkpoints: number[] = [];
   let monedas = 0;
   const vacio = (k: number, conTecho = false) => { for (let i = 0; i < k; i++) { cols.push(Array(FILAS).fill('.')); techo.push(conTecho); } };
@@ -52,19 +52,23 @@ export function construir(n: number): Pista {
       let hueco = 1; // el primer hueco va abajo (la nave parte del suelo) y después cambia de a una fila
       for (let i = 0; i < 6 + n * 2; i++) {
         hueco = Math.max(1, Math.min(5, hueco + Math.floor(r() * 3) - 1));
-        const col = Array(FILAS).fill('.'); for (let f = 0; f < FILAS - 1; f++) if (f < hueco || f > hueco + 2 - (n === 2 ? 1 : 0) + 1) col[f] = '#';
+        const col = Array(FILAS).fill('.'); for (let f = 0; f < FILAS - 1; f++) if (f < hueco || f > hueco + 3) col[f] = '#';
         if (i === 3) { col[hueco + 1] = '$'; monedas++; }
-        cols.push(col); techo.push(true); vacio(4 - Math.min(1, n), true);
+        cols.push(col); techo.push(true); vacio(4, true);
       }
       cols[cols.length - 1][4] = 'C'; vacio(5);
     } else {
       const nivel = Math.min(n, Math.floor(r() * (n + 1.6)));
-      poner(TROZOS[Math.min(2, nivel)][Math.floor(r() * TROZOS[0].length)]);
-      vacio(3 + Math.floor(r() * 2));
+      // 3. Al ritmo: el primer obstáculo del trozo cae justo en un golpe de la música de la pista
+      const trozo = TROZOS[Math.min(2, nivel)][Math.floor(r() * TROZOS[0].length)], abajo = trozo[trozo.length - 1], primero = Math.max(0, abajo.search(/[^.]/));
+      const golpe = (vel * 60) / tempo / U, donde = cols.length + primero, extra = Math.round(Math.ceil(donde / golpe) * golpe) - donde;
+      vacio(Math.max(0, extra));
+      poner(trozo);
+      vacio(3 + Math.floor(r() * 2) + (n === 2 ? 1 : 0));
     }
   }
   vacio(8); cols.push(Array(FILAS).fill('F')); techo.push(false); vacio(10);
-  return { nombre: ['Pulso Inicial', 'Neón Nocturno', 'Tormenta Eléctrica'][n], vel, color: ['#3ff0ff', '#ff3fd8', '#ffd23c'][n], fondo: ['#0a0f2a', '#1a0a2a', '#200a10'][n], tempo: [120, 132, 146][n], cols, techo, checkpoints, monedas };
+  return { nombre: ['Pulso Inicial', 'Neón Nocturno', 'Tormenta Eléctrica'][n], vel, color: ['#3ff0ff', '#ff3fd8', '#ffd23c'][n], fondo: ['#0a0f2a', '#1a0a2a', '#200a10'][n], tempo, cols, techo, checkpoints, monedas };
 }
 
 export async function crear(c: Contexto): Promise<Partida> {
@@ -75,7 +79,7 @@ export async function crear(c: Contexto): Promise<Partida> {
 
   // ── Estado ──
   let p = 0, pista = pistas[0], yo: Estado = inicial(0), fase: 'juego' | 'fin' = 'juego', intentos = 1, desde = 0, muerto = 0;
-  const mejor = [0, 0, 0], terminadas = [false, false, false], monedasDe = [new Set<number>(), new Set<number>(), new Set<number>()];
+  const controles = [new Set<number>(), new Set<number>(), new Set<number>()], mejor = [0, 0, 0], terminadas = [false, false, false], monedasDe = [new Set<number>(), new Set<number>(), new Set<number>()];
   let tomadasIntento = new Set<number>(), anillosUsados = new Set<number>(), apretado = false, nuevoToque = false;
   const prueba = { atascado: 0 };
   function inicial(x: number): Estado { return { x, h: 0, vy: 0, grav: -1, nave: false, suelo: true, vivo: true }; }
@@ -149,7 +153,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (p < 2) { p++; pista = pistas[p]; yo = inicial(0); anillosUsados = new Set(); tomadasIntento = new Set(); musica.acordes(p === 1 ? [[57, 60, 64], [53, 57, 60], [55, 59, 62], [52, 55, 59]] : [[52, 55, 59], [48, 52, 55], [50, 53, 57], [47, 50, 54]]); m.mesa.hud.aviso(`Pista ${p + 1}: ${pista.nombre}`, 'oro', 1.6); }
     else terminar('¡Terminaste las tres pistas!');
   }
-  const total = () => mejor.reduce((a, x, i) => a + (i === p && fase === 'juego' && muerto <= 0 ? Math.max(x, porcentaje()) : x) * 10, 0) + monedasDe.reduce((a, s) => a + s.size * 100, 0) + terminadas.filter(Boolean).length * 500;
+  const total = () => controles.reduce((a, c) => a + c.size * 50, 0) + mejor.reduce((a, x, i) => a + (i === p && fase === 'juego' && muerto <= 0 ? Math.max(x, porcentaje()) : x) * 10, 0) + monedasDe.reduce((a, s) => a + s.size * 100, 0) + terminadas.filter(Boolean).length * 500;
 
   m.alPaso((dt) => {
     if (fase !== 'juego') return;
@@ -162,6 +166,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (fase !== 'juego') return;
     if (!yo.vivo) { morir(); return; }
     if (yo.x > largoPista()) prueba.atascado++;
+    for (const cp of pista.checkpoints) if (cp > 14 && yo.x >= cp * U && !controles[p].has(cp)) { controles[p].add(cp); const [x, y] = aPantalla(yo.x, yo.h + S + 30); m.efectos.flotar(x, y, '+50', pista.color, 20); }
     m.mesa.hud.puntos(String(total()));
     if (!c.libre) { const q = Math.max(0, DURA - m.tiempo); m.mesa.hud.tiempo(`${Math.floor(q / 60)}:${String(Math.floor(q % 60)).padStart(2, '0')}`); }
     m.mesa.hud.extra(`Pista ${p + 1} · ${porcentaje()}% · intento ${intentos}`);
@@ -258,7 +263,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     musica.parar(); m.detener();
     c.alTerminar({
       puntaje: total(),
-      lineas: [['Resultado', porque], ...pistas.map((x, i) => [`Pista ${i + 1}: ${x.nombre}`, `${mejor[i]}%${terminadas[i] ? ' ✔' : ''} · monedas ${monedasDe[i].size}/${x.monedas}`] as [string, string]), ['Intentos', String(intentos)]],
+      lineas: [['Resultado', porque], ...pistas.map((x, i) => [`Pista ${i + 1}: ${x.nombre}`, `${mejor[i]}%${terminadas[i] ? ' ✔' : ''} · ${controles[i].size}/${x.checkpoints.filter((cp) => cp > 14).length} puntos de control · monedas ${monedasDe[i].size}/${x.monedas}`] as [string, string]), ['Intentos', String(intentos)]],
       detalle: { pistas: mejor, terminadas: terminadas.filter(Boolean).length, monedas: monedasDe.reduce((a, s) => a + s.size, 0), intentos },
     });
   }

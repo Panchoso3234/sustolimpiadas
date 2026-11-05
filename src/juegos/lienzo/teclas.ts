@@ -91,7 +91,8 @@ export async function crear(c: Contexto): Promise<Partida> {
   let fiebre = 0, fiebreHasta = 0, cancion = -1, invulnerable = 0, iAcomp = 0, desde = 0;
   let sostiene: { fila: Fila; carril: number } | null = null;
   const destello = [0, 0, 0, 0], rojo = [0, 0, 0, 0];
-  let juicio = { texto: '', color: '#ffffff', hasta: 0 }, perfectos = 0;
+  let juicio = { texto: '', color: '#ffffff', hasta: 0 }, perfectos = 0, geniales = 0, bienes = 0, sumaE = 0, nE = 0;
+  const ajuste = bot ? 0 : leerAjuste() / 1000; // calibración del jugador: cuánto se corre su "a tiempo" (en s)
   const pendiente = () => { for (let i = desde; i < filas.length; i++) { const f = filas[i]; if (!f.perdida && f.hechas.length < f.carriles.length) return f; } return null; };
   const fondoDe = (f: Fila) => LINEA + (m.tiempo - f.t) * f.pps; // borde de abajo de la tecla: llega a la línea justo a su hora
   const enFiebre = () => m.tiempo < fiebreHasta;
@@ -102,13 +103,14 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (fase !== 'juego') return;
     const f = pendiente();
     if (!f || fondoDe(f) < 40) return; // todavía no asoma: no castiga
-    const i = f.carriles.indexOf(carril), e = m.tiempo - f.t; // e < 0: antes de su hora; e > 0: después
+    const i = f.carriles.indexOf(carril), e = m.tiempo - f.t - ajuste; // e < 0: antes de su hora; e > 0: después
     if (i >= 0 && !f.hechas.includes(carril) && e < -VENTANA) { juicio = { texto: 'Muy pronto', color: '#7fb4ff', hasta: m.tiempo + 0.35 }; return; } // aún no llega a la línea
     if (i >= 0 && !f.hechas.includes(carril)) {
       f.hechas.push(carril); aciertos++; racha++; mejorRacha = Math.max(mejorRacha, racha);
       // Juicio: Perfecto (±55 ms), Genial (±110 ms) o Bien (±200 ms); el puntaje depende de la precisión
       const a = Math.abs(e), [nombre, k, color] = a <= 0.055 ? ['¡Perfecto!', 1, '#ffd23c'] as const : a <= 0.11 ? ['Genial', 0.75, '#7cffcb'] as const : ['Bien', 0.5, '#bfe9ff'] as const;
-      if (a <= 0.055) perfectos++;
+      if (a <= 0.055) perfectos++; else if (a <= 0.11) geniales++; else bienes++;
+      sumaE += e + ajuste; nE++;
       juicio = { texto: a <= 0.055 ? nombre : `${nombre} · ${e < 0 ? 'pronto' : 'tarde'}`, color, hasta: m.tiempo + 0.45 };
       puntos += Math.round(valor(f) * k);
       if (!enFiebre()) { fiebre++; if (fiebre >= FIEBRE_LLENA) { fiebre = 0; fiebreHasta = m.tiempo + FIEBRE_DURA; fiebres++; m.mesa.hud.aviso('¡FIEBRE! Puntaje doble', 'oro', 1.4); m.efectos.temblar(6); } }
@@ -168,7 +170,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     for (let i = desde; i < filas.length; i++) {
       const f = filas[i];
       if (f.t - t > 3) break;
-      if (!f.perdida && f.hechas.length < f.carriles.length && t > f.t + VENTANA) { f.perdida = true; fallo(f.carriles.find((k) => !f.hechas.includes(k)) ?? 0, f, 'Se te pasó una'); }
+      if (!f.perdida && f.hechas.length < f.carriles.length && t > f.t + ajuste + VENTANA) { f.perdida = true; fallo(f.carriles.find((k) => !f.hechas.includes(k)) ?? 0, f, 'Se te pasó una'); }
     }
     while (desde < filas.length && fondoDe(filas[desde]) - filas[desde].alto > H + 20) desde++;
     for (let i = 0; i < 4; i++) { destello[i] = Math.max(0, destello[i] - dt * 5); rojo[i] = Math.max(0, rojo[i] - dt * 3); }
@@ -228,7 +230,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     }
     gp.fillStyle = '#b9ad90'; for (let i = 0; i <= 4; i++) gp.fillRect(px(xi + i * lw) - (i === 4 ? k : 0), 0, k, H);
     // Línea del ritmo: la tecla llega aquí justo cuando suena su nota
-    gp.fillStyle = 'rgba(201,138,0,.8)'; gp.fillRect(px(xi), px(LINEA) - k, px(w), 2 * k); gp.fillStyle = 'rgba(201,138,0,.12)'; gp.fillRect(px(xi), px(LINEA - VENTANA * 400), px(w), px(VENTANA * 400)); // la línea y la zona donde vale tocar (aprox.)
+    gp.fillStyle = 'rgba(201,138,0,.8)'; gp.fillRect(px(xi), px(LINEA) - k, px(w), 2 * k); { const pp = pendiente()?.pps ?? 500, y0 = LINEA + (ajuste - VENTANA) * pp, y1 = LINEA + (ajuste + VENTANA) * pp; gp.fillStyle = 'rgba(201,138,0,.13)'; gp.fillRect(px(xi), px(y0), px(w), px(y1 - y0)); } // la zona exacta donde vale tocar (el borde de abajo de la tecla tiene que estar ahí)
     // Teclas (solo las que están en pantalla)
     for (let i = desde; i < filas.length; i++) {
       const f = filas[i], fondo = fondoDe(f), arriba = fondo - f.alto;
@@ -273,7 +275,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     const tocadas = lista.slice(0, cancion + 1).map((x) => x.titulo).join(' · ') || '—';
     c.alTerminar({
       puntaje: puntos,
-      lineas: [['Resultado', porque], ['Teclas tocadas', String(aciertos)], ['Perfectos', String(perfectos)], ['Mejor racha', String(mejorRacha)], ['Teclas largas', String(largas)], ['Fiebres', String(fiebres)], ['Canciones', tocadas], ['Errores', String(errores)]],
+      lineas: [['Resultado', porque], ['Teclas tocadas', String(aciertos)], ['Precisión', `${perfectos} Perfecto · ${geniales} Genial · ${bienes} Bien · ${errores} fallos${aciertos ? ` (${Math.round((perfectos / aciertos) * 100)} % perfectos)` : ''}`], ['Tu ritmo', nE >= 10 ? (() => { const ms = Math.round((sumaE / nE) * 1000); return Math.abs(ms) < 15 ? 'Justo a tiempo' : `En promedio tocas ${Math.abs(ms)} ms ${ms > 0 ? 'tarde' : 'pronto'} · ajuste sugerido: ${ms > 0 ? '+' : ''}${ms} ms`; })() : '—'], ['Mejor racha', String(mejorRacha)], ['Teclas largas', String(largas)], ['Fiebres', String(fiebres)], ['Canciones', tocadas], ['Errores', String(errores)]],
       detalle: { aciertos, racha: mejorRacha, largas, fiebres, cancion: cancion + 1, errores, canciones: lista.map((x) => x.id) },
     });
   }
@@ -295,9 +297,10 @@ function elegirCancion(caja: HTMLElement): Promise<Cancion | null> {
       <div class="teclas-elegir-acciones"><button type="button" data-azar class="boton">Al azar (como en el torneo)</button>
       <label class="boton secundario">Cargar mi canción (MIDI o mp3)<input type="file" accept=".mid,.midi,audio/*" hidden /></label></div>
       <p class="teclas-elegir-error" hidden></p>
+      <div class="teclas-ajuste">Ajuste de ritmo: <button type="button" data-aj="-10">−</button> <b data-ajv>0 ms</b> <button type="button" data-aj="10">+</button> <span class="chico">Si el juego siempre te dice "tarde", súbelo; si dice "pronto", bájalo. Se guarda en este equipo.</span></div>
       ${[1, 2, 3].map((n) => `<h4>${nombres[n]}</h4><div class="teclas-elegir-lista">${REPERTORIO.filter((x) => x.nivel === n).map((x) => `<button type="button" data-id="${x.id}"><b>${x.titulo}</b><span>${x.japones ? `<span lang="ja">${x.japones}</span>` : x.autor} · ${x.es}</span></button>`).join('')}</div>`).join('')}
       <p class="tenue chico">Las canciones que cargas quedan solo en este navegador, para practicar. En el torneo y los duelos suenan las del repertorio.</p>`;
-    caja.appendChild(panel);
+    caja.appendChild(panel); conectarAjuste(panel);
     const cerrar = (x: Cancion | null) => { panel.remove(); listo(x); };
     const error = panel.querySelector<HTMLElement>('.teclas-elegir-error')!;
     panel.querySelector('[data-azar]')!.addEventListener('click', () => cerrar(null));
@@ -321,8 +324,9 @@ function elegirTres(caja: HTMLElement, sugeridas: string[]): Promise<string[]> {
     panel.innerHTML = `<h3>Teclas del Faro · elige tus 3 canciones</h3>
       <p class="chico">Una de cada grupo, en este orden. Todas las de un mismo grupo dan el mismo puntaje máximo, así que elige las que más te gusten.</p>
       <div class="teclas-elegir-acciones"><button type="button" data-empezar class="boton">Empezar</button></div>
+      <div class="teclas-ajuste">Ajuste de ritmo: <button type="button" data-aj="-10">−</button> <b data-ajv>0 ms</b> <button type="button" data-aj="10">+</button> <span class="chico">Si el juego siempre te dice "tarde", súbelo; si dice "pronto", bájalo. Se guarda en este equipo.</span></div>
       ${[1, 2, 3].map((n) => `<h4>${n}. ${nombres[n - 1]}</h4><div class="teclas-elegir-lista">${REPERTORIO.filter((x) => x.nivel === n).map((x) => `<button type="button" data-id="${x.id}" data-nivel="${n}"><b>${x.titulo}</b><span>${x.japones ? `<span lang="ja">${x.japones}</span>` : x.autor} · ${x.es}</span></button>`).join('')}</div>`).join('')}`;
-    caja.appendChild(panel);
+    caja.appendChild(panel); conectarAjuste(panel);
     const marcar = () => { for (const b of panel.querySelectorAll<HTMLButtonElement>('[data-id]')) b.classList.toggle('elegida', elegidas.includes(b.dataset.id!)); };
     for (const b of panel.querySelectorAll<HTMLButtonElement>('[data-id]')) b.addEventListener('click', () => { elegidas[Number(b.dataset.nivel) - 1] = b.dataset.id!; marcar(); });
     panel.querySelector('[data-empezar]')!.addEventListener('click', () => { panel.remove(); listo(elegidas); });
@@ -333,3 +337,12 @@ function elegirTres(caja: HTMLElement, sugeridas: string[]): Promise<string[]> {
 /** El reproductor del mp3 cargado: se crea al elegir el archivo (un clic del jugador), así el navegador deja sonar. */
 let contextoCargado: AudioContext | null = null;
 const latenciaAudio = () => { const c = contextoCargado; return c ? Math.min(0.3, (c.outputLatency || 0) + (c.baseLatency || 0)) : 0.05; };
+
+const AJUSTE = 'susto.teclas.ajuste';
+const leerAjuste = () => { try { return Math.max(-150, Math.min(150, Number(localStorage.getItem(AJUSTE)) || 0)); } catch { return 0; } };
+/** Botones − y + del ajuste de ritmo (en milisegundos, de −150 a +150). */
+function conectarAjuste(panel: HTMLElement) {
+  const v = panel.querySelector<HTMLElement>('[data-ajv]')!, mostrar = () => { const x = leerAjuste(); v.textContent = `${x > 0 ? '+' : ''}${x} ms`; };
+  for (const b of panel.querySelectorAll<HTMLButtonElement>('[data-aj]')) b.addEventListener('click', () => { try { localStorage.setItem(AJUSTE, String(Math.max(-150, Math.min(150, leerAjuste() + Number(b.dataset.aj))))); } catch { /* sin almacenamiento */ } mostrar(); });
+  mostrar();
+}

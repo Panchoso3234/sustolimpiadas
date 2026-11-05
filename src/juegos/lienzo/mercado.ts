@@ -205,14 +205,22 @@ export async function crear(c: Contexto): Promise<Partida> {
     gp.fillStyle = '#1b1630'; gp.fillRect(px(cx0), px(cy + 26 * s), px(W * s), 2 * k);
     { const [fx] = aPantalla(W, 0); gp.fillStyle = 'rgba(232,50,90,.6)'; gp.fillRect(px(fx) - 3 * k, px(cy - 26 * s), 3 * k, px(52 * s)); }
     // Canastos con su ícono (en el nivel 3 se ve el cambio de lugar)
-    for (const g of GRUPOS) { const [x, y] = aPantalla(xCanasto(g), CANASTO_Y); m.sprite(CANASTO, x, y, 2.4 * s); m.sprite(ICONO[g], x, y - 6 * s, 1.6 * s); }
+    // Canasto donde caería lo que arrastras: se ilumina (solo muestra dónde cae, no si es el correcto)
+    const destino = arrastre && arrastre.p.y > CANASTO_Y - 90 ? orden[Math.max(0, Math.min(4, Math.floor(arrastre.p.x / (W / 5))))] : null;
+    for (const g of GRUPOS) {
+      const [x, y] = aPantalla(xCanasto(g), CANASTO_Y);
+      if (g === destino) { gp.fillStyle = 'rgba(255,210,60,.45)'; gp.fillRect(px(x - (W / 10) * s), px(y - 46 * s), px((W / 5) * s), px(92 * s)); }
+      m.sprite(CANASTO, x, y, 2.4 * s); m.sprite(ICONO[g], x, y - 6 * s, 1.6 * s);
+    }
+    // El pedido con dibujos: cada producto que pide el cliente, en fila
+    if (pedido) { const items = pedido.items, paso = 70 * s, x0 = m.ancho / 2 - ((items.length - 1) * paso) / 2, [, py] = aPantalla(0, 168); items.forEach((it, i) => { if (it.falta === 0) gp.globalAlpha = 0.35; m.sprite(SPR[it.clase], x0 + i * paso, py, 2.2 * Math.max(s, 0.75)); gp.globalAlpha = 1; }); }
     // Productos
     const marcado = primero();
     for (const p of productos) {
       const [x, y] = aPantalla(p.x, p.y);
       if (p === marcado && !bot) { gp.fillStyle = '#ffd23c'; gp.fillRect(px(x - 24 * s), px(y + 22 * s), px(48 * s), 2 * k); }
       if (p.robado) gp.globalAlpha = 0.6;
-      m.sprite(SPR[p.clase], x, y, (p.agarrado ? 3 : 2.6) * Math.max(s, 0.75)); // en celular no se achican tanto: hay que poder agarrarlos
+      m.sprite(SPR[p.clase], x, y, (p.agarrado ? 3.4 : 3) * Math.max(s, 0.75)); // en celular no se achican tanto: hay que poder agarrarlos
       gp.globalAlpha = 1;
     }
     if (gato) { const [x, y] = aPantalla(gato.x, CINTA_Y - 44); gp.save(); if (gato.huye || gato.x < (productos.find((p) => p.id === gato!.meta)?.x ?? -1)) { gp.translate(px(x), 0); gp.scale(-1, 1); gp.translate(-px(x), 0); } m.sprite(GATO, x, y + (Math.floor(t * 8) % 2) * k, 1.8 * s); gp.restore(); }

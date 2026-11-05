@@ -32,7 +32,17 @@ export async function crear(c: Contexto): Promise<Partida> {
   const yo = { x: W / 2, y: 600, vx: 0, vy: -SALTO, mira: 1 };
   let plataformas: Plataforma[] = [], cosas: Cosa[] = [], ids = 0, techo = 660, ultimaUtil = 660;
   let camY = 0, fase: 'juego' | 'fin' = 'juego', cohete = 0, escudo = 0, maxAltura = 0, monedas = 0, pisados = 0, resortes = 0, cohetes = 0;
+  // Inclinación del celular (grados de lado); en iPhone hay que pedir permiso con un toque
+  let inclinacion: number | null = null;
+  const alInclinar = (ev: DeviceOrientationEvent) => { if (ev.gamma !== null) inclinacion = ev.gamma; };
+  if (!bot && matchMedia('(pointer: coarse)').matches) {
+    const pedir = (DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> }).requestPermission;
+    if (typeof pedir === 'function') m.alTocar(() => { pedir().then((r) => { if (r === 'granted') m.mesa.escuchar('deviceorientation', alInclinar); }).catch(() => {}); });
+    else m.mesa.escuchar('deviceorientation', alInclinar);
+  }
   const prueba = { sinCamino: 0, atascado: 0 };
+  /** Distancia de lado, considerando que salir por un borde es entrar por el otro (el astronauta se ve en los dos). */
+  const distX = (a: number, b: number) => { const d = Math.abs(a - b); return Math.min(d, W + 28 - d); };
   const altura = () => Math.max(0, Math.round((660 - yo.y) / 20)); // en metros
 
   const agregar = (x: number, y: number, clase: Clase, resorte = false) => {
@@ -75,6 +85,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       const izq = m.teclas.has('ArrowLeft') || m.teclas.has('a'), der = m.teclas.has('ArrowRight') || m.teclas.has('d');
       if (izq || der) meta = izq ? -1 : 1;
       else if (m.puntero.abajo && m.puntero.tipo !== 'mouse') meta = m.puntero.x < m.ancho / 2 ? -1 : 1;
+      else if (inclinacion !== null) meta = Math.abs(inclinacion) < 4 ? 0 : Math.max(-1, Math.min(1, inclinacion / 22));
       else if (m.puntero.dentro && m.puntero.tipo === 'mouse') { const [px] = aMundo(m.puntero.x, 0); const d = px - yo.x; meta = Math.abs(d) < 8 ? 0 : Math.max(-1, Math.min(1, d / 60)); }
     }
     yo.vx += (meta * 420 - yo.vx) * Math.min(1, dt * 10);
@@ -91,7 +102,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     for (const p of plataformas) {
       if (p.clase === 'movil') { p.x += p.vx * dt; if (p.x < p.ancho / 2 + 4 || p.x > W - p.ancho / 2 - 4) p.vx *= -1; }
       if (p.rota || cohete > 0 || yo.vy <= 0) continue;
-      if (antes + 16 <= p.y && yo.y + 16 >= p.y && Math.abs(yo.x - p.x) < p.ancho / 2 + 10) {
+      if (antes + 16 <= p.y && yo.y + 16 >= p.y && distX(yo.x, p.x) < p.ancho / 2 + 10) {
         if (p.clase === 'fragil') { p.rota = true; m.efectos.chispas(...aPantalla(p.x, p.y), ['#8a5a32', '#b07a48'], 10, 200); m.mesa.sonido.tono(150, 0.12, 'square', 0.05); continue; }
         yo.y = p.y - 16; yo.vy = p.resorte ? -RESORTE : -SALTO;
         if (p.resorte) { resortes++; m.mesa.sonido.tono(520, 0.18, 'square', 0.05); m.mesa.sonido.tono(880, 0.15, 'square', 0.04, 0.08); m.efectos.temblar(4); }
@@ -104,7 +115,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     for (const o of cosas) {
       if (!o.viva) continue;
       if (o.tipo === 'enemigo') { o.x += o.vx * dt; if (Math.abs(o.x - o.base) > 70) o.vx *= -1; o.y += Math.sin(m.tiempo * 3 + o.id) * 10 * dt; }
-      const dx = Math.abs(o.x - yo.x), dy = o.y - yo.y;
+      const dx = distX(o.x, yo.x), dy = o.y - yo.y;
       if (o.tipo === 'enemigo') {
         if (dx < 28 && Math.abs(dy) < 30) {
           if ((yo.vy > 0 && dy > 6) || cohete > 0) { o.viva = false; pisados++; puntos(100, o.x, o.y, '#ff8fc8'); if (cohete <= 0) yo.vy = -SALTO * 1.05; m.efectos.temblar(6); m.mesa.sonido.bien(); }
@@ -207,13 +218,15 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (cohete > 0) { gp.fillStyle = Math.floor(m.tiempo * 20) % 2 ? '#ffd23c' : '#ff8a2a'; gp.fillRect(px(ax) - 2 * k, px(ay + 18 * s), 4 * k, px(14 * s)); }
     gp.save(); if (yo.mira < 0) { gp.translate(px(ax), 0); gp.scale(-1, 1); gp.translate(-px(ax), 0); }
     m.sprite(escudo > 0 ? ASTRO_ESCUDO : ASTRO, ax, ay, 1.4 * s);
+    if (yo.x < 22 || yo.x > W - 22) { const [bx] = aPantalla(yo.x < 22 ? yo.x + W + 28 : yo.x - W - 28, yo.y); m.sprite(escudo > 0 ? ASTRO_ESCUDO : ASTRO, bx, ay, 1.4 * s); }
     gp.restore();
     // En pantallas anchas, los costados se oscurecen: ahí termina la zona de juego (sales por un lado y entras por el otro)
     const borde = ox();
     if (borde > 4) { gp.fillStyle = 'rgba(14,11,22,.45)'; gp.fillRect(0, 0, px(borde), H); gp.fillRect(px(borde + W * s), 0, m.ancho, H); gp.fillStyle = 'rgba(255,255,255,.35)'; gp.fillRect(px(borde) - k, 0, k, H); gp.fillRect(px(borde + W * s), 0, k, H); }
   });
-  m.alDibujar(() => {
+  m.alDibujar((g) => {
     if (fase !== 'juego') return;
+    for (const o of cosas) if (o.viva && o.tipo === 'enemigo' && o.y < camY - 10 && o.y > camY - 520) { const [x] = aPantalla(o.x, o.y), y = 78, a = 0.5 + 0.5 * Math.sin(m.tiempo * 10); g.globalAlpha = 0.6 + a * 0.4; g.fillStyle = '#ff3b5c'; g.beginPath(); g.moveTo(x, y - 12); g.lineTo(x - 11, y + 6); g.lineTo(x + 11, y + 6); g.closePath(); g.fill(); g.globalAlpha = 1; }
     if (record > 0) { const [, ry] = aPantalla(0, 660 - record * 20); if (ry > 70 && ry < H - 10) m.rotulo(`Récord ${record} m`, m.ancho - 70, ry - 12, 14, '#ffd23c'); }
     if (!bot && m.tiempo < 6) { const tam = Math.round(Math.min(20, m.ancho / 22)); m.rotulo(m.ancho > 600 ? 'Muévete con las flechas o el mouse · salta solo' : 'Toca a la izquierda o a la derecha', m.ancho / 2, H * 0.3, tam, '#ffffff'); }
   });

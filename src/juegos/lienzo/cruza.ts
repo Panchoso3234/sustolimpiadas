@@ -116,8 +116,9 @@ export async function crear(c: Contexto): Promise<Partida> {
     // La marea sube sola (cada vez más rápido) y no deja quedarse muy atrás
     marea = Math.max(marea + (0.32 + t * 0.003) * dt, yo.fila - 9);
     if (marea >= yo.fila + 0.2) { morir('Te alcanzó la marea'); return; }
-    cam += (Math.max(cam, yo.fila - 3) - cam) * Math.min(1, dt * 6);
+    cam += (Math.max(cam, yo.fila - 2) - cam) * Math.min(1, dt * 6);
     if (yo.x < 0 || yo.x > COLS) prueba.fuera++;
+    if (toque && m.puntero.abajo) { const dx = m.puntero.x - toque[0], dy = m.puntero.y - toque[1]; if (Math.hypot(dx, dy) >= 26) { toque = null; deslizar(dx, dy); } }
     if (bot) pilotar();
     m.mesa.hud.puntos(String(total0Puntos()));
     if (!c.libre) { const q = Math.max(0, DURA - t); m.mesa.hud.tiempo(`${Math.floor(q / 60)}:${String(Math.floor(q % 60)).padStart(2, '0')}`); }
@@ -129,13 +130,14 @@ export async function crear(c: Contexto): Promise<Partida> {
   // ── Mandos: flechas o WASD; tocar = adelante, deslizar = hacia ese lado ──
   m.alTecla((k) => { if (bot) return; const d = k === 'ArrowUp' || k === 'w' || k === ' ' ? 'arriba' : k === 'ArrowDown' || k === 's' ? 'abajo' : k === 'ArrowLeft' || k === 'a' ? 'izq' : k === 'ArrowRight' || k === 'd' ? 'der' : null; if (d) mover(d); });
   let toque: [number, number] | null = null;
-  m.alTocar((x, y) => { toque = [x, y]; });
+  // Respuesta inmediata: con mouse, salta al apretar; con el dedo, el deslizamiento cuenta apenas pasa de 26 unidades
+  // (sin esperar a soltar) y el toque simple salta al soltar (si no, cada deslizamiento empezaría con un salto adelante)
+  const deslizar = (dx: number, dy: number) => { if (Math.abs(dx) > Math.abs(dy)) mover(dx > 0 ? 'der' : 'izq'); else mover(dy < 0 ? 'arriba' : 'abajo'); };
+  m.alTocar((x, y) => { if (bot) return; if (m.puntero.tipo === 'mouse') { mover('arriba'); toque = null; return; } toque = [x, y]; });
   m.alSoltar((x, y) => {
     if (bot || !toque) return;
     const dx = x - toque[0], dy = y - toque[1]; toque = null;
-    if (Math.hypot(dx, dy) < 30) mover('arriba');
-    else if (Math.abs(dx) > Math.abs(dy)) mover(dx > 0 ? 'der' : 'izq');
-    else mover(dy < 0 ? 'arriba' : 'abajo');
+    if (Math.hypot(dx, dy) < 26) mover('arriba'); else deslizar(dx, dy);
   });
 
   // ── Bots: el bueno mira si la casilla de adelante va a estar segura al llegar y un rato después; el torpe salta a lo loco ──
@@ -198,12 +200,12 @@ export async function crear(c: Contexto): Promise<Partida> {
       else for (const [a, b] of tramos(f, t)) {
         const [xa] = aPantalla(a, n), [xb] = aPantalla(b, n), ancho = xb - xa;
         if (xb < 0 || xa > m.ancho) continue;
-        if (f.tipo === 'rio') { if (hundido(f, t, Math.floor(a))) gp.globalAlpha = 0.3; gp.fillStyle = ZONAS[zonaDe(n)].tronco; gp.fillRect(px(xa + 4 * s), px(cy - cs * 0.3), px(ancho - 8 * s), px(cs * 0.6)); gp.fillStyle = ZONAS[zonaDe(n)].borde; gp.fillRect(px(xa + 4 * s), px(cy - cs * 0.3), px(ancho - 8 * s), k); gp.globalAlpha = 1; }
+        if (f.tipo === 'rio') { if (hundido(f, t, Math.floor(a))) gp.globalAlpha = 0.3; else if (hundido(f, t + 1, Math.floor(a)) && Math.floor(t * 8) % 2) gp.globalAlpha = 0.6; /* aviso: se hunde en 1 s */ gp.fillStyle = ZONAS[zonaDe(n)].tronco; gp.fillRect(px(xa + 4 * s), px(cy - cs * 0.3), px(ancho - 8 * s), px(cs * 0.6)); gp.fillStyle = ZONAS[zonaDe(n)].borde; gp.fillRect(px(xa + 4 * s), px(cy - cs * 0.3), px(ancho - 8 * s), k); gp.globalAlpha = 1; }
         else if (f.tipo === 'via') m.sprite(TREN, (xa + xb) / 2, cy, (ancho / 30 / k) * 1);
         else { const img = f.largo > 1 ? CAMION : AUTOS[Math.abs(Math.floor(a * 7 + n)) % AUTOS.length]; gp.save(); if (f.dir < 0) { gp.translate(px((xa + xb) / 2), 0); gp.scale(-1, 1); gp.translate(-px((xa + xb) / 2), 0); } m.sprite(img, (xa + xb) / 2, cy, (ancho - 6 * s) / img.width / k); gp.restore(); }
       }
       // Luz del tren: se enciende antes de que llegue
-      if (f.tipo === 'via') { const viene = tramos(f, t + 1.3).some(([a, b]) => b > -1 && a < COLS + 1); gp.fillStyle = viene && Math.floor(t * 6) % 2 ? '#e8325a' : '#3e3e4a'; const [lx] = aPantalla(0.3, n); gp.fillRect(px(lx), px(cy - cs * 0.45), 4 * k, 4 * k); }
+      if (f.tipo === 'via') { const viene = tramos(f, t + 1.3).some(([a, b]) => b > -1 && a < COLS + 1); if (viene) { gp.fillStyle = 'rgba(232,50,90,.18)'; gp.fillRect(0, px(cy - cs / 2), m.ancho, px(cs)); } gp.fillStyle = viene && Math.floor(t * 6) % 2 ? '#e8325a' : '#3e3e4a'; for (const lxx of [0.3, COLS - 0.7]) { const [lx] = aPantalla(lxx, n); gp.fillRect(px(lx), px(cy - cs * 0.45), 7 * k, 7 * k); } }
       for (const mo of f.monedas) { const [x] = aPantalla(mo + 0.5, n); m.sprite(MONEDA, x, cy + Math.sin(t * 4 + mo) * 3, 2 * s); }
       if (n === record && record > 0) { gp.fillStyle = '#ffd23c'; for (let x = 0; x < m.ancho; x += 6 * k) gp.fillRect(px(x), px(cy + cs / 2), 3 * k, k); }
     }
