@@ -73,7 +73,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   const peligro = (n: number, x: number, t: number) => {
     const f = fila(n);
     if (f.tipo === 'pasto') return false;
-    if (f.tipo === 'rio') return !tramos(f, t).some(([a, b]) => x > a + 0.1 && x < b - 0.1 && !hundido(f, t, Math.floor(a)));
+    if (f.tipo === 'rio') return !tramos(f, t).some(([a, b]) => x > a - 0.2 && x < b + 0.2 && !hundido(f, t, Math.floor(a))); // basta con que parte del pollo pise el tronco
     return tramos(f, t).some(([a, b]) => x + 0.32 > a && x - 0.32 < b);
   };
 
@@ -89,7 +89,9 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (fase !== 'juego') return;
     if (yo.salto < 1) { proximo = dir; return; } // se guarda un salto
     const df = dir === 'arriba' ? 1 : dir === 'abajo' ? -1 : 0, dc = dir === 'izq' ? -1 : dir === 'der' ? 1 : 0;
-    const nf = Math.max(0, yo.fila + df), nx = Math.round(yo.x - 0.5) + 0.5 + dc;
+    // En un río (o saltando a uno) se mueve exactamente una casilla desde donde está, sin acomodarse a la grilla: el
+    // tronco va corriendo y acomodarse lo podía sacar del tronco. En tierra sí se acomoda al centro de la casilla.
+    const nf = Math.max(0, yo.fila + df), nx = fila(nf).tipo === 'rio' || fila(yo.fila).tipo === 'rio' && df === 0 ? yo.x + dc : Math.round(yo.x - 0.5) + 0.5 + dc;
     if (nx < 0.5 || nx > COLS - 0.5) return;
     if (fila(nf).tipo === 'pasto' && fila(nf).arboles.includes(Math.floor(nx))) { m.mesa.sonido.tono(160, 0.05, 'square', 0.03); return; }
     yo.desdeFila = yo.fila; yo.desdeX = yo.x; yo.fila = nf; yo.x = nx; yo.salto = 0;
