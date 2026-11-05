@@ -109,9 +109,9 @@ export function detectarGolpes(audio: AudioBuffer): { t: number; banda: number; 
     let suma = 0, suma2 = 0, c = 0;
     for (let k = Math.max(0, f - ventana); k < Math.min(n, f + ventana); k++) { suma += flujo[k]; suma2 += flujo[k] ** 2; c++; }
     const media = suma / c, desv = Math.sqrt(Math.max(0, suma2 / c - media * media));
-    if (flujo[f] > media + 1.4 * desv && flujo[f] >= flujo[f - 1] && flujo[f] > flujo[f + 1]) {
+    if (flujo[f] > media + 1.7 * desv && flujo[f] >= flujo[f - 1] && flujo[f] > flujo[f + 1]) {
       const t = (f * hop) / sr;
-      if (!golpes.length || t - golpes[golpes.length - 1].t >= MIN_ESPACIO * 1.4) golpes.push({ t, banda: cual[f], fuerza: flujo[f] });
+      if (!golpes.length || t - golpes[golpes.length - 1].t >= 0.2) golpes.push({ t, banda: cual[f], fuerza: flujo[f] });
     }
   }
   return golpes;

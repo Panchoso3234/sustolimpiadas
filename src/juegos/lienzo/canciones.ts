@@ -1,4 +1,5 @@
 import { generador } from '../../nucleo/azar';
+import { CLASICAS, componerClasica } from './clasicas';
 
 // Repertorio de Teclas del Faro (04-11): 20 canciones originales "estilo anisong / J-pop", compuestas por un pequeño
 // compositor con las recetas del género:
@@ -14,6 +15,8 @@ export interface Nota { t: number; midi: number; dur: number }
 export interface Cancion {
   /** titulo: en rōmaji (japonés con nuestro alfabeto, para que se lea); japones: en kanji y kana. */
   id: string; titulo: string; japones: string; es: string; nivel: 1 | 2 | 3; bpm: number;
+  /** Solo los clásicos: compositor. */
+  autor?: string;
   /** Melodía (lo que se toca): t y dur en segundos desde el inicio de la canción. */
   notas: Nota[];
   /** Acompañamiento (bajo y acordes) que suena solo. */
@@ -114,9 +117,12 @@ function componer(d: Def): Cancion {
 }
 
 const cache = new Map<string, Cancion>();
-export const REPERTORIO = DEFS.map((d) => ({ id: d.id, titulo: d.romaji, japones: d.titulo, es: d.es, nivel: d.nivel, bpm: d.bpm }));
+export const REPERTORIO = [
+  ...DEFS.map((d) => ({ id: d.id, titulo: d.romaji, japones: d.titulo, autor: '', es: d.es, nivel: d.nivel, bpm: d.bpm })),
+  ...CLASICAS.map((d) => ({ id: d.id, titulo: d.titulo, japones: '', autor: d.autor, es: d.es, nivel: d.nivel, bpm: d.bpm })),
+];
 export function cancion(id: string): Cancion {
   let c = cache.get(id);
-  if (!c) { const d = DEFS.find((x) => x.id === id) ?? DEFS[0]; c = componer(d); cache.set(id, c); }
+  if (!c) { const k = CLASICAS.find((x) => x.id === id); c = k ? componerClasica(k) : componer(DEFS.find((x) => x.id === id) ?? DEFS[0]); cache.set(id, c); }
   return c;
 }

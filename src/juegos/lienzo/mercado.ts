@@ -173,12 +173,13 @@ export async function crear(c: Contexto): Promise<Partida> {
   const esc = () => Math.min(1, (m.ancho - 8) / W), origen = () => { const s = esc(); return [(m.ancho - W * s) / 2, (H - H * s) * 0.45] as const; };
   const aPantalla = (x: number, y: number) => { const s = esc(), [ox, oy] = origen(); return [ox + x * s, oy + y * s] as const; };
   const aCampo = (x: number, y: number) => { const s = esc(), [ox, oy] = origen(); return [(x - ox) / s, (y - oy) / s] as const; };
-  const C = { O: '#2a1a0a', V: '#3fa34d', v: '#7fd85a', A: '#ffd23c', a: '#c98a00', R: '#e8325a', r: '#7a0f2b', B: '#f4f1ea', G: '#b9b9c6', g: '#7a7a86', P: '#e3b07a', p: '#b07a48', N: '#ff8a2a', K: '#4a2c14', L: '#bfe9ff', C: '#2f6bd8', Y: '#fff1c9' };
+  const C = { O: '#2a1a0a', V: '#3fa34d', v: '#7fd85a', A: '#ffd23c', a: '#c98a00', R: '#e8325a', r: '#7a0f2b', B: '#f4f1ea', G: '#b9b9c6', g: '#7a7a86', P: '#e3b07a', p: '#b07a48', N: '#ff8a2a', K: '#4a2c14', L: '#bfe9ff', C: '#2f6bd8', Y: '#fff1c9', T: '#ff5a2a', t: '#c03a10' };
   const SPR: Record<Clase, Sprite> = {
     palta: desdeTexto(['..OOO..', '.OVVVO.', 'OVvvvVO', 'OVvKvVO', 'OVvKvVO', 'OVvvvVO', '.OOOOO.'], C),
-    manzana: desdeTexto(['...V...', '.OOVOO.', 'ORRRRRO', 'ORBRRRO', 'ORRRRRO', 'OrRRRrO', '.OOOOO.'], C),
+    // La manzana: roja oscura, alta, con palito café y hoja; el tomate: anaranjado, ancho y con corona verde de estrella
+    manzana: desdeTexto(['...K.V.', '...KVV.', '.OOKOO.', 'ORRRRRO', 'ORBRRRO', 'ORRRRRO', '.OrRrO.', '..OOO..'], C),
     platano: desdeTexto(['......O', '.....OA', '....OAO', '...OAAO', 'OOAAAO.', 'OAAAO..', '.OOO...'], C),
-    tomate: desdeTexto(['..vVv..', '.ORRRO.', 'ORBRRRO', 'ORRRRRO', 'ORRRRRO', '.OrrrO.', '..OOO..'], C),
+    tomate: desdeTexto(['.V.V.V.V.', '..VVVVV..', 'OTTTVTTTO', 'TBTTTTTTT', 'TTTTTTTTT', 'OtTTTTTtO', '.OOOOOOO.'], C),
     choclo: desdeTexto(['.V.O.V.', '.VOAOV.', '.VAaAV.', '.VAAaV.', '..VaAV.', '..VAV..', '...V...'], C),
     lechuga: desdeTexto(['.OvOvO.', 'OvVvVvO', 'OVvVvVO', 'OvVvVvO', 'OVvVvVO', '.OVVVO.', '..OOO..'], C),
     reineta: desdeTexto(['.OOOO...O', 'OGBGGO.OG', 'OOGGGGOGO', 'OGGGGGOGO', '.OggggO.O', '..OOOO...'], C),

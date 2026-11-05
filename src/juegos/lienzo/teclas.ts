@@ -18,7 +18,7 @@ import { cargarArchivo } from './cargarCancion';
 // Nunca hay una fila imposible: las teclas de una canción no se enciman (cada una mide hasta la siguiente) y las dobles
 // van en carriles distintos.
 
-const H = 720, RH = 150, LINEA = H - 130, VIDAS = 3, FIEBRE_LLENA = 40, FIEBRE_DURA = 10, ENTRE = 2.4;
+const H = 720, RH = 150, LINEA = H - 130, VENTANA = 0.2, VIDAS = 3, FIEBRE_LLENA = 40, FIEBRE_DURA = 10, ENTRE = 2.4;
 const TECLAS = ['d', 'f', 'j', 'k'];
 interface Fila { peso: number; t: number; dur: number; alto: number; pps: number; larga: boolean; carriles: number[]; midis: number[]; hechas: number[]; perdida: boolean; sostenido: number; error: number; cancion: number }
 const hz = (midi: number) => 440 * Math.pow(2, (midi - 69) / 12);
@@ -48,17 +48,15 @@ export async function crear(c: Contexto): Promise<Partida> {
     lista.forEach((can, k) => {
       inicios.push(t0);
       const notas = [...can.notas].sort((a, b) => a.t - b.t || b.midi - a.midi);
-      // Velocidad: una corchea de la canción mide ~95 unidades de pantalla (más rápida la canción, más rápido bajan)
-      const gaps = notas.slice(1).map((x, i) => x.t - notas[i].t).filter((g) => g > 0.05).sort((a, b) => a - b);
-      const corchea = can.bpm ? 30 / can.bpm : gaps[Math.floor(gaps.length * 0.3)] ?? 0.25;
-      const pps = Math.max(380, Math.min(720, 95 / corchea));
+      // En audio cargado, las notas se corren lo que tarda el sonido en salir por los parlantes
+      const retraso = can.audio ? latenciaAudio() : 0;
       const propias: Fila[] = [];
       let carril = 1, previo = notas[0]?.midi ?? 60, n = 0;
       for (let i = 0; i < notas.length;) {
         const grupo = [notas[i]]; let j = i + 1;
         while (j < notas.length && notas[j].t - notas[i].t < 0.03) grupo.push(notas[j++]);
         i = j;
-        const t = t0 + grupo[0].t, midi = grupo[0].midi;
+        const t = t0 + grupo[0].t + retraso, midi = grupo[0].midi;
         if (propias.length && t - propias[propias.length - 1].t < 0.1) continue;
         // Carril: sigue el dibujo de la melodía (sube a la derecha, baja a la izquierda); en audio, según el golpe
         if (can.audio) carril = (n + Math.round((midi - 60) / 4) * 2) % 4;
@@ -67,14 +65,17 @@ export async function crear(c: Contexto): Promise<Partida> {
         const carriles = [carril], midis = [midi];
         if (grupo.length > 1) { carriles.push((carril + 2) % 4); midis.push(grupo[1].midi); }
         if (new Set(carriles).size !== carriles.length) prueba.imposibles++;
-        propias.push({ peso: pesos[k], t, dur: Math.max(...grupo.map((x) => x.dur)), alto: 0, pps, larga: false, carriles, midis, hechas: [], perdida: false, sostenido: 0, error: 0, cancion: k });
+        propias.push({ peso: pesos[k], t, dur: Math.max(...grupo.map((x) => x.dur)), alto: 0, pps: 0, larga: false, carriles, midis, hechas: [], perdida: false, sostenido: 0, error: 0, cancion: k });
       }
-      // Alto de cada tecla: hasta la siguiente (sin encimarse); las notas largas son teclas largas
+      // Velocidad y tamaño: todas las teclas cortas de una canción miden lo mismo (como en los juegos del género); la
+      // distancia corta típica entre dos notas mide ~100 unidades. Solo las notas largas son teclas largas.
+      const huecos = propias.slice(1).map((x, i) => x.t - propias[i].t).sort((a, b) => a - b);
+      const corta = huecos[Math.floor(huecos.length * 0.15)] ?? 0.25, pps = Math.max(380, Math.min(760, 100 / corta)), altoCorto = Math.max(44, Math.min(RH, corta * pps - 8));
       propias.forEach((f, i) => {
         const hueco = (propias[i + 1]?.t ?? f.t + 1) - f.t;
-        f.dur = Math.min(f.dur, hueco);
-        f.larga = f.dur >= Math.max(0.42, corchea * 2.6) && !can.audio;
-        f.alto = Math.max(36, Math.min(f.larga ? 460 : RH, (f.larga ? f.dur : hueco) * pps - 6));
+        f.pps = pps; f.dur = Math.min(f.dur, hueco);
+        f.larga = f.dur >= Math.max(0.42, corta * 2.6) && !can.audio;
+        f.alto = f.larga ? Math.max(altoCorto, Math.min(460, f.dur * pps - 6)) : Math.min(altoCorto, hueco * pps - 4);
         if (f.alto > hueco * pps) prueba.encimadas++;
       });
       filas.push(...propias);
@@ -90,6 +91,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   let fiebre = 0, fiebreHasta = 0, cancion = -1, invulnerable = 0, iAcomp = 0, desde = 0;
   let sostiene: { fila: Fila; carril: number } | null = null;
   const destello = [0, 0, 0, 0], rojo = [0, 0, 0, 0];
+  let juicio = { texto: '', color: '#ffffff', hasta: 0 }, perfectos = 0;
   const pendiente = () => { for (let i = desde; i < filas.length; i++) { const f = filas[i]; if (!f.perdida && f.hechas.length < f.carriles.length) return f; } return null; };
   const fondoDe = (f: Fila) => LINEA + (m.tiempo - f.t) * f.pps; // borde de abajo de la tecla: llega a la línea justo a su hora
   const enFiebre = () => m.tiempo < fiebreHasta;
@@ -100,10 +102,15 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (fase !== 'juego') return;
     const f = pendiente();
     if (!f || fondoDe(f) < 40) return; // todavía no asoma: no castiga
-    const i = f.carriles.indexOf(carril);
+    const i = f.carriles.indexOf(carril), e = m.tiempo - f.t; // e < 0: antes de su hora; e > 0: después
+    if (i >= 0 && !f.hechas.includes(carril) && e < -VENTANA) { juicio = { texto: 'Muy pronto', color: '#7fb4ff', hasta: m.tiempo + 0.35 }; return; } // aún no llega a la línea
     if (i >= 0 && !f.hechas.includes(carril)) {
       f.hechas.push(carril); aciertos++; racha++; mejorRacha = Math.max(mejorRacha, racha);
-      puntos += valor(f);
+      // Juicio: Perfecto (±55 ms), Genial (±110 ms) o Bien (±200 ms); el puntaje depende de la precisión
+      const a = Math.abs(e), [nombre, k, color] = a <= 0.055 ? ['¡Perfecto!', 1, '#ffd23c'] as const : a <= 0.11 ? ['Genial', 0.75, '#7cffcb'] as const : ['Bien', 0.5, '#bfe9ff'] as const;
+      if (a <= 0.055) perfectos++;
+      juicio = { texto: a <= 0.055 ? nombre : `${nombre} · ${e < 0 ? 'pronto' : 'tarde'}`, color, hasta: m.tiempo + 0.45 };
+      puntos += Math.round(valor(f) * k);
       if (!enFiebre()) { fiebre++; if (fiebre >= FIEBRE_LLENA) { fiebre = 0; fiebreHasta = m.tiempo + FIEBRE_DURA; fiebres++; m.mesa.hud.aviso('¡FIEBRE! Puntaje doble', 'oro', 1.4); m.efectos.temblar(6); } }
       if (f.larga) { sostiene = { fila: f, carril }; largas++; }
       destello[carril] = 1;
@@ -135,7 +142,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   const tocarAudio = (k: number) => {
     const buf = lista[k].audio; if (!buf) return;
     try {
-      audioCtx ??= new AudioContext();
+      audioCtx ??= contextoCargado ?? new AudioContext(); audioCtx.resume().catch(() => {});
       const fuente = audioCtx.createBufferSource(), vol = audioCtx.createGain(); vol.gain.value = 0.8;
       fuente.buffer = buf; fuente.connect(vol).connect(audioCtx.destination); fuente.start(0, Math.max(0, m.tiempo - inicios[k]));
     } catch { /* sin audio */ }
@@ -161,7 +168,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     for (let i = desde; i < filas.length; i++) {
       const f = filas[i];
       if (f.t - t > 3) break;
-      if (!f.perdida && f.hechas.length < f.carriles.length && fondoDe(f) - Math.min(f.alto, RH) > H) { f.perdida = true; fallo(f.carriles.find((k) => !f.hechas.includes(k)) ?? 0, f, 'Se te pasó una'); }
+      if (!f.perdida && f.hechas.length < f.carriles.length && t > f.t + VENTANA) { f.perdida = true; fallo(f.carriles.find((k) => !f.hechas.includes(k)) ?? 0, f, 'Se te pasó una'); }
     }
     while (desde < filas.length && fondoDe(filas[desde]) - filas[desde].alto > H + 20) desde++;
     for (let i = 0; i < 4; i++) { destello[i] = Math.max(0, destello[i] - dt * 5); rojo[i] = Math.max(0, rojo[i] - dt * 3); }
@@ -181,7 +188,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     if (sostiene) { botSostiene = torpe ? rb() > 0.012 : true; return; }
     const f = pendiente();
     if (!f || m.tiempo < botEspera) return;
-    if (fondoDe(f) < (torpe ? LINEA + 40 : LINEA - 10)) return;
+    if (m.tiempo < f.t + (torpe ? -0.12 + rb() * 0.3 : -0.012)) return;
     botEspera = m.tiempo + (torpe ? 0.08 + rb() * 0.22 : 0.02);
     const falta = f.carriles.filter((k) => !f.hechas.includes(k));
     if (torpe && rb() < 0.06) { tocar((falta[0] + 1 + Math.floor(rb() * 3)) % 4); return; }
@@ -221,7 +228,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     }
     gp.fillStyle = '#b9ad90'; for (let i = 0; i <= 4; i++) gp.fillRect(px(xi + i * lw) - (i === 4 ? k : 0), 0, k, H);
     // Línea del ritmo: la tecla llega aquí justo cuando suena su nota
-    gp.fillStyle = 'rgba(201,138,0,.35)'; gp.fillRect(px(xi), px(LINEA), px(w), k);
+    gp.fillStyle = 'rgba(201,138,0,.8)'; gp.fillRect(px(xi), px(LINEA) - k, px(w), 2 * k); gp.fillStyle = 'rgba(201,138,0,.12)'; gp.fillRect(px(xi), px(LINEA - VENTANA * 400), px(w), px(VENTANA * 400)); // la línea y la zona donde vale tocar (aprox.)
     // Teclas (solo las que están en pantalla)
     for (let i = desde; i < filas.length; i++) {
       const f = filas[i], fondo = fondoDe(f), arriba = fondo - f.alto;
@@ -248,6 +255,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     const xi = x0(), w = anchoTablero(), lleno = enFiebre() ? (fiebreHasta - m.tiempo) / FIEBRE_DURA : fiebre / FIEBRE_LLENA;
     g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(xi, 64, w, 8);
     g.fillStyle = enFiebre() ? '#ff8a2a' : '#ffd23c'; g.fillRect(xi, 64, w * Math.max(0, Math.min(1, lleno)), 8);
+    if (m.tiempo < juicio.hasta) m.rotulo(juicio.texto, m.ancho / 2, LINEA - 40, 24, juicio.color);
     if (cancion >= 0) { const k = lista[cancion]; m.rotulo(`♪ ${k.titulo}`, m.ancho / 2, 90, Math.round(Math.min(18, m.ancho / 22)), 'rgba(255,246,201,.85)'); }
     if (!bot && m.tiempo < 6) {
       const tam = Math.round(Math.min(22, m.ancho / 22));
@@ -265,7 +273,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     const tocadas = lista.slice(0, cancion + 1).map((x) => x.titulo).join(' · ') || '—';
     c.alTerminar({
       puntaje: puntos,
-      lineas: [['Resultado', porque], ['Teclas tocadas', String(aciertos)], ['Mejor racha', String(mejorRacha)], ['Teclas largas', String(largas)], ['Fiebres', String(fiebres)], ['Canciones', tocadas], ['Errores', String(errores)]],
+      lineas: [['Resultado', porque], ['Teclas tocadas', String(aciertos)], ['Perfectos', String(perfectos)], ['Mejor racha', String(mejorRacha)], ['Teclas largas', String(largas)], ['Fiebres', String(fiebres)], ['Canciones', tocadas], ['Errores', String(errores)]],
       detalle: { aciertos, racha: mejorRacha, largas, fiebres, cancion: cancion + 1, errores, canciones: lista.map((x) => x.id) },
     });
   }
@@ -287,7 +295,7 @@ function elegirCancion(caja: HTMLElement): Promise<Cancion | null> {
       <div class="teclas-elegir-acciones"><button type="button" data-azar class="boton">Al azar (como en el torneo)</button>
       <label class="boton secundario">Cargar mi canción (MIDI o mp3)<input type="file" accept=".mid,.midi,audio/*" hidden /></label></div>
       <p class="teclas-elegir-error" hidden></p>
-      ${[1, 2, 3].map((n) => `<h4>${nombres[n]}</h4><div class="teclas-elegir-lista">${REPERTORIO.filter((x) => x.nivel === n).map((x) => `<button type="button" data-id="${x.id}"><b>${x.titulo}</b><span><span lang="ja">${x.japones}</span> · ${x.es} · ${x.bpm} BPM</span></button>`).join('')}</div>`).join('')}
+      ${[1, 2, 3].map((n) => `<h4>${nombres[n]}</h4><div class="teclas-elegir-lista">${REPERTORIO.filter((x) => x.nivel === n).map((x) => `<button type="button" data-id="${x.id}"><b>${x.titulo}</b><span>${x.japones ? `<span lang="ja">${x.japones}</span>` : x.autor} · ${x.es}</span></button>`).join('')}</div>`).join('')}
       <p class="tenue chico">Las canciones que cargas quedan solo en este navegador, para practicar. En el torneo y los duelos suenan las del repertorio.</p>`;
     caja.appendChild(panel);
     const cerrar = (x: Cancion | null) => { panel.remove(); listo(x); };
@@ -298,7 +306,7 @@ function elegirCancion(caja: HTMLElement): Promise<Cancion | null> {
       const archivo = (e.target as HTMLInputElement).files?.[0];
       if (!archivo) return;
       error.hidden = false; error.textContent = `Leyendo ${archivo.name}…`;
-      try { cerrar(await cargarArchivo(archivo)); }
+      try { contextoCargado ??= new AudioContext(); contextoCargado.resume().catch(() => {}); cerrar(await cargarArchivo(archivo)); }
       catch (err) { error.textContent = `No se pudo usar ese archivo: ${err instanceof Error ? err.message : err}`; }
     });
   });
@@ -313,7 +321,7 @@ function elegirTres(caja: HTMLElement, sugeridas: string[]): Promise<string[]> {
     panel.innerHTML = `<h3>Teclas del Faro · elige tus 3 canciones</h3>
       <p class="chico">Una de cada grupo, en este orden. Todas las de un mismo grupo dan el mismo puntaje máximo, así que elige las que más te gusten.</p>
       <div class="teclas-elegir-acciones"><button type="button" data-empezar class="boton">Empezar</button></div>
-      ${[1, 2, 3].map((n) => `<h4>${n}. ${nombres[n - 1]}</h4><div class="teclas-elegir-lista">${REPERTORIO.filter((x) => x.nivel === n).map((x) => `<button type="button" data-id="${x.id}" data-nivel="${n}"><b>${x.titulo}</b><span><span lang="ja">${x.japones}</span> · ${x.es} · ${x.bpm} BPM</span></button>`).join('')}</div>`).join('')}`;
+      ${[1, 2, 3].map((n) => `<h4>${n}. ${nombres[n - 1]}</h4><div class="teclas-elegir-lista">${REPERTORIO.filter((x) => x.nivel === n).map((x) => `<button type="button" data-id="${x.id}" data-nivel="${n}"><b>${x.titulo}</b><span>${x.japones ? `<span lang="ja">${x.japones}</span>` : x.autor} · ${x.es}</span></button>`).join('')}</div>`).join('')}`;
     caja.appendChild(panel);
     const marcar = () => { for (const b of panel.querySelectorAll<HTMLButtonElement>('[data-id]')) b.classList.toggle('elegida', elegidas.includes(b.dataset.id!)); };
     for (const b of panel.querySelectorAll<HTMLButtonElement>('[data-id]')) b.addEventListener('click', () => { elegidas[Number(b.dataset.nivel) - 1] = b.dataset.id!; marcar(); });
@@ -321,3 +329,7 @@ function elegirTres(caja: HTMLElement, sugeridas: string[]): Promise<string[]> {
     marcar();
   });
 }
+
+/** El reproductor del mp3 cargado: se crea al elegir el archivo (un clic del jugador), así el navegador deja sonar. */
+let contextoCargado: AudioContext | null = null;
+const latenciaAudio = () => { const c = contextoCargado; return c ? Math.min(0.3, (c.outputLatency || 0) + (c.baseLatency || 0)) : 0.05; };
