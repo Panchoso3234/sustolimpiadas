@@ -55,25 +55,32 @@ export async function crear(c: Contexto): Promise<Partida> {
         filas.push(f);
       }
       const x = r(), tipo: Tipo = x < 0.45 ? 'calle' : x < 0.85 ? 'rio' : 'via', cuantas = tipo === 'via' ? 1 + Math.floor(r() * 2) : 1 + Math.floor(r() * Math.min(5, 2 + filas.length / 40));
-      for (let i = 0; i < cuantas; i++) { const f = nueva(tipo, filas.length); if (tipo === 'calle' && r() < 0.15) f.monedas.push(Math.floor(r() * COLS)); filas.push(f); }
+      for (let i = 0; i < cuantas; i++) {
+        const f = nueva(tipo, filas.length), antes = filas[filas.length - 1];
+        // Ríos seguidos: sentido contrario y velocidad distinta, si no los troncos de dos filas quedaban siempre desalineados
+        if (tipo === 'rio' && antes.tipo === 'rio') { f.dir = -antes.dir; if (Math.abs(f.vel - antes.vel) < 0.45) f.vel = antes.vel + (f.vel < antes.vel ? -0.5 : 0.5); f.vel = Math.max(0.8, f.vel); }
+        if (tipo === 'calle' && r() < 0.15) f.monedas.push(Math.floor(r() * COLS));
+        filas.push(f);
+      }
     }
   };
   generar(40);
   const fila = (n: number) => { if (n >= filas.length - 20) generar(n + 40); return filas[Math.max(0, n)]; };
   /** Tramos ocupados (en casillas) de la fila n en el tiempo t: autos, troncos o tren. */
   const tramos = (f: Fila, t: number) => {
-    const res: [number, number][] = [];
+    const res: [number, number, number][] = [];
     if (f.tipo === 'pasto') return res;
     const base = (((f.fase + f.dir * f.vel * t) % f.periodo) + f.periodo) % f.periodo;
-    for (let x = base - f.periodo * Math.ceil((f.largo + 2) / f.periodo + 1); x < COLS + 2; x += f.periodo) res.push([x, x + f.largo]);
+    for (let x = base - f.periodo * Math.ceil((f.largo + 2) / f.periodo + 1); x < COLS + 2; x += f.periodo) res.push([x, x + f.largo, Math.round((f.fase + f.dir * f.vel * t - x) / f.periodo)]); // 3º: número fijo de ese tronco
     return res;
   };
-  const hundido = (f: Fila, t: number, x0: number) => f.hunde > 0 && ((t + x0 * 0.01 + f.fase) % (f.hunde + 2)) > f.hunde; // un rato bajo el agua
+  // Un rato bajo el agua; cada tronco con su propio turno (antes se hundían todos los de la fila a la vez)
+  const hundido = (f: Fila, t: number, id: number) => f.hunde > 0 && (((t + f.fase + id * 2.7) % (f.hunde + 2)) + f.hunde + 2) % (f.hunde + 2) > f.hunde;
   /** ¿Se muere quien está en la fila n, en x (centro, en casillas), en el tiempo t? */
   const peligro = (n: number, x: number, t: number) => {
     const f = fila(n);
     if (f.tipo === 'pasto') return false;
-    if (f.tipo === 'rio') return !tramos(f, t).some(([a, b]) => x > a - 0.2 && x < b + 0.2 && !hundido(f, t, Math.floor(a))); // basta con que parte del pollo pise el tronco
+    if (f.tipo === 'rio') return !tramos(f, t).some(([a, b, id]) => x > a - 0.12 && x < b + 0.12 && !hundido(f, t, id)); // el tronco se dibuja de a a b: basta con que el pollo lo pise un poco
     return tramos(f, t).some(([a, b]) => x + 0.32 > a && x - 0.32 < b);
   };
 
@@ -114,7 +121,8 @@ export async function crear(c: Contexto): Promise<Partida> {
     // Choques (al aterrizar y mientras estás ahí)
     if (yo.salto >= 0.7 && peligro(yo.fila, yo.x, t)) { morir(f.tipo === 'rio' ? (zonaDe(yo.fila) === 2 ? 'Caíste a la lava' : 'Caíste al agua') : f.tipo === 'via' ? 'Te pasó el tren' : 'Te atropelló un auto'); return; }
     // Monedas
-    if (yo.salto >= 1 && f.monedas.includes(Math.floor(yo.x))) { f.monedas = f.monedas.filter((k) => k !== Math.floor(yo.x)); monedas++; total++; const [x, y] = aPantalla(yo.x, yo.fila); m.efectos.flotar(x, y - 30, '+20', '#ffd23c', 22); m.mesa.sonido.tono(1320, 0.07, 'square', 0.04); }
+    const mo = yo.salto >= 0.5 ? f.monedas.find((k) => Math.abs(k + 0.5 - yo.x) < 0.6) : undefined;
+    if (mo !== undefined) { f.monedas = f.monedas.filter((k) => k !== mo); monedas++; total++; const [x, y] = aPantalla(yo.x, yo.fila); m.efectos.flotar(x, y - 30, '+20', '#ffd23c', 22); m.mesa.sonido.tono(1320, 0.07, 'square', 0.04); }
     // La marea sube sola (cada vez más rápido) y no deja quedarse muy atrás
     marea = Math.max(marea + (0.32 + t * 0.003) * dt, yo.fila - 9);
     if (marea >= yo.fila + 0.2) { morir('Te alcanzó la marea'); return; }
@@ -199,10 +207,10 @@ export async function crear(c: Contexto): Promise<Partida> {
       else { gp.fillStyle = '#5a4a3a'; gp.fillRect(0, y, m.ancho, alto); gp.fillStyle = '#b9b9c6'; gp.fillRect(0, px(cy - cs * 0.22), m.ancho, k); gp.fillRect(0, px(cy + cs * 0.22), m.ancho, k); gp.fillStyle = '#8a5a32'; for (let x = 0; x < m.ancho; x += 22 * s) gp.fillRect(px(x), px(cy - cs * 0.3), 3 * k, px(cs * 0.6)); }
       // Objetos
       if (f.tipo === 'pasto') { for (const a of f.arboles) { const [x] = aPantalla(a + 0.5, n); m.sprite(zonaDe(n) === 0 ? PALMA : zonaDe(n) === 2 ? ROCA : ARBOL, x, cy, 2.4 * s); } }
-      else for (const [a, b] of tramos(f, t)) {
+      else for (const [a, b, id] of tramos(f, t)) {
         const [xa] = aPantalla(a, n), [xb] = aPantalla(b, n), ancho = xb - xa;
         if (xb < 0 || xa > m.ancho) continue;
-        if (f.tipo === 'rio') { if (hundido(f, t, Math.floor(a))) gp.globalAlpha = 0.3; else if (hundido(f, t + 1, Math.floor(a)) && Math.floor(t * 8) % 2) gp.globalAlpha = 0.6; /* aviso: se hunde en 1 s */ gp.fillStyle = ZONAS[zonaDe(n)].tronco; gp.fillRect(px(xa + 4 * s), px(cy - cs * 0.3), px(ancho - 8 * s), px(cs * 0.6)); gp.fillStyle = ZONAS[zonaDe(n)].borde; gp.fillRect(px(xa + 4 * s), px(cy - cs * 0.3), px(ancho - 8 * s), k); gp.globalAlpha = 1; }
+        if (f.tipo === 'rio') { if (hundido(f, t, id)) gp.globalAlpha = 0.1; else if (hundido(f, t + 1.5, id) && Math.floor(t * 8) % 2) gp.globalAlpha = 0.35; /* aviso: se hunde en 1,5 s */ gp.fillStyle = ZONAS[zonaDe(n)].tronco; gp.fillRect(px(xa + s), px(cy - cs * 0.3), px(ancho - 2 * s), px(cs * 0.6)); gp.fillStyle = ZONAS[zonaDe(n)].borde; gp.fillRect(px(xa + s), px(cy - cs * 0.3), px(ancho - 2 * s), k); gp.globalAlpha = 1; }
         else if (f.tipo === 'via') m.sprite(TREN, (xa + xb) / 2, cy, (ancho / 30 / k) * 1);
         else { const img = f.largo > 1 ? CAMION : AUTOS[Math.abs(Math.floor(a * 7 + n)) % AUTOS.length]; gp.save(); if (f.dir < 0) { gp.translate(px((xa + xb) / 2), 0); gp.scale(-1, 1); gp.translate(-px((xa + xb) / 2), 0); } m.sprite(img, (xa + xb) / 2, cy, (ancho - 6 * s) / img.width / k); gp.restore(); }
       }

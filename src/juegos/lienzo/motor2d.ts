@@ -107,6 +107,9 @@ export function crearMotor2D(c: Contexto, clase: string, opciones: { alto?: numb
   const alTocar: ((x: number, y: number) => void)[] = [], alSoltar: ((x: number, y: number) => void)[] = [], alTecla: ((k: string) => void)[] = [];
   const aLogico = (ev: PointerEvent) => { const b = lienzo.getBoundingClientRect(); return [((ev.clientX - b.left) * dpr) / escala, ((ev.clientY - b.top) * dpr) / escala] as const; };
   lienzo.style.touchAction = 'none';
+  // iPhone: mantener el dedo apretado abría la lupa y el menú «Copiar / Buscar selección» (molestaba en las teclas largas)
+  lienzo.style.setProperty('-webkit-touch-callout', 'none');
+  for (const ev of ['touchstart', 'contextmenu', 'selectstart']) lienzo.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
   lienzo.addEventListener('pointerdown', (ev) => { ev.preventDefault(); lienzo.setPointerCapture?.(ev.pointerId); const [x, y] = aLogico(ev); puntero.x = x; puntero.y = y; puntero.tipo = ev.pointerType; puntero.dentro = true; puntero.abajo = true; puntero.estela = [{ x, y, t: tiempo }]; for (const f of alTocar) f(x, y); });
   lienzo.addEventListener('pointerleave', () => { puntero.dentro = false; });
   lienzo.addEventListener('pointermove', (ev) => { const [x, y] = aLogico(ev); puntero.x = x; puntero.y = y; puntero.tipo = ev.pointerType; puntero.dentro = true; if (puntero.abajo) puntero.estela.push({ x, y, t: tiempo }); });

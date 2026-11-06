@@ -19,7 +19,7 @@ const NOMBRE_GRUPO: Record<Grupo, string> = { frutas: 'Frutas', verduras: 'Verdu
 type Clase = 'palta' | 'manzana' | 'platano' | 'tomate' | 'choclo' | 'lechuga' | 'reineta' | 'jurel' | 'marraqueta' | 'hallulla' | 'huevo';
 const PRODUCTOS: Record<Clase, { grupo: Grupo; nombre: string; plural: string }> = {
   palta: { grupo: 'frutas', nombre: 'palta', plural: 'paltas' }, manzana: { grupo: 'frutas', nombre: 'manzana', plural: 'manzanas' }, platano: { grupo: 'frutas', nombre: 'plátano', plural: 'plátanos' },
-  tomate: { grupo: 'verduras', nombre: 'tomate', plural: 'tomates' }, choclo: { grupo: 'verduras', nombre: 'choclo', plural: 'choclos' }, lechuga: { grupo: 'verduras', nombre: 'lechuga', plural: 'lechugas' },
+  tomate: { grupo: 'frutas', nombre: 'tomate', plural: 'tomates' }, choclo: { grupo: 'verduras', nombre: 'choclo', plural: 'choclos' }, lechuga: { grupo: 'verduras', nombre: 'lechuga', plural: 'lechugas' },
   reineta: { grupo: 'pescado', nombre: 'reineta', plural: 'reinetas' }, jurel: { grupo: 'pescado', nombre: 'jurel', plural: 'jureles' },
   marraqueta: { grupo: 'pan', nombre: 'marraqueta', plural: 'marraquetas' }, hallulla: { grupo: 'pan', nombre: 'hallulla', plural: 'hallullas' },
   huevo: { grupo: 'huevos', nombre: 'huevo', plural: 'huevos' },
