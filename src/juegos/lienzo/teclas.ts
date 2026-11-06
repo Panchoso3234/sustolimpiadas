@@ -39,6 +39,16 @@ export async function crear(c: Contexto): Promise<Partida> {
   const media = (n: number) => { const l = REPERTORIO.filter((x) => x.nivel === n).map((x) => notasDe(cancionPorId(x.id))); return l.reduce((a, b) => a + b, 0) / l.length; };
   const pesos = lista.map((k) => (k.id.includes(':') ? 1 : media(k.nivel) / notasDe(k)));
   const m = crearMotor2D(c, 'teclas', { fondo: '#0b1026', pixel: (ancho) => (ancho < 500 ? 2 : 3) });
+  // Celular: los botones de la sala (Sonido, Reglas, Clip) tapaban el final de los carriles; el tablero termina sobre ellos
+  const tactil = matchMedia('(pointer: coarse)').matches;
+  // (mide la barra de verdad: en pantallas angostas los botones ocupan dos filas)
+  const despejar = () => {
+    const barra = c.caja.parentElement?.querySelector<HTMLElement>('.sala-salir');
+    if (!barra) return;
+    const libre = Math.ceil(c.caja.getBoundingClientRect().bottom - barra.getBoundingClientRect().top + 6);
+    if (libre > 0 && m.mesa.tablero.style.bottom !== `${libre}px`) Object.assign(m.mesa.tablero.style, { height: 'auto', bottom: `${libre}px` });
+  };
+  if (tactil && !c.vivo) { c.caja.style.background = '#0b1026'; const reloj = setInterval(() => { if (!m.mesa.tablero.isConnected) clearInterval(reloj); else despejar(); }, 500); }
 
   // ── Teclas de todas las canciones (con su tiempo absoluto) ──
   const filas: Fila[] = [], inicios: number[] = [], acomp: { t: number; midi: number; dur: number; vol: number }[] = [];
@@ -121,7 +131,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       if (racha % 25 === 0) m.efectos.flotar(x, y - 30, `Racha ${racha}`, '#ffd23c', 26);
       // La nota de la canción (en audio cargado, la canción ya suena: solo un clic suave)
       if (lista[f.cancion].audio) m.mesa.sonido.tono(1200, 0.03, 'sine', 0.02);
-      else { const nota = hz(f.midis[i]), dura = Math.min(0.9, Math.max(0.18, f.dur)); m.mesa.sonido.tono(nota, dura, 'triangle', 0.075); m.mesa.sonido.tono(nota * 2, dura * 0.6, 'sine', enFiebre() ? 0.03 : 0.015); }
+      else { const nota = hz(f.midis[i]), dura = Math.min(0.9, Math.max(0.18, f.dur)); m.mesa.sonido.tono(nota, dura, 'triangle', 0.075); if (!tactil) m.mesa.sonido.tono(nota * 2, dura * 0.6, 'sine', enFiebre() ? 0.03 : 0.015); } // en celular, un oscilador por nota (menos trabajo de audio)
     } else fallo(carril, f, 'Tocaste el blanco');
   }
   function fallo(carril: number, f: Fila | null, motivo: string) {
@@ -212,14 +222,14 @@ export async function crear(c: Contexto): Promise<Partida> {
     // Cielo y mar de noche (bandas, sin degradados)
     const cielo = fiebreOn ? ['#2a1040', '#3a1650', '#4a1c58'] : ['#0b1026', '#111a3a', '#18244a'];
     for (let i = 0; i < 3; i++) { gp.fillStyle = cielo[i]; gp.fillRect(0, px((H * 0.6 * i) / 3), ancho, px((H * 0.6) / 3) + k); }
-    for (const [ex, ey, n] of ESTRELLAS) if (Math.sin(t * 1.5 + n * 2 + ex * 9) > -0.4) { gp.fillStyle = n ? '#7fb4ff' : '#fff6c9'; gp.fillRect(px(ex * ancho), px(ey * H), k, k); }
+    if (!tactil) for (const [ex, ey, n] of ESTRELLAS) if (Math.sin(t * 1.5 + n * 2 + ex * 9) > -0.4) { gp.fillStyle = n ? '#7fb4ff' : '#fff6c9'; gp.fillRect(px(ex * ancho), px(ey * H), k, k); }
     for (let y = H * 0.6, i = 0; y < H; y += 24, i++) { gp.fillStyle = i % 2 ? '#0e2a4a' : '#123458'; gp.fillRect(0, px(y), ancho, px(24) + k); }
     // El faro a un costado (si hay espacio) con su haz que gira; en celular, solo el haz
     const lado = x0() > 70, fx = lado ? x0() / 2 : ancho - 30, fy = H * 0.6 - 30;
     const ang = t * 0.9, largo = ancho * 0.9, abre = 0.13;
-    gp.globalAlpha = fiebreOn ? 0.22 : 0.12; gp.fillStyle = fiebreOn ? '#ffd23c' : '#fff1a8';
+    if (!tactil) { gp.globalAlpha = fiebreOn ? 0.22 : 0.12; gp.fillStyle = fiebreOn ? '#ffd23c' : '#fff1a8';
     gp.beginPath(); gp.moveTo(fx, fy - 40); gp.lineTo(fx + Math.cos(ang - abre) * largo, fy - 40 + Math.sin(ang - abre) * largo * 0.35); gp.lineTo(fx + Math.cos(ang + abre) * largo, fy - 40 + Math.sin(ang + abre) * largo * 0.35); gp.closePath(); gp.fill();
-    gp.globalAlpha = 1;
+    gp.globalAlpha = 1; } // en celular, sin haz ni estrellas: el tablero tapa casi todo y ahorra cuadros
     if (lado) m.sprite(FARO, fx, fy, Math.min(3, x0() / 30));
     // Tablero: cuatro carriles color marfil con líneas
     const w = anchoTablero(), xi = x0(), lw = w / 4;

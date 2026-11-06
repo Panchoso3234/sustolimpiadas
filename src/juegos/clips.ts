@@ -2,7 +2,9 @@
 // cada 12 segundos. Así, al pedir un clip siempre hay una con entre 6 y 12 segundos de lo último que pasó.
 // (Unir pedazos de video no sirve: cada grabación es un archivo completo por sí sola.) Nada sale del navegador.
 
-const CICLO = 12000, DESFASE = 6000, CUADROS = 30, BITS = 2_500_000;
+// En celular se graba más liviano (24 cuadros, menos bits): las dos grabadoras compiten con el juego y daban tirones
+const tactil = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+const CICLO = 12000, DESFASE = 6000, CUADROS = tactil ? 24 : 30, BITS = tactil ? 1_200_000 : 2_500_000;
 
 export interface Clips {
   /** Corta la grabadora que lleva más tiempo y entrega lo grabado (el video de los últimos segundos). */
