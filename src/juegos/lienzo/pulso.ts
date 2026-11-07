@@ -22,6 +22,20 @@ const TROZOS: string[][][] = [
   [['..^.....^^.......'], ['.....###....', '..^..###.^^.'], ['..##^^^##.....'], ['.p..^^^^^.........'], ['.....o.........', '...............', '..^^^^^^.......'], ['..$#........', '..##..^^.....']],
 ];
 
+/** Margen (px) entre donde cae el cubo lanzado sin apretar desde el lanzador `cx` y el final del pincho `ultimo`. */
+const margenLanzador = (cx: number, ultimo: number, vel: number) => cx * U - S + 1 + ((2 * SALTO * 1.42) / G) * vel - (ultimo * U + 28);
+/** Cada lanzador del suelo con la fila de pinchos que le sigue y su margen. Lo usa el arreglo y la prueba de pistas. */
+export function margenesLanzadores(cols: string[][], vel: number) {
+  const r: { cx: number; desde: number; hasta: number; margen: number }[] = [];
+  cols.forEach((c, cx) => {
+    if (c[0] !== 'p') return;
+    let desde = -1, hasta = -1;
+    for (let k = cx + 1; k < cx + 14 && k < cols.length; k++) if (cols[k][0] === '^') { if (desde < 0) desde = k; hasta = k; } else if (desde >= 0) break;
+    if (desde >= 0) r.push({ cx, desde, hasta, margen: margenLanzador(cx, hasta, vel) });
+  });
+  return r;
+}
+
 export function construir(n: number): Pista {
   const r = generador(`pulso|pista|${n}`), vel = [300, 335, 370][n], tempo = [120, 132, 146][n];
   const cols: string[][] = [], techo: boolean[] = [], checkpoints: number[] = [];
@@ -68,6 +82,11 @@ export function construir(n: number): Pista {
     }
   }
   vacio(8); cols.push(Array(FILAS).fill('F')); techo.push(false); vacio(10);
+  // Arreglo 07-11: un lanzador que, montado sin hacer nada, deja caer al cubo sobre los pinchos (pista 3 al 90%) se
+  // corrige quitando pinchos del final hasta tener margen. Solo toca los tramos con margen negativo: el resto no cambia.
+  for (const l of margenesLanzadores(cols, vel)) if (l.margen < 0) for (let k = l.hasta; k >= l.desde && margenLanzador(l.cx, k, vel) < 24; k--) cols[k][0] = '.';
+  // Validador: en desarrollo, un lanzador sin margen es un error de consola (las pruebas con bots fallan si hay errores)
+  if (import.meta.env?.DEV) for (const l of margenesLanzadores(cols, vel)) if (l.margen < 0) console.error(`Pulso: lanzador sin margen en pista ${n + 1}, col ${l.cx}`);
   return { nombre: ['Pulso Inicial', 'Neón Nocturno', 'Tormenta Eléctrica'][n], vel, color: ['#3ff0ff', '#ff3fd8', '#ffd23c'][n], fondo: ['#0a0f2a', '#1a0a2a', '#200a10'][n], tempo, cols, techo, checkpoints, monedas };
 }
 
@@ -82,6 +101,8 @@ export async function crear(c: Contexto): Promise<Partida> {
   const controles = [new Set<number>(), new Set<number>(), new Set<number>()], mejor = [0, 0, 0], terminadas = [false, false, false], monedasDe = [new Set<number>(), new Set<number>(), new Set<number>()];
   let tomadasIntento = new Set<number>(), anillosUsados = new Set<number>(), apretado = false, nuevoToque = false;
   const prueba = { atascado: 0 };
+  let aire = 0, estelaCuenta = 0, ultimaMuerte: { p: number; x: number; h: number } | null = null;
+  const estela: [number, number][] = [];
   function inicial(x: number): Estado { return { x, h: 0, vy: 0, grav: -1, nave: false, suelo: true, vivo: true }; }
   const largoPista = () => pista.cols.length * U;
   const porcentaje = () => Math.min(100, Math.floor((yo.x / ((pista.cols.length - 10) * U)) * 100));
@@ -137,7 +158,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     const [x, y] = aPantalla(yo.x + S / 2, yo.h + S / 2);
     m.efectos.chispas(x, y, [pista.color, '#ffffff'], 24, 360); m.efectos.temblar(10); m.mesa.sonido.mal();
     mejor[p] = Math.max(mejor[p], porcentaje());
-    muerto = 0.7;
+    muerto = 0.7; ultimaMuerte = { p, x: yo.x, h: yo.h }; estela.length = 0;
   }
   function reaparecer() {
     intentos++;
@@ -150,6 +171,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     mejor[p] = 100; terminadas[p] = true;
     for (const id of tomadasIntento) monedasDe[p].add(id);
     m.mesa.hud.aviso(`¡${pista.nombre} completa!`, 'oro', 1.6); m.mesa.sonido.bien(); m.efectos.temblar(8);
+    estela.length = 0;
     if (p < 2) { p++; pista = pistas[p]; yo = inicial(0); anillosUsados = new Set(); tomadasIntento = new Set(); musica.acordes(p === 1 ? [[57, 60, 64], [53, 57, 60], [55, 59, 62], [52, 55, 59]] : [[52, 55, 59], [48, 52, 55], [50, 53, 57], [47, 50, 54]]); m.mesa.hud.aviso(`Pista ${p + 1}: ${pista.nombre}`, 'oro', 1.6); }
     else terminar('¡Terminaste las tres pistas!');
   }
@@ -164,6 +186,8 @@ export async function crear(c: Contexto): Promise<Partida> {
     nuevoToque = false;
     paso(yo, dt, aprieta, toque || (aprieta && !yo.nave && !yo.suelo), true);
     if (fase !== 'juego') return;
+    aire = yo.suelo ? 0 : aire + dt;
+    if ((estelaCuenta = (estelaCuenta + 1) % 4) === 0) { estela.push([yo.x, yo.h]); if (estela.length > 6) estela.shift(); }
     if (!yo.vivo) { morir(); return; }
     if (yo.x > largoPista()) prueba.atascado++;
     for (const cp of pista.checkpoints) if (cp > 14 && yo.x >= cp * U && !controles[p].has(cp)) { controles[p].add(cp); const [x, y] = aPantalla(yo.x, yo.h + S + 30); m.efectos.flotar(x, y, '+50', pista.color, 20); }
@@ -226,20 +250,33 @@ export async function crear(c: Contexto): Promise<Partida> {
         const ch = pista.cols[cx][f]; if (ch === '.') continue;
         const y = px(SUELO - (f + 1) * U);
         if (ch === '#') { gp.fillStyle = '#10142e'; gp.fillRect(x, y, px(U), px(U)); gp.fillStyle = pista.color; gp.fillRect(x, y, px(U), k); gp.fillRect(x, y, k, px(U)); gp.fillRect(x + px(U) - k, y, k, px(U)); gp.fillRect(x, y + px(U) - k, px(U), k); }
-        else if (ch === '^' || ch === 'v') { gp.fillStyle = '#ffffff'; for (let i = 0; i < 10; i++) { const w = (10 - i) * 2 * k; const yy = ch === '^' ? y + px(U) - (i + 1) * 2 * k : y + i * 2 * k; gp.fillRect(x + px(U / 2) - w / 2, yy, w, 2 * k); } gp.fillStyle = pista.color; gp.fillRect(x + px(U / 2) - k, ch === '^' ? y + px(U) - 20 * k : y + 18 * k, 2 * k, 2 * k); }
-        else if (ch === 'p') { gp.fillStyle = '#ffd23c'; gp.fillRect(x + 4 * k, y + px(U) - 3 * k, px(U) - 8 * k, 3 * k); }
+        else if (ch === '^' || ch === 'v') {
+          // Contorno neón y punta blanca: así cada pincho se distingue del vecino y se cuentan de un vistazo
+          for (let i = 0; i < 10; i++) { const w = (10 - i) * 2 * k, yy = ch === '^' ? y + px(U) - (i + 1) * 2 * k : y + i * 2 * k; gp.fillStyle = pista.color; gp.fillRect(x + px(U / 2) - w / 2 - k, yy, w + 2 * k, 2 * k); if (w > 2 * k) { gp.fillStyle = '#ffffff'; gp.fillRect(x + px(U / 2) - w / 2 + k, yy, w - 2 * k, 2 * k); } }
+        }
+        else if (ch === 'p') {
+          gp.fillStyle = '#ffd23c'; gp.fillRect(x + 4 * k, y + px(U) - 3 * k, px(U) - 8 * k, 3 * k);
+          // Flecha que late y el arco por donde te lanza (dejándote llevar)
+          const sube = Math.round(pulso * 2) * k; gp.fillRect(x + px(U / 2) - k, y + px(U) - 12 * k - sube, 2 * k, 6 * k); gp.fillRect(x + px(U / 2) - 3 * k, y + px(U) - 10 * k - sube, 6 * k, 2 * k);
+          if (f === 0) { const v0 = SALTO * 1.42, vuelo = (2 * v0) / G; gp.globalAlpha = 0.35 + pulso * 0.25; for (let i = 1; i < 12; i++) { const tt = (vuelo * i) / 12, ax = cx * U - S / 2 + 1 + pista.vel * tt, ah = v0 * tt - (G * tt * tt) / 2 + S / 2; gp.fillRect(px(ax - cam()), px(SUELO - ah), 2 * k, 2 * k); } gp.globalAlpha = 1; }
+        }
         else if (ch === 'o') { const usado = anillosUsados.has(cx * 16 + f); gp.fillStyle = usado ? 'rgba(255,210,60,.3)' : '#ffd23c'; const r0 = 10 + pulso * 3; for (let a = 0; a < 16; a++) { const an = (a / 16) * Math.PI * 2; gp.fillRect(px(x + U / 2 + Math.cos(an) * r0), px(y + U / 2 + Math.sin(an) * r0), 2 * k, 2 * k); } }
         else if (ch === '$') { if (!tomadasIntento.has(cx * 16 + f) && !monedasDe[p].has(cx * 16 + f)) { gp.fillStyle = '#ffd23c'; gp.fillRect(x + 12, y + 10, 16, 20); gp.fillStyle = '#fff1a8'; gp.fillRect(x + 18, y + 14, 4, 12); } }
         else if (ch === 'G' || ch === 'N' || ch === 'C') { gp.fillStyle = ch === 'G' ? '#ffd23c' : ch === 'N' ? '#ff3fd8' : '#3ff0ff'; gp.globalAlpha = 0.6 + pulso * 0.3; gp.fillRect(x + 10, px(SUELO - FILAS * U), 3 * k, FILAS * U); gp.fillRect(x + 22, px(SUELO - FILAS * U), 3 * k, FILAS * U); gp.globalAlpha = 1; }
         else if (ch === 'F') { gp.fillStyle = Math.floor(t * 8) % 2 ? '#ffffff' : pista.color; gp.fillRect(x, px(SUELO - FILAS * U), 2 * k, FILAS * U); }
       }
     }
+    // Marca de la última muerte en esta pista
+    if (ultimaMuerte && ultimaMuerte.p === p) { const [mx, my] = aPantalla(ultimaMuerte.x + S / 2, ultimaMuerte.h + S / 2); gp.fillStyle = '#ff4d6d'; gp.globalAlpha = 0.7; for (let i = -3; i <= 3; i++) { gp.fillRect(px(mx + i * k * 2), px(my + i * k * 2), 2 * k, 2 * k); gp.fillRect(px(mx + i * k * 2), px(my - i * k * 2), 2 * k, 2 * k); } gp.globalAlpha = 1; }
+    // Estela de cuadritos detrás del cubo
+    if (muerto <= 0 && !yo.nave) estela.forEach(([ex, eh], i) => { const [sx, sy] = aPantalla(ex, eh + S); gp.globalAlpha = (i + 1) / (estela.length + 2) * 0.5; gp.fillStyle = pista.color; const lado = px(S * (0.3 + (0.4 * i) / estela.length)); gp.fillRect(px(sx + S / 2 - lado / 2), px(sy + S / 2 - lado / 2), lado, lado); });
+    gp.globalAlpha = 1;
     // El cubo (gira en el aire; en nave es un triángulo)
     if (muerto <= 0) {
       const [x, y] = aPantalla(yo.x, yo.h + S);
       if (yo.nave) { gp.fillStyle = '#ff3fd8'; gp.fillRect(px(x), px(y + S * 0.3), px(S), px(S * 0.4)); gp.fillStyle = '#ffffff'; gp.fillRect(px(x + S * 0.6), px(y + S * 0.35), px(S * 0.25), px(S * 0.15)); }
       else {
-        gp.save(); gp.translate(px(x + S / 2), px(y + S / 2)); if (!yo.suelo) gp.rotate(Math.round(((t * 7) % (Math.PI * 2)) / (Math.PI / 8)) * (Math.PI / 8) * -yo.grav);
+        gp.save(); gp.translate(px(x + S / 2), px(y + S / 2)); if (!yo.suelo) gp.rotate(Math.round(Math.min(1, aire / ((2 * SALTO) / G)) * 4) * (Math.PI / 8) * -yo.grav); // un cuarto de vuelta por salto: aterriza derecho
         gp.fillStyle = pista.color; gp.fillRect(-S / 2, -S / 2, S, S); gp.fillStyle = '#0a0f2a'; gp.fillRect(-S / 2 + 6, -S / 2 + 6, S - 12, S - 12); gp.fillStyle = pista.color; gp.fillRect(-4, -4, 8, 8);
         gp.restore();
       }
