@@ -23,7 +23,9 @@ const PESOS: Record<string, number> = { cruza: 1.8, pulso: 1.8, teclas: 1.8, sal
 const PESOS_CRUCE: Record<number, Record<string, number>> = { 4: { pesca: 7, pinball: 7, burbujas: 7, cascada: 7, lapidas: 7 } };
 /** Cruces que se juegan solo con ciertos juegos. Cruce 5: solo los 5 juegos nuevos del 04-11 (pedido de Pancho). */
 const SOLO_CRUCE: Record<number, string[]> = { 5: ['teclas', 'salto', 'mercado', 'cruza', 'pulso'] };
-const juegosDuelo = (cruce: number) => VERSUS.filter((t) => t.modo === '1v1' && t.base && !t.vivo && juegoPorId(t.base)?.listo && (DESDE_CRUCE[t.base] ?? 1) <= cruce && (!SOLO_CRUCE[cruce] || SOLO_CRUCE[cruce].includes(t.base))).map((t) => t.base!);
+/** Juegos que salen del sorteo desde un cruce (siguen en el catálogo y en Versus, con sus marcas). Pedido de Pancho, 2026-11-08. */
+const FUERA_DESDE: Record<string, number> = { karts: 6, cocina: 6, teclas: 6, cocos: 6, cangrejos: 6, conchas: 6, catapulta: 6, bolos: 6, rodillos: 6, puertas: 6 };
+const juegosDuelo = (cruce: number) => VERSUS.filter((t) => t.modo === '1v1' && t.base && !t.vivo && juegoPorId(t.base)?.listo && (DESDE_CRUCE[t.base] ?? 1) <= cruce && cruce < (FUERA_DESDE[t.base] ?? Infinity) && (!SOLO_CRUCE[cruce] || SOLO_CRUCE[cruce].includes(t.base))).map((t) => t.base!);
 
 interface Borrador { cruce: number; juegos: string[]; duelos: { a: string; b: string; juego: string; equipos: [number, number] }[] }
 
