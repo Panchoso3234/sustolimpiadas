@@ -74,8 +74,15 @@ export async function crear(c: Contexto): Promise<Partida> {
     for (let x = base - f.periodo * Math.ceil((f.largo + 2) / f.periodo + 1); x < COLS + 2; x += f.periodo) res.push([x, x + f.largo, Math.round((f.fase + f.dir * f.vel * t - x) / f.periodo)]); // 3º: número fijo de ese tronco
     return res;
   };
-  // Un rato bajo el agua; cada tronco con su propio turno (antes se hundían todos los de la fila a la vez)
-  const hundido = (f: Fila, t: number, id: number) => f.hunde > 0 && (((t + f.fase + id * 2.7) % (f.hunde + 2)) + f.hunde + 2) % (f.hunde + 2) > f.hunde;
+  // Un rato bajo el agua; cada tronco con su propio turno. Arreglo 07-11 (reporte de Dai): el turno cuenta desde que el
+  // tronco ENTRA a la pantalla, así nunca aparece ya parpadeando; queda arriba al menos 3 s (con su aviso de 1,5 s).
+  const hundido = (f: Fila, t: number, id: number) => {
+    if (f.hunde <= 0) return false;
+    const entra = f.dir > 0 ? (id * f.periodo - f.fase - f.largo) / f.vel : (f.fase - id * f.periodo - COLS) / f.vel;
+    const tt = t - entra; if (tt < 0) return false;
+    const ciclo = f.hunde + 2, inicio = ((((id * 0.618 + f.fase) % 1) + 1) % 1) * Math.max(0, f.hunde - 3);
+    return (tt + inicio) % ciclo > f.hunde;
+  };
   /** ¿Se muere quien está en la fila n, en x (centro, en casillas), en el tiempo t? */
   const peligro = (n: number, x: number, t: number) => {
     const f = fila(n);
