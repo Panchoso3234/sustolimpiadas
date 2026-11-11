@@ -14,6 +14,7 @@ import { PestanaCopa, PestanaRecords } from './PestanaRecords';
 import { Sala } from './Sala';
 import { Vivo } from '../vivo/PantallaVivo';
 import { PartidasEnLinea } from '../vivo/PartidasEnLinea';
+import { WildCards } from '../WildCards';
 import { ContraMaquina, esContraMaquina } from '../vivo/ContraMaquina';
 
 // Portal de juegos: individual, versus en diferido, en vivo (1v1 y 3v3), partidas en línea y la tabla del torneo.
@@ -21,11 +22,12 @@ import { ContraMaquina, esContraMaquina } from '../vivo/ContraMaquina';
 const MODOS = [
   { ruta: '', titulo: 'Individual', bajada: 'Marcas del día' },
   { ruta: '1v1', titulo: 'Versus 1v1 (Diferido)', bajada: 'Si no pueden a la vez' },
-  { ruta: 'vivo', titulo: 'En vivo', bajada: '1v1 y 3v3, conectados' },
   { ruta: 'posiciones', titulo: 'Tabla oficial', bajada: 'Liga de cruces' },
+  { ruta: 'wildcards', titulo: 'Wild Cards', bajada: 'Las 64 cartas y cómo funcionan' },
   { ruta: 'calendario', titulo: 'Calendario', bajada: 'Cruces y fechas' },
   { ruta: 'records', titulo: 'Récords', bajada: 'Hoy, semana y siempre' },
   { ruta: 'copa', titulo: 'Copa Individual', bajada: 'Aparte del torneo' },
+  { ruta: 'vivo', titulo: 'En vivo', bajada: '1v1 y 3v3, conectados' },
 ];
 
 /** Cuántos enfrentamientos esperan a que esta persona juegue, por modo. */
@@ -54,6 +56,8 @@ function usePendientes(usuarioId: string | null): Record<string, number> {
 
 export function Portal({ sub, extra }: { sub: string; extra: string }) {
   const sesion = useSesion(), pendientes = usePendientes(sesion.usuarioId);
+  // Cada pestaña abre arriba (la grilla de juegos maneja su propia altura al volver de un juego)
+  useEffect(() => { if (sub) desplazable()?.scrollTo(0, 0); }, [sub]);
   if (sub === 'duelo') return <Duelo key={extra} id={Number(extra)} />;
   if (sub === 'maquina' && esContraMaquina(extra)) return <div class="pagina portal"><ContraMaquina key={extra} juego={extra} /></div>;
   if (sub === 'mirar') return <div class="pagina portal"><Vivo codigo={extra} mirar /></div>;
@@ -80,7 +84,7 @@ export function Portal({ sub, extra }: { sub: string; extra: string }) {
           <a href="#/juegos/en-linea" class={modo === 'en-linea' ? 'activa' : ''} aria-current={modo === 'en-linea' ? 'page' : undefined}><b>Mirar partidas</b></a>
         </nav>
       )}
-      {modo === '' ? <Grilla /> : modo === 'posiciones' ? <Posiciones /> : modo === 'records' ? <PestanaRecords /> : modo === 'copa' ? <PestanaCopa /> : modo === 'calendario' ? <><h1>Calendario de la liga</h1><Planificacion publico /></> : modo === 'vivo' ? <Vivo codigo={extra} /> : modo === 'en-linea' ? <PartidasEnLinea /> : <PestanaVersus key={modo} modo={modo as '1v1' | '3v3'} preset={extra} />}
+      {modo === '' ? <Grilla /> : modo === 'posiciones' ? <Posiciones /> : modo === 'records' ? <PestanaRecords /> : modo === 'copa' ? <PestanaCopa /> : modo === 'calendario' ? <><h1>Calendario de la liga</h1><Planificacion publico /></> : modo === 'wildcards' ? <WildCards /> : modo === 'vivo' ? <Vivo codigo={extra} /> : modo === 'en-linea' ? <PartidasEnLinea /> : <PestanaVersus key={modo} modo={modo as '1v1' | '3v3'} preset={extra} />}
     </div>
   );
 }
@@ -101,9 +105,11 @@ function Grilla() {
   const [buscar, setBuscarCrudo] = useState(() => recuerdo().buscar ?? '');
   const setFiltro = (f: Filtro) => { setFiltroCrudo(f); recordar({ filtro: f }); };
   const setBuscar = (b: string) => { setBuscarCrudo(b); recordar({ buscar: b }); };
+  // La altura guardada sirve una sola vez (al volver de un juego); si no, se queda pegada y la pestaña abría a la mitad
   useEffect(() => {
-    const y = recuerdo().y;
-    if (y) requestAnimationFrame(() => desplazable()?.scrollTo(0, y));
+    const y = recuerdo().y ?? 0;
+    recordar({ y: 0 });
+    requestAnimationFrame(() => desplazable()?.scrollTo(0, y));
   }, []);
   const texto = buscar.trim().toLowerCase();
   const pasa = (j: Juego) => (!texto || `${j.nombre} ${j.idea}`.toLowerCase().includes(texto))

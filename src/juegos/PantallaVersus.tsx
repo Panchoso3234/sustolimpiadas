@@ -114,7 +114,7 @@ export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; pres
     const mia = de(equipoDe(lado === 'a' ? e.a_perfil : e.b_perfil)), suya = de(equipoDe(lado === 'a' ? e.b_perfil : e.a_perfil));
     if (!mia && !suya) return null;
     const txt = (c?: WildCard) => (!c ? 'sin carta' : c.carta ? `${cartaPorId(c.carta)?.emoji} ${cartaPorId(c.carta)?.nombre}` : `${RAREZAS[c.rareza].nombre.toLowerCase()} boca abajo`);
-    return <a class="wc-duelo chico" href="#/wildcards">🃏 Tu equipo: <b style={{ color: mia ? RAREZAS[mia.rareza].color : undefined }}>{txt(mia)}</b> · rival: <b style={{ color: suya ? RAREZAS[suya.rareza].color : undefined }}>{txt(suya)}</b></a>;
+    return <a class="wc-duelo chico" href="#/juegos/wildcards">🃏 Tu equipo: <b style={{ color: mia ? RAREZAS[mia.rareza].color : undefined }}>{txt(mia)}</b> · rival: <b style={{ color: suya ? RAREZAS[suya.rareza].color : undefined }}>{txt(suya)}</b></a>;
   };
   const mios = (datos?.lista ?? []).map((e) => ({ e, lado: V.ladoDe(e, yo, datos!.equipos) })).filter((x): x is { e: V.Enfrentamiento; lado: V.Lado } => x.lado !== null);
   // En el diferido no van los que se juegan solo en vivo (están en En vivo → 1v1)

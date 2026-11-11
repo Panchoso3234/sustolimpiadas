@@ -32,7 +32,6 @@ const Progreso = (p: { sub: string }) => <Seccion clave="progreso" cargar={() =>
 const PanelConectados = (p: { cerrar: () => void; yo: string | null }) => <Seccion clave="conectados" cargar={() => import('./Conectados').then((m) => m.PanelConectados as unknown as Comp)} props={p} />;
 const Diario = (p: { sub: string }) => <Seccion clave="diario" cargar={() => import('./Diario').then((m) => m.Diario as unknown as Comp)} props={p} />;
 const Gachapon = (p: { sub: string }) => <Seccion clave="gachapon" cargar={() => import('./Gachapon').then((m) => m.Gachapon as unknown as Comp)} props={p} />;
-const WildCards = () => <Seccion clave="wildcards" cargar={() => import('./WildCards').then((m) => m.WildCards as unknown as Comp)} />;
 const Perfil = (p: { id: string }) => <Seccion clave="perfil" cargar={() => import('./Perfil').then((m) => m.Perfil as unknown as Comp)} props={p} />;
 
 // Si se publicó una versión nueva mientras la página estaba abierta, los archivos de los juegos cambian de nombre y la
@@ -99,7 +98,7 @@ function App() {
           : seccion === 'progreso' ? <Progreso sub={sub} />
           : seccion === 'diario' ? <Diario sub={sub} />
           : seccion === 'gachapon' ? <Gachapon sub={sub} />
-          : seccion === 'wildcards' ? <WildCards />
+          : seccion === 'wildcards' ? <Portal sub="wildcards" extra="" /> /* enlace viejo: ahora es una pestaña de Juegos */
           : seccion === 'perfil' ? <Perfil key={sub} id={sub} />
           : seccion === 'ajustes' ? <Ajustes alVerRecorrido={() => setRecorrido(true)} />
           : seccion === 'isla' ? <Isla />

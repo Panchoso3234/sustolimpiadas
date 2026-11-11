@@ -56,15 +56,17 @@ export function MesaWildCards() {
   const [girando, setGirando] = useState(false);
   const [aviso, setAviso] = useState(''); const [error, setError] = useState('');
   const [armado, setArmado] = useState(''); // botones que piden dos toques
+  const [marcas, setMarcas] = useState<V.MarcaVersus[]>([]); // rondas del cruce: hora de cierre y puntaje de juego (algunas cartas las usan)
 
   const cargarCartas = async (n = cruce) => setCartas(await W.listarWildCards(n));
+  const cargarMarcas = async (lista: V.Enfrentamiento[], n = cruce) => setMarcas(await V.marcasDe(lista.filter((e) => e.cruce === n && e.oficial && e.modo === '1v1').map((e) => e.id)));
   const cargar = async () => {
     const [equipos, personas, { lista }, puntos, ausencias, ajustes] = await Promise.all([V.listarEquipos(), V.listarPersonas(), V.listarEnfrentamientos('1v1'), leerPuntos().catch(() => PUNTOS_BASE), V.listarAusencias(), W.listarAjustesCartas()]);
     setBase({ equipos, personas, lista, puntos, ausencias, ajustes });
-    await cargarCartas();
+    await Promise.all([cargarCartas(), cargarMarcas(lista)]);
   };
   useEffect(() => { cargar(); }, []);
-  useEffect(() => { setSel(null); cargarCartas(cruce); }, [cruce]);
+  useEffect(() => { setSel(null); cargarCartas(cruce); if (base) cargarMarcas(base.lista, cruce); }, [cruce]);
 
   const d = useMemo(() => {
     if (!base) return null;
@@ -102,8 +104,8 @@ export function MesaWildCards() {
   };
 
   // Vista previa de la revelación: el mismo motor que guardará los puntos
-  const duelosEq = duelosDelCruce(cruce, d.duelos, d.equipoDe, base.ausencias);
-  const jugadas = cartas.filter((c) => c.carta).map((c) => ({ id: c.id, equipo: c.equipo_id, carta: c.carta!, origen: c.origen, dado: c.dado, duelo: c.duelo, anulada: c.anulada }));
+  const duelosEq = duelosDelCruce(cruce, d.duelos, d.equipoDe, base.ausencias, marcas);
+  const jugadas = cartas.filter((c) => c.carta).map((c) => ({ id: c.id, equipo: c.equipo_id, carta: c.carta!, origen: c.origen, dado: c.dado, duelo: c.duelo, duelos: Array.isArray(c.datos?.duelos) ? (c.datos.duelos as number[]) : null, puesto: c.puesto, anulada: c.anulada }));
   const ajustes = calcularAjustes(duelosEq, jugadas, d.mult);
   const revelado = base.ajustes.some((a) => a.cruce === cruce) || cartas.some((c) => c.revelada);
   const revelar = async () => {
@@ -204,14 +206,20 @@ function AccionCarta({ carta, cruce, d, alTerminar }: { carta: W.WildCard; cruce
   const [juego, setJuego] = useState('');
   const [ronda, setRonda] = useState(1);
   const [elegida, setElegida] = useState('');
+  const [duelo2, setDuelo2] = useState(0);
+  const [ronda2, setRonda2] = useState(1);
   const [asignacion, setAsignacion] = useState<Record<number, string>>(() => Object.fromEntries(pendientes.map((e) => [e.id, (ladoDe(e) === 'a' ? e.a_perfil : e.b_perfil) ?? ''])));
   const jugadores = pendientes.map((e) => (ladoDe(e) === 'a' ? e.a_perfil : e.b_perfil)).filter(Boolean) as string[];
   const usar = async (datos: Record<string, unknown>, ok: string) => alTerminar(await W.usarCarta(carta.id, datos), ok);
-  const selectDuelo = (lista: V.Enfrentamiento[]) => (
-    <label>Duelo <select value={duelo} onChange={(e) => setDuelo(Number(e.currentTarget.value))}>
+  const selectDuelo = (lista: V.Enfrentamiento[], valor = duelo, cambiar = setDuelo, texto = 'Duelo') => (
+    <label>{texto} <select value={valor} onChange={(e) => cambiar(Number(e.currentTarget.value))}>
       <option value={0}>Elige…</option>{lista.map((e) => <option key={e.id} value={e.id}>{etiqueta(e)}</option>)}
     </select></label>
   );
+  const selectRonda = (valor: number, cambiar: (n: number) => void) => (
+    <label>Ronda <select value={valor} onChange={(e) => cambiar(Number(e.currentTarget.value))}>{[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
+  );
+  const jugadorDe = (id: number) => { const e = pendientes.find((x) => x.id === id); return e ? (ladoDe(e) === 'a' ? e.a_perfil : e.b_perfil) : null; };
   return (
     <section class="wc-accion" aria-label={`Usar ${k.nombre}`}>
       <h3>{k.emoji} {k.nombre} · {d.nombreEq(eq)}</h3>
@@ -220,11 +228,18 @@ function AccionCarta({ carta, cruce, d, alTerminar }: { carta: W.WildCard; cruce
         <label>Juego <select value={juego} onChange={(e) => setJuego(e.currentTarget.value)}><option value="">Elige…</option>
           {[...new Set(juegosDuelo(cruce))].map((j) => <option key={j} value={j}>{juegoPorId(j)?.nombre ?? j}</option>)}</select></label>
         <button class="boton principal" disabled={!duelo || !juego} onClick={() => usar({ duelo, juego }, 'Juego cambiado y anunciado.')}>Cambiar el juego</button></>}
+      {k.id === 'todo_nada' && <>{selectDuelo(pendientes, duelo, setDuelo, 'Primer duelo')}{selectDuelo(pendientes.filter((e) => e.id !== duelo), duelo2, setDuelo2, 'Segundo duelo')}
+        <button class="boton principal" disabled={!duelo || !duelo2 || duelo === duelo2} onClick={() => usar({ duelos: [duelo, duelo2] }, 'Los dos duelos quedaron apostados y anunciados.')}>Apostar estos dos duelos</button></>}
+      {k.id === 'bis' && <>
+        <p class="chico">Dos jugadores distintos del equipo, una ronda cada uno.</p>
+        {selectDuelo(pendientes, duelo, setDuelo, 'Jugador 1: duelo')}{selectRonda(ronda, setRonda)}
+        {selectDuelo(pendientes.filter((e) => e.id !== duelo), duelo2, setDuelo2, 'Jugador 2: duelo')}{selectRonda(ronda2, setRonda2)}
+        <button class="boton principal" disabled={!duelo || !duelo2 || duelo === duelo2} onClick={() => usar({ repeticiones: [{ duelo, ronda, perfil: jugadorDe(duelo) }, { duelo: duelo2, ronda: ronda2, perfil: jugadorDe(duelo2) }] }, 'Las dos rondas quedaron habilitadas para repetir.')}>Habilitar las dos repeticiones</button></>}
       {k.id === 'doble_nada' && <>{selectDuelo(pendientes)}<button class="boton principal" disabled={!duelo} onClick={() => usar({ duelo }, 'Duelo apostado y anunciado.')}>Apostar este duelo</button></>}
       {k.id === 'revancha' && <>{selectDuelo(perdidos)}<button class="boton principal" disabled={!duelo} onClick={() => usar({ duelo }, 'El duelo se reabrió desde cero.')}>Jugar de nuevo este duelo</button></>}
       {k.id === 'segunda' && <>{selectDuelo(pendientes)}
-        <label>Ronda <select value={ronda} onChange={(e) => setRonda(Number(e.currentTarget.value))}>{[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
-        <button class="boton principal" disabled={!duelo} onClick={() => { const e = pendientes.find((x) => x.id === duelo)!; usar({ duelo, ronda, perfil: ladoDe(e) === 'a' ? e.a_perfil : e.b_perfil }, 'Ronda habilitada para repetir.'); }}>Habilitar la repetición</button></>}
+        {selectRonda(ronda, setRonda)}
+        <button class="boton principal" disabled={!duelo} onClick={() => usar({ duelo, ronda, perfil: jugadorDe(duelo) }, 'Ronda habilitada para repetir.')}>Habilitar la repetición</button></>}
       {k.id === 'cambio_rivales' && <>
         {pendientes.map((e) => <label key={e.id}>{etiqueta(e)} <select value={asignacion[e.id]} onChange={(ev) => setAsignacion({ ...asignacion, [e.id]: ev.currentTarget.value })}>
           {jugadores.map((p) => <option key={p} value={p}>{d.persona(p)}</option>)}</select></label>)}
