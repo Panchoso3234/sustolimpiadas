@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { AjustePuntos, Enfrentamientos, Equipos, Marcas } from './juegos/Mesa';
 import { MesaLiga } from './juegos/MesaLiga';
+import { MesaWildCards } from './juegos/MesaWildCards';
 import { Dashboard, Planificacion } from './juegos/Panel';
 import { supabase, useSesion, type Perfil, type Rol } from './nucleo/supabase';
 
@@ -19,7 +20,7 @@ export function Arena() {
 const ROLES: Rol[] = ['jugador', 'guardian', 'admin'];
 // En la base el staff sigue guardado como "guardian"; en pantalla se llama staff
 const NOMBRE_ROL: Record<Rol, string> = { jugador: 'Jugador', guardian: 'Staff', admin: 'Organizador' };
-const SECCIONES = [['dashboard', '📊 Dashboard'], ['plan', '📅 Planificación'], ['personas', 'Personas'], ['liga', '🏆 Liga (cruces)'], ['equipos', 'Equipos'], ['enfrentamientos', 'Enfrentamientos'], ['marcas', 'Marcas'], ['puntos', 'Puntos']] as const;
+const SECCIONES = [['dashboard', '📊 Dashboard'], ['plan', '📅 Planificación'], ['personas', 'Personas'], ['liga', '🏆 Liga (cruces)'], ['wildcards', '🃏 Wild Cards'], ['equipos', 'Equipos'], ['enfrentamientos', 'Enfrentamientos'], ['marcas', 'Marcas'], ['puntos', 'Puntos']] as const;
 type Seccion = (typeof SECCIONES)[number][0];
 
 export function Admin() {
@@ -43,6 +44,7 @@ export function Admin() {
   // Solo en pruebas: "?sorteo" muestra el sorteo sin sesión (guardar fallará: lo protege la base)
   if (import.meta.env.DEV && new URLSearchParams(location.search).has('panel')) return <div class="pagina pagina-ancha"><h1>Dashboard (prueba)</h1><Dashboard /><h1>Planificación (prueba)</h1><Planificacion /></div>;
   if (import.meta.env.DEV && new URLSearchParams(location.search).has('liga')) return <div class="pagina"><h1>Liga (prueba)</h1><MesaLiga /></div>;
+  if (import.meta.env.DEV && new URLSearchParams(location.search).has('wc')) return <div class="pagina pagina-ancha"><h1>Wild Cards (prueba)</h1><MesaWildCards /></div>;
   if (sesion.cargando) return <div class="pagina"><p>Cargando…</p></div>;
   if (sesion.perfil?.rol !== 'admin') return <div class="pagina"><h1>Sin permiso</h1><p>Esta sección es solo para el organizador.</p></div>;
 
@@ -84,6 +86,7 @@ export function Admin() {
       {seccion === 'dashboard' && <><h1>Dashboard</h1><Dashboard /></>}
       {seccion === 'plan' && <><h1>Planificación de la liga</h1><Planificacion /></>}
       {seccion === 'liga' && <><h1>Liga: cruces</h1><MesaLiga /></>}
+      {seccion === 'wildcards' && <><h1>Wild Cards</h1><MesaWildCards /></>}
       {seccion === 'equipos' && <><h1>Equipos</h1><Equipos /></>}
       {seccion === 'enfrentamientos' && <><h1>Enfrentamientos</h1><Enfrentamientos /></>}
       {seccion === 'marcas' && <><h1>Marcas del día</h1><Marcas /></>}

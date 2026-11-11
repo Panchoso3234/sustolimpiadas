@@ -4,6 +4,7 @@ import { useSesion } from './nucleo/supabase';
 import { juegoPorId, nombreVersus } from './juegos/catalogo';
 import * as V from './juegos/duelos';
 import { CRUCES, cruceDe } from './juegos/liga';
+import { DESDE_CRUCE } from './juegos/wildcards';
 import { escucharSalas, type InfoSala } from './vivo/vestibulo';
 
 // Inicio: la portada liviana con la que abre el sitio (antes abría directo en la isla 3D, lo más pesado de todo).
@@ -85,6 +86,14 @@ export function Inicio() {
           </div>
           <a class="boton" href="#/juegos/posiciones">Ver la tabla oficial</a>
         </section>
+      )}
+
+      {cruce && cruce.n >= DESDE_CRUCE - 1 && (
+        <a class="inicio-wc" href="#/wildcards">
+          <span class="inicio-wc-cartas" aria-hidden="true"><i /><i /><i /><i /></span>
+          <span><b>{cruce.n < DESDE_CRUCE ? `Llegan las Wild Cards en el cruce ${DESDE_CRUCE}` : 'Wild Cards en juego'}</b>
+            <span class="tenue">Una carta por equipo antes de cada cruce. Los de abajo tienen más opciones de sacar una legendaria. Mira las 25 cartas.</span></span>
+        </a>
       )}
 
       <section class="bloque">

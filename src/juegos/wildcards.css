@@ -1,0 +1,82 @@
+/* Wild Cards (2026-11-11): la carta, la ruleta de la Mesa de control y la página pública. Se carga solo con esas vistas. */
+.wc-carta { --wc-color: #b8c0cc; position: relative; width: 150px; aspect-ratio: 5 / 7; perspective: 900px; flex: none; }
+.wc-carta.wc-chica { width: 92px; }
+.wc-carta.wc-grande { width: 210px; }
+.wc-giro { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .7s cubic-bezier(.2, .8, .2, 1); }
+.wc-carta.de-frente .wc-giro { transform: rotateY(180deg); }
+.wc-cara { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 12px; border: 3px solid var(--wc-color); display: flex; flex-direction: column; align-items: center; text-align: center; overflow: hidden; }
+.wc-dorso { justify-content: center; gap: 6px; background:
+  radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--wc-color) 28%, transparent) 0 18%, transparent 19%),
+  repeating-linear-gradient(45deg, transparent 0 9px, color-mix(in srgb, var(--wc-color) 14%, transparent) 9px 10px),
+  var(--noche-2); }
+.wc-dorso-marca { font-family: var(--display); font-size: 2.6em; line-height: 1; color: var(--wc-color); }
+.wc-frente { transform: rotateY(180deg); justify-content: flex-start; gap: 4px; padding: 10px 8px; background: linear-gradient(165deg, color-mix(in srgb, var(--wc-color) 22%, var(--noche-2)), var(--noche) 70%); }
+.wc-frente::after { content: ""; position: absolute; inset: 5px; border: 1px solid color-mix(in srgb, var(--wc-color) 45%, transparent); border-radius: 8px; pointer-events: none; }
+.wc-rareza { font-family: var(--letras); font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: var(--wc-color); }
+.wc-dorso .wc-rareza { position: absolute; bottom: 10px; }
+.wc-emoji { font-size: 2.3rem; line-height: 1.15; margin-top: 4px; }
+.wc-nombre { font-family: var(--display); font-weight: 400; font-size: 1rem; line-height: 1.05; color: var(--hueso); text-wrap: balance; }
+.wc-efecto { font-size: .74rem; line-height: 1.3; color: var(--hueso); opacity: .9; margin-top: 2px; }
+.wc-tipo { margin-top: auto; font-size: .64rem; font-weight: 800; color: var(--wc-color); }
+.wc-nota { position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%); font-size: .68rem; font-weight: 800; background: var(--sangre); color: var(--noche); border-radius: 8px; padding: 0 6px; }
+.wc-chica .wc-emoji { font-size: 1.6rem; }
+.wc-chica .wc-nombre { font-size: .72rem; }
+.wc-chica .wc-dorso-marca { font-size: 1.8em; }
+.wc-grande .wc-emoji { font-size: 3.4rem; }
+.wc-grande .wc-nombre { font-size: 1.35rem; }
+.wc-grande .wc-efecto { font-size: .86rem; }
+.wc-epica .wc-cara { box-shadow: 0 0 14px color-mix(in srgb, var(--wc-color) 40%, transparent); }
+.wc-legendaria .wc-cara { box-shadow: 0 0 22px color-mix(in srgb, var(--wc-color) 60%, transparent), inset 0 0 18px color-mix(in srgb, var(--wc-color) 25%, transparent); }
+.wc-legendaria .wc-frente { background: linear-gradient(165deg, color-mix(in srgb, var(--wc-color) 38%, var(--noche-2)), var(--noche) 75%); }
+
+/* Mesa de control */
+.wc-mesa { display: flex; flex-direction: column; gap: 14px; }
+.wc-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.wc-barra select { font: inherit; margin-left: 6px; }
+.wc-escenario { display: grid; gap: 18px; align-items: center; justify-items: center; background: var(--noche-2); border: 2px solid var(--linea); border-radius: 16px; padding: 18px; }
+@media (min-width: 760px) { .wc-escenario { grid-template-columns: auto 1fr; justify-items: start; } }
+.wc-ruleta-caja { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.wc-ruleta { position: relative; width: 230px; height: 230px; }
+.wc-disco { width: 100%; height: 100%; border-radius: 50%; border: 6px solid var(--noche); box-shadow: 0 0 0 3px var(--linea); transition-property: transform; transition-timing-function: cubic-bezier(.12, .72, .16, 1); will-change: transform; }
+.wc-puntero { position: absolute; top: -10px; left: 50%; z-index: 1; transform: translateX(-50%); width: 0; height: 0; border-left: 13px solid transparent; border-right: 13px solid transparent; border-top: 24px solid var(--hueso); filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .5)); }
+.wc-eje { position: absolute; inset: 50% auto auto 50%; transform: translate(-50%, -50%); width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; background: var(--noche); border: 3px solid var(--linea); font-size: 1.5rem; }
+.wc-ruleta.girando .wc-eje { border-color: var(--luna); }
+.wc-leyenda { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, auto); gap: 2px 14px; font-size: .82rem; }
+.wc-leyenda i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
+.wc-revelacion { display: flex; flex-direction: column; align-items: center; gap: 10px; min-height: 300px; justify-content: center; width: 100%; }
+.wc-quien { text-align: center; }
+.wc-hijas { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.wc-barra-prob { display: inline-flex; width: 110px; height: 10px; border-radius: 5px; overflow: hidden; vertical-align: middle; }
+.wc-barra-prob i { height: 100%; }
+.wc-equipos tr.elegida td { background: color-mix(in srgb, var(--luna) 12%, transparent); }
+.wc-mini { padding: 4px 10px; font-size: .9rem; }
+.wc-accion, .wc-anular { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; border: 2px solid var(--linea); border-radius: 14px; padding: 12px 14px; }
+.wc-accion h3, .wc-accion p { flex-basis: 100%; }
+.wc-accion label, .wc-anular label { display: flex; flex-direction: column; gap: 4px; font-size: .86rem; font-weight: 700; }
+.wc-accion select, .wc-anular input { font: inherit; max-width: min(100%, 420px); }
+.wc-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.wc-suma { color: var(--alga); font-weight: 800; }
+.wc-resta { color: var(--sangre); font-weight: 800; }
+
+/* Página pública */
+.wc-pagina { display: flex; flex-direction: column; gap: 16px; }
+.wc-portada { display: grid; gap: 22px; align-items: center; padding: 8px 0 6px; }
+@media (min-width: 760px) { .wc-portada { grid-template-columns: auto 1fr; column-gap: 44px; } }
+/* Las cartas giradas sobresalen ~36 px hacia los lados: el relleno evita que se corten o tapen el texto */
+.wc-abanico { display: flex; justify-content: center; padding: 18px 40px 6px; }
+.wc-abanico .wc-carta { margin: 0 -14px; transform-origin: 50% 120%; }
+.wc-abanico .wc-carta:nth-child(1) { transform: rotate(-16deg); }
+.wc-abanico .wc-carta:nth-child(2) { transform: rotate(-6deg) translateY(-6px); }
+.wc-abanico .wc-carta:nth-child(3) { transform: rotate(5deg) translateY(-6px); }
+.wc-abanico .wc-carta:nth-child(4) { transform: rotate(15deg); z-index: 1; }
+.wc-portada h1 { font-size: clamp(2.4rem, 8vw, 4.2rem); color: var(--luna); }
+.wc-bajada { font-size: 1.12rem; }
+.wc-pasos { margin: 0; padding-left: 1.4em; display: grid; gap: 8px; max-width: 70ch; }
+.wc-pasos li::marker { font-family: var(--display); color: var(--calabaza); }
+.wc-rareza-grupo h2 { margin-bottom: 10px; }
+.wc-grilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; justify-items: center; }
+.wc-album-grilla { display: flex; flex-wrap: wrap; gap: 16px; }
+.wc-album-item { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 140px; text-align: center; }
+.wc-album-cartas { display: flex; gap: 4px; justify-content: center; }
+
+@media (prefers-reduced-motion: reduce) { .wc-giro, .wc-disco { transition: none !important; } }

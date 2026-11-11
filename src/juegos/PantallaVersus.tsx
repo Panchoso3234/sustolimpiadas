@@ -10,6 +10,8 @@ import { DUELOS } from '../vivo/formatos';
 import { PuntosDuelo } from '../vivo/PuntosDuelo';
 import { Agenda, BotonAvisar, EstadoRival } from './BotonAvisar';
 import { Declaraciones } from './Declaracion';
+import { listarWildCards, type WildCard } from './wcDatos';
+import { RAREZAS, cartaPorId } from './wildcards';
 
 // Versus en diferido: cada lado juega el mismo desafío a su hora, con un solo intento, y el servidor compara.
 
@@ -99,9 +101,21 @@ export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; pres
   const recargar = () => cargar(modo).then(setDatos);
   useEffect(() => { recargar(); leerPuntos().then(setPuntos); }, [modo]);
   useEffect(() => { if (preset && datos) setTimeout(irARetar, 50); }, [preset, !!datos]);
+  const [cartas, setCartas] = useState<WildCard[]>([]);
+  useEffect(() => { listarWildCards().then(setCartas); }, []);
 
   const yo = sesion.usuarioId, tipos = VERSUS.filter((t) => t.modo === modo);
   const miEquipo = datos?.equipos.find((q) => yo && q.miembros.includes(yo));
+  /** La Wild Card de cada equipo en el cruce de este duelo (la del rival, boca abajo si todavía no se revela). */
+  const cartasDelDuelo = (e: V.Enfrentamiento, lado: V.Lado) => {
+    if (!e.oficial || !e.cruce || !datos) return null;
+    const equipoDe = (id: string | null) => datos.equipos.find((q) => id && q.miembros.includes(id))?.id;
+    const de = (eq?: number) => cartas.find((c) => c.cruce === e.cruce && c.equipo_id === eq && c.origen == null);
+    const mia = de(equipoDe(lado === 'a' ? e.a_perfil : e.b_perfil)), suya = de(equipoDe(lado === 'a' ? e.b_perfil : e.a_perfil));
+    if (!mia && !suya) return null;
+    const txt = (c?: WildCard) => (!c ? 'sin carta' : c.carta ? `${cartaPorId(c.carta)?.emoji} ${cartaPorId(c.carta)?.nombre}` : `${RAREZAS[c.rareza].nombre.toLowerCase()} boca abajo`);
+    return <a class="wc-duelo chico" href="#/wildcards">🃏 Tu equipo: <b style={{ color: mia ? RAREZAS[mia.rareza].color : undefined }}>{txt(mia)}</b> · rival: <b style={{ color: suya ? RAREZAS[suya.rareza].color : undefined }}>{txt(suya)}</b></a>;
+  };
   const mios = (datos?.lista ?? []).map((e) => ({ e, lado: V.ladoDe(e, yo, datos!.equipos) })).filter((x): x is { e: V.Enfrentamiento; lado: V.Lado } => x.lado !== null);
   // En el diferido no van los que se juegan solo en vivo (están en En vivo → 1v1)
   const pendientes = mios.filter((x) => x.e.estado === 'pendiente' && !esVivo(x.e)), cerrados = mios.filter((x) => x.e.estado === 'cerrado');
@@ -146,7 +160,7 @@ export function PestanaVersus({ modo, preset = '' }: { modo: '1v1' | '3v3'; pres
                   const hechas = datos.marcas.filter((m) => m.enfrentamiento_id === e.id && m.perfil_id === yo && m.terminado).length, total = e.modo === '1v1' ? e.rondas : 1;
                   return (
                     <li key={e.id}>
-                      <span class="quienes"><b>{nombreVersus(e.modo, e.juego)}</b><span>contra {nombre(e, otro(lado))} · {e.oficial ? `jornada ${e.jornada}` : 'amistoso'} · {V.fechaCorta(e.plazo) === 'sin plazo' ? 'sin plazo' : `hasta el ${V.fechaCorta(e.plazo)}`}{(e.muerte_subita ?? 0) > 0 ? ' · muerte súbita: empataron, se juega una ronda extra' : ''}</span></span>
+                      <span class="quienes"><b>{nombreVersus(e.modo, e.juego)}</b><span>contra {nombre(e, otro(lado))} · {e.oficial ? `jornada ${e.jornada}` : 'amistoso'} · {V.fechaCorta(e.plazo) === 'sin plazo' ? 'sin plazo' : `hasta el ${V.fechaCorta(e.plazo)}`}{(e.muerte_subita ?? 0) > 0 ? ' · muerte súbita: empataron, se juega una ronda extra' : ''}</span>{cartasDelDuelo(e, lado)}</span>
                       {e.modo === '1v1' && <EstadoRival id={lado === 'a' ? e.b_perfil : e.a_perfil} />}
                       {hechas < total
                         ? <span class="fila">

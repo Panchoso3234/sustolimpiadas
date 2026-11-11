@@ -1515,3 +1515,18 @@ body.foto .tren-misiones { display: none; }
 .teclas-elegir-lista button.elegida { border-color: #ffd23c; background: #3a2a10; box-shadow: 0 0 0 2px #ffd23c inset; }
 .teclas-ajuste { margin: 10px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .teclas-ajuste button { min-width: 34px; padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(255, 210, 60, .4); background: #14182c; color: inherit; font: inherit; cursor: pointer; }
+
+/* Wild Cards: aviso en la portada y colores de la tabla (el resto está en juegos/wildcards.css) */
+.inicio-wc { display: flex; align-items: center; gap: 16px; text-decoration: none; color: var(--hueso); background: linear-gradient(110deg, color-mix(in srgb, #ffc83d 16%, var(--noche-2)), var(--noche-2) 60%); border: 2px solid color-mix(in srgb, #ffc83d 55%, var(--linea)); border-radius: 16px; padding: 12px 16px; }
+.inicio-wc:hover { border-color: #ffc83d; }
+.inicio-wc > span:last-child { display: flex; flex-direction: column; }
+.inicio-wc-cartas { display: flex; flex: none; padding-left: 8px; }
+.inicio-wc-cartas i { width: 24px; height: 34px; border-radius: 4px; margin-left: -8px; border: 2px solid var(--noche); }
+.inicio-wc-cartas i:nth-child(1) { background: #b8c0cc; transform: rotate(-12deg); }
+.inicio-wc-cartas i:nth-child(2) { background: #4aa8ff; transform: rotate(-4deg); }
+.inicio-wc-cartas i:nth-child(3) { background: #b46cff; transform: rotate(4deg); }
+.inicio-wc-cartas i:nth-child(4) { background: #ffc83d; transform: rotate(12deg); }
+.wc-suma { color: var(--alga); font-weight: 800; }
+.wc-resta { color: var(--sangre); font-weight: 800; }
+.wc-duelo { display: block; margin-top: 2px; color: var(--tenue); text-decoration: none; }
+.wc-duelo:hover { color: var(--hueso); }

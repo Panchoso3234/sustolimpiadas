@@ -3,8 +3,9 @@ import { fechaChile } from '../nucleo/azar';
 import { supabase } from '../nucleo/supabase';
 import { TOPES, juegoPorId, nombreVersus } from './catalogo';
 import * as V from './duelos';
-import { CRUCES, FIN, INICIO, JORNADAS, calcularLiga, calendarioDeEquipos, cruceDe, cuentaParaLaLiga } from './liga';
+import { CRUCES, FIN, INICIO, JORNADAS, calcularLiga, calendarioDeEquipos, cruceDe, cuentaParaLaLiga, type AjusteCarta } from './liga';
 import { PUNTOS_BASE, leerPuntos, type Puntos } from './puntos';
+import { listarAjustesCartas } from './wcDatos';
 
 // Mesa de control · Planificación (el calendario completo de la liga con lo que toca hacer cada día) y
 // Dashboard (cómo va todo hoy: cruce en curso, quién debe duelos, inscritos y alertas).
@@ -17,12 +18,12 @@ const diaSemana = (fecha: string) => (new Date(`${fecha}T12:00:00Z`).getUTCDay()
 const bonita = (fecha: string) => `${DIAS[diaSemana(fecha)].toLowerCase()} ${Number(fecha.slice(8))} ${MESES[Number(fecha.slice(5, 7)) - 1]}`;
 const bonito = (n: number) => (Math.round(n * 100) / 100).toLocaleString('es-CL');
 
-interface Datos { equipos: V.Equipo[]; personas: V.Persona[]; duelos: V.Enfrentamiento[]; puntos: Puntos; ausencias: V.Ausencia[] }
+interface Datos { equipos: V.Equipo[]; personas: V.Persona[]; duelos: V.Enfrentamiento[]; puntos: Puntos; ausencias: V.Ausencia[]; cartas: AjusteCarta[] }
 function useDatos(): Datos | null {
   const [datos, setDatos] = useState<Datos | null>(null);
   useEffect(() => {
-    Promise.all([V.listarEquipos(), V.listarPersonas(), V.listarEnfrentamientos('1v1'), leerPuntos().catch(() => PUNTOS_BASE), V.listarAusencias()])
-      .then(([equipos, personas, { lista }, puntos, ausencias]) => setDatos({ equipos, personas, duelos: lista.filter((d) => d.oficial && fechaChile(Date.parse(d.creado)) >= INICIO), puntos, ausencias }));
+    Promise.all([V.listarEquipos(), V.listarPersonas(), V.listarEnfrentamientos('1v1'), leerPuntos().catch(() => PUNTOS_BASE), V.listarAusencias(), listarAjustesCartas()])
+      .then(([equipos, personas, { lista }, puntos, ausencias, cartas]) => setDatos({ equipos, personas, duelos: lista.filter((d) => d.oficial && fechaChile(Date.parse(d.creado)) >= INICIO), puntos, ausencias, cartas }));
   }, []);
   return datos;
 }
@@ -130,7 +131,7 @@ export function Dashboard() {
     return { id, rival: l === 'a' ? d.b_perfil : d.a_perfil, juego: d.juego, hechas, rondas: d.rondas, cruce: d.cruce, plazo: d.plazo };
   })).filter((x) => x.hechas < x.rondas).sort((a, b) => (a.plazo ?? '').localeCompare(b.plazo ?? ''));
   const recordatorio = `🔔 **Recordatorio del cruce${cruce ? ` ${cruce.n}` : ''}** (vence el ${cruce ? bonita(cruce.hasta) : 'pronto'} a las 23:59)\nTodavía les falta jugar:\n${deben.map((x) => `• ${nombre(x.id)} vs ${nombre(x.rival)} — ${nombreVersus('1v1', x.juego)} (${x.hechas}/${x.rondas} rondas)`).join('\n')}\nJuegos → Versus 1v1. ¡No jugar son 0 puntos para ti y tu equipo!`;
-  const { tabla, personal } = calcularLiga(equipos, personas, duelos.filter(cuentaParaLaLiga), puntos, datos.ausencias);
+  const { tabla, personal } = calcularLiga(equipos, personas, duelos.filter(cuentaParaLaLiga), puntos, datos.ausencias, datos.cartas);
   const sospechosas = (extra?.partidasHoy ?? []).filter((m) => TOPES[m.juego] && m.puntaje > TOPES[m.juego]).sort((a, b) => b.puntaje / TOPES[b.juego] - a.puntaje / TOPES[a.juego]);
   const activosHoy = new Set((extra?.partidasHoy ?? []).map((m) => m.perfil_id)).size;
   return (

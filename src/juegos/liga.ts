@@ -32,15 +32,22 @@ export const cruceDe = (fecha: string) => CRUCES.find((c) => fecha <= c.hasta) ?
 /** Si un duelo cuenta para la tabla oficial: oficial, creado desde el inicio y ya cerrado. */
 export const cuentaParaLaLiga = (e: Enfrentamiento) => e.oficial && e.modo === '1v1' && fechaChile(Date.parse(e.creado)) >= INICIO && e.estado === 'cerrado' && !!e.ganador;
 
-export interface LineaEquipo { equipo: Equipo; puntos: number; porJornada: number[]; bonos: number; ganados: number; empatados: number; perdidos: number; sinJugar: number; capitan: string | null }
+export interface LineaEquipo { equipo: Equipo; puntos: number; porJornada: number[]; bonos: number; ganados: number; empatados: number; perdidos: number; sinJugar: number; capitan: string | null; cartas: number }
+/** Puntos de las Wild Cards ya reveladas (tabla wc_ajustes), por equipo y cruce. */
+export interface AjusteCarta { cruce: number; equipo_id: number; puntos: number }
 export interface LineaJugador { id: string; nombre: string; equipo: Equipo | null; puntos: number; ganados: number; empatados: number; perdidos: number; sinJugar: number; staff: boolean; clasifica: '' | 'equipo' | 'especial' }
 
 /** Quién es staff: el capitán de cada equipo y las cuentas de administración y guardianes. */
 export const esStaff = (id: string, equipos: Equipo[], personas: Persona[]) => equipos.some((q) => q.capitan === id) || personas.some((p) => p.id === id && p.rol !== 'jugador');
 
-export function calcularLiga(equipos: Equipo[], personas: Persona[], duelos: Enfrentamiento[], p: Puntos, ausencias: Ausencia[] = []) {
+export function calcularLiga(equipos: Equipo[], personas: Persona[], duelos: Enfrentamiento[], p: Puntos, ausencias: Ausencia[] = [], cartas: AjusteCarta[] = []) {
   const equipoDe = (id: string | null) => equipoParaPuntos(equipos, id);
-  const lineas = new Map<number, LineaEquipo>(equipos.map((q) => [q.id, { equipo: q, puntos: 0, porJornada: [0, 0, 0, 0], bonos: 0, ganados: 0, empatados: 0, perdidos: 0, sinJugar: 0, capitan: q.capitan ?? null }]));
+  const lineas = new Map<number, LineaEquipo>(equipos.map((q) => [q.id, { equipo: q, puntos: 0, porJornada: [0, 0, 0, 0], bonos: 0, ganados: 0, empatados: 0, perdidos: 0, sinJugar: 0, capitan: q.capitan ?? null, cartas: 0 }]));
+  // Wild Cards: los puntos ya vienen multiplicados por la jornada (se calcularon al revelarlas)
+  for (const c of cartas) {
+    const linea = lineas.get(c.equipo_id), jornada = JORNADAS.find((j) => j.cruces.includes(c.cruce))?.n ?? 4;
+    if (linea) { linea.puntos += c.puntos; linea.cartas += c.puntos; linea.porJornada[jornada - 1] += c.puntos; }
+  }
   const jugadores = new Map<string, LineaJugador>();
   const jugador = (id: string) => {
     let j = jugadores.get(id);

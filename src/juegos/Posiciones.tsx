@@ -3,6 +3,7 @@ import { fechaChile } from '../nucleo/azar';
 import * as V from './duelos';
 import { BONO_CRUCE, CUPOS_FINAL, EQUIPOS_A_LA_FINAL, INICIO, calcularLiga, cruceDe, type LineaEquipo, type LineaJugador } from './liga';
 import { PUNTOS_BASE, leerPuntos, type Puntos } from './puntos';
+import { listarAjustesCartas } from './wcDatos';
 
 // Tabla oficial del torneo. Solo suma duelos oficiales creados desde el 21 de octubre (ver liga.ts):
 // las partidas individuales, los amistosos y los duelos de prueba no cuentan.
@@ -23,8 +24,8 @@ export function Posiciones() {
   useEffect(() => {
     (async () => {
       await V.cerrarVencidos();
-      const [equipos, personas, { lista }, puntos, ausencias] = await Promise.all([V.listarEquipos(), V.listarPersonas(), V.listarEnfrentamientos('1v1'), leerPuntos().catch(() => PUNTOS_BASE), V.listarAusencias()]);
-      setDatos({ ...calcularLiga(equipos, personas, lista, puntos, ausencias), personas, puntos });
+      const [equipos, personas, { lista }, puntos, ausencias, cartas] = await Promise.all([V.listarEquipos(), V.listarPersonas(), V.listarEnfrentamientos('1v1'), leerPuntos().catch(() => PUNTOS_BASE), V.listarAusencias(), listarAjustesCartas()]);
+      setDatos({ ...calcularLiga(equipos, personas, lista, puntos, ausencias, cartas), personas, puntos });
     })();
   }, []);
 
@@ -35,14 +36,14 @@ export function Posiciones() {
   return (
     <>
       <h1>Tabla oficial</h1>
-      <p>Solo suman los <b>duelos oficiales</b> de la liga: ganar <b>{p.victoria}</b>, empatar <b>{p.empate}</b>, perder <b>{p.derrota}</b> y no jugar <b>0</b>, por el multiplicador de cada jornada ({m}). Los puntos van al jugador y a su equipo. El equipo que gana 2 de los 3 duelos de su enfrentamiento suma <b>+{BONO_CRUCE}</b> (también multiplicado). Si un duelo queda igualado en rondas, se juega <b>muerte súbita</b>: una ronda extra (hasta dos); si siguen iguales, gana la suma de puntaje. Las partidas individuales y los amistosos no cuentan.</p>
+      <p>Solo suman los <b>duelos oficiales</b> de la liga: ganar <b>{p.victoria}</b>, empatar <b>{p.empate}</b>, perder <b>{p.derrota}</b> y no jugar <b>0</b>, por el multiplicador de cada jornada ({m}). Los puntos van al jugador y a su equipo. El equipo que gana 2 de los 3 duelos de su enfrentamiento suma <b>+{BONO_CRUCE}</b> (también multiplicado). Si un duelo queda igualado en rondas, se juega <b>muerte súbita</b>: una ronda extra (hasta dos); si siguen iguales, gana la suma de puntaje. Las partidas individuales y los amistosos no cuentan. Desde el cruce 8 suman también las <a href="#/wildcards">Wild Cards 🃏</a>, cuando se revelan al cerrar cada cruce.</p>
       {cruce && <p class="aviso ok">{hoy < cruce.desde ? `El cruce ${cruce.n} parte el ${V.fechaCorta(cruce.desde)}.` : `En curso: cruce ${cruce.n} de 11, hasta el ${V.fechaCorta(cruce.hasta)}.`} Tus duelos están en Juegos → Versus 1v1.</p>}
       {!tabla.length ? <p class="aviso atencion">Todavía no hay equipos.</p> : (
         <>
           <h2>Equipos</h2>
           <div class="tabla-caja">
             <table class="tabla posiciones">
-              <thead><tr><th>#</th><th title="De broma: no cambia nada del torneo">Zona</th><th>Equipo</th><th>J1</th><th>J2</th><th>J3</th><th>J4</th><th title="Ganados, empatados y perdidos (y sin jugar)">G-E-P</th><th>Bonos</th><th>Total</th></tr></thead>
+              <thead><tr><th>#</th><th title="De broma: no cambia nada del torneo">Zona</th><th>Equipo</th><th>J1</th><th>J2</th><th>J3</th><th>J4</th><th title="Ganados, empatados y perdidos (y sin jugar)">G-E-P</th><th>Bonos</th><th title="Puntos de las Wild Cards ya reveladas"><a href="#/wildcards">🃏</a></th><th>Total</th></tr></thead>
               <tbody>
                 {tabla.map((l, i) => (
                   <tr key={l.equipo.id} class={i < EQUIPOS_A_LA_FINAL && l.puntos > 0 ? 'zona-final' : ''}>
@@ -52,6 +53,7 @@ export function Posiciones() {
                     {l.porJornada.map((n, k) => <td key={k} class="tenue">{bonito(n)}</td>)}
                     <td>{l.ganados}-{l.empatados}-{l.perdidos}{l.sinJugar ? <span class="tenue chico"> ({l.sinJugar} sin jugar)</span> : null}</td>
                     <td>{bonito(l.bonos)}</td>
+                    <td class={l.cartas > 0 ? 'wc-suma' : l.cartas < 0 ? 'wc-resta' : 'tenue'}>{l.cartas ? `${l.cartas > 0 ? '+' : ''}${bonito(l.cartas)}` : '—'}</td>
                     <td><b class="total">{bonito(l.puntos)}</b></td>
                   </tr>
                 ))}
