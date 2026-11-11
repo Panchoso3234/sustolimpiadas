@@ -59,7 +59,7 @@ export function Planificacion({ publico = false }: { publico?: boolean }) {
   return (
     <div class="plan">
       {publico && cruceDe(hoy) && <p class="aviso ok">{hoy < cruceDe(hoy)!.desde ? `El cruce ${cruceDe(hoy)!.n} parte el ${bonita(cruceDe(hoy)!.desde)}.` : `Ahora: cruce ${cruceDe(hoy)!.n}, hasta el ${bonita(cruceDe(hoy)!.hasta)} a las 23:59.`} Tus duelos están en Versus 1v1 (o en En vivo, si quieren jugarlo conectados).</p>}
-      <p><b>11 cruces</b>, <b>2 por semana</b> (miércoles a sábado y domingo a martes), del <b>{bonita(INICIO)}</b> al <b>{bonita(FIN)}</b>. Cada persona juega <b>1 o 2 duelos por semana</b> (al mejor de 3). Cuatro jornadas con multiplicador: J1 ×1 (cruces 1-3), J2 ×1,25 (4-6), J3 ×1,5 (7-9) y J4 ×2 (10-11). La Arena va después, en la fecha que anuncies.</p>
+      <p><b>11 cruces</b>, al principio <b>2 por semana</b> y, desde el cruce 7, de <b>2 o 3 días</b>, del <b>{bonita(INICIO)}</b> al <b>{bonita(FIN)}</b>. Cada persona juega <b>1 o 2 duelos por semana</b> (al mejor de 3). Cuatro jornadas con multiplicador: J1 ×1 (cruces 1-3), J2 ×1,25 (4-6), J3 ×1,5 (7-9) y J4 ×2 (10-11). La Arena va después, en la fecha que anuncies.</p>
       {!publico && <section class="bloque">
         <h2>Lo que viene</h2>
         <ul class="plan-tareas">{proximas.map(([f, ts]) => <li key={f} class={f === hoy ? 'hoy' : ''}><b>{f === hoy ? 'Hoy' : bonita(f)}</b><span>{ts.join(' · ')}</span></li>)}</ul>

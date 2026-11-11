@@ -11,7 +11,7 @@ export function Arena() {
       <div class="porton" aria-hidden="true"><span /><span /></div>
       <div class="sigla">Fase 2</div>
       <h1>La Arena está sellada</h1>
-      <p>El portón del volcán se abre cuando termine la liga (28 de noviembre); la fecha de la final se anuncia por Discord. Pasan los 6 mejores equipos: entran sus participantes (el staff no entra) y, si son menos de 12, se completa con los mejores puntajes personales. Ahí se definen los siete premios.</p>
+      <p>El portón del volcán se abre cuando termine la liga (22 de noviembre); la fecha de la final se anuncia por Discord. Pasan los 6 mejores equipos: entran sus participantes (el staff no entra) y, si son menos de 12, se completa con los mejores puntajes personales. Ahí se definen los siete premios.</p>
       <p class="tenue">Cada punto que ganes en las jornadas mejora lo que recibirás al entrar.</p>
     </div>
   );

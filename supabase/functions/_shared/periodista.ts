@@ -63,7 +63,7 @@ function azar(semilla: string) {
 }
 export const miles = (n: number) => Math.round(n).toLocaleString('es-CL');
 const fechaLarga = (f: string) => { const [, m, d] = f.split('-').map(Number); return `${d} de ${['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'][m - 1]}`; };
-const jornadaDe = (fecha: string) => (fecha <= '2026-10-31' ? 1 : fecha <= '2026-11-10' ? 2 : fecha <= '2026-11-21' ? 3 : 4);
+const jornadaDe = (fecha: string) => (fecha <= '2026-10-31' ? 1 : fecha <= '2026-11-10' ? 2 : fecha <= '2026-11-17' ? 3 : 4);
 /** Rellena {X} con los valores. */
 const llenar = (plantilla: string, v: Record<string, string>) => plantilla.replace(/\{(\w+)\}/g, (_, k) => v[k] ?? '');
 

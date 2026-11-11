@@ -83,7 +83,7 @@ export function Posiciones() {
           </div>
         </>
       )}
-      <p class="tenue chico">La liga parte el {V.fechaCorta(INICIO)}. Dos cruces por semana (miércoles a sábado y domingo a martes) hasta el 28 de noviembre; los duelos se cierran solos cuando juegan los dos o cuando vence su plazo.</p>
+      <p class="tenue chico">La liga parte el {V.fechaCorta(INICIO)}. Al principio, dos cruces por semana; desde el cruce 7 son de 2 o 3 días, hasta el 22 de noviembre; los duelos se cierran solos cuando juegan los dos o cuando vence su plazo.</p>
     </>
   );
 }

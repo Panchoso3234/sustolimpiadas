@@ -340,7 +340,7 @@ export const EVENTOS: { fecha: string; nombre: string; detalle: string; porAnunc
   { fecha: '2026-10-31', nombre: 'la Noche de Brujas', detalle: 'La isla se pone embrujada. 👻' },
   { fecha: '2026-11-01', nombre: 'la Jornada 2', detalle: 'Puntos ×1,25: cruces 4 al 6.' },
   { fecha: '2026-11-11', nombre: 'la Jornada 3', detalle: 'Puntos ×1,5: cruces 7 al 9.' },
-  { fecha: '2026-11-22', nombre: 'la Jornada 4', detalle: 'Puntos ×2: la última oportunidad de clasificar. Cruces 10 y 11.' },
-  { fecha: '2026-11-28', nombre: 'el cierre de la liga', detalle: 'Último día del cruce 11. Se conocen los 12 de la Arena.' },
-  { fecha: '2026-11-29', nombre: 'la Arena', detalle: 'La final: se definen los 7 premios. La fecha se anuncia por Discord.', porAnunciar: true },
+  { fecha: '2026-11-18', nombre: 'la Jornada 4', detalle: 'Puntos ×2: la última oportunidad de clasificar. Cruces 10 y 11.' },
+  { fecha: '2026-11-22', nombre: 'el cierre de la liga', detalle: 'Último día del cruce 11. Se conocen los 12 de la Arena.' },
+  { fecha: '2026-11-23', nombre: 'la Arena', detalle: 'La final: se definen los 7 premios. La fecha se anuncia por Discord.', porAnunciar: true },
 ];

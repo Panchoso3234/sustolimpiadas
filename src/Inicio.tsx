@@ -13,6 +13,7 @@ import { escucharSalas, type InfoSala } from './vivo/vestibulo';
 
 /** Las últimas novedades del sitio (la más reciente primero). */
 const NOVEDADES: { fecha: string; texto: string }[] = [
+  { fecha: '2026-11-11', texto: 'Nuevo calendario para la recta final: el cruce 7 vence el jueves 12, el 8 va del 13 al 15, el 9 del 16 al 17, el 10 del 18 al 20 y el 11 del 21 al 22 de noviembre. La Jornada 4 (puntos ×2) parte el miércoles 18 y la liga termina el domingo 22.' },
   { fecha: '2026-11-04', texto: 'Dos juegos nuevos más: Cruza la Isla (cruza calles, ríos y vías de tren casilla a casilla, de la playa al volcán, antes de que te alcance la marea) y Pulso Neón (un cubo que salta pinchos al ritmo por tres pistas de neón, con gravedad invertida y nave). Y Teclas del Faro ahora tiene 20 canciones originales estilo anime para elegir.' },
   { fecha: '2026-11-04', texto: 'Tres juegos nuevos en 8 bits: Teclas del Faro (toca las teclas negras que bajan cada vez más rápido, con dobles, largas y fiebre), Salto Estelar (salta de plataforma en plataforma de la isla al espacio, con resortes, cohete y bichos) y Mercado Loco (ordena la feria antes de que se caiga todo, con pedidos, hora punta y un gato ladrón).' },
   { fecha: '2026-11-02', texto: 'Cinco juegos nuevos en 8 bits, que entran a los duelos desde el cruce 4: Rompe Lápidas (rompe ladrillos en un cementerio, con poderes y guardianes), Candy Cascada (combina 3 dulces, con rayos, bombas, arcoíris y niveles con objetivo), Bubble Shot (dispara burbujas con mira de rebote), Pinball Embrujado (flippers, calabazas, fantasmas, velas y multibola) y Pesca Nocturna (lanza, pelea con cada pez sin cortar el sedal y completa tu álbum).' },
@@ -74,7 +75,7 @@ export function Inicio() {
   return (
     <div class="pagina inicio">
       <header class="inicio-cabeza">
-        <span class="sigla">Torneo de minijuegos · 21 de octubre al 28 de noviembre</span>
+        <span class="sigla">Torneo de minijuegos · 21 de octubre al 22 de noviembre</span>
         <h1>{sesion.perfil?.nombre ? `Hola, ${sesion.perfil.nombre}` : 'Las Sustolimpiadas'}</h1>
       </header>
 

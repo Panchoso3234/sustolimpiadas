@@ -53,7 +53,7 @@ export interface Contexto {
 export const ajustesPartida = { pausable: true, /** En vivo: resolución más baja, para que ande liviano. */ vivo: false, /** El lienzo guarda su imagen para mandarle fotos al rival (espejo). */ foto: false };
 
 /** Jornada del torneo (1 a 4) de una fecha "AAAA-MM-DD" (las mismas fechas que JORNADAS en liga.ts); antes del 21 de octubre cuenta como la 1. */
-export const jornadaDe = (fecha: string) => (fecha <= '2026-10-31' ? 1 : fecha <= '2026-11-10' ? 2 : fecha <= '2026-11-21' ? 3 : 4);
+export const jornadaDe = (fecha: string) => (fecha <= '2026-10-31' ? 1 : fecha <= '2026-11-10' ? 2 : fecha <= '2026-11-17' ? 3 : 4);
 
 export interface Partida {
   empezar(): void;

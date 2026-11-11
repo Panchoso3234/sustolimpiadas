@@ -2,8 +2,8 @@
 // Sin dependencias: Deno y Vite lo leen igual.
 
 /**
- * Los 11 cruces, dos por semana para no agobiar: miércoles a sábado (4 días) y domingo a martes (3 días).
- * Así cada persona juega 1 o 2 duelos por semana. La liga termina el sábado 28 de noviembre.
+ * Los 11 cruces. Al principio iban dos por semana (miércoles a sábado y domingo a martes).
+ * Desde el 11-11 el calendario se acortó: los cruces 7 a 11 duran 2 o 3 días y la liga termina el domingo 22 de noviembre.
  */
 // El cruce 3 se extendió 2 horas: cierra el domingo 01-11 a las 02:00 y ahí parte el 4 (decisión del 31-10)
 // El cruce 1 se extendió un día (hasta el domingo 25-10); por eso el cruce 2 pasó al 26-28 y el 3 al 29-31 (decisión del 26-10)
@@ -11,9 +11,9 @@ export const CRUCES: { n: number; desde: string; hasta: string; cierre?: string 
   { n: 1, desde: '2026-10-21', hasta: '2026-10-25' }, { n: 2, desde: '2026-10-26', hasta: '2026-10-28' },
   { n: 3, desde: '2026-10-29', hasta: '2026-10-31', cierre: 'domingo 01/11 a las 02:00' }, { n: 4, desde: '2026-11-01', hasta: '2026-11-03', cierre: 'miércoles 04/11 a las 03:00' },
   { n: 5, desde: '2026-11-04', hasta: '2026-11-07' }, { n: 6, desde: '2026-11-08', hasta: '2026-11-10' },
-  { n: 7, desde: '2026-11-11', hasta: '2026-11-14' }, { n: 8, desde: '2026-11-15', hasta: '2026-11-17' },
-  { n: 9, desde: '2026-11-18', hasta: '2026-11-21' }, { n: 10, desde: '2026-11-22', hasta: '2026-11-24' },
-  { n: 11, desde: '2026-11-25', hasta: '2026-11-28' },
+  { n: 7, desde: '2026-11-11', hasta: '2026-11-12' }, { n: 8, desde: '2026-11-13', hasta: '2026-11-15' },
+  { n: 9, desde: '2026-11-16', hasta: '2026-11-17' }, { n: 10, desde: '2026-11-18', hasta: '2026-11-20' },
+  { n: 11, desde: '2026-11-21', hasta: '2026-11-22' },
 ];
 /**
  * Calendario de todos contra todos (método del círculo): para cada cruce, las parejas de equipos y el que descansa.

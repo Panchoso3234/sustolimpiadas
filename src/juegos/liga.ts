@@ -3,7 +3,7 @@ import { EX_MIEMBROS, equipoParaPuntos, type Ausencia, type Persona, type Equipo
 import { puntosVersus, type Puntos } from './puntos';
 
 // La liga del torneo (desde el 21 de octubre de 2026). 12 equipos de 3: 8 con un capitán del staff y 4 solo de participantes.
-// Todos contra todos en 11 cruces (dos por semana, hasta el 28 de noviembre): en cada cruce se juegan 6 enfrentamientos de equipo contra equipo (3 duelos 1v1,
+// Todos contra todos en 11 cruces (hasta el 22 de noviembre; desde el cruce 7, de 2 o 3 días): en cada cruce se juegan 6 enfrentamientos de equipo contra equipo (3 duelos 1v1,
 // al mejor de 3); con 12 equipos nadie descansa. La tabla oficial suma SOLO duelos oficiales creados desde el inicio:
 //  · cada duelo: ganar, empatar o perder según la tabla ajustes (hoy 7, 6 y 4) y no jugar 0, por el multiplicador de la jornada; van al jugador y a su equipo;
 //  · bono de cruce: +5 (por el multiplicador) al equipo que gana 2 de los 3 duelos de su enfrentamiento.
@@ -15,13 +15,13 @@ export const BONO_CRUCE = 5, EQUIPOS_A_LA_FINAL = 6, CUPOS_FINAL = 12;
 
 import { CRUCES, calendarioLiga, calendarioDeEquipos } from '../../supabase/functions/_shared/calendario.ts';
 export { CRUCES, calendarioLiga, calendarioDeEquipos };
-export const FIN = '2026-11-28';
+export const FIN = '2026-11-22';
 /** Las cuatro jornadas (cada una con su multiplicador) agrupan cruces: 1-3, 4-6, 7-9 y 10-11. */
 export const JORNADAS = [
   { n: 1, desde: '2026-10-21', hasta: '2026-10-31', cruces: [1, 2, 3] },
   { n: 2, desde: '2026-11-01', hasta: '2026-11-10', cruces: [4, 5, 6] },
-  { n: 3, desde: '2026-11-11', hasta: '2026-11-21', cruces: [7, 8, 9] },
-  { n: 4, desde: '2026-11-22', hasta: '2026-11-28', cruces: [10, 11] },
+  { n: 3, desde: '2026-11-11', hasta: '2026-11-17', cruces: [7, 8, 9] },
+  { n: 4, desde: '2026-11-18', hasta: '2026-11-22', cruces: [10, 11] },
 ];
 
 /** Jornada (1 a 4) de una fecha "AAAA-MM-DD"; antes del inicio cuenta como la 1. */
