@@ -1,4 +1,4 @@
-import { RAREZAS, cartaPorId, type Rareza } from './wildcards';
+import { MISIONES, RAREZAS, cartaPorId, type Rareza } from './wildcards';
 import './wildcards.css';
 
 /**
@@ -23,7 +23,7 @@ export function CartaWild({ carta, rareza, deFrente = true, tam = 'normal', dado
             <span class="wc-rareza">{r.nombre}</span>
             <span class="wc-emoji">{k.emoji}</span>
             <b class="wc-nombre">{k.nombre}</b>
-            {tam !== 'chica' && <span class="wc-efecto">{k.efecto}{dado ? ` Salió ${dado}.` : ''}</span>}
+            {tam !== 'chica' && <span class="wc-efecto">{k.efecto}{dado ? (MISIONES[k.id] ? ` Tu misión: ${MISIONES[k.id][dado - 1]}.` : ` Salió ${dado}.`) : ''}</span>}
             {tam !== 'chica' && k.tipo === 'decision' && <span class="wc-tipo">Se decide antes de jugar</span>}
           </>}
         </div>

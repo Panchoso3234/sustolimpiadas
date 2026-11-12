@@ -19,12 +19,13 @@ const PREGUNTAS: [string, string][] = [
   ['¿Qué es una carta de decisión?', 'Una carta que se usa antes de jugar: elegir el juego de un duelo, apostar uno o dos duelos, repetir una ronda o reordenar quién juega contra quién. Avísale a la organización qué quiere hacer tu equipo, porque se aplica desde la Mesa de control antes de que se juegue ese duelo.'],
   ['¿Qué significa «+4 base»?', 'Que la carta suma 4 puntos antes de aplicar el multiplicador de la jornada. En la Jornada 3 (×1,5) esos 4 se vuelven 6 en la tabla; en la Jornada 4 (×2), 8. Más abajo hay un ejemplo completo.'],
   ['¿Y las cartas con ×1,25 o ×1,3?', 'Multiplican todos los puntos base del equipo en ese cruce (los de sus duelos y los de otras cartas) y después se aplica la jornada. Los dos multiplicadores se multiplican entre sí; no se suman.'],
-  ['¿Puede una carta bajar mis puntos?', 'Solo tres cartas le quitan puntos al rival: Trampa, Contraataque y Agujero Negro. Y Doble o Nada hace que el duelo apostado valga 0 si se pierde. Aun así, ningún equipo baja de 0 puntos en un cruce por culpa de una carta.'],
+  ['¿Puede una carta bajar mis puntos?', 'No. Desde las Wild Cards 2.1 ninguna carta le quita puntos al rival ni al propio equipo (Trampa, Contraataque y Agujero Negro salieron del mazo). Lo único que puede hacer el rival es anular tu carta con Congelar o Eclipse.'],
+  ['¿Qué son las cartas de Misión?', 'Encargo (rara), Contrato (épica) y Hazaña (legendaria) solo pagan si tu equipo cumple un objetivo jugando: ganar un duelo 2-0, terminar los duelos antes del último día, ganarle la serie a un equipo de más arriba… La misión se sortea junto con la carta y tu equipo la ve desde el principio, para saber a qué apuntar.'],
   ['¿Qué pasa si no juego mi duelo?', 'Ese duelo cuenta como no jugado (0 puntos) y las cartas que premian derrotas no lo cuentan como derrota. Tres Mosqueteros, por ejemplo, exige que los tres jugadores jueguen.'],
-  ['¿Cómo se combinan dos cartas?', 'Con Doble Carta, Ruleta Rusa o Mano de Dios un equipo puede tener más de una, y se aplican todas. El orden es fijo: Eclipse, luego Congelar, después los puntos de cada carta, los multiplicadores, los robos del rival y, al final, el mínimo de 0 y el multiplicador de la jornada.'],
-  ['¿Qué hacen Congelar y Eclipse?', 'Congelar anula la carta del rival, salvo que sea legendaria. Eclipse es legendaria: anula todas las cartas del rival, también las legendarias, y además suma +12 base. Si los dos equipos tienen el mismo, se anulan entre sí.'],
+  ['¿Cómo se combinan dos cartas?', 'Con Doble Carta, Ruleta Rusa o Mano de Dios un equipo puede tener más de una, y se aplican todas. El orden es fijo: Eclipse, luego Congelar, después los puntos de cada carta, los multiplicadores y, al final, el multiplicador de la jornada.'],
+  ['¿Qué hacen Congelar y Eclipse?', 'Congelar anula la carta del rival, salvo que sea legendaria. Eclipse es legendaria: anula todas las cartas del rival, también las legendarias, y además suma +6 base. Si los dos equipos tienen el mismo, se anulan entre sí.'],
   ['¿Cuándo se ven los puntos?', 'Cuando se cierran todos los duelos del cruce, la organización revela las cartas: se dan vuelta, se suman a la tabla oficial (columna 🃏) y sale el anuncio en Discord con el detalle de cada equipo.'],
-  ['¿Por qué los de abajo sacan mejores cartas?', 'Para que la pelea por los 6 cupos de la Arena siga abierta hasta el final. Del puesto 9 al 12 la legendaria sale un 28 % de las veces; en los puestos 1 y 2, solo un 2 %.'],
+  ['¿Por qué los de abajo sacan mejores cartas?', 'Para que la pelea por los 6 cupos de la Arena siga abierta hasta el final. Del puesto 9 al 12 la legendaria sale un 30 % de las veces; los puestos 1 y 2 nunca la sacan. Aun así, ninguna legendaria da más de +22 base: ayuda, pero no reemplaza ganar los duelos.'],
 ];
 
 export function WildCards() {
@@ -50,7 +51,7 @@ export function WildCards() {
         </div>
         <div class="wc-portada-texto">
           <h1>Wild Cards</h1>
-          <p class="wc-bajada">Desde el cruce {DESDE_CRUCE}{desde ? ` (${V.fechaCorta(desde.desde)})` : ''}, cada equipo recibe una carta por cruce. Hay {CARTAS.length} cartas: la mayoría suma puntos, algunas se deciden antes de jugar y las legendarias pueden dar vuelta la tabla.</p>
+          <p class="wc-bajada">Desde el cruce {DESDE_CRUCE}{desde ? ` (${V.fechaCorta(desde.desde)})` : ''}, cada equipo recibe una carta por cruce. Hay {CARTAS.length} cartas: la mayoría suma puntos, algunas se deciden antes de jugar, otras son misiones y ninguna le quita puntos a nadie.</p>
           <p class="tenue">Los equipos de más abajo tienen más probabilidad de sacar cartas fuertes, así que la pelea por los 6 cupos de la final sigue abierta hasta el último cruce.</p>
         </div>
       </section>
@@ -79,7 +80,7 @@ export function WildCards() {
               <tr><td>Sin carta: 7 + 7 + 4 + 5 de la serie = 23 base</td><td>23 × 2</td><td><b>46</b></td></tr>
               <tr><td>🧲 Imán (rara): +4 base por duelo ganado</td><td>(23 + 8) × 2</td><td><b>62</b> <span class="wc-suma">(+16)</span></td></tr>
               <tr><td>👑 La Corona (legendaria): todo ×1,3</td><td>23 × 1,3 × 2</td><td><b>59,8</b> <span class="wc-suma">(+13,8)</span></td></tr>
-              <tr><td>🏆 Leyenda Viva (legendaria): +12 base por duelo ganado</td><td>(23 + 24) × 2</td><td><b>94</b> <span class="wc-suma">(+48)</span></td></tr>
+              <tr><td>🏆 Leyenda Viva (legendaria): +6 base por duelo ganado</td><td>(23 + 12) × 2</td><td><b>70</b> <span class="wc-suma">(+24)</span></td></tr>
             </tbody>
           </table>
         </div>

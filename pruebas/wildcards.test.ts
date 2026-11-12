@@ -20,22 +20,24 @@ const ajuste = (duelos: DueloEquipo[], cartas: CartaJugada[], mult = 1) => {
 const p1 = (duelos: DueloEquipo[], c: string, extra: Partial<CartaJugada> = {}) => ajuste(duelos, [carta(1, c, extra)]).e1;
 
 // ───────── Catálogo ─────────
-test('catálogo: 64 cartas (24 comunes, 18 raras, 11 épicas y 11 legendarias), sin ids repetidos ni Cambio de Órbita', () => {
+test('catálogo: 64 cartas (24 comunes, 18 raras, 11 épicas y 11 legendarias), sin ids repetidos ni cartas retiradas', () => {
   const n = (r: string) => CARTAS.filter((c) => c.rareza === r).length;
   assert.equal(CARTAS.length, 64);
   assert.deepEqual([n('comun'), n('rara'), n('epica'), n('legendaria')], [24, 18, 11, 11]);
   assert.equal(new Set(CARTAS.map((c) => c.id)).size, 64);
-  assert.ok(!CARTAS.some((c) => c.id === 'orbita'));
-  assert.deepEqual(RETIRADAS, ['orbita']);
+  assert.deepEqual(RETIRADAS, ['orbita', 'trampa', 'contraataque', 'agujero']);
+  for (const id of RETIRADAS) assert.ok(!CARTAS.some((c) => c.id === id), id);
   for (const c of CARTAS) assert.match(c.id, /^[a-z_]{2,20}$/, c.id);
   for (const c of CARTAS) assert.ok(c.efecto.length <= 200 && c.nombre.length <= 40, c.id);
 });
 
 test('como mucho 8 cartas de decisión', () => assert.equal(CARTAS.filter((c) => c.tipo === 'decision').length, 8));
 
-test('probabilidades: cada grupo suma 100 y la legendaria es 2, 5, 16 y 28 %', () => {
+test('probabilidades 2.1: cada grupo suma 100, legendaria 0 / 3 / 15 / 30 % y común 70 / 60 / 40 / 20 %', () => {
   for (const g of PROBABILIDADES) assert.equal(g.comun + g.rara + g.epica + g.legendaria, 100);
-  assert.deepEqual([1, 2, 3, 5, 6, 8, 9, 12].map((p) => rarezasPara(p).legendaria), [2, 2, 5, 5, 16, 16, 28, 28]);
+  assert.deepEqual([1, 2, 3, 5, 6, 8, 9, 12].map((p) => rarezasPara(p).legendaria), [0, 0, 3, 3, 15, 15, 30, 30]);
+  assert.deepEqual([1, 3, 6, 9].map((p) => rarezasPara(p).comun), [70, 60, 40, 20]);
+  for (let i = 0; i < 10000; i++) assert.notEqual(rarezaPorAzar(1, i / 100), 'legendaria');
 });
 
 test('la rareza por azar reparte exactamente según la tabla (misma regla que el SQL)', () => {
@@ -47,10 +49,11 @@ test('la rareza por azar reparte exactamente según la tabla (misma regla que el
   }
 });
 
-test('el catálogo del SQL 2.0 es el mismo del motor (no se desincronizan)', () => {
-  const sql = readFileSync(`${process.env.WC_RAIZ ?? '.'}/supabase/2026-11-12-wild-cards-2.sql`, 'utf8');
+test('el catálogo del SQL 2.1 es el mismo del motor (no se desincronizan)', () => {
+  const sql = readFileSync(`${process.env.WC_RAIZ ?? '.'}/supabase/2026-11-12-wild-cards-equilibrio.sql`, 'utf8');
   const q = (s: string) => s.replace(/'/g, "''");
   for (const k of CARTAS) assert.ok(sql.includes(`('${k.id}', '${q(k.nombre)}', '${k.emoji}', '${k.rareza}', '${k.tipo}', '${q(k.efecto)}')`), k.id);
+  for (const id of RETIRADAS) assert.ok(sql.includes(`'${id}'`), `retirada ${id}`);
   for (const g of PROBABILIDADES) assert.ok(sql.includes(`(${g.desde}, ${g.hasta}, ${g.comun}, ${g.rara}, ${g.epica}, ${g.legendaria})`), `grupo ${g.desde}`);
   for (const [k, [a, b]] of Object.entries(TIRADAS)) assert.ok(sql.includes(`when '${k}' then ${a} +`) && sql.includes(`-- ${k}: ${a} a ${b}`), `tirada ${k}`);
 });
@@ -67,7 +70,7 @@ test('ninguna carta de puntos pasa el techo de su rareza, en todos los resultado
     if (r === 'd02') return { ...base, ganador: 'b', rondasA: 0, rondasB: 2 };
     return { ...base, ganador: 'b', noJugo: 'a', rondasA: 0, rondasB: 0 };
   };
-  const sinTope = new Set(['racha', 'corona', 'trampa', 'contraataque', 'ruleta', 'doble_carta', 'congelar']);
+  const sinTope = new Set(['racha', 'corona', 'ruleta', 'doble_carta', 'congelar']);
   for (const k of CARTAS.filter((x) => !sinTope.has(x.id))) {
     let maximo = 0;
     for (const a of res) for (const b of res) for (const c of res) {
@@ -75,8 +78,9 @@ test('ninguna carta de puntos pasa el techo de su rareza, en todos los resultado
       const [mn, mx] = TIRADAS[k.id] ?? [0, 0];
       for (const dado of [mn, mx]) for (const puesto of [1, 12]) {
         const extra: Partial<CartaJugada> = { dado, puesto, duelo: 1000, duelos: [1000, 1001] };
-        // El robo del Agujero Negro va al rival; aquí se mira solo lo que suma el propio equipo
-        maximo = Math.max(maximo, ajuste(ds, [carta(1, k.id, extra), carta(2, 'boleto', { puesto: 1 })]).e1);
+        const r = ajuste(ds, [carta(1, k.id, extra), carta(2, 'boleto', { puesto: 1 })]);
+        maximo = Math.max(maximo, r.e1);
+        assert.ok(r.e2 >= (k.id === 'eclipse' ? 0 : 3) && r.e1 >= 0, `${k.nombre}: ninguna carta resta (propio ${r.e1}, rival ${r.e2})`);
       }
     }
     assert.ok(maximo <= TECHO[k.rareza], `${k.nombre}: ${maximo} > ${TECHO[k.rareza]}`);
@@ -121,16 +125,28 @@ test('Último Aliento y Fénix: solo si pierde los 3', () => {
   assert.equal(p1([gana2(), gana2(), gana2()], 'ultimo_aliento'), 6); assert.equal(p1([gana2(), gana2(), gana2()], 'fenix'), 20);
   assert.equal(p1([gana2(), gana2(), gana1()], 'fenix'), 0);
 });
-test('Doble o Nada: ganado +14, perdido vale 0 (−4), empate nada', () => {
+test('Doble o Nada: ganado +14; perdido o empatado, nada (nunca resta)', () => {
   const g = gana1(), p = gana2(), e = empate();
   assert.equal(p1([g, p], 'doble_nada', { duelo: g.id }), 14);
-  assert.equal(p1([g, p], 'doble_nada', { duelo: p.id }), -4);
+  assert.equal(p1([g, p], 'doble_nada', { duelo: p.id }), 0);
   assert.equal(p1([e], 'doble_nada', { duelo: e.id }), 0);
 });
 test('La Muralla: +4 por derrota', () => assert.equal(p1([gana2(), gana2(), gana2()], 'muralla'), 12));
 test('Imán: +4 por victoria', () => assert.equal(p1([gana1(), gana2()], 'iman'), 4));
 test('Barrida: +14 solo con 3 de 3', () => { assert.equal(p1([gana1(), gana1(), gana1()], 'barrida'), 14); assert.equal(p1([gana1(), gana1(), gana2()], 'barrida'), 0); });
-test('Trampa: el rival pierde 2 por cada duelo que pierde contra este equipo', () => assert.deepEqual(ajuste([gana1(), gana1(), gana2()], [carta(1, 'trampa')]), { e1: 0, e2: -4 }));
+test('Encargo: +10 si cumple la misión sorteada (1: un 2-0 · 2: los 3 antes del último día · 3: una ronda en cada duelo)', () => {
+  const antes = { antes: true };
+  assert.equal(p1([gana1([2, 0]), gana2()], 'encargo', { dado: 1 }), 10);
+  assert.equal(p1([gana1([2, 1]), gana2()], 'encargo', { dado: 1 }), 0);
+  assert.equal(p1([gana1(undefined, antes), gana2(undefined, antes), gana2(undefined, antes)], 'encargo', { dado: 2 }), 10);
+  assert.equal(p1([gana1(undefined, antes), gana2(undefined, antes), gana2()], 'encargo', { dado: 2 }), 0);
+  assert.equal(p1([gana1([2, 1]), gana2([1, 2]), empate()], 'encargo', { dado: 3 }), 10);
+  assert.equal(p1([gana1([2, 1]), gana2([0, 2]), empate()], 'encargo', { dado: 3 }), 0);
+});
+test('Encargo: el detalle dice la misión y si se cumplió', () => {
+  const t = calcularAjustes([gana1([2, 0])], [carta(1, 'encargo', { dado: 1 })], 1)[0].detalle.join(' ');
+  assert.match(t, /misión cumplida/);
+});
 test('Dado Grande, Caja Misteriosa: suman la tirada', () => { assert.equal(p1([gana2()], 'dado_grande', { dado: 12 }), 12); assert.equal(p1([gana2()], 'caja', { dado: 14 }), 14); });
 test('Remontada: +4 por victoria solo del puesto 7 hacia abajo', () => { assert.equal(p1([gana1(), gana1()], 'remontada', { puesto: 7 }), 8); assert.equal(p1([gana1(), gana1()], 'remontada', { puesto: 6 }), 0); });
 test('Ola de Rondas: +2 por ronda ganada, máximo +12', () => { assert.equal(p1([gana1([2, 1]), gana2([1, 2])], 'ola'), 6); assert.equal(p1([gana1(), gana1(), gana1(), gana1()], 'ola'), 12); });
@@ -149,11 +165,14 @@ test('Comodín: se vuelve la común que más le habría dado', () => {
   assert.equal(p1([gana2(), gana2(), gana2()], 'comodin'), 6); // Escudo o Último Aliento
 });
 test('En Racha: los puntos del cruce ×1,25 (incluido el bono)', () => assert.equal(p1([gana1(), gana1(), gana2()], 'racha'), 5.75)); // (7+7+4+5) × 0,25
-test('Contraataque: −5 al rival por cada duelo ganado', () => assert.equal(ajuste([gana1(), gana1(), gana2()], [carta(1, 'contraataque')]).e2, -10));
+test('Contrato: +16 si cumple 2 de las 3 misiones del Encargo', () => {
+  assert.equal(p1([gana1([2, 0]), gana2([1, 2]), empate()], 'contrato'), 16); // 2-0 y una ronda en cada duelo
+  assert.equal(p1([gana1([2, 0]), gana2([0, 2]), empate()], 'contrato'), 0);  // solo el 2-0
+});
 test('Sed de Sangre: +15 si gana la serie', () => { assert.equal(p1([gana1(), gana1(), gana2()], 'sed'), 15); assert.equal(p1([gana1(), gana2()], 'sed'), 0); });
 test('Congelar anula la carta del rival, pero no una legendaria; dos Congelar se anulan', () => {
   assert.equal(ajuste([gana2()], [carta(1, 'congelar'), carta(2, 'iman')]).e2, 0);
-  assert.equal(ajuste([gana2()], [carta(1, 'congelar'), carta(2, 'supernova')]).e2, 21);
+  assert.equal(ajuste([gana2()], [carta(1, 'congelar'), carta(2, 'supernova')]).e2, 10);
   assert.deepEqual(ajuste([gana1()], [carta(1, 'congelar'), carta(1, 'iman'), carta(2, 'congelar'), carta(2, 'iman')]), { e1: 0, e2: 0 });
 });
 test('Congelar también anula las cartas que salieron de una Doble Carta del rival', () => {
@@ -166,39 +185,46 @@ test('Todo o Nada: +25 si gana los dos duelos marcados; si no, nada', () => {
   assert.equal(p1([a, b, c], 'todo_nada', { duelos: [a.id, c.id] }), 0);
 });
 test('Pacto de Hierro: +20 si los 3 terminan igual', () => { assert.equal(p1([empate(), empate(), empate()], 'pacto_hierro'), 20); assert.equal(p1([gana1(), gana1(), empate()], 'pacto_hierro'), 0); });
-test('Lluvia de Estrellas: +5 por victoria y +2 por ronda, máximo +25', () => { assert.equal(p1([gana1([2, 1]), gana2([1, 2])], 'estrellas'), 11); assert.equal(p1([gana1(), gana1(), gana1()], 'estrellas'), 25); });
+test('Lluvia de Estrellas: +3 por victoria y +1 por ronda, máximo +15', () => { assert.equal(p1([gana1([2, 1]), gana2([1, 2])], 'estrellas'), 6); assert.equal(p1([gana1(), gana1(), gana1()], 'estrellas'), 15); });
 test('Gran Angular: +8 por victoria si el rival está más arriba', () => {
   assert.equal(ajuste([gana1(), gana1()], [carta(1, 'gran_angular', { puesto: 9 }), carta(2, 'boleto', { puesto: 2 })]).e1, 16);
   assert.equal(ajuste([gana1(), gana1()], [carta(1, 'gran_angular', { puesto: 2 }), carta(2, 'boleto', { puesto: 9 })]).e1, 0);
 });
 test('La Corona: los puntos del cruce ×1,3', () => assert.equal(p1([gana1(), gana1(), gana2()], 'corona'), 6.9)); // 23 × 0,3
-test('Agujero Negro: +6 propio y −6 al rival por cada duelo ganado', () => assert.deepEqual(ajuste([gana1(), gana1(), gana2()], [carta(1, 'agujero')]), { e1: 12, e2: -12 }));
+test('Hazaña: +20 si cumple la misión sorteada (1: gana los 3 · 2: dos 2-0 · 3: gana la serie a uno de más arriba); si no, +6', () => {
+  assert.equal(p1([gana1(), gana1(), gana1()], 'hazana', { dado: 1 }), 20);
+  assert.equal(p1([gana1(), gana1(), gana2()], 'hazana', { dado: 1 }), 6);
+  assert.equal(p1([gana1([2, 0]), gana1([2, 0]), gana2()], 'hazana', { dado: 2 }), 20);
+  assert.equal(p1([gana1([2, 0]), gana1([2, 1]), gana2()], 'hazana', { dado: 2 }), 6);
+  assert.equal(ajuste([gana1(), gana1()], [carta(1, 'hazana', { dado: 3, puesto: 10 }), carta(2, 'boleto', { puesto: 2 })]).e1, 20);
+  assert.equal(ajuste([gana1(), gana1()], [carta(1, 'hazana', { dado: 3, puesto: 2 }), carta(2, 'boleto', { puesto: 10 })]).e1, 6);
+});
 test('Mano de Dios: +6 y además la carta elegida, que no se puede congelar', () => {
   const m = carta(1, 'mano');
   assert.equal(ajuste([gana1()], [m, carta(1, 'iman', { origen: m.id })]).e1, 10);
   assert.equal(ajuste([gana1()], [m, carta(1, 'iman', { origen: m.id }), carta(2, 'congelar')]).e1, 10);
 });
-test('Big Bang y Bóveda del Dragón: la tirada ×3 y ×2', () => { assert.equal(p1([gana2()], 'big_bang', { dado: 12 }), 36); assert.equal(p1([gana2()], 'boveda', { dado: 18 }), 36); });
-test('Leyenda Viva: +12 por victoria y +6 con barrida', () => { assert.equal(p1([gana1(), gana1(), gana2()], 'leyenda'), 24); assert.equal(p1([gana1(), gana1(), gana1()], 'leyenda'), 42); });
-test('Tridente: +6 por cada victoria y cada derrota (no por empate)', () => assert.equal(p1([gana1(), gana2(), empate()], 'tridente'), 12));
-test('Eclipse: +12 y anula todas las cartas del rival, también las legendarias; dos Eclipse se anulan', () => {
-  assert.deepEqual(ajuste([gana2()], [carta(1, 'eclipse'), carta(2, 'supernova')]), { e1: 12, e2: 0 });
-  assert.deepEqual(ajuste([gana2()], [carta(1, 'eclipse'), carta(2, 'eclipse')]), { e1: 12, e2: 12 });
-  assert.equal(ajuste([gana2()], [carta(1, 'eclipse'), carta(2, 'congelar')]).e1, 12); // el Congelar del rival queda anulado
+test('Big Bang: la tirada +6; Bóveda del Dragón: la tirada', () => { assert.equal(p1([gana2()], 'big_bang', { dado: 12 }), 18); assert.equal(p1([gana2()], 'boveda', { dado: 18 }), 18); });
+test('Leyenda Viva: +6 por victoria y +4 con barrida', () => { assert.equal(p1([gana1(), gana1(), gana2()], 'leyenda'), 12); assert.equal(p1([gana1(), gana1(), gana1()], 'leyenda'), 22); });
+test('Tridente: +4 por cada victoria y cada derrota (no por empate)', () => assert.equal(p1([gana1(), gana2(), empate()], 'tridente'), 8));
+test('Eclipse: +6 y anula todas las cartas del rival, también las legendarias; dos Eclipse se anulan', () => {
+  assert.deepEqual(ajuste([gana2()], [carta(1, 'eclipse'), carta(2, 'supernova')]), { e1: 6, e2: 0 });
+  assert.deepEqual(ajuste([gana2()], [carta(1, 'eclipse'), carta(2, 'eclipse')]), { e1: 6, e2: 6 });
+  assert.equal(ajuste([gana2()], [carta(1, 'eclipse'), carta(2, 'congelar')]).e1, 6); // el Congelar del rival queda anulado
 });
-test('Supernova: +14 y +7 por victoria', () => assert.equal(p1([gana1(), gana1(), gana2()], 'supernova'), 28));
-test('Titán: +10 y +9 por derrota', () => assert.equal(p1([gana2(), gana2(), gana1()], 'titan'), 28));
-test('Rey de la Isla: +30 del puesto 9 al 12; si no, +15', () => { assert.equal(p1([gana2()], 'rey_isla', { puesto: 9 }), 30); assert.equal(p1([gana2()], 'rey_isla', { puesto: 8 }), 15); });
+test('Supernova: +6 y +4 por victoria', () => assert.equal(p1([gana1(), gana1(), gana2()], 'supernova'), 14));
+test('Titán: +6 y +4 por derrota', () => assert.equal(p1([gana2(), gana2(), gana1()], 'titan'), 14));
+test('Rey de la Isla: +15 del puesto 9 al 12; si no, +8', () => { assert.equal(p1([gana2()], 'rey_isla', { puesto: 9 }), 15); assert.equal(p1([gana2()], 'rey_isla', { puesto: 8 }), 8); });
+test('techo legendario 2.1: ninguna legendaria pasa de +22 base', () => assert.equal(TECHO.legendaria, 22));
 
 // ───────── Reglas generales ─────────
-test('un robo nunca deja al rival bajo 0 puntos en el cruce', () => {
-  const r = ajuste([gana1(), gana1(), gana1()], [carta(1, 'agujero'), carta(1, 'contraataque')]);
-  assert.equal(r.e2, -12); // perdió los 3 (12 base); los robos (18 + 15) lo dejarían en −21, pero el mínimo es 0
+test('las cartas retiradas (robos) ya no hacen nada si quedaron en el historial', () => {
+  assert.deepEqual(ajuste([gana1(), gana1(), gana1()], [carta(1, 'agujero'), carta(1, 'contraataque'), carta(1, 'trampa')]), { e1: 0, e2: 0 });
 });
 test('una carta anulada por Pancho no hace nada', () => assert.equal(p1([gana1()], 'iman', { anulada: true }), 0));
 test('equipos que no tienen cartas de otro enfrentamiento no se ven afectados', () => {
   const otro: DueloEquipo = { id: ++id, a: 3, b: 4, ganador: 'a', noJugo: null, rondasA: 2, rondasB: 0 };
-  const r = calcularAjustes([gana1(), otro], [carta(1, 'agujero')], 1.5);
+  const r = calcularAjustes([gana1(), otro], [carta(1, 'iman')], 1.5);
   assert.equal(r.find((x) => x.equipo === 4)?.puntos ?? 0, 0);
 });
 test('cada ajuste trae el detalle de qué carta lo produjo, con la tirada', () => {
@@ -246,7 +272,7 @@ test('la tabla de la web suma los puntos revelados de las cartas en su jornada (
 test('textosRevelacion: un mensaje por partes de menos de 1.900 caracteres, con cada equipo, su carta y sus puntos', () => {
   const nombres = new Map(Array.from({ length: 12 }, (_, i) => [i + 1, `Equipo número ${i + 1} con nombre largo`]));
   const cartas = Array.from({ length: 12 }, (_, i) => ({ equipo: i + 1, carta: CARTAS[i * 5].id, rareza: CARTAS[i * 5].rareza }));
-  const ajustes = cartas.map((x) => ({ equipo: x.equipo, puntos: -4.5 + x.equipo, detalle: ['🧲 Imán: +4 base', '🪤 Trampa del rival: −2 base', 'línea larga '.repeat(8)] }));
+  const ajustes = cartas.map((x) => ({ equipo: x.equipo, puntos: -4.5 + x.equipo, detalle: ['🧲 Imán: +4 base', '🧱 La Muralla: +4 base', 'línea larga '.repeat(8)] }));
   const textos = textosRevelacion(8, cartas, ajustes, nombres);
   assert.ok(textos.length >= 2);
   for (const t of textos) assert.ok(t.length <= 1900, `largo ${t.length}`);

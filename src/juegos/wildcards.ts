@@ -1,4 +1,5 @@
-// Wild Cards 2.0 (desde el cruce 8): una carta por equipo y cruce, sorteada en la Mesa de control.
+// Wild Cards 2.1 (desde el cruce 8): una carta por equipo y cruce, sorteada en la Mesa de control.
+// 2.1 (12-11, opiniones de Palta, LewVan, Chui y Hishore): sin robos, legendarias hasta +22, misiones y 1-2 sin legendaria.
 // Este archivo es puro (sin Supabase): catálogo, probabilidades y el motor que calcula los puntos de cada carta.
 // Lo usan la web (tabla, Mesa de control, pestaña Wild Cards) y las pruebas, que también comprueban que el SQL tenga
 // el mismo catálogo. Catálogo aprobado por Pancho el 11-11 (PDF «Wild Cards 2.0 - catálogo» en el vault).
@@ -15,8 +16,8 @@ export const RAREZAS: Record<Rareza, { nombre: string; color: string }> = {
   epica: { nombre: 'Épica', color: '#b46cff' },
   legendaria: { nombre: 'Legendaria', color: '#ffc83d' },
 };
-/** Lo más que una carta de cada rareza puede sumar en puntos base por cruce (sin contar multiplicadores ni robos). */
-export const TECHO: Record<Rareza, number> = { comun: 6, rara: 14, epica: 25, legendaria: 42 };
+/** Lo más que una carta de cada rareza puede sumar en puntos base por cruce (sin contar multiplicadores). */
+export const TECHO: Record<Rareza, number> = { comun: 6, rara: 14, epica: 25, legendaria: 22 };
 
 const c = (id: string, emoji: string, nombre: string, rareza: Rareza, tipo: Carta['tipo'], efecto: string, max: string): Carta => ({ id, emoji, nombre, rareza, tipo, efecto, max });
 export const CARTAS: Carta[] = [
@@ -46,11 +47,11 @@ export const CARTAS: Carta[] = [
   c('sorteo_chico', '🎁', 'Sorteo Chico', 'comun', 'auto', 'Se tira un dado de 6: si sale 5 o 6, +6 base.', '+6'),
   c('ultimo_aliento', '💨', 'Último Aliento', 'comun', 'auto', 'Si el equipo pierde los 3 duelos: +6 base.', '+6'),
   // ── Raras (hasta +14 base) ──
-  c('doble_nada', '⚡', 'Doble o Nada', 'rara', 'decision', 'Se marca 1 duelo antes de jugarlo: si lo gana, +14 base; si lo pierde, vale 0.', '+14'),
+  c('doble_nada', '⚡', 'Doble o Nada', 'rara', 'decision', 'Se marca 1 duelo antes de jugarlo: si lo gana, +14 base; si no, nada (nunca resta).', '+14'),
   c('muralla', '🧱', 'La Muralla', 'rara', 'auto', 'Cada derrota suma +4 base.', '+12'),
   c('iman', '🧲', 'Imán', 'rara', 'auto', '+4 base por cada duelo ganado.', '+12'),
   c('barrida', '🧹', 'Barrida', 'rara', 'auto', 'Si el equipo gana los 3 duelos: +14 base.', '+14'),
-  c('trampa', '🪤', 'Trampa', 'rara', 'auto', 'El rival pierde 2 puntos base por cada duelo que pierda contra este equipo.', 'rival −6'),
+  c('encargo', '📜', 'Encargo', 'rara', 'auto', 'Misión al azar: ganar un duelo 2-0, terminar los 3 duelos antes del último día o ganar una ronda en cada duelo. Si la cumple, +10 base.', '+10'),
   c('cambio_rivales', '🔀', 'Cambio de Rivales', 'rara', 'decision', 'El equipo decide quién de los suyos juega contra quién.', '—'),
   c('ruleta', '🎰', 'Ruleta Rusa', 'rara', 'auto', 'Se gira otra vez: 50 % gana además una carta Épica, 50 % nada.', 'carta'),
   c('dado_grande', '🎳', 'Dado Grande', 'rara', 'auto', 'Se tiran dos dados de 6 y se suma el total (de 2 a 12).', '+12'),
@@ -66,7 +67,7 @@ export const CARTAS: Carta[] = [
   c('bis', '🎤', 'Bis', 'rara', 'decision', 'Dos jugadores distintos repiten 1 ronda cada uno y se quedan con su mejor puntaje.', '—'),
   // ── Épicas (hasta +25 base) ──
   c('racha', '🔥', 'En Racha', 'epica', 'auto', 'Todos los puntos del equipo en el cruce valen ×1,25.', '×1,25'),
-  c('contraataque', '🦅', 'Contraataque', 'epica', 'auto', 'Por cada duelo ganado, el rival pierde 5 puntos base.', 'rival −15'),
+  c('contrato', '📑', 'Contrato', 'epica', 'auto', 'Si cumple 2 de estas 3 misiones: ganar un duelo 2-0, terminar los 3 duelos antes del último día o ganar una ronda en cada duelo: +16 base.', '+16'),
   c('sed', '🩸', 'Sed de Sangre', 'epica', 'auto', 'Si el equipo gana la serie (2 o 3 duelos): +15 base.', '+15'),
   c('congelar', '🧊', 'Congelar', 'epica', 'auto', 'La carta del rival no se aplica este cruce (no sirve contra legendarias).', '—'),
   c('doble_carta', '🃏', 'Doble Carta', 'epica', 'auto', 'En vez de esta, el equipo recibe 2 cartas (común o rara) y usa ambas.', '2 cartas'),
@@ -74,33 +75,38 @@ export const CARTAS: Carta[] = [
   c('fenix', '☄️', 'Fénix', 'epica', 'auto', 'Si el equipo pierde los 3 duelos: +20 base.', '+20'),
   c('todo_nada', '💣', 'Todo o Nada', 'epica', 'decision', 'Se marcan 2 duelos antes de jugarlos: si gana los dos, +25 base; si no, nada (nunca resta).', '+25'),
   c('pacto_hierro', '⛓️', 'Pacto de Hierro', 'epica', 'auto', 'Si los 3 duelos terminan igual (3 victorias, 3 empates o 3 derrotas): +20 base.', '+20'),
-  c('estrellas', '🌠', 'Lluvia de Estrellas', 'epica', 'auto', '+5 base por cada duelo ganado y +2 por cada ronda ganada (máximo +25).', '+25'),
+  c('estrellas', '🌠', 'Lluvia de Estrellas', 'epica', 'auto', '+3 base por cada duelo ganado y +1 por cada ronda ganada (máximo +15).', '+15'),
   c('gran_angular', '🔭', 'Gran Angular', 'epica', 'auto', '+8 base por cada duelo ganado, si el rival está más arriba en la tabla.', '+24'),
-  // ── Legendarias (hasta +42 base) ──
+  // ── Legendarias (hasta +22 base: como mucho, casi un cruce perfecto) ──
   c('corona', '👑', 'La Corona', 'legendaria', 'auto', 'Todos los puntos del equipo en el cruce valen ×1,3.', '×1,3'),
-  c('agujero', '🕳️', 'Agujero Negro', 'legendaria', 'auto', 'Por cada duelo ganado: +6 base para el equipo y −6 base para el rival.', '+18 / rival −18'),
+  c('hazana', '🏛️', 'Hazaña', 'legendaria', 'auto', 'Misión al azar: ganar los 3 duelos, ganar 2 duelos 2-0 o ganarle la serie a un equipo de más arriba. Si la cumple, +20 base; si no, +6.', '+20'),
   c('mano', '✋', 'Mano de Dios', 'legendaria', 'decision', 'Elige cualquier carta común, rara o épica, y además +6 base.', 'carta +6'),
-  c('big_bang', '💥', 'Big Bang', 'legendaria', 'auto', 'Se tiran dos dados de 6 y el total se multiplica por 3 (de 6 a 36).', '+36'),
-  c('leyenda', '🏆', 'Leyenda Viva', 'legendaria', 'auto', '+12 base por cada duelo ganado y +6 más si gana los 3.', '+42'),
-  c('tridente', '🔱', 'Tridente', 'legendaria', 'auto', 'Cada derrota suma +6 base y cada victoria también.', '+18'),
-  c('eclipse', '🌑', 'Eclipse', 'legendaria', 'auto', 'Anula la carta del rival (también las legendarias) y suma +12 base.', '+12'),
-  c('supernova', '🌟', 'Supernova', 'legendaria', 'auto', '+14 base de entrada y +7 por cada duelo ganado.', '+35'),
-  c('titan', '🗿', 'Titán', 'legendaria', 'auto', '+10 base de entrada y cada derrota suma +9 más.', '+37'),
-  c('boveda', '🐉', 'Bóveda del Dragón', 'legendaria', 'auto', 'Se tiran tres dados de 6 y el total se multiplica por 2 (de 6 a 36).', '+36'),
-  c('rey_isla', '🏝️', 'Rey de la Isla', 'legendaria', 'auto', '+30 base si el equipo está del puesto 9 al 12; si no, +15 base.', '+30'),
+  c('big_bang', '💥', 'Big Bang', 'legendaria', 'auto', 'Se tiran dos dados de 6 y se suma el total más 6 (de 8 a 18).', '+18'),
+  c('leyenda', '🏆', 'Leyenda Viva', 'legendaria', 'auto', '+6 base por cada duelo ganado y +4 más si gana los 3.', '+22'),
+  c('tridente', '🔱', 'Tridente', 'legendaria', 'auto', 'Cada derrota suma +4 base y cada victoria también.', '+12'),
+  c('eclipse', '🌑', 'Eclipse', 'legendaria', 'auto', 'Anula la carta del rival (también las legendarias) y suma +6 base.', '+6'),
+  c('supernova', '🌟', 'Supernova', 'legendaria', 'auto', '+6 base de entrada y +4 por cada duelo ganado.', '+18'),
+  c('titan', '🗿', 'Titán', 'legendaria', 'auto', '+6 base de entrada y cada derrota suma +4 más.', '+18'),
+  c('boveda', '🐉', 'Bóveda del Dragón', 'legendaria', 'auto', 'Se tiran tres dados de 6 y se suma el total (de 3 a 18).', '+18'),
+  c('rey_isla', '🏝️', 'Rey de la Isla', 'legendaria', 'auto', '+15 base si el equipo está del puesto 9 al 12; si no, +8 base.', '+15'),
 ];
 export const cartaPorId = (id: string) => CARTAS.find((x) => x.id === id);
-/** Cartas que ya no salen en el sorteo (quedan en la base solo por el historial). */
-export const RETIRADAS = ['orbita'];
-/** Cartas cuyo azar lo tira la base al sortearlas (columna `dado`): el rango de cada una. */
-export const TIRADAS: Record<string, [number, number]> = { dado: [1, 6], moneda: [1, 2], sorteo_chico: [1, 6], dado_grande: [2, 12], caja: [2, 14], big_bang: [2, 12], boveda: [3, 18] };
+/** Cartas que ya no salen en el sorteo (quedan en la base solo por el historial y no hacen nada). 2.1: fuera los robos. */
+export const RETIRADAS = ['orbita', 'trampa', 'contraataque', 'agujero'];
+/** Cartas cuyo azar lo tira la base al sortearlas (columna `dado`): el rango de cada una. En las misiones, cuál salió. */
+export const TIRADAS: Record<string, [number, number]> = { dado: [1, 6], moneda: [1, 2], sorteo_chico: [1, 6], dado_grande: [2, 12], caja: [2, 14], big_bang: [2, 12], boveda: [3, 18], encargo: [1, 3], hazana: [1, 3] };
+/** Texto de cada misión, en el orden de la tirada (1, 2, 3). Contrato usa las del Encargo. */
+export const MISIONES: Record<string, string[]> = {
+  encargo: ['ganar un duelo 2-0', 'terminar los 3 duelos antes del último día', 'ganar al menos una ronda en cada duelo'],
+  hazana: ['ganar los 3 duelos', 'ganar 2 duelos 2-0', 'ganarle la serie a un equipo de más arriba en la tabla'],
+};
 
-/** Probabilidad de cada rareza según el puesto en la tabla. Si un puesto quedaba en dos grupos, va al de más abajo. */
+/** Probabilidad de cada rareza según el puesto en la tabla (2.1: los puestos 1 y 2 nunca sacan legendaria). */
 export const PROBABILIDADES = [
-  { desde: 1, hasta: 2, comun: 68, rara: 22, epica: 8, legendaria: 2 },
-  { desde: 3, hasta: 5, comun: 58, rara: 25, epica: 12, legendaria: 5 },
-  { desde: 6, hasta: 8, comun: 39, rara: 30, epica: 15, legendaria: 16 },
-  { desde: 9, hasta: 12, comun: 22, rara: 28, epica: 22, legendaria: 28 },
+  { desde: 1, hasta: 2, comun: 70, rara: 22, epica: 8, legendaria: 0 },
+  { desde: 3, hasta: 5, comun: 60, rara: 25, epica: 12, legendaria: 3 },
+  { desde: 6, hasta: 8, comun: 40, rara: 30, epica: 15, legendaria: 15 },
+  { desde: 9, hasta: 12, comun: 20, rara: 28, epica: 22, legendaria: 30 },
 ];
 export const rarezasPara = (puesto: number) => PROBABILIDADES.find((g) => puesto >= g.desde && puesto <= g.hasta) ?? PROBABILIDADES[PROBABILIDADES.length - 1];
 /** La misma regla que usa wc_sortear en la base: r entre 0 y 100, acumulando común → rara → épica → legendaria. */
@@ -168,13 +174,15 @@ const firmar = (x: number) => (x >= 0 ? `+${redondear(x)}` : `−${redondear(-x)
 interface Vista { id: number; res: 'v' | 'e' | 'd' | 'nj'; propias: number; rival: number; antes: boolean; orden?: number; suma?: number; sumaRival?: number }
 interface Contexto { v: Vista[]; ganados: number; perdidos: number; empates: number; rondas: number; puesto: number | null; puestoRival: number | null; primero?: number; ultimo?: number }
 
-/** Puntos base que suma una carta automática de puntos (sin multiplicadores ni robos). `null` = esta carta no suma así. */
+/** Puntos base que suma una carta automática de puntos (sin multiplicadores). `null` = esta carta no suma así. */
 function puntosDe(id: string, x: CartaJugada, k: Contexto): number | null {
   const { v, ganados, perdidos, empates, rondas } = k;
   const ganaCon = (p: number, r: number) => v.filter((y) => y.res === 'v' && y.propias === p && y.rival === r).length;
   const pierdeSerie = v.filter((y) => y.res === 'd' || y.res === 'nj').length >= 2;
   const tresDerrotas = v.length === 3 && v.every((y) => y.res === 'd' || y.res === 'nj');
   const dado = x.dado ?? 0;
+  const misionEncargo = (n: number) => n === 1 ? ganaCon(2, 0) >= 1 : n === 2 ? v.length >= 3 && v.every((y) => y.antes) : n === 3 ? v.length >= 3 && v.every((y) => y.res !== 'nj' && y.propias >= 1) : false;
+  const misionHazana = (n: number) => n === 1 ? ganados === 3 : n === 2 ? ganaCon(2, 0) >= 2 : n === 3 ? ganados >= 2 && k.puesto != null && k.puestoRival != null && k.puestoRival < k.puesto : false;
   switch (id) {
     case 'escudo': return 2 * perdidos;
     case 'hinchada': return 2 * ganados;
@@ -212,18 +220,20 @@ function puntosDe(id: string, x: CartaJugada, k: Contexto): number | null {
     case 'sed': return ganados >= 2 ? 15 : 0;
     case 'fenix': return tresDerrotas ? 20 : 0;
     case 'pacto_hierro': return v.length === 3 && (ganados === 3 || empates === 3 || v.every((y) => y.res === 'd' || y.res === 'nj')) ? 20 : 0;
-    case 'estrellas': return Math.min(25, 5 * ganados + 2 * rondas);
+    case 'estrellas': return Math.min(15, 3 * ganados + rondas);
     case 'gran_angular': return k.puesto != null && k.puestoRival != null && k.puestoRival < k.puesto ? 8 * ganados : 0;
-    case 'agujero': return 6 * ganados;
+    case 'encargo': return misionEncargo(dado) ? 10 : 0;
+    case 'contrato': return [1, 2, 3].filter(misionEncargo).length >= 2 ? 16 : 0;
+    case 'hazana': return misionHazana(dado) ? 20 : 6;
     case 'mano': return 6;
-    case 'big_bang': return 3 * dado;
-    case 'leyenda': return 12 * ganados + (ganados === 3 ? 6 : 0);
-    case 'tridente': return 6 * (ganados + perdidos);
-    case 'eclipse': return 12;
-    case 'supernova': return 14 + 7 * ganados;
-    case 'titan': return 10 + 9 * perdidos;
-    case 'boveda': return 2 * dado;
-    case 'rey_isla': return (k.puesto ?? 0) >= 9 ? 30 : 15;
+    case 'big_bang': return dado + 6;
+    case 'leyenda': return 6 * ganados + (ganados === 3 ? 4 : 0);
+    case 'tridente': return 4 * (ganados + perdidos);
+    case 'eclipse': return 6;
+    case 'supernova': return 6 + 4 * ganados;
+    case 'titan': return 6 + 4 * perdidos;
+    case 'boveda': return dado;
+    case 'rey_isla': return (k.puesto ?? 0) >= 9 ? 15 : 8;
     default: return null;
   }
 }
@@ -232,8 +242,8 @@ const IMITABLES = CARTAS.filter((k) => k.rareza === 'comun' && k.tipo === 'auto'
 
 /**
  * Puntos extra (o en contra) de cada equipo por las Wild Cards de un cruce, ya multiplicados por la jornada.
- * Orden fijo: Eclipse → Congelar → puntos de cada carta (también Espejo y Comodín) → multiplicadores de carta → robos
- * → mínimo 0 → × jornada.
+ * Orden fijo: Eclipse → Congelar → puntos de cada carta (también Espejo y Comodín) → multiplicadores de carta
+ * → × jornada.
  */
 export function calcularAjustes(duelos: DueloEquipo[], cartas: CartaJugada[], mult: number): Ajuste[] {
   const porId = new Map(cartas.map((x) => [x.id, x]));
@@ -272,7 +282,7 @@ export function calcularAjustes(duelos: DueloEquipo[], cartas: CartaJugada[], mu
       if (eclipsado(eq, rivalEq)) detalle.push('🌑 Eclipse del rival: tus cartas no se aplican');
       for (const x of mias) {
         if (x.carta === 'doble_nada') {
-          const d = v.find((y) => y.id === x.duelo); anotar(x, d?.res === 'v' ? 14 : d?.res === 'd' ? -BASE.d : 0);
+          const d = v.find((y) => y.id === x.duelo); anotar(x, d?.res === 'v' ? 14 : 0);
         } else if (x.carta === 'todo_nada') {
           const ds = (x.duelos ?? []).map((id) => v.find((y) => y.id === id));
           anotar(x, ds.length === 2 && ds.every((d) => d?.res === 'v') ? 25 : 0);
@@ -284,23 +294,18 @@ export function calcularAjustes(duelos: DueloEquipo[], cartas: CartaJugada[], mu
           const mejor = IMITABLES.map((id) => [id, puntosDe(id, x, k) ?? 0] as const).sort((p, q) => q[1] - p[1])[0];
           anotar(x, mejor[1], ` (como ${cartaPorId(mejor[0])!.nombre})`);
         } else {
-          const n = puntosDe(x.carta, x, k);
-          if (n != null) anotar(x, n, x.dado != null && x.carta in TIRADAS ? ` (salió ${x.dado})` : '');
+          const n = puntosDe(x.carta, x, k), mision = MISIONES[x.carta]?.[(x.dado ?? 0) - 1];
+          const nota = mision ? ` (${mision}: misión ${n === (x.carta === 'hazana' ? 20 : 10) ? 'cumplida' : 'no cumplida'})` : x.dado != null && x.carta in TIRADAS ? ` (salió ${x.dado})` : '';
+          if (n != null) anotar(x, n, nota);
         }
       }
       // Multiplicadores de carta
       for (const [id, f] of [['racha', 1.25], ['corona', 1.3]] as const) for (const x of mias.filter((y) => y.carta === id)) {
         const n = total * (f - 1); total += n; const c = cartaPorId(x.carta)!; detalle.push(`${c.emoji} ${c.nombre} (×${String(f).replace('.', ',')}): ${firmar(n)} base`);
       }
-      // Robos que este equipo le hace al rival
-      const robos = ([['trampa', 2], ['contraataque', 5], ['agujero', 6]] as const).flatMap(([id, n]) => mias.filter((x) => x.carta === id).map((x) => ({ carta: x.carta, n: n * ganados }))).filter((x) => x.n > 0);
-      return { eq, original, total, detalle, robos };
+      return { eq, original, total, detalle };
     });
-    // Robos recibidos
-    for (const [i, yo] of estado.entries()) for (const r of estado[1 - i].robos) {
-      const c = cartaPorId(r.carta)!; yo.total -= r.n; yo.detalle.push(`${c.emoji} ${c.nombre} del rival: −${r.n} base`);
-    }
-    for (const yo of estado) if (yo.total < 0) { yo.detalle.push('Mínimo del cruce: no baja de 0'); yo.total = 0; }
+    // 2.1: ya no hay robos (Trampa, Contraataque y Agujero Negro quedaron retirados): ninguna carta resta puntos.
     for (const yo of estado) salida.push({ equipo: yo.eq, puntos: redondear((yo.total - yo.original) * mult), detalle: yo.detalle });
   }
   return salida;
