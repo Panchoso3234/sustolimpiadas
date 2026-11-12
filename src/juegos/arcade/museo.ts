@@ -8,21 +8,38 @@ import type { Contexto, Partida } from '../marco';
 import { mat } from '../punteria/fisica';
 import { crearEscenario, limitar, mmss, sombra } from '../reflejos/motor';
 import { NIVELES } from './museoNiveles';
+import { AN, CELDA, COLS, FILAS, FO, celda, centro, crearVision } from './museoVision';
 
 // Ladrón del Museo: tres pisos de un museo de noche. Junta el botín, roba el tesoro de cada piso y escapa por la puerta
 // sin que te vean los guardias ni las cámaras, y sin tocar los láseres encendidos. Correr hace ruido (los guardias vienen
 // a mirar); en puntillas no te oyen. Si el ojo se llena, te atrapan: vuelves al comienzo del piso. Tres vidas y 5 minutos.
 
-const COLS = 18, FILAS = 12, CELDA = 1.2, AN = COLS * CELDA, FO = FILAS * CELDA, DURA = 300, R = 0.34;
+const DURA = 300, R = 0.34;
 const VISTA = 4.4 * CELDA, MEDIO = 0.55, OIDO = 2.6 * CELDA, VEL = 3.6, PUNTILLAS = 1.7, VEL_GUARDIA = 1.7;
-const centro = (cx: number, cz: number) => ({ x: -AN / 2 + (cx + 0.5) * CELDA, z: -FO / 2 + (cz + 0.5) * CELDA });
-const celda = (x: number, z: number): [number, number] => [Math.floor((x + AN / 2) / CELDA), Math.floor((z + FO / 2) / CELDA)];
+const FONDO = new THREE.Color('#141a2e'), ALARMA = new THREE.Color('#5a1020');
+/** Un letrero que se ve siempre, aunque lo tape un muro (texto o símbolo sobre un círculo de color). */
+function icono(texto: string, color: string, tam = 0.62) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const g = cv.getContext('2d')!;
+  g.fillStyle = color; g.beginPath(); g.arc(32, 32, 28, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#141a2e'; g.font = 'bold 44px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(texto, 32, 35);
+  const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, depthTest: false, depthWrite: false, transparent: true }));
+  s.scale.set(tam, tam, 1); s.renderOrder = 20; s.visible = false;
+  return s;
+}
+/** Aro plano en el piso que se ve a través de los muros. */
+function aro(dentro: number, fuera: number, color: string, opacidad: number) {
+  const m = new THREE.Mesh(new THREE.RingGeometry(dentro, fuera, 40), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: opacidad, depthTest: false, depthWrite: false, side: THREE.DoubleSide }));
+  m.rotation.x = -Math.PI / 2; m.renderOrder = 15;
+  return m;
+}
 const girar = (desde: number, hacia: number, max: number) => { let d = hacia - desde; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return desde + limitar(d, -max, max); };
 
 /** Abanico de visión que se corta en los muros. */
 interface Cono { malla: THREE.Mesh; radio: number; mover(x: number, z: number, ang: number): void }
-interface Guardia { k: Kenney; cono: Cono; ronda: { x: number; z: number }[]; i: number; paso: number; x: number; z: number; ang: number; espera: number; ruta: { x: number; z: number }[]; modo: 'ronda' | 'investiga' | 'vuelve'; ve: boolean }
-interface Camara { x: number; z: number; ang: number; base: number; barre: number; cono: Cono }
+interface Guardia { k: Kenney; cono: Cono; ronda: { x: number; z: number }[]; i: number; paso: number; x: number; z: number; ang: number; espera: number; ruta: { x: number; z: number }[]; modo: 'ronda' | 'investiga' | 'vuelve'; ve: boolean; alerta: THREE.Sprite; duda: THREE.Sprite; marca: THREE.Mesh }
+interface Camara { x: number; z: number; ang: number; base: number; barre: number; cono: Cono; alerta: THREE.Sprite }
 interface Laser { celdas: [number, number][]; prendido: number; apagado: number; desfase: number; mallas: THREE.Mesh[] }
 
 export async function crear(c: Contexto): Promise<Partida> {
@@ -36,7 +53,9 @@ export async function crear(c: Contexto): Promise<Partida> {
   const g2 = cv.getContext('2d')!;
   for (let i = 0; i < 4; i++) { g2.fillStyle = i % 3 ? '#d9d2c4' : '#b9b0a0'; g2.fillRect((i % 2) * 32, Math.floor(i / 2) * 32, 32, 32); }
   g2.strokeStyle = 'rgba(120,110,100,0.35)'; g2.lineWidth = 1;
-  for (let i = 0; i < 6; i++) { g2.beginPath(); g2.moveTo(Math.random() * 64, 0); g2.bezierCurveTo(Math.random() * 64, 20, Math.random() * 64, 44, Math.random() * 64, 64); g2.stroke(); }
+  // Vetas del mármol con la semilla del duelo: los dos rivales ven el mismo piso
+  const azarPiso = generador(`${c.semilla}|piso`);
+  for (let i = 0; i < 6; i++) { g2.beginPath(); g2.moveTo(azarPiso() * 64, 0); g2.bezierCurveTo(azarPiso() * 64, 20, azarPiso() * 64, 44, azarPiso() * 64, 64); g2.stroke(); }
   const tex = new THREE.CanvasTexture(cv); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(COLS / 2, FILAS / 2); tex.colorSpace = THREE.SRGBColorSpace;
   const piso = new THREE.Mesh(new THREE.PlaneGeometry(AN, FO), new THREE.MeshLambertMaterial({ map: tex }));
   piso.rotation.x = -Math.PI / 2;
@@ -46,17 +65,33 @@ export async function crear(c: Contexto): Promise<Partida> {
 
   const yo = await e.personaje(c.aspecto, 1.25);
   const sombraYo = sombra(0.4); e.escena.add(sombraYo);
+  // Siempre a la vista aunque un muro lo tape: aro bajo el ladrón, aro de ruido al correr (radio real del oído de los
+  // guardias) y el ojo que se llena sobre su cabeza
+  const aroYo = aro(0.36, 0.46, '#9ff3ff', 0.8), aroRuido = aro(OIDO - 0.07, OIDO, '#ffd23c', 0);
+  const ojoCv = document.createElement('canvas'); ojoCv.width = ojoCv.height = 64;
+  const ojoTx = new THREE.CanvasTexture(ojoCv), ojoSp = new THREE.Sprite(new THREE.SpriteMaterial({ map: ojoTx, depthTest: false, depthWrite: false, transparent: true }));
+  ojoSp.scale.set(0.72, 0.72, 1); ojoSp.renderOrder = 20; ojoSp.visible = false;
+  e.escena.add(aroYo, aroRuido, ojoSp);
+  let ojoDibujado = -1;
+  const dibujarOjo = (v: number) => {
+    const n = Math.round(v * 12);
+    if (n === ojoDibujado) return; // solo se vuelve a pintar cuando cambia de tramo
+    ojoDibujado = n; ojoSp.visible = n > 0;
+    const g = ojoCv.getContext('2d')!;
+    g.clearRect(0, 0, 64, 64); g.lineWidth = 9; g.lineCap = 'round';
+    g.strokeStyle = 'rgba(20,26,46,0.85)'; g.beginPath(); g.arc(32, 32, 24, 0, Math.PI * 2); g.stroke();
+    g.strokeStyle = n > 8 ? '#ff3a3a' : '#ffd23c'; g.beginPath(); g.arc(32, 32, 24, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * n) / 12); g.stroke();
+    g.fillStyle = '#ffffff'; g.font = 'bold 24px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('👁', 32, 34);
+    ojoTx.needsUpdate = true;
+  };
   let px = 0, pz = 0, ang = 0;
 
   // ── Lo que cambia con cada piso ──
   let grilla: string[] = [], nivel = -1, piezas = new THREE.Group(), guardias: Guardia[] = [], camaras: Camara[] = [], laseres: Laser[] = [];
   let botin = new Map<string, THREE.Object3D>(), tesoro: THREE.Object3D | null = null, tieneTesoro = false, puerta: THREE.Mesh | null = null, salida = { x: 0, z: 0 }, limpio = true;
   const solido = (cx: number, cz: number) => cx < 0 || cz < 0 || cx >= COLS || cz >= FILAS || grilla[cz][cx] === '#';
-  const aLaVista = (a: { x: number; z: number }, b: { x: number; z: number }) => {
-    const pasos = Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.25);
-    for (let i = 1; i < pasos; i++) if (solido(...celda(a.x + ((b.x - a.x) * i) / pasos, a.z + ((b.z - a.z) * i) / pasos))) return false;
-    return true;
-  };
+  // Lo que se ve y lo que se dibuja usan la misma regla exacta (museoVision.ts): ningún guardia ve a través de un muro
+  const vision = crearVision(solido), aLaVista = vision.aLaVista;
   /** Camino más corto por el piso (de celda en celda) entre dos puntos. */
   const rutaHacia = (desde: { x: number; z: number }, hasta: { x: number; z: number }) => {
     const [ax, az] = celda(desde.x, desde.z), [bx, bz] = celda(hasta.x, hasta.z), previo = new Map<string, string>([[`${ax},${az}`, '']]), cola = [[ax, az]];
@@ -69,7 +104,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     for (let k = `${bx},${bz}`; previo.has(k) && previo.get(k) !== ''; k = previo.get(k)!) { const [x, z] = k.split(',').map(Number); ruta.unshift(centro(x, z)); }
     return ruta;
   };
-  const RAYOS = 18;
+  const RAYOS = 32;
   const cono = (radio: number, color: string): Cono => {
     const pos = new Float32Array((RAYOS + 2) * 3), indices: number[] = [];
     for (let k = 0; k < RAYOS; k++) indices.push(0, k + 2, k + 1);
@@ -82,9 +117,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       mover(x, z, ang) {
         pos[0] = x; pos[1] = 0.05; pos[2] = z;
         for (let k = 0; k <= RAYOS; k++) {
-          const a = ang - MEDIO + (2 * MEDIO * k) / RAYOS, dx = Math.sin(a), dz = Math.cos(a);
-          let d = 0.15;
-          while (d < radio && !solido(...celda(x + dx * d, z + dz * d))) d += 0.15;
+          const a = ang - MEDIO + (2 * MEDIO * k) / RAYOS, dx = Math.sin(a), dz = Math.cos(a), d = vision.alcance(x, z, a, radio);
           pos[(k + 1) * 3] = x + dx * d; pos[(k + 1) * 3 + 1] = 0.05; pos[(k + 1) * 3 + 2] = z + dz * d;
         }
         geo.attributes.position.needsUpdate = true;
@@ -168,13 +201,16 @@ export async function crear(c: Contexto): Promise<Partida> {
       // La gorra va dentro del personaje (que está escalado): se compensa para que mida lo mismo en el mundo
       const gorra = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.19, 0.1, 12), mat('#1f3a8a')), s = kk.grupo.scale.y; gorra.scale.setScalar(1 / s); gorra.position.y = 1.3 / s; kk.grupo.add(gorra);
       const c2 = cono(VISTA, '#fff3a0'); piezas.add(c2.malla);
-      return { k: kk, cono: c2, ronda: puntos, i: 1 % puntos.length, paso: 1, x: puntos[0].x, z: puntos[0].z, ang: 0, espera: 0, ruta: [], modo: 'ronda' as const, ve: false };
+      // «!» si te ve, «?» si va a mirar un ruido, y un aro bajo sus pies que se ve aunque un muro lo tape
+      const alerta = icono('!', '#ff4a4a'), duda = icono('?', '#ffd23c'), marca = aro(0.3, 0.4, '#ffd23c', 0.55);
+      piezas.add(alerta, duda, marca);
+      return { k: kk, cono: c2, ronda: puntos, i: 1 % puntos.length, paso: 1, x: puntos[0].x, z: puntos[0].z, ang: 0, espera: 0, ruta: [], modo: 'ronda' as const, ve: false, alerta, duda, marca };
     }));
     camaras = datos.camaras.map((cm) => {
       const p = centro(cm.x, cm.z), caja = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.22, 0.4), mat('#2a2a33')), luz = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 5), new THREE.MeshBasicMaterial({ color: '#ff3b2e' }));
       caja.position.set(p.x, 1.0, p.z); luz.position.set(p.x, 1.14, p.z); piezas.add(caja, luz);
-      const c2 = cono(VISTA * 1.05, '#ff9a9a'); piezas.add(c2.malla);
-      return { x: p.x, z: p.z, ang: cm.ang, base: cm.ang, barre: cm.barre, cono: c2 };
+      const c2 = cono(VISTA * 1.05, '#ff9a9a'), alerta = icono('!', '#ff4a4a', 0.5); alerta.position.set(p.x, 1.6, p.z); piezas.add(c2.malla, alerta);
+      return { x: p.x, z: p.z, ang: cm.ang, base: cm.ang, barre: cm.barre, cono: c2, alerta };
     });
     laseres = datos.laseres.map((l) => ({ ...l, mallas: l.celdas.map(([cx, cz]) => {
       const p = centro(cx, cz), cruzaX = solido(cx - 1, cz) && solido(cx + 1, cz);
@@ -188,7 +224,14 @@ export async function crear(c: Contexto): Promise<Partida> {
   };
 
   // ── Partida ──
-  let puntos = 0, vidas = 3, ojo = 0, quieto = 0, empezado = false, terminado = false, robados = 0;
+  let puntos = 0, vidas = 3, ojo = 0, quieto = 0, empezado = false, terminado = false, robados = 0, alarmaHasta = 0, consejo = 0;
+  // En celular, «Puntillas» se fija con un toque (antes había que mantenerla apretada mientras se movía la palanca);
+  // en el computador se sigue manteniendo Espacio
+  const tactil = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  const botonPuntillas = c.caja.querySelector<HTMLButtonElement>('.mando-accion:not(.segunda)');
+  let sigilo = false, botonAntes = false;
+  const marcarPuntillas = () => { if (botonPuntillas) { botonPuntillas.textContent = sigilo ? 'Puntillas: sí' : 'Puntillas: no'; botonPuntillas.classList.toggle('activa', sigilo); } };
+  if (tactil) marcarPuntillas();
   const terminar = (t: number, gano: boolean) => {
     if (terminado) return;
     terminado = true;
@@ -205,8 +248,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     vidas--; limpio = false; ojo = 0; quieto = t + 1.2;
     e.temblar(0.6); e.sonido.mal();
     e.sonido.tono(880, 0.5, { tipo: 'square', vol: 0.12, hasta: 440 });
-    e.escena.background = new THREE.Color('#5a1020');
-    setTimeout(() => { e.escena.background = new THREE.Color('#141a2e'); }, 450);
+    e.escena.background = ALARMA; alarmaHasta = t + 0.45; // vuelve con el reloj del juego (antes con setTimeout)
     e.hud.aviso(vidas > 0 ? `¡${por}! Quedan ${vidas} ♥` : '¡Te atraparon!', 'mal', 1.4);
     if (vidas <= 0) return terminar(t, false);
     const s = grilla.findIndex((f) => f.includes('S')), p = centro(grilla[s].indexOf('S'), s);
@@ -221,6 +263,7 @@ export async function crear(c: Contexto): Promise<Partida> {
 
   e.alCuadro((t, dt) => {
     const paso = Math.min(dt, 0.05);
+    if (alarmaHasta && t >= alarmaHasta) { e.escena.background = FONDO; alarmaHasta = 0; }
     for (const v of botin.values()) v.rotation.y += paso * 2;
     if (tesoro) { tesoro.rotation.y += paso * 1.5; tesoro.position.y = 0.95 + Math.sin(t * 2) * 0.06; }
     // Láser: encendido, rojo fuerte; apagado, tenue y quieto; en el último medio segundo antes de encenderse, parpadea de aviso
@@ -231,7 +274,10 @@ export async function crear(c: Contexto): Promise<Partida> {
     }
     if (empezado && !terminado && !cargando) {
       // El ladrón: corre o va en puntillas, y choca con los muros
-      const puntillas = mando.pulsada, mx = mando.x, mz = mando.z, largo = Math.hypot(mx, mz), mueve = largo > 0.15 && t > quieto;
+      const boton = mando.pulsada;
+      if (tactil && boton && !botonAntes) { sigilo = !sigilo; marcarPuntillas(); }
+      botonAntes = boton;
+      const puntillas = tactil ? sigilo : boton, mx = mando.x, mz = mando.z, largo = Math.hypot(mx, mz), mueve = largo > 0.15 && t > quieto;
       if (mueve) {
         const v = (puntillas ? PUNTILLAS : VEL) / Math.max(1, largo);
         px += mx * v * paso; pz += mz * v * paso;
@@ -244,6 +290,9 @@ export async function crear(c: Contexto): Promise<Partida> {
         ang = girar(ang, Math.atan2(mx, mz), paso * 12);
       }
       yo.grupo.position.set(px, 0, pz); yo.grupo.rotation.y = ang; sombraYo.position.set(px, 0.03, pz);
+      aroYo.position.set(px, 0.07, pz); aroRuido.position.set(px, 0.07, pz); ojoSp.position.set(px, 2.05, pz);
+      const ruido = aroRuido.material as THREE.MeshBasicMaterial;
+      ruido.opacity += ((mueve && !puntillas ? 0.45 : 0) - ruido.opacity) * Math.min(1, paso * 10); aroRuido.visible = ruido.opacity > 0.01;
       yo.animar(!mueve ? 'idle' : puntillas ? 'walk' : 'sprint');
       const [cx, cz] = celda(px, pz);
       // Botín, tesoro y puerta
@@ -268,7 +317,7 @@ export async function crear(c: Contexto): Promise<Partida> {
       // Láseres encendidos: alarma al tocarlos
       for (const l of laseres) if (l.mallas[0].userData.on && l.celdas.some(([a, b]) => a === cx && b === cz) && t > quieto) return atrapado(t, 'Tocaste un láser');
       // Guardias: hacen su ronda; si oyen pasos, van a mirar; si te ven, se detienen a mirarte
-      let visto = false, cerca = false;
+      let visto = false, cerca = false, quienVe = '';
       for (const gd of guardias) {
         const oye = mueve && !puntillas && Math.hypot(px - gd.x, pz - gd.z) < OIDO;
         if (oye && gd.modo !== 'investiga') { gd.ruta = rutaHacia(gd, { x: px, z: pz }); gd.modo = 'investiga'; }
@@ -295,7 +344,10 @@ export async function crear(c: Contexto): Promise<Partida> {
         const d = Math.hypot(px - gd.x, pz - gd.z), frente = Math.abs(girar(gd.ang, Math.atan2(px - gd.x, pz - gd.z), 9) - gd.ang);
         gd.ve = t > quieto && d < VISTA && frente < MEDIO && aLaVista(gd, { x: px, z: pz });
         visto ||= gd.ve; cerca ||= gd.ve && d < 2 * CELDA;
+        if (gd.ve && !quienVe) quienVe = 'Te vio un guardia';
         gd.k.grupo.position.set(gd.x, 0, gd.z); gd.k.grupo.rotation.y = gd.ang;
+        gd.marca.position.set(gd.x, 0.07, gd.z); gd.alerta.position.set(gd.x, 2.05, gd.z); gd.duda.position.set(gd.x, 2.05, gd.z);
+        gd.alerta.visible = gd.ve; gd.duda.visible = !gd.ve && gd.modo === 'investiga';
         gd.k.animar(meta ? (gd.modo === 'investiga' ? 'sprint' : 'walk') : 'idle');
         gd.cono.mover(gd.x, gd.z, gd.ang);
         (gd.cono.malla.material as THREE.MeshBasicMaterial).color.set(gd.ve ? '#ff5a5a' : '#fff3a0');
@@ -304,16 +356,21 @@ export async function crear(c: Contexto): Promise<Partida> {
         cm.ang = cm.base + Math.sin(t * 0.7 * dificultad) * cm.barre;
         cm.cono.mover(cm.x, cm.z, cm.ang);
         const d = Math.hypot(px - cm.x, pz - cm.z), ve = t > quieto && d < VISTA * 1.05 && Math.abs(girar(cm.ang, Math.atan2(px - cm.x, pz - cm.z), 9) - cm.ang) < MEDIO && aLaVista(cm, { x: px, z: pz });
-        visto ||= ve;
+        visto ||= ve; cm.alerta.visible = ve;
+        if (ve && !quienVe) quienVe = 'Te vio una cámara';
         (cm.cono.malla.material as THREE.MeshBasicMaterial).color.set(ve ? '#ff3a3a' : '#ff9a9a');
       }
       // El ojo se llena mientras te ven (de cerca, muy rápido) y baja de a poco cuando te escondes
       ojo = visto ? Math.min(1, ojo + paso * (cerca ? 3.5 : 1.6) * dificultad) : Math.max(0, ojo - paso * 0.6);
       if (visto && ojo > 0.25) limpio = false;
-      if (ojo >= 1) return atrapado(t, 'Te vieron');
+      dibujarOjo(ojo);
+      if (ojo >= 1) return atrapado(t, quienVe || 'Te vieron');
       if (t >= DURA) return terminar(t, false);
+      // Consejos de los primeros segundos del piso 1
+      if (nivel === 0 && consejo === 0 && t > 1.6) { consejo = 1; e.hud.aviso(tactil ? 'Toca «Puntillas» para caminar sin ruido' : 'Mantén Espacio para ir en puntillas, sin ruido', 'oro', 2.6); }
+      else if (nivel === 0 && consejo === 1 && t > 6) { consejo = 2; e.hud.aviso('Si un cono se pone rojo, te están viendo: ¡escóndete!', 'oro', 2.6); }
       e.hud.tiempo(mmss(DURA - t));
-      e.hud.extra(`Piso ${nivel + 1}/3 · ${'♥'.repeat(vidas)} · 👁 ${'●'.repeat(Math.round(ojo * 5))}${'○'.repeat(5 - Math.round(ojo * 5))}${tieneTesoro ? ' · ¡A la puerta!' : ''}`);
+      e.hud.extra(`Piso ${nivel + 1}/3 · ${'♥'.repeat(vidas)} · 👁 ${'●'.repeat(Math.round(ojo * 5))}${'○'.repeat(5 - Math.round(ojo * 5))}${puntillas ? ' · 🤫' : ''}${tieneTesoro ? ' · ¡A la puerta!' : ''}`);
       e.hud.puntos(puntos);
     }
   });
