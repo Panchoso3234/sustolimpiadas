@@ -65,6 +65,7 @@ export async function listarPersonas(): Promise<Persona[]> {
  */
 export const EX_MIEMBROS: Record<string, number> = {
   '70a6d0e3-66a9-4e1b-946c-971f9582510e': 35, // GiyuuSilly, Equipo 11 (se retiró el 29-10; lo reemplaza Argyrus)
+  '66ba9fcc-69fe-4ab4-b86b-a07459cc89ac': 26, // Chima, Umamigos (se retiró el 13-11; lo reemplaza Zerok)
 };
 /** El equipo de un jugador para contar puntos: el actual o, si se retiró, el que tenía. */
 export const equipoParaPuntos = (equipos: Equipo[], id: string | null) => (id ? equipos.find((q) => q.miembros.includes(id) || EX_MIEMBROS[id] === q.id) ?? null : null);
