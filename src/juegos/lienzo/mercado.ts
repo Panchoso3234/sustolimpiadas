@@ -42,6 +42,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   let pedido: Pedido | null = null, proximoPedido = 4, punta = { desde: 45, hasta: 0 }, nivel = 1, proximoCambio = 0;
   let gato: { x: number; meta: number | null; huye: boolean; hasta: number } | null = null, proximoGato = 35, pregon = { texto: '', hasta: 0 }, proximoPregon = 8;
   let arrastre: { p: Producto; dx: number; dy: number; ultimo: [number, number, number] } | null = null;
+  let movidos = 0; // hasta cuándo destellan los canastos después de cambiar de lugar (nivel 3)
   const prueba = { perdidos: 0, fuera: 0 };
   const enPunta = () => m.tiempo >= punta.desde && m.tiempo < punta.hasta;
   const velocidadCinta = () => (70 + Math.min(70, m.tiempo * 0.35)) * (enPunta() ? 1.7 : 1);
@@ -64,7 +65,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   function poner(p: Producto, g: Grupo) {
     productos = productos.filter((x) => x !== p);
     const e = PRODUCTOS[p.clase], [sx, sy] = aPantalla(xCanasto(g), CANASTO_Y - 30);
-    if (e.grupo !== g) { mal++; racha = 0; sumar(-15, sx, sy, '#e8325a'); m.mesa.sonido.mal(); m.efectos.temblar(5); return; }
+    if (e.grupo !== g) { mal++; racha = 0; sumar(-15, sx, sy, '#e8325a'); m.mesa.sonido.mal(); m.efectos.temblar(5); if (!bot) m.mesa.hud.aviso(`${e.nombre}: va en ${NOMBRE_GRUPO[e.grupo]}`, 'mal', 1); return; }
     bien++; racha++; mejorRacha = Math.max(mejorRacha, racha);
     sumar((10 + Math.min(10, Math.floor(racha / 5) * 2)) * (enPunta() ? 2 : 1), sx, sy, '#3fa34d');
     m.efectos.chispas(sx, sy, ['#ffd23c', '#ffffff', '#3fa34d'], 8, 200);
@@ -90,7 +91,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     // Niveles: 1 (tranquilo), 2 (más rápido) y 3 (canastos que cambian de lugar)
     const nuevoNivel = t >= 120 ? 3 : t >= 60 ? 2 : 1;
     if (nuevoNivel !== nivel) { nivel = nuevoNivel; m.mesa.hud.aviso(nivel === 3 ? 'Nivel 3: ¡los canastos cambian de lugar!' : `Nivel ${nivel}`, 'oro', 1.6); proximoCambio = t + 3; }
-    if (nivel === 3 && t >= proximoCambio) { proximoCambio = t + 15; for (let i = orden.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [orden[i], orden[j]] = [orden[j], orden[i]]; } m.mesa.hud.aviso('¡Se movieron los canastos!', 'mal', 1); m.efectos.temblar(4); }
+    if (nivel === 3 && t >= proximoCambio) { proximoCambio = t + 15; for (let i = orden.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [orden[i], orden[j]] = [orden[j], orden[i]]; } m.mesa.hud.aviso('¡Se movieron los canastos!', 'mal', 1); m.efectos.temblar(4); movidos = t + 1.2; }
     // Hora punta cada 45 s, por 12 s
     if (t >= punta.desde && punta.hasta < punta.desde) { punta.hasta = t + 12; m.mesa.hud.aviso('¡HORA PUNTA! Cinta rápida, puntaje doble', 'oro', 1.6); }
     if (punta.hasta > punta.desde && t >= punta.hasta) punta = { desde: t + 33, hasta: 0 };
@@ -207,10 +208,18 @@ export async function crear(c: Contexto): Promise<Partida> {
     // Canastos con su ícono (en el nivel 3 se ve el cambio de lugar)
     // Canasto donde caería lo que arrastras: se ilumina (solo muestra dónde cae, no si es el correcto)
     const destino = arrastre && arrastre.p.y > CANASTO_Y - 90 ? orden[Math.max(0, Math.min(4, Math.floor(arrastre.p.x / (W / 5))))] : null;
+    // Ayuda de los primeros 20 s: mientras arrastras, el canasto correcto se marca en verde
+    const correcto = arrastre && !bot && t < 20 ? PRODUCTOS[arrastre.p.clase].grupo : null;
+    // 13-11 (Leona y Pluto no distinguían los canastos): el ícono va grande, ENCIMA del canasto y sobre un círculo claro
+    const ie = Math.max(s, 0.75), radio = 22 * ie;
     for (const g of GRUPOS) {
-      const [x, y] = aPantalla(xCanasto(g), CANASTO_Y);
-      if (g === destino) { gp.fillStyle = 'rgba(255,210,60,.45)'; gp.fillRect(px(x - (W / 10) * s), px(y - 46 * s), px((W / 5) * s), px(92 * s)); }
-      m.sprite(CANASTO, x, y, 2.4 * s); m.sprite(ICONO[g], x, y - 6 * s, 1.6 * s);
+      const [x, y] = aPantalla(xCanasto(g), CANASTO_Y), iy = y - 40 * ie;
+      if (g === destino) { gp.fillStyle = 'rgba(255,210,60,.45)'; gp.fillRect(px(x - (W / 10) * s), px(iy - radio - 6 * s), px((W / 5) * s), px(y + 46 * s - (iy - radio - 6 * s))); }
+      if (g === correcto) { gp.strokeStyle = '#3fa34d'; gp.lineWidth = 3 * k; gp.strokeRect(px(x - (W / 10) * s + 3), px(iy - radio - 6 * s), px((W / 5) * s - 6), px(y + 46 * s - (iy - radio - 6 * s))); }
+      m.sprite(CANASTO, x, y, 2.4 * s);
+      gp.fillStyle = t < movidos && Math.floor(t * 8) % 2 ? '#ffd23c' : '#fff6e0'; gp.beginPath(); gp.arc(px(x), px(iy), radio, 0, Math.PI * 2); gp.fill();
+      gp.strokeStyle = '#4a2c14'; gp.lineWidth = 2 * k; gp.stroke();
+      m.sprite(ICONO[g], x, iy, 3 * ie);
     }
     // El pedido con dibujos: cada producto que pide el cliente, en fila
     if (pedido) { const items = pedido.items, paso = 70 * s, x0 = m.ancho / 2 - ((items.length - 1) * paso) / 2, [, py] = aPantalla(0, 168); items.forEach((it, i) => { if (it.falta === 0) gp.globalAlpha = 0.35; m.sprite(SPR[it.clase], x0 + i * paso, py, 2.2 * Math.max(s, 0.75)); gp.globalAlpha = 1; }); }
@@ -236,8 +245,9 @@ export async function crear(c: Contexto): Promise<Partida> {
       m.rotulo(`${Math.ceil(queda)} s`, m.ancho / 2, aPantalla(0, 120)[1] + tam * 1.3, Math.round(tam * 0.8), queda < 6 ? '#ff8fc8' : '#fff6c9');
     }
     if (m.tiempo < pregon.hasta) m.rotulo(pregon.texto, m.ancho / 2, aPantalla(0, 200)[1], Math.round(tam * 0.9), '#ff8a2a');
-    for (const g of GRUPOS) { const [x, y] = aPantalla(xCanasto(g), CANASTO_Y + 40); m.rotulo(s > 0.8 ? `${orden.indexOf(g) + 1} ${NOMBRE_GRUPO[g]}` : NOMBRE_GRUPO[g], x, y, Math.round(tam * 0.75), '#4a2c14'); }
-    if (!bot && m.tiempo < 7) m.rotulo(s > 0.8 ? 'Arrastra cada producto a su canasto · o aprieta 1 a 5' : 'Arrastra cada producto a su canasto', m.ancho / 2, aPantalla(0, 420)[1], tam, '#4a2c14');
+    // Nombre del canasto en claro (el rótulo lleva contorno oscuro: en café no se leía)
+    for (const g of GRUPOS) { const [x, y] = aPantalla(xCanasto(g), CANASTO_Y + 40); m.rotulo(s > 0.8 ? `${orden.indexOf(g) + 1} ${NOMBRE_GRUPO[g]}` : NOMBRE_GRUPO[g], x, y, Math.round(tam * 0.95), '#fff6c9'); }
+    if (!bot && m.tiempo < 7) m.rotulo(s > 0.8 ? 'Arrastra cada producto a su canasto · o aprieta 1 a 5' : 'Arrastra cada producto a su canasto', m.ancho / 2, aPantalla(0, 420)[1], tam, '#fff6c9');
   });
 
   let terminado = false;

@@ -52,7 +52,8 @@ export async function guardarMarca(juego: string, fecha: string, puntaje: number
   return { donde: error ? 'local' : 'nube', esMejor };
 }
 
-export interface Fila { perfil: string; nombre: string; puntaje: number }
+/** `duelo`: el puntaje salió de una ronda de duelo 1v1 (desde el SQL 2026-11-13-records-con-duelos). */
+export interface Fila { perfil: string; nombre: string; puntaje: number; duelo?: boolean }
 export interface MarcaSuelta { id: number; perfil: string; nombre: string; juego: string; puntaje: number; detalle: unknown }
 
 /** Las marcas más altas de un día (todas, no solo la mejor de cada persona), para que el organizador revise. */
@@ -80,9 +81,9 @@ function todosLosRecords(): Promise<Map<string, Fila[]> | null> {
   const mapa = Promise.resolve(supabase.rpc('records_top', { p_topes: SIN_TOPES })).then(({ data, error }) => {
     if (error || !Array.isArray(data)) return null;
     const m = new Map<string, Fila[]>();
-    for (const f of data as { juego: string; perfil: string; nombre: string; puntaje: number }[]) {
+    for (const f of data as { juego: string; perfil: string; nombre: string; puntaje: number; duelo?: boolean }[]) {
       const lista = m.get(f.juego) ?? [];
-      lista.push({ perfil: f.perfil, nombre: f.nombre ?? 'Participante', puntaje: f.puntaje });
+      lista.push({ perfil: f.perfil, nombre: f.nombre ?? 'Participante', puntaje: f.puntaje, duelo: !!f.duelo });
       m.set(f.juego, lista);
     }
     for (const lista of m.values()) lista.sort((a, b) => b.puntaje - a.puntaje);
@@ -145,7 +146,7 @@ export async function recordsDesde(desde: string): Promise<Map<string, Fila[]> |
   const { data, error } = await supabase.rpc('records_periodo', { p_desde: desde, p_topes: SIN_TOPES });
   if (error || !Array.isArray(data)) return null;
   const m = new Map<string, Fila[]>();
-  for (const f of data as { juego: string; perfil: string; nombre: string; puntaje: number }[]) m.set(f.juego, [...(m.get(f.juego) ?? []), { perfil: f.perfil, nombre: f.nombre ?? 'Participante', puntaje: f.puntaje }]);
+  for (const f of data as { juego: string; perfil: string; nombre: string; puntaje: number; duelo?: boolean }[]) m.set(f.juego, [...(m.get(f.juego) ?? []), { perfil: f.perfil, nombre: f.nombre ?? 'Participante', puntaje: f.puntaje, duelo: !!f.duelo }]);
   for (const lista of m.values()) lista.sort((a, b) => b.puntaje - a.puntaje);
   return m;
 }

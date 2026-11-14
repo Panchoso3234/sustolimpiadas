@@ -62,7 +62,7 @@ function RecordsIndividual() {
             return (
               <section key={j.id} class="records-juego">
                 <h3><a href={`#/juegos/${j.id}`}>{j.nombre}</a></h3>
-                {filas.length ? <ol class="records">{filas.map((f, i) => <li key={f.perfil}><span class="puesto">{i + 1}</span><Quien perfil={f.perfil} nombre={f.nombre} /><b>{f.puntaje}</b></li>)}</ol> : <p class="tenue chico">Sin marcas {periodo === 'hoy' ? 'hoy' : periodo === 'semana' ? 'esta semana' : 'todavía'}.</p>}
+                {filas.length ? <ol class="records">{filas.map((f, i) => <li key={f.perfil}><span class="puesto">{i + 1}</span><Quien perfil={f.perfil} nombre={f.nombre} /><b>{f.duelo && <span title="Hecho en un duelo 1v1" aria-label="en duelo">⚔️ </span>}{f.puntaje}</b></li>)}</ol> : <p class="tenue chico">Sin marcas {periodo === 'hoy' ? 'hoy' : periodo === 'semana' ? 'esta semana' : 'todavía'}.</p>}
               </section>
             );
           })}
