@@ -61,13 +61,19 @@ Deno.serve(async (req) => {
     todas<any>('tsukibet', 'cruce,perfil_id,equipo_a,equipo_b,ganador,marcador', (q) => q.in('cruce', [cruce, cruce + 1])).catch(() => []),
     todas<any>('declaraciones', '*', (q) => q.eq('oculta', false)) // '*': antes de la columna momento, todas son de antes.catch(() => []),
   ]);
+  // 16-11: ex-miembros (sus puntos siguen en su equipo) y Wild Cards reveladas, para que la tabla sea la misma de la web
+  const [exm, wc] = await Promise.all([
+    todas<any>('ex_miembros', 'perfil_id,equipo_id').catch(() => []),
+    todas<any>('wc_ajustes', 'cruce,equipo_id,puntos').catch(() => []),
+  ]);
   const mejorPrevio: Record<string, number> = {};
   for (const m of previas) mejorPrevio[m.juego] = Math.max(mejorPrevio[m.juego] ?? 0, m.puntaje);
   const p = ajustes as Record<string, unknown>, num = (v: unknown, d: number) => (typeof v === 'number' ? v : d);
   const datos: Datos = {
     cruce, numero: cruce,
     personas: per.map((x: any) => ({ id: x.id, nombre: x.nombre, avatar: x.avatar_url })),
-    equipos: eq.map((q: any) => ({ id: q.id, nombre: q.nombre, capitan: q.capitan, miembros: mi.filter((m: any) => m.equipo_id === q.id).map((m: any) => m.perfil_id) })),
+    equipos: eq.map((q: any) => ({ id: q.id, nombre: q.nombre, capitan: q.capitan, miembros: mi.filter((m: any) => m.equipo_id === q.id).map((m: any) => m.perfil_id), ex: exm.filter((m: any) => m.equipo_id === q.id).map((m: any) => m.perfil_id) })),
+    cartas: wc.map((w: any) => ({ cruce: w.cruce, equipo: Number(w.equipo_id), puntos: Number(w.puntos) })),
     duelos: enf.map((e: any) => ({ id: e.id, cruce: e.cruce, juego: e.juego, a: e.a_perfil, b: e.b_perfil, ganador: e.ganador, estado: e.estado, puntosA: e.puntos_a, puntosB: e.puntos_b, noJugo: e.no_jugo, muerteSubita: e.muerte_subita ?? 0, jornada: e.jornada, rondas: rondas.filter((r: any) => r.enfrentamiento_id === e.id).map((r: any) => ({ ronda: r.ronda, lado: r.lado, puntaje: r.puntaje, terminado: r.terminado })) })),
     ausencias: aus.map((a: any) => ({ cruce: a.cruce, jornada: a.jornada, perfil: a.perfil_id, equipoRival: a.equipo_rival, ausente: a.ausente })),
     marcasCruce: marcasCruce.map((m: any) => ({ perfil: m.perfil_id, juego: m.juego, puntaje: m.puntaje, fecha: m.fecha })), mejorPrevio,

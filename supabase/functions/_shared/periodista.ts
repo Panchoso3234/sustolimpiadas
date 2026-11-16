@@ -10,7 +10,10 @@ export const NOMBRE_DIARIO = 'La Cuarta';
 
 // ───────── Lo que entra ─────────
 export interface Persona { id: string; nombre: string; avatar: string | null }
-export interface EquipoD { id: number; nombre: string; miembros: string[]; capitan: string | null }
+/** `ex`: quienes dejaron el equipo; sus duelos jugados siguen sumando para él (como EX_MIEMBROS en la web, 16-11). */
+export interface EquipoD { id: number; nombre: string; miembros: string[]; capitan: string | null; ex?: string[] }
+/** El equipo para contar puntos: el actual o, si se retiró, el que tenía. */
+const delEquipo = (q: EquipoD, id: string) => q.miembros.includes(id) || !!q.ex?.includes(id);
 export interface RondaD { ronda: number; lado: 'a' | 'b'; puntaje: number; terminado: boolean }
 export interface DueloD { id: number; cruce: number; juego: string; a: string; b: string; ganador: 'a' | 'b' | 'empate' | null; estado: string; puntosA: number; puntosB: number; noJugo: 'a' | 'b' | 'ambos' | null; muerteSubita: number; jornada: number; rondas: RondaD[] }
 export interface AusenciaD { cruce: number; jornada: number; perfil: string; equipoRival: number; ausente: string }
@@ -24,6 +27,8 @@ export interface Datos {
   marcasCruce: MarcaD[]; mejorPrevio: Record<string, number>;
   juegos: Record<string, string>;
   puntos: { victoria: number; empate: number; derrota: number; multiplicadores: number[] };
+  /** Puntos de Wild Cards ya revelados (wc_ajustes, ya multiplicados por la jornada), como en la tabla de la web. */
+  cartas?: { cruce: number; equipo: number; puntos: number }[];
   /** TSUKIBET (los de este cruce y el siguiente) y las declaraciones antes de los duelos (sin las ocultas). */
   pronosticos?: Pronostico[]; declaraciones?: { enf: number; perfil: string; texto: string }[];
   /** Comentarios de los jugadores después del duelo (sin los ocultos). */
@@ -186,7 +191,7 @@ const SECCIONES: Record<Tipo, string> = { muerte: 'Infarto', remontada: 'Épica'
 
 // ───────── Tabla de equipos (las mismas reglas que la web: los puntos van con la persona) ─────────
 function tablaHasta(d: Datos, hasta: number) {
-  const equipoDe = (id: string) => d.equipos.find((q) => q.miembros.includes(id))?.id ?? null;
+  const equipoDe = (id: string) => d.equipos.find((q) => delEquipo(q, id))?.id ?? null;
   const pts = new Map<number, number>(d.equipos.map((q) => [q.id, 0])), ganados = new Map<number, number>(d.equipos.map((q) => [q.id, 0]));
   const victorias = new Map<string, Map<number, number>>(), jornadaClave = new Map<string, number>();
   const sumar = (q: number | null, p: number, gana = false) => { if (q == null || !pts.has(q)) return; pts.set(q, pts.get(q)! + p); if (gana) ganados.set(q, ganados.get(q)! + 1); };
@@ -210,6 +215,7 @@ function tablaHasta(d: Datos, hasta: number) {
     if (q != null && q !== a.equipoRival) { const k = `${a.cruce}|${Math.min(q, a.equipoRival)}|${Math.max(q, a.equipoRival)}`, m = victorias.get(k) ?? new Map<number, number>(); m.set(q, (m.get(q) ?? 0) + 1); victorias.set(k, m); jornadaClave.set(k, a.jornada); }
   }
   for (const [k, m] of victorias) for (const [q, v] of m) if (v >= 2) sumar(q, 5 * (d.puntos.multiplicadores[(jornadaClave.get(k) ?? 1) - 1] ?? 1));
+  for (const c of d.cartas ?? []) if (c.cruce <= hasta) sumar(c.equipo, c.puntos);
   return d.equipos.filter((q) => q.miembros.length).map((q) => ({ equipo: q.id, puntos: Math.round(pts.get(q.id)! * 100) / 100, ganados: ganados.get(q.id)! }))
     .sort((a, b) => b.puntos - a.puntos || b.ganados - a.ganados);
 }
@@ -220,8 +226,8 @@ export function redactar(d: Datos): Edicion {
   const fechas = CRUCES.find((c) => c.n === d.cruce) ?? { n: d.cruce, desde: '', hasta: '' }, jornada = jornadaDe(fechas.desde || '2026-10-21');
   const persona = (id: string) => d.personas.find((p) => p.id === id);
   const nombre = (id: string) => persona(id)?.nombre ?? 'Alguien';
-  const equipoDe = (id: string) => d.equipos.find((q) => q.miembros.includes(id)) ?? null;
-  const juego = (id: string) => d.juegos[id] ?? id;
+  const equipoDe = (id: string) => d.equipos.find((q) => delEquipo(q, id)) ?? null;
+  const juego =(id: string) => d.juegos[id] ?? id;
   const antes = tablaHasta(d, d.cruce - 1), ahora = tablaHasta(d, d.cruce);
   // En el primer cruce no hay tabla previa: sin batacazos, derbis ni flechas de subida
   const hayTabla = antes.some((x) => x.puntos > 0);
