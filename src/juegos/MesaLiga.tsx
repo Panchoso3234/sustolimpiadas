@@ -4,6 +4,7 @@ import { supabase } from '../nucleo/supabase';
 import { VERSUS, juegoPorId, nombreVersus } from './catalogo';
 import * as V from './duelos';
 import { CRUCES, calendarioDeEquipos, jornadaDe } from './liga';
+import { MAX_VECES, elegirJuego, vecesPorJugador } from './sorteoJuegos';
 
 // Mesa de control · Liga: los 11 cruces del todos contra todos. Para cada cruce se sortea un juego distinto para cada duelo
 // (primero los menos jugados en la liga) y quién enfrenta a quién dentro de cada par de equipos; al confirmar se crean los duelos oficiales
@@ -27,7 +28,8 @@ const SOLO_CRUCE: Record<number, string[]> = { 5: ['teclas', 'salto', 'mercado',
 const FUERA_DESDE: Record<string, number> = { karts: 6, cocina: 6, teclas: 6, cocos: 6, cangrejos: 6, conchas: 6, catapulta: 6, bolos: 6, rodillos: 6, puertas: 6, tren: 8 }; // tren (Subway Surfers): 2026-11-13
 export const juegosDuelo = (cruce: number) => VERSUS.filter((t) => t.modo === '1v1' && t.base && !t.vivo && juegoPorId(t.base)?.listo && (DESDE_CRUCE[t.base] ?? 1) <= cruce && cruce < (FUERA_DESDE[t.base] ?? Infinity) && (!SOLO_CRUCE[cruce] || SOLO_CRUCE[cruce].includes(t.base))).map((t) => t.base!);
 
-interface Borrador { cruce: number; juegos: string[]; duelos: { a: string; b: string; juego: string; equipos: [number, number] }[] }
+/** `forzado`: no quedaba ningún juego que ninguno de los dos hubiera jugado y se relajó la regla (se avisa). */
+interface Borrador { cruce: number; juegos: string[]; duelos: { a: string; b: string; juego: string; equipos: [number, number]; forzado?: boolean }[] }
 
 export function MesaLiga() {
   const [ausencias, setAusencias] = useState<V.Ausencia[]>([]);
@@ -68,34 +70,33 @@ export function MesaLiga() {
     const total = pesos.reduce((a, b) => a + b, 0);
     return lista.map((j, i) => ({ juego: j, p: pesos[i] / total })).sort((a, b) => b.p - a.p);
   };
-  /** `n` juegos sorteados con esas probabilidades; se pueden repetir dentro del cruce. */
-  const sortearJuegos = (cruce: number, n: number) => {
-    const tabla = probabilidades(cruce);
-    return Array.from({ length: n }, () => { let k = Math.random(); return (tabla.find((x) => (k -= x.p) < 0) ?? tabla[0]).juego; });
-  };
   /** Un equipo disuelto: sin integrantes ni pendientes. Sigue en el calendario (para no reordenarlo) y su rival descansa. */
   const vacio = (id: number) => { const q = equipos.find((x) => x.id === id); return !!q && !q.miembros.length && !q.pendientes?.length; };
   /** Sortea rivales dentro de cada par de equipos y un juego para cada duelo del cruce (con pesos; puede repetirse). */
   const preparar = (n: number, juegosFijos?: string[]) => {
-    const juegos = juegosFijos ?? sortearJuegos(n, (calendario[n - 1]?.parejas.length ?? 0) * 3);
+    // 15-11: sin juegos fijos, el juego de cada duelo se sortea mirando a los dos jugadores (nadie repite juego: sorteoJuegos.ts)
+    const tabla = probabilidades(n), veces = vecesPorJugador(duelos);
     const lista: Borrador['duelos'] = [];
     (calendario[n - 1]?.parejas ?? []).forEach(([ea, eb], k) => {
       const qa = alineacion(equipos.find((q) => q.id === ea)?.miembros ?? []), qb = alineacion(equipos.find((q) => q.id === eb)?.miembros ?? []);
       // Cada enfrentamiento tiene 3 casillas de juego reservadas (también las de quienes aún no tienen cuenta)
-      for (let i = 0; i < Math.min(qa.length, qb.length, 3); i++) lista.push({ a: qa[i], b: qb[i], juego: juegos[(k * 3 + i) % juegos.length], equipos: [ea, eb] });
+      for (let i = 0; i < Math.min(qa.length, qb.length, 3); i++) {
+        const e = juegosFijos?.length ? { juego: juegosFijos[(k * 3 + i) % juegosFijos.length], forzado: false } : elegirJuego(tabla, qa[i], qb[i], veces);
+        lista.push({ a: qa[i], b: qb[i], juego: e.juego, equipos: [ea, eb], forzado: e.forzado });
+      }
     });
-    setBorrador({ cruce: n, juegos, duelos: lista });
+    setBorrador({ cruce: n, juegos: juegosFijos ?? lista.map((d) => d.juego), duelos: lista });
     setAviso(null);
   };
   /** Duelos que le faltan a un cruce ya creado (alguien se vinculó tarde): se agregan sin tocar los que existen. */
   const faltantes = (n: number): Borrador['duelos'] => {
-    const hechos = delCruce(n), juegos = sortearJuegos(n, (calendario[n - 1]?.parejas.length ?? 0) * 3), lista: Borrador['duelos'] = [];
+    const hechos = delCruce(n), tabla = probabilidades(n), veces = vecesPorJugador(duelos), lista: Borrador['duelos'] = [];
     const ocupados = new Set([...hechos.flatMap((d) => [d.a_perfil, d.b_perfil]), ...ausencias.filter((a) => a.cruce === n).map((a) => a.perfil_id)]);
     for (const [ea, eb] of calendario[n - 1]?.parejas ?? []) {
       const ma = equipos.find((q) => q.id === ea)?.miembros ?? [], mb = equipos.find((q) => q.id === eb)?.miembros ?? [];
       const dePareja = hechos.filter((d) => (ma.includes(d.a_perfil!) && mb.includes(d.b_perfil!)) || (mb.includes(d.a_perfil!) && ma.includes(d.b_perfil!)));
       const qa = alineacion(ma.filter((id) => !ocupados.has(id))), qb = alineacion(mb.filter((id) => !ocupados.has(id)));
-      for (let i = 0; i < Math.min(qa.length, qb.length, 3 - dePareja.length); i++) lista.push({ a: qa[i], b: qb[i], juego: juegos.shift() ?? juegosDuelo(n)[0], equipos: [ea, eb] });
+      for (let i = 0; i < Math.min(qa.length, qb.length, 3 - dePareja.length); i++) { const e = elegirJuego(tabla, qa[i], qb[i], veces); lista.push({ a: qa[i], b: qb[i], juego: e.juego, equipos: [ea, eb], forzado: e.forzado }); }
     }
     return lista;
   };
@@ -152,7 +153,8 @@ export function MesaLiga() {
       {borrador && (
         <section class="bloque liga-borrador">
           <h2>Cruce {borrador.cruce} · {delCruce(borrador.cruce).length ? 'duelos que faltan' : 'vista previa'}</h2>
-          <p>{new Set(borrador.duelos.map((d) => d.juego)).size} juegos distintos en {borrador.duelos.length} duelos.</p>
+          <p>{new Set(borrador.duelos.map((d) => d.juego)).size} juegos distintos en {borrador.duelos.length} duelos. Nadie juega un juego que ya jugó (máximo {MAX_VECES} vez por persona).</p>
+          {borrador.duelos.some((d) => d.forzado) && <p class="aviso atencion">⚠️ En {borrador.duelos.filter((d) => d.forzado).length} duelo(s) no quedaba ningún juego nuevo para los dos y se repitió uno (marcado con ⚠️). Puedes volver a sortear.</p>}
           <details class="chico"><summary>Probabilidad de cada juego en este cruce</summary>
             <p class="tenue">{probabilidades(borrador.cruce).map((x) => `${nombreVersus('1v1', x.juego)} ${(x.p * 100).toFixed(1)} %`).join(' · ')}</p>
           </details>
@@ -163,7 +165,7 @@ export function MesaLiga() {
           })()}
           <div class="tabla-caja"><table class="tabla">
             <thead><tr><th>Enfrentamiento</th><th>Duelo</th><th>Juego</th></tr></thead>
-            <tbody>{borrador.duelos.map((d, i) => <tr key={i}><td class="tenue chico">{nombreEquipo(d.equipos[0])} vs {nombreEquipo(d.equipos[1])}</td><td><b>{nombre(d.a)}</b> vs <b>{nombre(d.b)}</b></td><td>{nombreVersus('1v1', d.juego)}</td></tr>)}</tbody>
+            <tbody>{borrador.duelos.map((d, i) => <tr key={i}><td class="tenue chico">{nombreEquipo(d.equipos[0])} vs {nombreEquipo(d.equipos[1])}</td><td><b>{nombre(d.a)}</b> vs <b>{nombre(d.b)}</b></td><td>{d.forzado ? '⚠️ ' : ''}{nombreVersus('1v1', d.juego)}</td></tr>)}</tbody>
           </table></div>
           <div class="fila">
             {!delCruce(borrador.cruce).length && <><button class="boton" onClick={() => preparar(borrador.cruce)}>🎡 Sortear otros juegos</button>
