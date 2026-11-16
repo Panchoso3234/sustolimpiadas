@@ -10,6 +10,7 @@ import satori from 'npm:satori@0.10.14';
 import { initWasm, Resvg } from 'npm:@resvg/resvg-wasm@2.6.2';
 import { FUENTES } from '../_shared/portadas.ts';
 import { ANCHO, altoTabla, arbolTabla, type FilaTabla } from '../_shared/tabla.ts';
+import { ALTOS, arbolTarjeta, cargarFotos, type Tarjeta } from '../_shared/tarjetas.ts';
 
 let wasm: Promise<void> | null = null;
 let fuentes: Promise<{ name: string; weight: 400 | 800; style: 'normal'; data: ArrayBuffer }[]> | null = null;
@@ -20,7 +21,8 @@ const preparar = () => {
 };
 const json = (cuerpo: unknown, status = 200) => new Response(JSON.stringify(cuerpo), { status, headers: { 'Content-Type': 'application/json' } });
 
-interface Pedido { texto?: string; canal?: string; titulo?: string; subtitulo?: string; filas?: FilaTabla[]; respaldo?: string; probar?: boolean }
+// Bot 2.0 (15-11): con `tipo` (duelo, record, mvp o cuenta) y `datos` dibuja esa tarjeta en vez de la tabla.
+interface Pedido { texto?: string; canal?: string; titulo?: string; subtitulo?: string; filas?: FilaTabla[]; respaldo?: string; probar?: boolean; tipo?: Tarjeta['tipo']; datos?: unknown }
 
 Deno.serve(async (req) => {
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
@@ -35,11 +37,18 @@ Deno.serve(async (req) => {
   // ── 1. La imagen ──
   let imagen: string | null = null, falla = '';
   try {
-    if (!filas.length) throw new Error('sin filas');
     const [, fts] = await preparar();
-    const svg = await satori(arbolTabla({ titulo: p.titulo ?? 'Tabla de equipos', subtitulo: p.subtitulo, filas }) as any, { width: ANCHO, height: altoTabla(filas.length), fonts: fts });
+    let arbol: unknown, alto: number;
+    if (p.tipo && p.tipo in ALTOS && p.datos && typeof p.datos === 'object') {
+      const t = await cargarFotos({ tipo: p.tipo, datos: p.datos } as Tarjeta);
+      arbol = arbolTarjeta(t); alto = ALTOS[p.tipo];
+    } else {
+      if (!filas.length) throw new Error('sin filas');
+      arbol = arbolTabla({ titulo: p.titulo ?? 'Tabla de equipos', subtitulo: p.subtitulo, filas }); alto = altoTabla(filas.length);
+    }
+    const svg = await satori(arbol as any, { width: ANCHO, height: alto, fonts: fts });
     const png = new Resvg(svg, { fitTo: { mode: 'width', value: ANCHO } }).render().asPng();
-    const ruta = `tabla/${Date.now()}.png`;
+    const ruta = `tabla/${p.tipo ?? "tabla"}-${Date.now()}.png`;
     const { error } = await db.storage.from('diario').upload(ruta, png, { contentType: 'image/png', upsert: true });
     if (error) throw new Error(`subir: ${error.message}`);
     imagen = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/diario/${ruta}`;
