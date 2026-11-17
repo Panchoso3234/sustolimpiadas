@@ -89,7 +89,7 @@ export async function bloques(c: Contexto): Promise<Partida> {
     const paso2 = Math.min(dt, 0.05);
     if (empezado && est && !terminado) {
       controles?.tic(paso2);
-      efectos(paso(est, paso2, controles?.bajando() ?? false));
+      efectos(paso(est, paso2, controles?.bajando(est.piezas) ?? false));
       // Muerte súbita: desde los 2 minutos sube una fila de lápidas cada 10 s
       if (est.tiempo >= ultimaSubita) { if (!avisoSubita) { avisoSubita = true; e.hud.aviso('¡Muerte súbita! Sube basura a los dos', 'mal', 2); } ultimaSubita += 10; recibir(est, 1, 1000 + Math.round(est.tiempo), 0); }
       if (est.perdio) terminar('ko');

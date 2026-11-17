@@ -65,7 +65,7 @@ export async function crear(c: Contexto): Promise<Partida> {
         const m = mejorJugada(est);
         if (m && est.pieza) { est.pieza = { ...est.pieza, r: m.r, x: m.x }; efectos(caerYa(est)); }
       }
-      efectos(paso(est, paso2, controles.bajando()));
+      efectos(paso(est, paso2, controles.bajando(est.piezas)));
       // Avisos de eventos
       if (est.anuncio && anuncio !== est.anuncio) { anuncio = est.anuncio; e.hud.aviso(`Se viene: ${EVENTOS[est.anuncio]}`, 'mal', 1.6); }
       if (!est.anuncio) anuncio = null;

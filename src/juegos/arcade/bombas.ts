@@ -26,8 +26,11 @@ const REPARTO: [Mejora, number][] = [['bomba', 8], ['llama', 8], ['vel', 4], ['p
 type Maldicion = 'lento' | 'rapido' | 'diarrea' | 'seco' | 'chispa';
 const MALDICIONES: Maldicion[] = ['lento', 'rapido', 'diarrea', 'seco', 'chispa'];
 const AVISO_MALDICION: Record<Maldicion, string> = { lento: '¡Calavera: vas lento!', rapido: '¡Calavera: vas demasiado rápido!', diarrea: '¡Calavera: sueltas bombas sin parar!', seco: '¡Calavera: no puedes poner bombas!', chispa: '¡Calavera: tu fuego es mínimo!' };
+const NOMBRE_MEJORA: Record<Mejora, string> = { bomba: '+1 bomba', llama: '+1 fuego', vel: '+velocidad', patear: '¡Patear!', guante: '¡Guante!', maximo: '¡Fuego máximo!', calavera: 'Calavera' };
+const COMO_MEJORA: Partial<Record<Mejora, string>> = { patear: 'Camina contra una bomba', guante: 'Bomba sobre tu bomba: ¡lánzala!' };
 const PUNTOS = { puesto: [300, 150, 50, 0], eliminado: 200, caja: 10, mejora: 20 };
 const COLORES = ['#3f8cff', '#ef5565', '#3fc79a', '#ffb02e'];
+const NOMBRE_COLOR = ['Azul', 'Rojo', 'Verde', 'Amarillo'];
 const ESQUINAS: [number, number][] = [[1, 1], [COLS - 2, FILAS - 2], [COLS - 2, 1], [1, FILAS - 2]];
 
 interface Jugador { id: number; x: number; z: number; vivo: boolean; bombas: number; llama: number; vel: number; patear: boolean; guante: boolean; mal: { tipo: Maldicion; hasta: number } | null; mira: [number, number]; tunel: number; k: Kenney; aro: THREE.Mesh; camino: [number, number][]; piensa: number; humano: boolean; ia: boolean }
@@ -130,8 +133,18 @@ export async function crear(c: Contexto): Promise<Partida> {
   const alcance = new THREE.InstancedMesh(geoLosa, new THREE.MeshBasicMaterial({ color: '#ff3b2e', transparent: true, opacity: 0.2, depthWrite: false }), COLS * FILAS);
   alcance.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   alcance.frustumCulled = false;
-  e.escena.add(llamarada, alcance);
+  // Casillas que el cierre del patio tapa en el próximo segundo y medio (16-11)
+  const porCerrar = new THREE.InstancedMesh(geoLosa, new THREE.MeshBasicMaterial({ color: '#7a4bd6', transparent: true, opacity: 0.45, depthWrite: false }), COLS * FILAS);
+  porCerrar.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  porCerrar.frustumCulled = false;
+  porCerrar.count = 0;
+  e.escena.add(llamarada, alcance, porCerrar);
   const o = new THREE.Object3D();
+  // Geometrías y materiales compartidos (16-11): antes cada bomba, mejora y túnel creaba los suyos y no se liberaban
+  const geoBomba = new THREE.SphereGeometry(0.5, 16, 12), geoMecha = new THREE.CylinderGeometry(0.05, 0.05, 0.4, 6).translate(0, 0.2, 0), geoTapa = new THREE.CylinderGeometry(0.16, 0.16, 0.12, 10);
+  const geoPlaca = new THREE.BoxGeometry(CELDA * 0.7, 0.18, CELDA * 0.7), geoHoyo = new THREE.CircleGeometry(0.62, 24).rotateX(-Math.PI / 2), geoAroTunel = new THREE.TorusGeometry(0.66, 0.1, 6, 24).rotateX(Math.PI / 2);
+  const matHoyo = new THREE.MeshBasicMaterial({ color: '#15121c' }), matTunel = ['#b06cff', '#2ec4ff'].map((color) => new THREE.MeshBasicMaterial({ color }));
+  const matIcono = new Map<Mejora, THREE.SpriteMaterial>();
 
   // Las mejoras: una placa de color con su ícono encima
   const texMejora = new Map<Mejora, THREE.Texture>();
@@ -144,7 +157,8 @@ export async function crear(c: Contexto): Promise<Partida> {
     return t;
   };
   const soltarMejora = (tipo: Mejora, x: number, z: number, t: number) => {
-    const p = centro(x, z), g = new THREE.Group(), placa = new THREE.Mesh(new THREE.BoxGeometry(CELDA * 0.7, 0.18, CELDA * 0.7), mat(COLOR_MEJORA[tipo])), icono = new THREE.Sprite(new THREE.SpriteMaterial({ map: iconoDe(tipo) }));
+    if (!matIcono.has(tipo)) matIcono.set(tipo, new THREE.SpriteMaterial({ map: iconoDe(tipo) }));
+    const p = centro(x, z), g = new THREE.Group(), placa = new THREE.Mesh(geoPlaca, mat(COLOR_MEJORA[tipo])), icono = new THREE.Sprite(matIcono.get(tipo));
     placa.position.y = 0.09; icono.position.y = 0.95; icono.scale.set(1.05, 1.05, 1);
     g.add(placa, icono);
     g.position.set(p.x, 0, p.z);
@@ -190,11 +204,9 @@ export async function crear(c: Contexto): Promise<Partida> {
       m.position.set(p.x, 0.015, p.z); m.rotation.y = Math.atan2(-dx, -dz);
       decorado.add(m);
     }
-    const coloresTunel = ['#b06cff', '#2ec4ff'];
     [...arena.tuneles.keys()].forEach((k, i) => {
-      const p = centro(k % COLS, Math.floor(k / COLS)), color = coloresTunel[i < 2 ? 0 : 1];
-      const hoyo = new THREE.Mesh(new THREE.CircleGeometry(0.62, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#15121c' }));
-      const aro = new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.1, 6, 24).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color }));
+      const p = centro(k % COLS, Math.floor(k / COLS));
+      const hoyo = new THREE.Mesh(geoHoyo, matHoyo), aro = new THREE.Mesh(geoAroTunel, matTunel[i < 2 ? 0 : 1]);
       hoyo.position.set(p.x, 0.02, p.z); aro.position.set(p.x, 0.06, p.z);
       decorado.add(hoyo, aro);
     });
@@ -234,9 +246,9 @@ export async function crear(c: Contexto): Promise<Partida> {
   const ponerBomba = (j: Jugador, t: number) => {
     if (!puedePoner(j, t)) return false;
     const [cx, cz] = celda(j.x, j.z);
-    const p = centro(cx, cz), g = new THREE.Group(), cuerpo = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12), mat('#26262e')), mecha = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.4, 6).translate(0, 0.2, 0), mat('#c9a86a'));
+    const p = centro(cx, cz), g = new THREE.Group(), cuerpo = new THREE.Mesh(geoBomba, mat('#26262e')), mecha = new THREE.Mesh(geoMecha, mat('#c9a86a'));
     cuerpo.position.y = 0.5; mecha.position.y = 0.98;
-    const tapa = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.12, 10), mat(COLORES[j.id]));
+    const tapa = new THREE.Mesh(geoTapa, mat(COLORES[j.id]));
     tapa.position.y = 0.97;
     g.add(cuerpo, mecha, tapa);
     g.position.set(p.x, 0, p.z);
@@ -276,7 +288,8 @@ export async function crear(c: Contexto): Promise<Partida> {
     }
     return lista;
   };
-  let cajasYo = 0, cajasRonda = 0, elimYo = 0, elimRonda = 0, mejorasYo = 0;
+  let cajasYo = 0, cajasRonda = 0, elimYo = 0, elimRonda = 0, mejorasYo = 0, mejorasRonda = 0, causa = '', avisoCierre = false;
+  const explicadas = new Set<Mejora>(), causas: string[] = [], ptsRondas: number[] = [];
   const estallar = (b: Bomba, t: number) => {
     const i = bombas.indexOf(b);
     if (i < 0) return;
@@ -441,9 +454,12 @@ export async function crear(c: Contexto): Promise<Partida> {
   const nuevaRonda = (t: number) => {
     armarTablero(ronda);
     reiniciar();
-    inicioRonda = t; cierres = 0; cajasRonda = 0; elimRonda = 0;
+    inicioRonda = t; cierres = 0; cajasRonda = 0; elimRonda = 0; mejorasRonda = 0; causa = ''; avisoCierre = false;
     e.hud.aviso(`${!c.libre && ronda === RONDAS - 1 ? '¡Ronda final!' : `Ronda ${ronda + 1}`} · ${arena.nombre}`, 'oro', 1.6);
+    marcarTu();
   };
+  /** "¡TÚ!" sobre tu personaje al empezar cada ronda (el aro además late los primeros segundos). */
+  const marcarTu = () => e.flotante('¡TÚ!', yo.x, 2.6, yo.z, 'oro');
   const morir = (j: Jugador, por?: Jugador) => {
     if (!j.vivo) return;
     j.vivo = false;
@@ -452,7 +468,10 @@ export async function crear(c: Contexto): Promise<Partida> {
     setTimeout(() => { if (!j.vivo) j.k.grupo.visible = false; }, 900);
     e.chispas(j.x, 1.2, j.z, [COLORES[j.id], '#ffffff'], 20, 5);
     if (por === yo && j !== yo) { elimYo++; elimRonda++; e.flotante(`+${PUNTOS.eliminado}`, j.x, 2, j.z, 'oro'); }
-    if (j === yo) { e.sonido.mal(); e.hud.aviso('¡Te alcanzó!', 'mal', 1.2); }
+    if (j === yo) {
+      causa = por === yo ? 'tu propia bomba' : por ? `el ${NOMBRE_COLOR[por.id]}` : 'el cierre del patio';
+      e.sonido.mal(); e.hud.aviso(por === yo ? '¡Tu propia bomba!' : por ? `¡Te eliminó el ${NOMBRE_COLOR[por.id]}!` : '¡Te atrapó el cierre!', 'mal', 1.4);
+    }
   };
   const puntaje = () => ptsPuestos + elimYo * PUNTOS.eliminado + cajasYo * PUNTOS.caja + mejorasYo * PUNTOS.mejora;
   const terminar = () => {
@@ -460,7 +479,9 @@ export async function crear(c: Contexto): Promise<Partida> {
     e.detener();
     c.alTerminar({
       puntaje: puntaje(),
-      lineas: [['Rondas ganadas', `${ganadas} de ${RONDAS}`], ['Puestos', puestos.map((p) => `${p}.º`).join(' · ')], ['Rivales que eliminaste', String(elimYo)], ['Cajas rotas', String(cajasYo)], ['Mejoras tomadas', String(mejorasYo)]],
+      lineas: [['Rondas ganadas', `${ganadas} de ${RONDAS}`], ['Puestos', puestos.map((p) => `${p}.º`).join(' · ')], ['Rivales que eliminaste', String(elimYo)], ['Cajas rotas', String(cajasYo)], ['Mejoras tomadas', String(mejorasYo)],
+        ['Mejor ronda', ptsRondas.length ? `Ronda ${ptsRondas.indexOf(Math.max(...ptsRondas)) + 1}: +${Math.max(...ptsRondas)}` : '—'],
+        ['Te eliminó', causas.length ? causas.map((x, i) => `R${i + 1}: ${x || 'nadie'}`).join(' · ') : '—']],
       detalle: { version: 2, ganadas, puestos, eliminados: elimYo, cajas: cajasYo, mejoras: mejorasYo },
     });
   };
@@ -468,9 +489,14 @@ export async function crear(c: Contexto): Promise<Partida> {
     const otros = jugadores.filter((x) => x.vivo && x !== yo).length, puesto = yo.vivo ? (otros ? 2 : 1) : 1 + otros;
     const activo = cajasRonda > 0 || elimRonda > 0, pts = activo ? PUNTOS.puesto[puesto - 1] : 0;
     puestos.push(puesto);
+    causas.push(causa);
     if (!c.libre) ptsPuestos += pts;
-    if (puesto === 1) { ganadas++; e.hud.aviso(activo ? `¡Ganaste la ronda! +${pts}` : '¡Ganaste! Pero sin romper cajas ni eliminar a nadie, no suma', activo ? 'oro' : '', 2); e.chispas(yo.x, 1.5, yo.z, ['#ffd23c', '#3f8cff', '#ffffff'], 50, 7); e.sonido.bien(); yo.k.animar('emote-yes'); }
-    else if (pts) e.hud.aviso(`${puesto}.º lugar · +${pts}`, '', 1.6);
+    // Resumen de la ronda: lo que sumaste en ella y qué arena viene
+    const ptsRonda = (c.libre ? 0 : pts) + elimRonda * PUNTOS.eliminado + cajasRonda * PUNTOS.caja + mejorasRonda * PUNTOS.mejora;
+    ptsRondas.push(ptsRonda);
+    // Avisos cortos: el texto grande del HUD no se parte en dos líneas (la arena siguiente la anuncia nuevaRonda)
+    if (puesto === 1) { ganadas++; e.hud.aviso(activo ? `¡Ganaste! Ronda +${ptsRonda}` : '¡Ganaste! (no suma)', activo ? 'oro' : '', 2.2); e.chispas(yo.x, 1.5, yo.z, ['#ffd23c', '#3f8cff', '#ffffff'], 50, 7); e.sonido.bien(); yo.k.animar('emote-yes'); }
+    else e.hud.aviso(`${puesto}.º lugar · +${ptsRonda}`, '', 2.2);
     entreRondas = t + 2.2;
   };
 
@@ -545,7 +571,11 @@ export async function crear(c: Contexto): Promise<Partida> {
           if (m.tipo === 'guante') j.guante = true;
           if (m.tipo === 'calavera') { j.mal = { tipo: MALDICIONES[Math.floor(r() * MALDICIONES.length)], hasta: t + MALDITO }; if (j.humano) e.hud.aviso(AVISO_MALDICION[j.mal.tipo], 'mal', 1.8); }
           if (j.humano) {
-            if (m.tipo !== 'calavera') { mejorasYo++; e.sonido.efecto('campana', 0.5); e.flotante(`${ICONO[m.tipo]} +${PUNTOS.mejora}`, j.x, 2, j.z, 'oro'); }
+            if (m.tipo !== 'calavera') {
+              mejorasYo++; mejorasRonda++; e.sonido.efecto('campana', 0.5); e.flotante(`${ICONO[m.tipo]} ${NOMBRE_MEJORA[m.tipo]} +${PUNTOS.mejora}`, j.x, 2, j.z, 'oro');
+              const como = COMO_MEJORA[m.tipo];
+              if (como && !explicadas.has(m.tipo)) { explicadas.add(m.tipo); e.hud.aviso(como, 'oro', 2.4); }
+            }
             else e.sonido.mal();
           }
         }
@@ -627,11 +657,27 @@ export async function crear(c: Contexto): Promise<Partida> {
         if (cambio) { pintarBloques(); e.temblar(0.08); }
         if (cierres === 1) e.hud.aviso('¡El patio se está cerrando!', 'mal', 1.4);
       }
+      // Aviso 5 s antes del cierre y, desde ahí, las casillas que se tapan en el próximo segundo y medio
+      n = 0;
+      if (!c.libre && tr > CIERRE - 5) {
+        if (!avisoCierre) { avisoCierre = true; e.hud.aviso('¡Cierre en 5 s: al centro!', 'mal', 1.6); }
+        for (let i = cierres; i < ordenCierre.length; i++) {
+          if (inicioRonda + CIERRE + i * PASO_CIERRE > t + 1.5) break;
+          const [x, z] = ordenCierre[i];
+          if (tablero[z][x] === 1) continue;
+          const a = centro(x, z);
+          o.position.set(a.x, 0.04, a.z); o.scale.set(1, 1, 1); o.rotation.set(0, 0, 0); o.updateMatrix();
+          porCerrar.setMatrixAt(n++, o.matrix);
+        }
+      }
+      porCerrar.count = n;
+      porCerrar.instanceMatrix.needsUpdate = true;
+      yo.aro.scale.setScalar(tr < 2.5 ? 1 + 0.35 * Math.abs(Math.sin(t * 6)) : 1);
       const vivos = jugadores.filter((x) => x.vivo);
       if (!yo.vivo || vivos.length <= 1 || (!c.libre && tr >= DURA_RONDA)) cerrarRonda(t);
       if (!c.libre) e.hud.tiempo(mmss(Math.max(0, DURA_RONDA - tr)));
       const mal = maldicion(yo, t);
-      e.hud.extra(`${c.libre ? `Ronda ${ronda + 1}` : `Ronda ${ronda + 1}/${RONDAS}`} · ${ICONO.bomba}${yo.bombas} ${ICONO.llama}${yo.llama}${yo.vel > 3.7 ? ' ' + ICONO.vel : ''}${yo.patear ? ' ' + ICONO.patear : ''}${yo.guante ? ' ' + ICONO.guante : ''}${mal ? ` ${ICONO.calavera}${Math.ceil(yo.mal!.hasta - t)}` : ''}`);
+      e.hud.extra(`${c.libre ? `Ronda ${ronda + 1}` : `Ronda ${ronda + 1}/${RONDAS}`} · 👤${vivos.filter((x) => x !== yo).length} · ${ICONO.bomba}${yo.bombas} ${ICONO.llama}${yo.llama}${yo.vel > 3.7 ? ' ' + ICONO.vel : ''}${yo.patear ? ' ' + ICONO.patear : ''}${yo.guante ? ' ' + ICONO.guante : ''}${mal ? ` ${ICONO.calavera}${Math.ceil(yo.mal!.hasta - t)}` : ''}`);
       e.hud.puntos(puntaje());
     }
     for (const j of jugadores) { j.k.grupo.position.set(j.x, 0, j.z); j.aro.position.set(j.x, 0.03, j.z); }
@@ -644,5 +690,17 @@ export async function crear(c: Contexto): Promise<Partida> {
   });
   if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__bombas = () => ({ ronda, arena: arena.nombre, puntaje: puntaje(), puestos: [...puestos], vivos: jugadores.filter((j) => j.vivo).map((j) => j.id), cajas: cajasYo, elim: elimYo, terminado });
 
-  return { empezar() { e.empezar(); empezado = true; inicioRonda = e.reloj(); e.hud.aviso(`Ronda ${ronda + 1} · ${arena.nombre}`, 'oro', 1.4); }, destruir: e.destruir };
+  let instruccion = 0;
+  return {
+    empezar() {
+      e.empezar(); empezado = true; inicioRonda = e.reloj(); e.hud.aviso(`Ronda ${ronda + 1} · ${arena.nombre}`, 'oro', 1.4); marcarTu();
+      const tactil = matchMedia('(pointer: coarse)').matches;
+      instruccion = window.setTimeout(() => e.hud.aviso(tactil ? 'Arrastra · botón Bomba' : 'Flechas o WASD · Espacio: bomba', '', 2.4), 1500);
+    },
+    destruir() {
+      clearTimeout(instruccion);
+      for (const g of [geoBomba, geoMecha, geoTapa, geoPlaca, geoHoyo, geoAroTunel]) g.dispose();
+      e.destruir();
+    },
+  };
 }

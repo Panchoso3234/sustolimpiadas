@@ -376,9 +376,10 @@ export async function crear(c: Contexto): Promise<Partida> {
     barra.appendChild(b);
     return { tipo, b };
   });
+  const cambiarVelocidad = () => { velocidad = velocidad === 1 ? 2 : velocidad === 2 ? 5 : 1; e.hud.aviso(`Velocidad x${velocidad}`, '', 0.6); }; // x1 → x2 → x5: la simulación da más pasos por cuadro, el resultado es el mismo
   const rapido = document.createElement('button');
   rapido.className = 'boton';
-  rapido.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); velocidad = velocidad === 1 ? 2 : 1; });
+  rapido.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); cambiarVelocidad(); });
   barra.appendChild(rapido);
   c.caja.appendChild(barra);
   const ya = document.createElement('button');
@@ -433,7 +434,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     const t = (Object.keys(TORRES) as Tipo[]).find((k) => TORRES[k].tecla === ev.key);
     if (t) { elegido = t; seleccion = null; }
     const k = ev.key.toLowerCase();
-    if (k === 'u') mejorar(); else if (k === 'v') vender(); else if (k === 't') cambiarPrioridad(); else if (k === 'f') velocidad = velocidad === 1 ? 2 : 1; else if (k === 'escape') seleccion = null;
+    if (k === 'u') mejorar(); else if (k === 'v') vender(); else if (k === 't') cambiarPrioridad(); else if (k === 'f') cambiarVelocidad(); else if (k === 'escape') seleccion = null;
     if (ev.key === ' ') { pideOleada = true; ev.preventDefault(); }
   });
 
@@ -629,7 +630,7 @@ export async function crear(c: Contexto): Promise<Partida> {
     golpeCastillo = Math.max(0, golpeCastillo - dt * 2);
     castillo.rotation.z = Math.sin(t * 40) * 0.05 * golpeCastillo;
     for (const { tipo, b } of botones) { b.classList.toggle('activo', tipo === elegido && !seleccion); b.classList.toggle('caro', monedas < TORRES[tipo].costo); }
-    rapido.textContent = velocidad === 1 ? '⏩ x2 (F)' : '▶ x1 (F)';
+    rapido.textContent = velocidad === 1 ? '⏩ x2 (F)' : velocidad === 2 ? '⏩ x5 (F)' : '▶ x1 (F)';
     rapido.classList.toggle('activo', velocidad > 1);
     ya.style.visibility = empezado && !terminado && pausaHasta !== Infinity ? 'visible' : 'hidden';
     if (seleccion && !torres.has(`${seleccion.cx},${seleccion.cz}`)) seleccion = null;

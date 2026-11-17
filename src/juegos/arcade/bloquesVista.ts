@@ -197,8 +197,16 @@ export function crearControles(e: Escenario, caja: HTMLElement, a: Acciones) {
     if (nuevo(7) || nuevo(5) || nuevo(12)) a.caer(); if (nuevo(4)) a.guardar(); if (nuevo(6) || nuevo(2)) a.hechizo();
     pad.buttons.forEach((x, i) => { antes[i] = x.pressed; });
   };
+  // Si la pieza se asienta con la caída suave apretada, la siguiente no baja sola: hay que soltar y volver a apretar (16-11, PABLINN)
+  let ultima = -1, frenada = false;
   return {
-    bajando: () => abajo || padAbajo,
+    bajando: (pieza = 0) => {
+      const quiere = abajo || padAbajo;
+      if (!quiere) frenada = false;
+      else if (pieza !== ultima && ultima !== -1) frenada = true;
+      ultima = pieza;
+      return quiere && !frenada;
+    },
     tic(dt: number) {
       leerControl();
       const l = izq || padIzq, rr = der || padDer;

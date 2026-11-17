@@ -42,7 +42,7 @@ export function crearMando(e: Escenario, caja: HTMLElement, etiqueta: string, ag
     else if (TECLAS[k]) { pulsadas.add(k); ev.preventDefault(); }
   });
   e.escuchar(window, 'keyup', (ev) => { if (ev.key === ' ') apretada = false; if (ev.key === 'Shift' || ev.key.toLowerCase() === 'c') abajo = false; pulsadas.delete(ev.key.length === 1 ? ev.key.toLowerCase() : ev.key); });
-  e.escuchar(window, 'blur', () => { pulsadas.clear(); abajo = false; });
+  e.escuchar(window, 'blur', () => { pulsadas.clear(); abajo = false; apretada = false; accion = false; botonAbajo = false; palanca = null; pintarPalanca(); }); // nada queda "pegado" al cambiar de ventana
 
   // La palanca se ve donde apoyas el dedo (solo en pantallas táctiles)
   const aro = document.createElement('div'), perilla = document.createElement('i');
