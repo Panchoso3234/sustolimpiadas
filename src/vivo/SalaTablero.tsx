@@ -8,6 +8,7 @@ import { asientosValidos, debeReiniciar, identidadVivo, type Oficial } from './P
 import { unirse, type Presente, type Sala } from './sala';
 import { ladoDe, type Lado, type Marcador } from './tablero';
 import { TABLEROS } from './tableros';
+import { usarEnfocado } from '../nucleo/enfocado';
 import { anunciarSala } from './vestibulo';
 import { PuntosDuelo } from './PuntosDuelo';
 
@@ -191,6 +192,9 @@ export function SalaTablero({ codigo, mirar = false, oficial }: { codigo: string
     return () => { clearInterval(r); mesa.current?.m.destruir(); };
   }, []);
   if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__tablero = { estado: () => est.current.e, lado: () => miLado, t: tAhora, enviar: (a: Record<string, unknown>) => enviarRef.current(a) };
+  // Desde que termina la cuenta regresiva hasta el resultado, en celular el tablero tapa el sitio
+  const enfocada = !!asientos && !resultado && tAhora() >= 0;
+  usarEnfocado(enfocada);
 
   if (!reglas) return <><h1>Sala no encontrada</h1><p><a class="boton" href="#/juegos/vivo">Volver al juego en vivo</a></p></>;
   if (sesion.cargando) return <p class="tenue">Cargando…</p>;
@@ -218,7 +222,7 @@ export function SalaTablero({ codigo, mirar = false, oficial }: { codigo: string
         : <p class="tenue">La partida parte cuando los dos jugadores marquen Listo. Tú miras.</p>)}
       {quedan !== null && quedan > 0 && <p class="aviso atencion">{nombre(rivalId)} se desconectó. Si no vuelve en {quedan} s, ganas por abandono.</p>}
       {asientos && t < 0 && !resultado && <div class="tablero-cuenta">{Math.ceil(-t)}</div>}
-      <div ref={caja} class="tablero-caja" />
+      <div ref={caja} class={`tablero-caja${enfocada ? ' enfocada' : ''}`} />
       {textoFin && <p class="aviso ok vivo-fin tablero-fin">{textoFin}</p>}
       {oficial && resultado && !siguiente && <PuntosDuelo id={oficial.e.id} />}
       {resultado && (oficial && !siguiente

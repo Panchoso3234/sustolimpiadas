@@ -19,6 +19,7 @@ import { PuntosDuelo } from './PuntosDuelo';
 import { unirse, type Presente, type Sala } from './sala';
 import { COLOR_LADO, ladoDe, type Lado } from './tablero';
 import { anunciarSala } from './vestibulo';
+import { usarEnfocado } from '../nucleo/enfocado';
 
 // Duelo en vivo con el juego individual de siempre, en pantalla dividida o por turnos (ver `formatos.ts`).
 // Cada jugador corre su propia partida en su navegador (mismo desafío que el diferido) y manda su puntaje,
@@ -351,6 +352,7 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
   useEffect(() => { if (idVivo && asientos && soyJugador && sesion.usuarioId) empezarVivo(idVivo, juego, asientos[0], asientos[1]); }, [idVivo, !!asientos]);
   useEffect(() => { if (idVivo && ganadorVivo && soyJugador && sesion.usuarioId) cerrarVivo(idVivo, ganadorVivo); }, [idVivo, ganadorVivo]);
 
+  usarEnfocado(fase === 'cargando' || fase === 'cuenta' || fase === 'jugando'); // mientras juego, en celular la zona tapa el sitio
   if (!formato || !ficha) return <><h1>Sala no encontrada</h1><p><a class="boton" href="#/juegos/vivo">Volver al juego en vivo</a></p></>;
   if (sesion.cargando) return <p class="tenue">Cargando…</p>;
 
@@ -423,7 +425,7 @@ export function SalaDuelo({ codigo, mirar = false, oficial }: { codigo: string; 
       {mia && fase === 'nada' && corrida.current === p.partida && <div class="fila"><button class="boton principal grande" onClick={() => { setAviso(''); correr(); }}>Reintentar mi partida</button></div>}
       {turno && <p class={`duelo-turno${turno === miLado ? ' mio' : ''}`}>{turno === miLado ? '¡Es tu turno!' : `Es el turno de ${nombres[turno]}`}</p>}
       {asientos && !ganador && (
-        <div ref={zona} class={`duelo-zona ${formato}${ventanita ? ' con-ventanita' : jugandoYo || fase === 'listo' ? ' con-juego' : ''}`}>
+        <div ref={zona} class={`duelo-zona ${formato}${ventanita ? ' con-ventanita' : jugandoYo || fase === 'listo' ? ' con-juego' : ''}${jugandoYo ? ' enfocada' : ''}`}>
           {ventanita && SIN_ESPEJO.has(juego) && otros.map(barraRival)}
           <div class="sala duelo-mio" hidden={!jugandoYo}>
             <div class="juego-caja" ref={miCaja} />

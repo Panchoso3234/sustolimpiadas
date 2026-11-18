@@ -718,6 +718,21 @@ body.foto .tren-poderes { display: none; }
 .sala-pausa { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: rgba(12, 19, 36, .82); z-index: 5; text-align: center; }
 .sala-pausa b { font-family: var(--display); font-size: 2.4rem; color: var(--calabaza); }
 .sala:fullscreen { background: var(--noche); }
+
+/* Celulares y tablets: mientras se juega, el juego tapa el sitio entero. En iPhone es la única "pantalla completa"
+   (Safari no la permite en páginas). La clase la ponen Sala, SalaDuelo y SalaTablero con usarEnfocado().
+   Con position: fixed e inset: 0 se ajusta solo a la barra de Safari, sin depender de 100dvh (iOS < 15.4 no lo tiene). */
+@media (max-width: 760px), (max-height: 480px), (hover: none) and (pointer: coarse) {
+  .enfocada { position: fixed; inset: 0; z-index: 45; height: auto; min-height: 0; border-radius: 0; }
+  .duelo-zona.enfocada { position: fixed; display: block; overflow-y: auto; background: var(--noche); } /* gana a .con-ventanita (relative) */
+  .duelo-zona.enfocada .duelo-mio { height: 100%; border-radius: 0; }
+  .tablero-caja.enfocada { background: var(--noche); }
+  body.enfocado { overflow: hidden; }
+  body.enfocado .gacha-reclamar-flotante { display: none; }
+  .enfocada .juego-hud { top: calc(10px + env(safe-area-inset-top, 0px)); left: calc(12px + env(safe-area-inset-left, 0px)); right: calc(12px + env(safe-area-inset-right, 0px)); }
+  .enfocada .sala-salir { left: calc(12px + env(safe-area-inset-left, 0px)); }
+  .sala.enfocada .sala-telon { padding-top: calc(20px + env(safe-area-inset-top, 0px)); padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); }
+}
 .atajos { margin: 0; }
 @media (hover: none) { .atajos { display: none; } }
 
@@ -748,7 +763,12 @@ body.foto .tren-poderes { display: none; }
    juego, y el tutorial de la cuenta regresiva va arriba, chico y corto, para no tapar la partida */
 @media (max-width: 760px), (hover: none) {
   .sala-teclas { display: none; }
-  .sala-salir { max-width: calc(100% - 130px); flex-wrap: wrap; }
+  /* Una sola fila (antes eran dos y tapaban la parte baja del juego); si no cabe, se desliza de lado */
+  .sala-salir { max-width: calc(100% - 24px); flex-wrap: nowrap; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  /* Deja libre la esquina derecha en los juegos con botón de acción o de efecto abajo a la derecha */
+  .sala:has(.mando-accion, .bolos-efecto) .sala-salir { max-width: calc(100% - 130px); }
+  .sala-salir::-webkit-scrollbar { display: none; }
+  .sala-salir .boton { padding: 5px 9px; font-size: .8rem; white-space: nowrap; flex: none; }
   .sala-tutorial { top: 56px; bottom: auto; padding: 8px 12px; width: min(440px, calc(100% - 24px)); }
   .fase-cuenta .sala-tutorial p { font-size: .86rem; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
   .juego-aviso { font-size: clamp(1.1rem, 5.5vw, 1.8rem); white-space: normal; max-width: 90%; }

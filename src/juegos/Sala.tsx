@@ -14,6 +14,7 @@ import { CON_FANTASMA, decodificar, liderDelDia, type Fantasma } from './fantasm
 import { CARGADORES, ajustesPartida, jornadaDe, type Partida, type Resultado } from './marco';
 import { estaCallado, fanfarria, silenciar } from './sonido';
 import { fijarJuego } from '../nucleo/presencia';
+import { usarEnfocado } from '../nucleo/enfocado';
 
 // La "sala" envuelve a cualquier juego: pantalla previa, cuenta regresiva, partida, resultado y guardado.
 // Sirve para el modo individual (marcas del día, intentos libres) y para una ronda de versus (un solo intento).
@@ -324,6 +325,9 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
     return () => { document.removeEventListener('fullscreenchange', f); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); };
   }, []);
   const alternarCompleta = () => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); else sala.current?.requestFullscreen().catch(() => {}); };
+  // En celular la sala tapa el sitio desde que carga el juego (así el lienzo nace con su tamaño final) hasta el resultado
+  const enfocada = fase === 'cargando' || fase === 'cuenta' || fase === 'jugando' || fase === 'resultado';
+  usarEnfocado(enfocada);
 
   // Barra de carga: avanza sola hacia el 90 % mientras se descarga el juego y llega al 100 % cuando está listo
   useEffect(() => {
@@ -355,16 +359,16 @@ export function Sala({ juego, reto }: { juego: Juego; reto?: Reto }) {
   const local = marcaLocal(juego.id, fecha), volver = reto?.volver ?? '#/juegos';
 
   return (
-    <div class={`sala fase-${fase}`} style={`--tono:${motor.color}`} ref={sala}>
+    <div class={`sala fase-${fase}${enfocada ? ' enfocada' : ''}`} style={`--tono:${motor.color}`} ref={sala}>
       <div class="juego-caja" ref={caja} />
       {(fase === 'cuenta' || fase === 'jugando') && (
         <div class="sala-salir">
           {!reto && <button class="boton" title="Salir (Esc)" onClick={salir}>{libre.current ? 'Terminar' : 'Salir'}</button>}
           {!reto && practica.current && fase === 'jugando' && <button class="boton" title="Empezar de nuevo" onClick={(ev) => { ev.currentTarget.blur(); jugar(true, null, libre.current); }}>Reiniciar</button>}
           {!reto && fase === 'jugando' && <button class="boton" aria-pressed={pausa} title="Pausa (P)" disabled={!!reanudando} onClick={(ev) => { if (pausa) reanudar(); else pausar(true); ev.currentTarget.blur(); }}>{pausa ? 'Seguir' : 'Pausa'}</button>}
-          <button class="boton" aria-pressed={callado} onClick={(ev) => { silenciar(!callado); setCallado(!callado); ev.currentTarget.blur(); }}>{callado ? 'Sonido: no' : 'Sonido: sí'}</button>
+          <button class="boton" aria-pressed={callado} aria-label={callado ? 'Sonido: no' : 'Sonido: sí'} onClick={(ev) => { silenciar(!callado); setCallado(!callado); ev.currentTarget.blur(); }}>{callado ? '🔇' : '🔊'}<span class="solo-ancho">{callado ? ' Sonido: no' : ' Sonido: sí'}</span></button>
           <button class={`boton${reglasNuevas && !reglas ? ' reglas-nuevas' : ''}`} aria-pressed={reglas} title="Reglas del juego (R)" onClick={(ev) => { if (reglas) cerrarReglas(); else abrirReglas(); ev.currentTarget.blur(); }}>Reglas</button>
-          {clips.current && fase === 'jugando' && <button class="boton" title="Guarda en video los últimos segundos de la partida" disabled={clip === 'preparando'} onClick={(ev) => { sacarClip(); ev.currentTarget.blur(); }}>🎬 Clip</button>}
+          {clips.current && fase === 'jugando' && <button class="boton" title="Guarda en video los últimos segundos de la partida" disabled={clip === 'preparando'} aria-label="Clip" onClick={(ev) => { sacarClip(); ev.currentTarget.blur(); }}>🎬<span class="solo-ancho"> Clip</span></button>}
           {puedeCompleta && <button class="boton" aria-pressed={completa} aria-label={completa ? 'Salir de pantalla completa' : 'Pantalla completa'} title="Pantalla completa" onClick={(ev) => { alternarCompleta(); ev.currentTarget.blur(); }}>{completa ? '⤡' : '⛶'}</button>}
         </div>
       )}
