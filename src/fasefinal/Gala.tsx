@@ -29,11 +29,14 @@ const simVacia = (): Sim => ({ parejas: [], solo: null, inicio: null, semilla: n
 function leer(ensayo: boolean): Estado | null { try { return JSON.parse(localStorage.getItem(CLAVE(ensayo)) ?? 'null'); } catch { return null; } }
 function guardar(ensayo: boolean, e: Estado) { try { localStorage.setItem(CLAVE(ensayo), JSON.stringify(e)); } catch { /* sin almacenamiento */ } }
 
+const rotos = new Set<string>();
 function Avatar({ t, tam = 64 }: { t?: FichaTributo; tam?: number }) {
+  const [, refrescar] = useState(0);
   if (!t) return null;
   const tamano = `width:${tam}px;height:${tam}px;font-size:${Math.round(tam * 0.45)}px`;
-  return t.avatar ? <img class="ff-avatar" src={t.avatar} alt="" width={tam} height={tam} style={tamano} />
-    : <span class="ff-avatar ff-inicial" style={tamano} aria-hidden="true">{t.nombre.slice(0, 1).toUpperCase()}</span>;
+  // Si el enlace del ícono ya no sirve (cambió su foto en Discord), queda la inicial
+  const inicial = <span class="ff-avatar ff-inicial" style={tamano} aria-hidden="true">{t.nombre.slice(0, 1).toUpperCase()}</span>;
+  return t.avatar && !rotos.has(t.avatar) ? <img class="ff-avatar" src={t.avatar} alt="" width={tam} height={tam} style={tamano} onError={() => { rotos.add(t.avatar!); refrescar((x) => x + 1); }} /> : inicial;
 }
 
 export function Gala() {

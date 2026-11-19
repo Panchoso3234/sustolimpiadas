@@ -2,7 +2,7 @@
 // Poder (0 a 1): 70 % el puntaje personal de la liga y 30 % los récords históricos (top 3 de cada juego).
 // Atributo principal: la categoría de juegos donde mejor le fue en duelos, con A = (ganados + 1,5) / (jugados + 3) y
 // al menos 2 duelos (una tasa, no la cantidad: Arcade tiene 28 juegos y Carreras solo 2). Título: de datos reales.
-import { JUEGOS, type Motor } from '../juegos/catalogo';
+import { TODOS, type Motor } from '../juegos/catalogo';
 import type { Atributo, Tributo } from './motor';
 
 export const ATRIBUTO_DE: Record<Motor, Atributo> = { A: 'Velocidad', B: 'Fuerza', C: 'Precisión', D: 'Agilidad', E: 'Astucia', F: 'Temple', G: 'Instinto' };
@@ -15,8 +15,9 @@ interface Jugador { id: string; nombre: string; puntos: number; equipo: { nombre
 interface Duelo { juego: string; modo: string; oficial: boolean; estado: string; ganador: string | null; a_perfil: string | null; b_perfil: string | null }
 interface Fila { perfil: string; puntaje: number }
 
-const motorDe = new Map(JUEGOS.map((j) => [j.id, j.motor]));
-const nombreJuego = new Map(JUEGOS.map((j) => [j.id, j.nombre]));
+// Con TODOS (también los retirados): hay récords y duelos de juegos que ya salieron, como Al Agua Pato
+const motorDe = new Map(TODOS.map((j) => [j.id, j.motor]));
+const nombreJuego = new Map(TODOS.map((j) => [j.id, j.nombre]));
 
 export function armarFicha(personal: Jugador[], duelos: Duelo[], records: Map<string, Fila[]> | null, avatares: Map<string, string | null>): FichaTributo[] {
   const clasificados = personal.filter((j) => j.clasifica);
