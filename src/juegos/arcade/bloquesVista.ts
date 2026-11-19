@@ -120,7 +120,7 @@ export function crearTableroVisual(e: Escenario, cx: number, titulo = '') {
 }
 
 // ── Controles ──
-export interface Acciones { mover(dx: number): void; girar(dir: 1 | -1 | 2): void; caer(): void; guardar(): void; hechizo(): void }
+export interface Acciones { mover(dx: number): void; girar(dir: 1 | -1 | 2): void; bajar(): void; caer(): void; guardar(): void; hechizo(): void }
 /** Teclado, botones en pantalla, gestos y control. `bajando()` dice si se mantiene la caída suave; `tic(dt)` repite los movimientos mantenidos. */
 export function crearControles(e: Escenario, caja: HTMLElement, a: Acciones) {
   let izq = false, der = false, abajo = false, mantenido = 0, repetir = 0, dir = 0;
@@ -158,7 +158,9 @@ export function crearControles(e: Escenario, caja: HTMLElement, a: Acciones) {
     boton('▶', 'Mover a la derecha', () => { der = true; a.mover(1); dir = 1; mantenido = 0; }, () => { der = false; });
     boton('↺', 'Girar a la izquierda', () => a.girar(-1));
     boton('↻', 'Girar a la derecha', () => a.girar(1));
-    boton('▼', 'Bajar rápido', () => { abajo = true; }, () => { abajo = false; });
+    // ▼: un toque baja una fila; si se mantiene, después de 0,18 s sigue bajando (antes un toque ya la tiraba al piso)
+    let espera = 0;
+    boton('▼', 'Bajar (toca: una fila · mantén: sigue bajando)', () => { a.bajar(); clearTimeout(espera); espera = window.setTimeout(() => { abajo = true; }, 180); }, () => { clearTimeout(espera); abajo = false; });
     boton('⤓', 'Caída instantánea', () => a.caer());
     boton('⇄', 'Guardar', () => a.guardar());
     boton('✦', 'Hechizo', () => a.hechizo());
@@ -177,7 +179,8 @@ export function crearControles(e: Escenario, caja: HTMLElement, a: Acciones) {
   e.escuchar(e.lienzo, 'pointerup', (ev) => {
     if (!gesto) return;
     const dt = performance.now() - gesto.t, dy = ev.clientY - gesto.y, dx = ev.clientX - gesto.x;
-    if (dy > 60 && dt < 260 && Math.abs(dx) < 50) a.caer();
+    // Caída instantánea solo con un deslizamiento largo y decidido (un cuarto del alto); uno corto es caída suave
+    if (dy > Math.max(60, e.lienzo.clientHeight * 0.25) && dt < 250 && Math.abs(dx) < 50) a.caer();
     else if (Math.abs(dx) < 12 && Math.abs(dy) < 12 && dt < 300) a.girar(ev.clientX > e.lienzo.getBoundingClientRect().left + e.lienzo.clientWidth / 2 ? 1 : -1);
     gesto = null; abajo = false;
   });

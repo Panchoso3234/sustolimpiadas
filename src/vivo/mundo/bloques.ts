@@ -1,6 +1,6 @@
 import type { Contexto, Partida, Resultado } from '../../juegos/marco';
 import { crearEscenario, mmss } from '../../juegos/reflejos/motor';
-import { ALTO, ANCHO, OCULTAS, basuraPendiente, caerYa, comprimir, descomprimir, guardar, girar, mover, nuevo, paso, recibir, sombra, type Asiento, type Estado, type Pieza } from '../../juegos/arcade/bloquesNucleo';
+import { ALTO, ANCHO, OCULTAS, bajar, basuraPendiente, caerYa, comprimir, descomprimir, guardar, girar, mover, nuevo, paso, recibir, sombra, type Asiento, type Estado, type Pieza } from '../../juegos/arcade/bloquesNucleo';
 import { crearControles, crearFondo, crearSonidos, crearTableroVisual } from '../../juegos/arcade/bloquesVista';
 import { entre, num, type Lado } from './red';
 
@@ -44,6 +44,7 @@ export async function bloques(c: Contexto): Promise<Partida> {
   const controles = yo ? crearControles(e, c.caja, {
     mover: (dx) => actuar(() => { if (mover(est!, dx)) sonidos.mover(); }),
     girar: (d) => actuar(() => { if (girar(est!, d)) sonidos.girar(); }),
+    bajar: () => actuar(() => { if (bajar(est!)) sonidos.mover(); }),
     caer: () => actuar(() => { sonidos.caer(); efectos(caerYa(est!)); }),
     guardar: () => actuar(() => { if (guardar(est!)) sonidos.girar(); }),
     hechizo: () => undefined, // en vivo no hay hechizo: es mano a mano
@@ -86,10 +87,13 @@ export async function bloques(c: Contexto): Promise<Partida> {
   const reloj = setInterval(() => { if (empezado && est) { const ahora = performance.now(); if (ahora - envio > (v.directo() ? 90 : 200)) { envio = ahora; mandar(); } } }, 50);
 
   e.alCuadro((t, dt) => {
-    const paso2 = Math.min(dt, 0.05);
     if (empezado && est && !terminado) {
-      controles?.tic(paso2);
-      efectos(paso(est, paso2, controles?.bajando(est.piezas) ?? false));
+      // Igual que en el individual: el cuadro se reparte en pasos de 0,05 s para seguir al reloj real
+      for (let resto = dt; resto > 1e-6 && !est.perdio; resto -= 0.05) {
+        const d = Math.min(resto, 0.05);
+        controles?.tic(d);
+        efectos(paso(est, d, controles?.bajando(est.piezas) ?? false));
+      }
       // Muerte súbita: desde los 2 minutos sube una fila de lápidas cada 10 s
       if (est.tiempo >= ultimaSubita) { if (!avisoSubita) { avisoSubita = true; e.hud.aviso('¡Muerte súbita! Sube basura a los dos', 'mal', 2); } ultimaSubita += 10; recibir(est, 1, 1000 + Math.round(est.tiempo), 0); }
       if (est.perdio) terminar('ko');

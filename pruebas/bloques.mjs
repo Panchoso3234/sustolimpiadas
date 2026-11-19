@@ -116,5 +116,46 @@ const poner = (e, filas) => { // filas desde abajo: '#' lleno, '.' vacío
   const tamanos = [patadas(2, 0, 1).length, patadas(0, 0, 1).length, patadas(2, 0, 2).length, patadas(0, 1, 3).length];
   ver('tablas: 5 patadas por giro y 6 en la media vuelta', tamanos.join() === '5,5,6,6', tamanos.join());
 }
+// 13) Asentado parejo (reporte de Andy, 19-11): lo que se mueve en el aire no gasta los reinicios del piso
+// Cuánto aguanta la pieza en el piso si se mueve cada 0,3 s (`veces` intentos), después de `aire` movidas en el aire
+const enPiso = (aire, veces) => {
+  const e = nuevo('asiento'); vacio(e);
+  for (let i = 0; i < aire; i++) mover(e, i % 2 ? 1 : -1);
+  const n = e.piezas; let t = 0, piso = 0, prox = 0.3;
+  while (e.piezas === n && t < 30) {
+    paso(e, 1 / 60); t += 1 / 60;
+    if (e.asentar > 0 || piso > 0) { piso += 1 / 60; if (veces > 0 && piso >= prox) { mover(e, veces % 2 ? 1 : -1); veces--; prox += 0.3; } }
+  }
+  return piso;
+};
+{
+  const sinAire = enPiso(0, 6), conAire = enPiso(20, 6);
+  ver('moverse 20 veces en el aire no quita los reinicios del piso', Math.abs(sinAire - conAire) < 0.05 && conAire > 1.5, `${sinAire.toFixed(2)} s contra ${conAire.toFixed(2)} s`);
+  const tope = enPiso(0, 999);
+  ver('en el piso hay tope: con 15 reinicios gastados se asienta igual', tope < 15 * 0.3 + 0.6, `${tope.toFixed(2)} s`);
+  const quieta = enPiso(0, 0);
+  ver('sin tocar nada se asienta a los 0,5 s', Math.abs(quieta - 0.5) < 0.05, `${quieta.toFixed(2)} s`);
+}
+{
+  const e = nuevo('fila'); vacio(e);
+  const y0 = e.pieza.y; e.movidas = 15;
+  let t = 0; while (e.pieza.y === y0 && t < 5) { paso(e, 1 / 60); t += 1 / 60; }
+  ver('al bajar a una fila nueva se reponen los reinicios', e.movidas === 0, `movidas ${e.movidas}`);
+}
+// 14) Caída suave controlable: ~12 filas por segundo (antes 25: un toque la tiraba al piso)
+{
+  const e = nuevo('suave'); vacio(e);
+  const y0 = e.pieza.y; for (let i = 0; i < 60; i++) paso(e, 1 / 60, true);
+  const filas = e.pieza.y - y0;
+  ver('la caída suave baja unas 12 filas por segundo', filas >= 11 && filas <= 13, `${filas} filas en 1 s`);
+}
+// 15) Al apretar abajo no se gasta de golpe la gravedad juntada (con 0,8 s juntados eran 9 filas de una; antes, con
+// la caída suave a 25 filas/s, hasta 21: la pieza se iba directo al piso)
+{
+  const e = nuevo('golpe'); vacio(e);
+  e.caida = 0.8; const y0 = e.pieza.y;
+  paso(e, 1 / 60, true);
+  ver('apretar abajo con gravedad juntada baja a lo más 1 fila', e.pieza.y - y0 <= 1, `${e.pieza.y - y0} filas`);
+}
 console.log(malos ? `${malos} pruebas fallaron` : 'Todo bien');
 process.exit(malos ? 1 : 0);

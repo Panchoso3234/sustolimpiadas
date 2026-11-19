@@ -1,7 +1,7 @@
 import type { Contexto, Partida } from '../marco';
 import { crearEscenario, mmss } from '../reflejos/motor';
 import { mejorJugada } from './bloquesIA';
-import { ALTO, OCULTAS, basuraPendiente, caerYa, guardar, girar, hechizar, mover, nuevo, paso, sombra, vaciar, type Asiento, type Estado } from './bloquesNucleo';
+import { ALTO, OCULTAS, bajar, basuraPendiente, caerYa, guardar, girar, hechizar, mover, nuevo, paso, sombra, vaciar, type Asiento, type Estado } from './bloquesNucleo';
 import { crearControles, crearFondo, crearSonidos, crearTableroVisual } from './bloquesVista';
 
 // TETRIX, modo individual (también es la ronda del 1v1 diferido): 3 minutos para hacer el mejor puntaje con
@@ -34,6 +34,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   const controles = crearControles(e, c.caja, {
     mover: (dx) => actuar(() => { if (mover(est, dx)) sonidos.mover(); }),
     girar: (d) => actuar(() => { if (girar(est, d)) sonidos.girar(); }),
+    bajar: () => actuar(() => { if (bajar(est)) sonidos.mover(); }),
     caer: () => actuar(() => { sonidos.caer(); efectos(caerYa(est)); }),
     guardar: () => actuar(() => { if (guardar(est)) sonidos.girar(); }),
     hechizo: () => actuar(() => { if (hechizar(est)) { sonidos.hechizo(); e.hud.aviso('¡Hechizo! 8 s sin gravedad y puntos al doble', 'oro', 1.4); } else if (est.hechizo < 1) e.hud.aviso('El hechizo se carga con líneas', '', 0.8); }),
@@ -41,7 +42,7 @@ export async function crear(c: Contexto): Promise<Partida> {
   // Piloto de prueba (solo en desarrollo)
   const piloto = import.meta.env.DEV && new URLSearchParams(location.search).has('piloto');
   let pilotoEn = 0;
-  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__bloques = () => ({ puntos: est.puntos, lineas: est.lineas, nivel: est.nivel, perdio: est.perdio, terminado, tiempo: est.tiempo });
+  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__bloques = () => ({ puntos: est.puntos, lineas: est.lineas, nivel: est.nivel, perdio: est.perdio, terminado, tiempo: est.tiempo, y: est.pieza?.y ?? null, piezas: est.piezas });
 
   const terminar = () => {
     if (terminado) return;
@@ -57,15 +58,19 @@ export async function crear(c: Contexto): Promise<Partida> {
 
   e.hud.tiempo(mmss(c.libre ? 0 : DURA)); e.hud.puntos(0);
   e.alCuadro((t, dt) => {
-    const paso2 = Math.min(dt, 0.05);
     if (empezado && !terminado) {
-      controles.tic(paso2);
       if (piloto && est.pieza && est.tiempo > pilotoEn) {
         pilotoEn = est.tiempo + 0.12;
         const m = mejorJugada(est);
         if (m && est.pieza) { est.pieza = { ...est.pieza, r: m.r, x: m.x }; efectos(caerYa(est)); }
       }
-      efectos(paso(est, paso2, controles.bajando(est.piezas)));
+      // El juego sigue al reloj real aunque el equipo vaya lento: el cuadro se reparte en pasos de 0,05 s como máximo
+      // (antes se recortaba a 0,05 s y bajo 20 cuadros/s todo iba más lento, también la espera para asentar)
+      for (let resto = dt; resto > 1e-6 && !est.perdio; resto -= 0.05) {
+        const d = Math.min(resto, 0.05);
+        controles.tic(d);
+        efectos(paso(est, d, controles.bajando(est.piezas)));
+      }
       // Avisos de eventos
       if (est.anuncio && anuncio !== est.anuncio) { anuncio = est.anuncio; e.hud.aviso(`Se viene: ${EVENTOS[est.anuncio]}`, 'mal', 1.6); }
       if (!est.anuncio) anuncio = null;

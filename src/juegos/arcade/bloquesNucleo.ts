@@ -14,7 +14,7 @@ export interface Objetivo { tipo: 'cuadruples' | 'lineas' | 'combo' | 'maestros'
 export interface Estado {
   semilla: string; n: number; tiempo: number; tablero: number[]; pieza: Pieza | null; cola: number[]; especiales: Especial[];
   guardada: number; puedeGuardar: boolean; lineas: number; nivel: number; puntos: number; combo: number; b2b: boolean; perdio: boolean;
-  caida: number; asentar: number; movidas: number; ultimoGiro: boolean; basura: { filas: number; hueco: number; llega: number }[];
+  caida: number; asentar: number; movidas: number; fondo: number; ultimoGiro: boolean; basura: { filas: number; hueco: number; llega: number }[];
   mandadas: number; hechizo: number; hechizoHasta: number; cuadruples: number; maestros: number; mejorCombo: number; limpios: number;
   eventos: boolean; especialesOn: boolean; evento: Evento | null; eventoHasta: number; proximoEvento: number; anuncio: Evento | null; viento: number;
   objetivo: Objetivo | null; piezas: number;
@@ -78,7 +78,7 @@ const RONDA_EVENTOS = 38;
 export function nuevo(semilla: string, opciones: { especiales?: boolean; eventos?: boolean; objetivo?: boolean } = {}): Estado {
   const e: Estado = {
     semilla, n: 0, tiempo: 0, tablero: Array(ANCHO * ALTO).fill(0), pieza: null, cola: [], especiales: [], guardada: -1, puedeGuardar: true,
-    lineas: 0, nivel: 1, puntos: 0, combo: -1, b2b: false, perdio: false, caida: 0, asentar: 0, movidas: 0, ultimoGiro: false, basura: [], mandadas: 0,
+    lineas: 0, nivel: 1, puntos: 0, combo: -1, b2b: false, perdio: false, caida: 0, asentar: 0, movidas: 0, fondo: 0, ultimoGiro: false, basura: [], mandadas: 0,
     hechizo: 0, hechizoHasta: 0, cuadruples: 0, maestros: 0, mejorCombo: 0, limpios: 0, eventos: !!opciones.eventos, especialesOn: !!opciones.especiales,
     evento: null, eventoHasta: 0, proximoEvento: RONDA_EVENTOS, anuncio: null, viento: 0, objetivo: null, piezas: 0,
   };
@@ -107,12 +107,19 @@ function sacar(e: Estado, t?: number) {
   const tipo = t ?? e.cola.shift()!, especial = t === undefined ? e.especiales.shift() ?? null : null;
   rellenar(e);
   const p: Pieza = { t: tipo, r: 0, x: tipo === 1 ? 4 : 3, y: tipo === 0 ? 0 : 1, especial };
-  e.pieza = p; e.caida = 0; e.asentar = 0; e.movidas = 0; e.ultimoGiro = false; e.piezas++;
+  e.pieza = p; e.caida = 0; e.asentar = 0; e.movidas = 0; e.fondo = p.y; e.ultimoGiro = false; e.piezas++;
   if (!cabe(e, p)) { p.y--; if (!cabe(e, p)) { e.perdio = true; e.pieza = null; } }
 }
 
 // ── Acciones del jugador ──
-const reiniciarAsiento = (e: Estado) => { if (e.movidas < 15) { e.asentar = 0; e.movidas++; } };
+// Asentado parejo (reporte de Andy, 19-11): mover o girar con la pieza APOYADA da otros 0,5 s, hasta 15 veces; lo que se
+// mueve en el aire no gasta reinicios, y al bajar a una fila nueva (más baja que antes) se reponen los 15
+const bajo = (e: Estado) => { if (e.pieza && e.pieza.y > e.fondo) { e.fondo = e.pieza.y; e.movidas = 0; } };
+const reiniciarAsiento = (e: Estado) => {
+  bajo(e);
+  const p = e.pieza;
+  if (p && !cabe(e, { ...p, y: p.y + 1 }) && e.movidas < 15) { e.asentar = 0; e.movidas++; }
+};
 export function mover(e: Estado, dx: number) {
   const p = e.pieza; if (!p || e.perdio) return false;
   const q = { ...p, x: p.x + dx };
@@ -134,7 +141,7 @@ export function bajar(e: Estado) {
   const p = e.pieza; if (!p || e.perdio) return false;
   const q = { ...p, y: p.y + 1 };
   if (!cabe(e, q)) return false;
-  e.pieza = q; e.puntos += 1; e.caida = 0; e.ultimoGiro = false;
+  e.pieza = q; e.puntos += 1; e.caida = 0; e.ultimoGiro = false; bajo(e);
   return true;
 }
 /** Dónde caería la pieza (la pieza fantasma). La fantasma especial atraviesa bloques hasta el hueco más bajo donde cabe. */
@@ -287,10 +294,15 @@ export function paso(e: Estado, dt: number, bajando = false): Asiento | null {
     e.asentar = 0;
     if (quieto) return null;
     e.caida += dt;
-    const cada = bajando ? Math.min(0.04, segundosPorFila(e.nivel)) : segundosPorFila(e.nivel);
+    // Caída suave a 12 filas/s (antes 25: un toque corto ya la tiraba al piso), o la gravedad si es más rápida
+    const cada = bajando ? Math.min(1 / 12, segundosPorFila(e.nivel)) : segundosPorFila(e.nivel);
+    // Al apretar abajo, la gravedad juntada no se gasta de golpe (eran hasta 21 filas de una: "la tira al piso")
+    if (bajando) e.caida = Math.min(e.caida, cada);
     while (e.caida >= cada && cabe(e, { ...e.pieza!, y: e.pieza!.y + 1 })) { e.caida -= cada; e.pieza = { ...e.pieza!, y: e.pieza!.y + 1 }; e.ultimoGiro = false; if (bajando) e.puntos += 1; }
+    bajo(e);
     return null;
   }
+  bajo(e);
   e.asentar += dt;
   if (e.asentar >= 0.5) return asentar(e);
   return null;
