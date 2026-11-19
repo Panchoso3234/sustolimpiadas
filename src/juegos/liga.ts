@@ -11,7 +11,8 @@ import { puntosVersus, type Puntos } from './puntos';
 // se completa con el mejor puntaje personal. El staff juega y suma para su equipo, pero nunca clasifica.
 
 export const INICIO = '2026-10-21';
-export const BONO_CRUCE = 5, EQUIPOS_A_LA_FINAL = 6, CUPOS_FINAL = 12;
+// Fase Final (decisión del 19-11): los integrantes sin staff de los 6 mejores equipos + los 3 mejores puntajes personales de quienes quedan fuera
+export const BONO_CRUCE = 5, EQUIPOS_A_LA_FINAL = 6, INDIVIDUALES_FINAL = 3;
 
 import { CRUCES, calendarioLiga, calendarioDeEquipos } from '../../supabase/functions/_shared/calendario.ts';
 export { CRUCES, calendarioLiga, calendarioDeEquipos };
@@ -108,12 +109,12 @@ export function calcularLiga(equipos: Equipo[], personas: Persona[], duelos: Enf
   // Un equipo que se disolvió (sin integrantes) sigue en el calendario para no reordenarlo, pero no en la tabla
   const tabla = [...lineas.values()].filter((l) => l.equipo.miembros.length || l.equipo.pendientes?.length).sort((a, b) => b.puntos - a.puntos || b.ganados - a.ganados);
   const personal = [...jugadores.values()].sort((a, b) => b.puntos - a.puntos || b.ganados - a.ganados);
-  // Quiénes van a la final si el torneo terminara hoy: participantes (sin staff) de los 6 primeros, más los mejores personales si faltan para llegar a 12
+  // Quiénes van a la Fase Final si el torneo terminara hoy: participantes (sin staff) de los 6 primeros, más los 3 mejores personales del resto
   const hayPuntos = tabla.some((l) => l.puntos > 0);
   if (hayPuntos) {
     const top = new Set(tabla.slice(0, EQUIPOS_A_LA_FINAL).map((l) => l.equipo.id));
     for (const j of personal) if (!j.staff && !(j.id in EX_MIEMBROS) && j.equipo && top.has(j.equipo.id)) j.clasifica = 'equipo';
-    let libres = CUPOS_FINAL - personal.filter((j) => j.clasifica).length;
+    let libres = INDIVIDUALES_FINAL;
     for (const j of personal) { if (libres <= 0) break; if (!j.staff && !(j.id in EX_MIEMBROS) && !j.clasifica && j.puntos > 0) { j.clasifica = 'especial'; libres--; } }
   }
   return { tabla, personal };

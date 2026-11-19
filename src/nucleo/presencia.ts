@@ -27,7 +27,7 @@ export function actividadDeRuta(hash: string): Omit<Actividad, 'desde'> {
     const textos: Record<string, string> = { '': 'En el portal de juegos', '1v1': 'Revisando sus duelos', vivo: 'En la sala de espera en vivo', '3v3': 'En la sala de espera en vivo', 'en-linea': 'Mirando partidas en línea', posiciones: 'Mirando la tabla oficial', calendario: 'Mirando el calendario', records: 'Mirando los récords', copa: 'Mirando la Copa Individual', duelo: 'Revisando un duelo' };
     return { texto: textos[sub] ?? 'En el portal de juegos' };
   }
-  const textos: Record<string, string> = { inicio: 'En la portada', isla: 'Paseando por la isla', personaje: 'Arreglando su personaje', progreso: 'Mirando su progreso', arena: 'En la Arena', perfil: 'Viendo un perfil', ajustes: 'En los ajustes', admin: 'En la Mesa de control', modelos: 'En la galería' };
+  const textos: Record<string, string> = { inicio: 'En la portada', isla: 'Paseando por la isla', personaje: 'Arreglando su personaje', progreso: 'Mirando su progreso', arena: 'En la FASE FINAL', perfil: 'Viendo un perfil', ajustes: 'En los ajustes', admin: 'En la Mesa de control', modelos: 'En la galería' };
   return { texto: textos[seccion] ?? 'Dando una vuelta' };
 }
 

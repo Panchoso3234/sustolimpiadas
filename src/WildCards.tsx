@@ -25,7 +25,7 @@ const PREGUNTAS: [string, string][] = [
   ['¿Cómo se combinan dos cartas?', 'Con Doble Carta, Ruleta Rusa o Mano de Dios un equipo puede tener más de una, y se aplican todas. El orden es fijo: Eclipse, luego Congelar, después los puntos de cada carta, los multiplicadores y, al final, el multiplicador de la jornada.'],
   ['¿Qué hacen Congelar y Eclipse?', 'Congelar anula la carta del rival, salvo que sea legendaria. Eclipse es legendaria: anula todas las cartas del rival, también las legendarias, y además suma +6 base. Si los dos equipos tienen el mismo, se anulan entre sí.'],
   ['¿Cuándo se ven los puntos?', 'Cuando se cierran todos los duelos del cruce, la organización revela las cartas: se dan vuelta, se suman a la tabla oficial (columna 🃏) y sale el anuncio en Discord con el detalle de cada equipo.'],
-  ['¿Por qué los de abajo sacan mejores cartas?', 'Para que la pelea por los 6 cupos de la Arena siga abierta hasta el final. Del puesto 9 al 12 la legendaria sale un 30 % de las veces; los puestos 1 y 2 nunca la sacan. Aun así, ninguna legendaria da más de +22 base: ayuda, pero no reemplaza ganar los duelos.'],
+  ['¿Por qué los de abajo sacan mejores cartas?', 'Para que la pelea por los cupos de la FASE FINAL siga abierta hasta el final. Del puesto 9 al 12 la legendaria sale un 30 % de las veces; los puestos 1 y 2 nunca la sacan. Aun así, ninguna legendaria da más de +22 base: ayuda, pero no reemplaza ganar los duelos.'],
 ];
 
 export function WildCards() {

@@ -39,7 +39,7 @@ function tareas(): Map<string, string[]> {
   }
   for (const j of JORNADAS.slice(1)) poner(j.desde, `✖️ Empieza la jornada ${j.n}: anunciar el nuevo multiplicador`);
   poner('2026-10-31', '👻 Noche de Brujas en la isla');
-  poner(FIN, '🏁 Fin de la liga: anunciar a los 12 de la Arena');
+  poner(FIN, '🏁 Fin de la liga: anunciar a los tributos de la FASE FINAL');
   return m;
 }
 
@@ -48,7 +48,7 @@ function tareas(): Map<string, string[]> {
 export function Planificacion({ publico = false }: { publico?: boolean }) {
   const datos = useDatos(), hoy = fechaChile(Date.now()), todas = tareas();
   // En la versión pública solo quedan los hitos que le importan a todos
-  const lista: Map<string, string[]> = publico ? new Map([...todas].map(([f, ts]): [string, string[]] => [f, ts.filter((t) => /^(🎡|👻|🏁|✖️)/.test(t)).map((t) => t.replace('anunciar el nuevo multiplicador', 'sube el multiplicador').replace(': anunciar a los 12 de la Arena', ': se conocen los 12 de la Arena').replace('en vivo', ''))]).filter(([, ts]) => ts.length)) : todas;
+  const lista: Map<string, string[]> = publico ? new Map([...todas].map(([f, ts]): [string, string[]] => [f, ts.filter((t) => /^(🎡|👻|🏁|✖️)/.test(t)).map((t) => t.replace('anunciar el nuevo multiplicador', 'sube el multiplicador').replace(': anunciar a los tributos de la FASE FINAL', ': se conocen los tributos de la FASE FINAL').replace('en vivo', ''))]).filter(([, ts]) => ts.length)) : todas;
   const inicioGrilla = sumar(INICIO, -diaSemana(INICIO)), dias: string[] = [];
   for (let f = inicioGrilla; f <= sumar(FIN, 6 - diaSemana(FIN)); f = sumar(f, 1)) dias.push(f);
   const cruceDelDia = (f: string) => CRUCES.find((c) => f >= c.desde && f <= c.hasta);
@@ -59,7 +59,7 @@ export function Planificacion({ publico = false }: { publico?: boolean }) {
   return (
     <div class="plan">
       {publico && cruceDe(hoy) && <p class="aviso ok">{hoy < cruceDe(hoy)!.desde ? `El cruce ${cruceDe(hoy)!.n} parte el ${bonita(cruceDe(hoy)!.desde)}.` : `Ahora: cruce ${cruceDe(hoy)!.n}, hasta el ${bonita(cruceDe(hoy)!.hasta)} a las 23:59.`} Tus duelos están en Versus 1v1 (o en En vivo, si quieren jugarlo conectados).</p>}
-      <p><b>11 cruces</b>, al principio <b>2 por semana</b> y, desde el cruce 7, de <b>2 o 3 días</b>, del <b>{bonita(INICIO)}</b> al <b>{bonita(FIN)}</b>. Cada persona juega <b>1 o 2 duelos por semana</b> (al mejor de 3). Cuatro jornadas con multiplicador: J1 ×1 (cruces 1-3), J2 ×1,25 (4-6), J3 ×1,5 (7-9) y J4 ×2 (10-11). La Arena va después, en la fecha que anuncies.</p>
+      <p><b>11 cruces</b>, al principio <b>2 por semana</b> y, desde el cruce 7, de <b>2 o 3 días</b>, del <b>{bonita(INICIO)}</b> al <b>{bonita(FIN)}</b>. Cada persona juega <b>1 o 2 duelos por semana</b> (al mejor de 3). Cuatro jornadas con multiplicador: J1 ×1 (cruces 1-3), J2 ×1,25 (4-6), J3 ×1,5 (7-9) y J4 ×2 (10-11). La FASE FINAL es el lunes 23 a las 21:00.</p>
       {!publico && <section class="bloque">
         <h2>Lo que viene</h2>
         <ul class="plan-tareas">{proximas.map(([f, ts]) => <li key={f} class={f === hoy ? 'hoy' : ''}><b>{f === hoy ? 'Hoy' : bonita(f)}</b><span>{ts.join(' · ')}</span></li>)}</ul>

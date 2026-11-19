@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { fechaChile } from '../nucleo/azar';
 import * as V from './duelos';
-import { BONO_CRUCE, CUPOS_FINAL, EQUIPOS_A_LA_FINAL, INICIO, calcularLiga, cruceDe, type LineaEquipo, type LineaJugador } from './liga';
+import { BONO_CRUCE, EQUIPOS_A_LA_FINAL, INDIVIDUALES_FINAL, INICIO, calcularLiga, cruceDe, type LineaEquipo, type LineaJugador } from './liga';
 import { PUNTOS_BASE, leerPuntos, type Puntos } from './puntos';
 import { listarAjustesCartas } from './wcDatos';
 
@@ -63,7 +63,7 @@ export function Posiciones() {
           <p class="tenue chico">⭐ Capitán (staff): juega y suma para su equipo, pero no pasa a la final. Resaltados: los {EQUIPOS_A_LA_FINAL} equipos que hoy clasificarían. La columna Zona es de broma y no cambia nada.</p>
 
           <h2>Puntaje personal y camino a la final</h2>
-          <p class="chico">A la Arena pasan los {EQUIPOS_A_LA_FINAL} mejores equipos: entran sus participantes (sin el staff) y, si son menos de {CUPOS_FINAL}, se completa con los mejores puntajes personales.</p>
+          <p class="chico">A la Fase Final pasan los integrantes (sin el staff) de los {EQUIPOS_A_LA_FINAL} mejores equipos, más los {INDIVIDUALES_FINAL} mejores puntajes personales de quienes quedan fuera.</p>
           <div class="tabla-caja">
             <table class="tabla">
               <thead><tr><th>#</th><th>Jugador</th><th>Equipo</th><th>G-E-P</th><th>Puntos</th><th>Si terminara hoy</th></tr></thead>

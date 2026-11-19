@@ -5,18 +5,6 @@ import { MesaWildCards } from './juegos/MesaWildCards';
 import { Dashboard, Planificacion } from './juegos/Panel';
 import { supabase, useSesion, type Perfil, type Rol } from './nucleo/supabase';
 
-export function Arena() {
-  return (
-    <div class="pagina arena">
-      <div class="porton" aria-hidden="true"><span /><span /></div>
-      <div class="sigla">Fase 2</div>
-      <h1>La Arena está sellada</h1>
-      <p>El portón del volcán se abre cuando termine la liga (22 de noviembre); la fecha de la final se anuncia por Discord. Pasan los 6 mejores equipos: entran sus participantes (el staff no entra) y, si son menos de 12, se completa con los mejores puntajes personales. Ahí se definen los siete premios.</p>
-      <p class="tenue">Cada punto que ganes en las jornadas mejora lo que recibirás al entrar.</p>
-    </div>
-  );
-}
-
 const ROLES: Rol[] = ['jugador', 'guardian', 'admin'];
 // En la base el staff sigue guardado como "guardian"; en pantalla se llama staff
 const NOMBRE_ROL: Record<Rol, string> = { jugador: 'Jugador', guardian: 'Staff', admin: 'Organizador' };
@@ -93,7 +81,7 @@ export function Admin() {
       {seccion === 'puntos' && <><h1>Puntos del torneo</h1><AjustePuntos /></>}
       {seccion === 'personas' && <>
       <h1>Personas inscritas</h1>
-      <p>Marca como staff a quienes juegan la Fase 1 pero no pasan a la Arena ni ganan premios. Si un nombre o una frase no corresponde, puedes borrar ese personaje; la persona podrá crear otro.</p>
+      <p>Marca como staff a quienes juegan la Fase 1 pero no pasan a la FASE FINAL ni ganan premios. Si un nombre o una frase no corresponde, puedes borrar ese personaje; la persona podrá crear otro.</p>
       <p class="chico tenue"><b>Borrar cuenta</b> elimina a la persona del torneo por completo: su perfil, personaje, marcas, equipo, vitrina y <b>los duelos donde jugaba</b> (también se le quitan al rival). Si vuelve a entrar con Discord, empieza de cero. No se puede deshacer.</p>
       {error && <p class="aviso error">{error}</p>}
       {aviso && <p class="aviso ok">{aviso}</p>}

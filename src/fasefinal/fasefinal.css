@@ -1,0 +1,58 @@
+/* FASE FINAL: panel de la gala. Colores del torneo (noche, luna, sangre); lectura centrada por etapa, como el simulador. */
+.ff-gala { display: flex; flex-direction: column; gap: 14px; }
+.ff-pestanas { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ff-pestanas button { font: inherit; font-weight: 700; font-size: .9rem; padding: 6px 12px; border-radius: 99px; border: 2px solid var(--linea); background: var(--noche-2); color: var(--hueso); cursor: pointer; }
+.ff-pestanas button.activa { border-color: var(--sangre); background: color-mix(in srgb, var(--sangre) 25%, var(--noche-2)); }
+.ff-pestanas button:disabled { opacity: .45; cursor: default; }
+.ff-ensayo { margin-left: auto; font-size: .85rem; display: flex; gap: 6px; align-items: center; }
+.ff-acciones, .ff-controles { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
+.ff-acciones { justify-content: flex-start; }
+.ff-huella code { word-break: break-all; font-size: .82rem; background: var(--noche-2); padding: 4px 8px; border-radius: 8px; }
+.ff-reservas ul { list-style: none; padding: 0; display: grid; gap: 6px; }
+.ff-reservas li { display: flex; align-items: center; gap: 8px; }
+
+.ff-avatar { display: inline-grid; place-items: center; border-radius: 50%; object-fit: cover; border: 2px solid var(--linea); background: var(--noche-2); flex: none; vertical-align: middle; }
+.ff-inicial { font-family: var(--display); color: var(--luna); }
+
+.ff-escena { --ff-zoom: 1; background: radial-gradient(ellipse at top, color-mix(in srgb, var(--sangre) 14%, var(--noche)) 0, var(--noche) 70%); border: 2px solid var(--linea); border-radius: 18px; padding: 20px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; font-size: calc(1rem * var(--ff-zoom)); min-height: 60vh; }
+.ff-contador { font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; color: var(--luna); }
+.ff-nombre { font-family: var(--display); font-size: 2.4em; margin: 4px 0 0; color: var(--hueso); }
+.ff-distrito { margin: 0; }
+.ff-titulo { font-size: 1.2em; color: var(--luna); margin: 0; }
+.ff-numeros { list-style: none; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.ff-numeros li { background: var(--noche-2); border: 2px solid var(--linea); border-radius: 12px; padding: 8px 14px; font-size: .85em; min-width: 110px; }
+.ff-numeros b { display: block; font-size: 1.5em; color: var(--luna); }
+
+.ff-parejas { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; width: 100%; }
+.ff-parejas.girando { animation: ff-girar .3s linear infinite; }
+@keyframes ff-girar { 50% { opacity: .35; filter: blur(2px); } }
+.ff-pareja { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; background: var(--noche-2); border: 2px solid var(--linea); border-radius: 14px; padding: 10px; }
+.ff-dist { flex-basis: 100%; font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--luna); }
+
+.ff-etapa { font-family: var(--display); font-size: 2em; margin: 0; color: var(--luna); }
+.ff-etapa.ff-noche { color: #9db8ff; }
+.ff-etapa.ff-bano, .ff-etapa.ff-caidos { color: var(--sangre); }
+.ff-etapa.ff-arena { color: #ffb347; }
+.ff-intro { max-width: 60ch; font-style: italic; margin: 0; }
+.ff-lineas { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; width: min(100%, 760px); }
+.ff-lineas li { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--noche-2) 85%, transparent); }
+.ff-lineas li.fatal { border-left: 4px solid var(--sangre); }
+.ff-lineas b { color: var(--luna); }
+.ff-caras { display: flex; gap: 6px; }
+.ff-podio { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.ff-podio h2 { margin: 0; color: var(--luna); }
+.ff-top { display: flex; gap: 18px; padding: 0; list-style-position: inside; }
+.ff-panel { position: sticky; bottom: 8px; background: color-mix(in srgb, var(--noche) 92%, transparent); border: 2px solid var(--linea); border-radius: 14px; padding: 8px 10px; margin-top: auto; }
+.ff-sim.transmision { border-color: transparent; }
+.ff-resumen { width: 100%; font-family: ui-monospace, monospace; font-size: .85rem; }
+.ff-tsukibet { display: flex; flex-direction: column; gap: 10px; background: var(--noche-2); border: 2px solid var(--linea); border-radius: 16px; padding: 14px 16px; }
+.ff-tsukibet h2, .ff-tsukibet h3 { margin: 0; }
+.ff-mercados { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.ff-mercado { border: 2px solid var(--linea); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.ff-mercado select, .ff-apostar input, .ff-apostar select { font: inherit; max-width: 100%; }
+.ff-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.ff-ranking { margin: 0; padding-left: 1.4em; }
+.ff-paracaidas { margin: 0; padding: 6px 12px; border-radius: 99px; background: color-mix(in srgb, var(--luna) 20%, var(--noche-2)); font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .ff-parejas.girando { animation: none; } }
+.ff-chip { font: inherit; font-size: .86rem; font-weight: 700; padding: 5px 11px; border-radius: 99px; border: 2px solid var(--linea); background: transparent; color: var(--hueso); cursor: pointer; touch-action: manipulation; }
+.ff-chip.activa { border-color: var(--luna); background: color-mix(in srgb, var(--luna) 22%, var(--noche-2)); }

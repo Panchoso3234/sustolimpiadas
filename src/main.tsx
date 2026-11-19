@@ -25,7 +25,7 @@ function Seccion({ clave, cargar, props = {} }: { clave: string; cargar: () => P
 type Comp = ComponentType<Record<string, unknown>>;
 const Isla = () => <Seccion clave="isla" cargar={() => import('./isla/Isla').then((m) => m.Isla as unknown as Comp)} />;
 const Creador = () => <Seccion clave="creador" cargar={() => import('./personaje/Creador').then((m) => m.Creador as unknown as Comp)} />;
-const Arena = () => <Seccion clave="arena" cargar={() => import('./paginas').then((m) => m.Arena as unknown as Comp)} />;
+const Arena = () => <Seccion clave="arena" cargar={() => import('./fasefinal/FaseFinal').then((m) => m.FaseFinal as unknown as Comp)} />;
 const Admin = () => <Seccion clave="admin" cargar={() => import('./paginas').then((m) => m.Admin as unknown as Comp)} />;
 const Portal = (p: { sub: string; extra: string }) => <Seccion clave="portal" cargar={() => import('./juegos/Portal').then((m) => m.Portal as unknown as Comp)} props={p} />;
 const Progreso = (p: { sub: string }) => <Seccion clave="progreso" cargar={() => import('./Progreso').then((m) => m.Progreso as unknown as Comp)} props={p} />;
@@ -49,7 +49,7 @@ const RUTAS = [
   { ruta: 'progreso', titulo: 'Progreso' },
   { ruta: 'diario', titulo: '¡El Diario!' },
   { ruta: 'gachapon', titulo: 'Gachapón' },
-  { ruta: 'arena', titulo: 'Arena' },
+  { ruta: 'arena', titulo: 'FASE FINAL' },
 ];
 
 const rutaActual = () => location.hash.replace(/^#\/?/, '') || 'inicio';
