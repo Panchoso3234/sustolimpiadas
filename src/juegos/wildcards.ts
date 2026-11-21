@@ -79,6 +79,8 @@ export const CARTAS: Carta[] = [
   c('gran_angular', '🔭', 'Gran Angular', 'epica', 'auto', '+8 base por cada duelo ganado, si el rival está más arriba en la tabla.', '+24'),
   // ── Legendarias (hasta +22 base: como mucho, casi un cruce perfecto) ──
   c('corona', '👑', 'La Corona', 'legendaria', 'auto', 'Todos los puntos del equipo en el cruce valen ×1,3.', '×1,3'),
+  // Carta especial del cruce 11 (21-11, acuerdo entre los equipos): solo para Aura, no sale en el sorteo normal
+  c('corona_aura', '👑', 'La Corona de Aura', 'legendaria', 'auto', 'Carta especial del cruce 11: todos los puntos del equipo en el cruce valen ×1,6.', '×1,6'),
   c('hazana', '🏛️', 'Hazaña', 'legendaria', 'auto', 'Misión al azar: ganar los 3 duelos, ganar 2 duelos 2-0 o ganarle la serie a un equipo de más arriba. Si la cumple, +20 base; si no, +6.', '+20'),
   c('mano', '✋', 'Mano de Dios', 'legendaria', 'decision', 'Elige cualquier carta común, rara o épica, y además +6 base.', 'carta +6'),
   c('big_bang', '💥', 'Big Bang', 'legendaria', 'auto', 'Se tiran dos dados de 6 y se suma el total más 6 (de 8 a 18).', '+18'),
@@ -93,6 +95,8 @@ export const CARTAS: Carta[] = [
 export const cartaPorId = (id: string) => CARTAS.find((x) => x.id === id);
 /** Cartas que ya no salen en el sorteo (quedan en la base solo por el historial y no hacen nada). 2.1: fuera los robos. */
 export const RETIRADAS = ['orbita', 'trampa', 'contraataque', 'agujero'];
+/** Cartas que existen pero no salen en el sorteo normal (las entrega una regla especial). */
+export const ESPECIALES = ['corona_aura'];
 /** Cartas cuyo azar lo tira la base al sortearlas (columna `dado`): el rango de cada una. En las misiones, cuál salió. */
 export const TIRADAS: Record<string, [number, number]> = { dado: [1, 6], moneda: [1, 2], sorteo_chico: [1, 6], dado_grande: [2, 12], caja: [2, 14], big_bang: [2, 12], boveda: [3, 18], encargo: [1, 3], hazana: [1, 3] };
 /** Texto de cada misión, en el orden de la tirada (1, 2, 3). Contrato usa las del Encargo. */
@@ -300,7 +304,7 @@ export function calcularAjustes(duelos: DueloEquipo[], cartas: CartaJugada[], mu
         }
       }
       // Multiplicadores de carta
-      for (const [id, f] of [['racha', 1.25], ['corona', 1.3]] as const) for (const x of mias.filter((y) => y.carta === id)) {
+      for (const [id, f] of [['racha', 1.25], ['corona', 1.3], ['corona_aura', 1.6]] as const) for (const x of mias.filter((y) => y.carta === id)) {
         const n = total * (f - 1); total += n; const c = cartaPorId(x.carta)!; detalle.push(`${c.emoji} ${c.nombre} (×${String(f).replace('.', ',')}): ${firmar(n)} base`);
       }
       return { eq, original, total, detalle };

@@ -17,16 +17,23 @@ const quieto = () => typeof matchMedia === 'function' && matchMedia('(prefers-re
 const GIRO_MS = 3400;
 
 /** Ángulo (desde arriba, en sentido del reloj) dentro del sector de la rareza, con algo de azar para que no caiga siempre igual. */
+/** Sectores de la ruleta: los del puesto, pero si salió una rareza que ahí tiene 0 % (la regla del cruce 11), se le da
+ * un sector chico (4 %, tomado de las comunes) para que la ruleta tenga dónde caer. */
+function sectores(puesto: number, asegurar?: Rareza | null): Record<Rareza, number> {
+  const g = { ...rarezasPara(puesto) };
+  if (asegurar && !g[asegurar]) { g[asegurar] = 4; g.comun -= 4; }
+  return g;
+}
 function anguloDe(puesto: number, rareza: Rareza) {
-  const g = rarezasPara(puesto);
+  const g = sectores(puesto, rareza);
   let ini = 0;
   for (const r of ORDEN) { if (r === rareza) break; ini += g[r]; }
   const ancho = g[rareza];
   return (ini + ancho / 2 + (Math.random() - 0.5) * ancho * 0.6) * 3.6;
 }
 
-function Ruleta({ puesto, giro, girando }: { puesto: number; giro: number; girando: boolean }) {
-  const g = rarezasPara(puesto);
+function Ruleta({ puesto, giro, girando, asegurar, cruce }: { puesto: number; giro: number; girando: boolean; asegurar?: Rareza | null; cruce: number }) {
+  const g = sectores(puesto, asegurar);
   let acum = 0;
   const partes = ORDEN.map((r) => { const ini = acum; acum += g[r]; return `${RAREZAS[r].color} ${ini * 3.6}deg ${acum * 3.6}deg`; });
   return (
@@ -39,6 +46,7 @@ function Ruleta({ puesto, giro, girando }: { puesto: number; giro: number; giran
       <ul class="wc-leyenda" aria-label={`Probabilidades del puesto ${puesto}`}>
         {ORDEN.map((r) => <li key={r}><i style={{ background: RAREZAS[r].color }} />{RAREZAS[r].nombre} <b>{g[r]} %</b></li>)}
       </ul>
+      {cruce === 11 && <p class="chico tenue">Cruce 11, regla especial acordada: Aura recibe la Corona de Aura (×1,6); el resto, común o rara.</p>}
     </div>
   );
 }
@@ -128,7 +136,7 @@ export function MesaWildCards() {
       {aviso && <p class="aviso ok" role="status">{aviso}</p>}
 
       <div class="wc-escenario">
-        <Ruleta puesto={sel != null ? d.puesto.get(sel) ?? 12 : 12} giro={giro} girando={girando} />
+        <Ruleta puesto={sel != null ? d.puesto.get(sel) ?? 12 : 12} giro={giro} girando={girando} cruce={cruce} asegurar={sel != null ? cartas.find((c) => c.equipo_id === sel && c.origen == null)?.rareza : null} />
         <div class="wc-revelacion" aria-live="polite">
           {seleccion
             ? <>

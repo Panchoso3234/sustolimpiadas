@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { calcularLiga } from '../src/juegos/liga';
 import { PUNTOS_BASE } from '../src/juegos/puntos';
-import { CARTAS, PROBABILIDADES, RETIRADAS, TECHO, TIRADAS, rarezasPara, rarezaPorAzar, calcularAjustes, duelosDelCruce, textosRevelacion, type DueloEquipo, type CartaJugada } from '../src/juegos/wildcards';
+import { CARTAS, ESPECIALES, PROBABILIDADES, RETIRADAS, TECHO, TIRADAS, rarezasPara, rarezaPorAzar, calcularAjustes, duelosDelCruce, textosRevelacion, type DueloEquipo, type CartaJugada } from '../src/juegos/wildcards';
 
 // Equipo 1 contra equipo 2. Helpers para armar duelos (rondas del ganador 2-0 salvo que se diga otra cosa).
 let id = 0;
@@ -21,10 +21,12 @@ const p1 = (duelos: DueloEquipo[], c: string, extra: Partial<CartaJugada> = {}) 
 
 // ───────── Catálogo ─────────
 test('catálogo: 64 cartas (24 comunes, 18 raras, 11 épicas y 11 legendarias), sin ids repetidos ni cartas retiradas', () => {
-  const n = (r: string) => CARTAS.filter((c) => c.rareza === r).length;
-  assert.equal(CARTAS.length, 64);
+  // Sin contar las especiales (Corona de Aura, cruce 11): esas no salen en el sorteo normal
+  const normales = CARTAS.filter((c) => !ESPECIALES.includes(c.id));
+  const n = (r: string) => normales.filter((c) => c.rareza === r).length;
+  assert.equal(normales.length, 64);
   assert.deepEqual([n('comun'), n('rara'), n('epica'), n('legendaria')], [24, 18, 11, 11]);
-  assert.equal(new Set(CARTAS.map((c) => c.id)).size, 64);
+  assert.equal(new Set(CARTAS.map((c) => c.id)).size, CARTAS.length);
   assert.deepEqual(RETIRADAS, ['orbita', 'trampa', 'contraataque', 'agujero']);
   for (const id of RETIRADAS) assert.ok(!CARTAS.some((c) => c.id === id), id);
   for (const c of CARTAS) assert.match(c.id, /^[a-z_]{2,20}$/, c.id);
@@ -50,7 +52,8 @@ test('la rareza por azar reparte exactamente según la tabla (misma regla que el
 });
 
 test('el catálogo del SQL 2.1 es el mismo del motor (no se desincronizan)', () => {
-  const sql = readFileSync(`${process.env.WC_RAIZ ?? '.'}/supabase/2026-11-12-wild-cards-equilibrio.sql`, 'utf8');
+  const leer = (f: string) => readFileSync(`${process.env.WC_RAIZ ?? '.'}/supabase/${f}`, 'utf8');
+  const sql = leer('2026-11-12-wild-cards-equilibrio.sql') + leer('2026-11-21-cruce11-cartas.sql'); // la Corona de Aura está en el SQL del cruce 11
   const q = (s: string) => s.replace(/'/g, "''");
   for (const k of CARTAS) assert.ok(sql.includes(`('${k.id}', '${q(k.nombre)}', '${k.emoji}', '${k.rareza}', '${k.tipo}', '${q(k.efecto)}')`), k.id);
   for (const id of RETIRADAS) assert.ok(sql.includes(`'${id}'`), `retirada ${id}`);
@@ -280,4 +283,11 @@ test('textosRevelacion: un mensaje por partes de menos de 1.900 caracteres, con 
   for (const n of nombres.values()) assert.ok(todo.includes(n), n);
   assert.match(textos[0], /CRUCE 8/);
   assert.match(todo, /\+7,5/);
+});
+
+test('La Corona de Aura (cruce 11): los puntos del cruce ×1,6 y no sale en el sorteo normal', () => {
+  const ds: DueloEquipo[] = [{ id: 9001, a: 1, b: 2, ganador: 'a', noJugo: null, rondasA: 2, rondasB: 0 }, { id: 9002, a: 1, b: 2, ganador: 'a', noJugo: null, rondasA: 2, rondasB: 1 }, { id: 9003, a: 1, b: 2, ganador: 'b', noJugo: null, rondasA: 0, rondasB: 2 }];
+  const r = calcularAjustes(ds, [{ id: 9100, equipo: 1, carta: 'corona_aura' }], 1);
+  assert.equal(r.find((x) => x.equipo === 1)!.puntos, 13.8); // (7 + 7 + 4 + 5) × 0,6
+  assert.ok(ESPECIALES.includes('corona_aura'));
 });
