@@ -17,7 +17,7 @@ import './fasefinal.css';
 // La semilla sellada: al preparar se crea un secreto y se publica su huella (SHA-256); al apretar «Empezar» se le suma
 // la hora exacta. Al final se revela el secreto y cualquiera puede repetir cada simulación con simular().
 
-const PREMIOS = ['Comisión de dibujo + bendición lunar', 'Bendición lunar', 'Bendición lunar', 'Bendición lunar', 'Bendición lunar', 'Bendición lunar'];
+export const PREMIOS = ['Comisión de dibujo + bendición lunar', 'Bendición lunar', 'Bendición lunar', 'Bendición lunar', 'Bendición lunar', 'Bendición lunar'];
 interface Sim { parejas: [string, string][]; solo: string | null; inicio: string | null; semilla: string | null; paso: number; ganador: string | null; huellaPron?: string; ritmo?: Ritmo }
 interface Estado { tributos: FichaTributo[] | null; congelada: string | null; secreto: string; huella: string; sims: Sim[] }
 

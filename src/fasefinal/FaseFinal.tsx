@@ -4,9 +4,11 @@ import * as V from '../juegos/duelos';
 import { EQUIPOS_A_LA_FINAL, INDIVIDUALES_FINAL, calcularLiga, type LineaJugador } from '../juegos/liga';
 import { PUNTOS_BASE, leerPuntos } from '../juegos/puntos';
 import { listarAjustesCartas } from '../juegos/wcDatos';
-import { Gala } from './Gala';
+import { Gala, PREMIOS } from './Gala';
+import { FondoPixel, Retrato } from './Escena';
+import * as FF from './ffDatos';
 import { Tsukibet } from './Tsukibet';
-import { AVATAR_MANUAL } from './foto';
+import { AVATAR_MANUAL, type FichaTributo } from './foto';
 import './fasefinal.css';
 
 // FASE FINAL (ex «Arena», decisión del 19-11): gala simulada el lunes 23-11 a las 21:00. El nombre lo ven todos;
@@ -39,32 +41,81 @@ function useTributos() {
   return { personal, avatares, orden };
 }
 
-function Foto({ id, nombre, avatares }: { id: string; nombre: string; avatares: Map<string, string | null> }) {
-  const [roto, setRoto] = useState(false);
-  const src = AVATAR_MANUAL[id] ?? avatares.get(id) ?? null;
-  return src && !roto ? <img class="ffp-foto" src={src} alt="" loading="lazy" onError={() => setRoto(true)} /> : <span class="ffp-foto ffp-inicial" aria-hidden="true">{[...nombre.replace(/[^\p{L}\p{N}]/gu, '')][0] ?? '?'}</span>;
+// Hora de la gala en Chile (verano, UTC−3)
+const GALA = new Date('2026-11-23T21:00:00-03:00').getTime();
+const COLORES = ['#ffd23c', '#7cffcb', '#ff7ab6', '#7fb4ff', '#ff9a3c', '#b98cff'];
+const ficha = (id: string, nombre: string, avatares: Map<string, string | null>) => ({ id, nombre, avatar: AVATAR_MANUAL[id] ?? avatares.get(id) ?? null }) as FichaTributo;
+const dos = (n: number) => String(n).padStart(2, '0');
+
+/** Cartel 8 bits: cuenta regresiva hasta las 21:00, «EN VIVO» durante la gala y «TERMINADA» con los 6 ganadores. */
+function Cartel({ terminadas }: { terminadas: number }) {
+  const [ahora, setAhora] = useState(Date.now());
+  useEffect(() => { const id = setInterval(() => setAhora(Date.now()), 1000); return () => clearInterval(id); }, []);
+  const falta = Math.max(0, GALA - ahora), h = Math.floor(falta / 3.6e6), m = Math.floor(falta / 6e4) % 60, sg = Math.floor(falta / 1000) % 60;
+  const fin = terminadas >= PREMIOS.length;
+  return (
+    <section class="ffp-cartel">
+      <FondoPixel fondo={fin ? 'podio' : 'noche'} />
+      <div class="ffp-cartel-texto">
+        <p class="ffp-chico">LAS SUSTOLIMPIADAS · FASE 2</p>
+        <h1>FASE FINAL</h1>
+        {fin ? <p class="ffp-grande">¡GALA TERMINADA!</p>
+          : falta > 0 ? <><p class="ffp-chico">LA GALA EMPIEZA EN</p><p class="ffp-reloj">{dos(h)}:{dos(m)}:{dos(sg)}</p><p class="ffp-chico">LUNES 23 DE NOVIEMBRE · 21:00 · EN VIVO POR DISCORD</p></>
+          : <p class="ffp-grande ffp-vivo">● EN VIVO AHORA <span>simulación {Math.min(terminadas + 1, PREMIOS.length)} de {PREMIOS.length}</span></p>}
+      </div>
+    </section>
+  );
+}
+
+/** Seis casillas: se van llenando con el ganador de cada simulación (lo guarda el panel al confirmar). */
+function Muro({ sims, avatares }: { sims: FF.SimFF[]; avatares: Map<string, string | null> }) {
+  return (
+    <div class="ffp-muro">
+      {PREMIOS.map((premio, k) => {
+        const s = sims.find((x) => x.n === k + 1), g = s?.resultado?.ganador, nombre = s?.tributos.find((t) => t.id === g)?.nombre ?? '';
+        return (
+          <div key={k} class={g ? 'ffp-casilla ganada' : 'ffp-casilla'}>
+            <span class="ffp-chico">SIMULACIÓN {k + 1}</span>
+            {g ? <><span class="ffp-corona" aria-hidden="true">♛</span><Retrato t={ficha(g, nombre, avatares)} tam={64} activo /><b>{nombre}</b></> : <span class="ffp-incognita" aria-label="por jugar">?</span>}
+            <span class="tenue chico">{premio}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function VistaPublica() {
   const { personal, avatares, orden } = useTributos();
+  const [sims, setSims] = useState<FF.SimFF[]>([]);
+  useEffect(() => { const leer = () => FF.listarSims().then(setSims); leer(); const id = setInterval(leer, 30000); return () => clearInterval(id); }, []);
   const tributos = (personal ?? []).filter((j) => j.clasifica);
-  const porEquipo = new Map<string, LineaJugador[]>();
-  for (const j of tributos.filter((x) => x.clasifica === 'equipo')) porEquipo.set(j.equipo?.nombre ?? '—', [...(porEquipo.get(j.equipo?.nombre ?? '—') ?? []), j]);
-  const especiales = tributos.filter((j) => j.clasifica === 'especial');
-  const tarjeta = (j: LineaJugador) => <li key={j.id}><Foto id={j.id} nombre={j.nombre} avatares={avatares} /><b>{j.nombre}</b><span class="tenue chico">{j.puntos.toLocaleString('es-CL')} pts</span></li>;
+  const rango = (j: LineaJugador) => (j.clasifica === 'especial' ? 99 : orden.indexOf(j.equipo?.nombre ?? ''));
+  const ordenados = [...tributos].sort((a, b) => rango(a) - rango(b) || b.puntos - a.puntos);
+  const terminadas = sims.filter((s) => s.resultado).length;
   return (
     <div class="pagina pagina-ancha arena">
-      <div class="sigla">Fase 2</div>
-      <h1>FASE FINAL</h1>
-      <p class="ffp-titular">La gala es el <b>lunes 23 de noviembre a las 21:00</b>, en vivo por Discord.</p>
-      <p>Son <b>6 simulaciones</b>, todos contra todos. Quien gana una sale de las siguientes, así que habrá 6 ganadores distintos. Premios: la 1.ª da comisión de dibujo + bendición lunar; las otras 5, bendición lunar.</p>
+      <Cartel terminadas={terminadas} />
+      <p>Son <b>6 simulaciones</b>, todos contra todos. Quien gana una sale de las siguientes, así que habrá 6 ganadores distintos.</p>
+      <h2>Campeones de la noche</h2>
+      <Muro sims={sims} avatares={avatares} />
       <h2>Los {tributos.length || ''} tributos</h2>
       {!personal ? <p class="tenue">Cargando…</p> : <>
         <p class="tenue chico">Por su equipo: los integrantes (sin staff) de los {EQUIPOS_A_LA_FINAL} mejores equipos de la tabla. Cupo especial: los {INDIVIDUALES_FINAL} mejores puntajes personales del resto.</p>
-        <div class="ffp-equipos">
-          {[...porEquipo].sort(([a], [b]) => orden.indexOf(a) - orden.indexOf(b)).map(([equipo, js], i) => <section key={equipo} class="ffp-equipo"><h3><span class="tenue">{i + 1}.º</span> {equipo}</h3><ul>{js.map(tarjeta)}</ul></section>)}
-          {especiales.length > 0 && <section class="ffp-equipo ffp-especial"><h3>Cupo especial</h3><ul>{especiales.map(tarjeta)}</ul></section>}
-        </div>
+        <ul class="ffp-cromos">
+          {ordenados.map((j) => {
+            const r = rango(j), color = r === 99 ? '#e8e1cc' : COLORES[r % COLORES.length], ganador = sims.some((s) => s.resultado?.ganador === j.id);
+            return (
+              <li key={j.id} class="ffp-cromo" style={`--c:${color}`}>
+                {ganador && <span class="ffp-corona" title="Ganó una simulación">♛</span>}
+                <Retrato t={ficha(j.id, j.nombre, avatares)} tam={72} />
+                <b class="ffp-nombre">{j.nombre}</b>
+                <span class="ffp-equipo-n">{j.clasifica === 'especial' ? 'Cupo especial' : j.equipo?.nombre}</span>
+                <span class="ffp-datos"><span>{j.puntos.toLocaleString('es-CL')} pts</span><span>{j.ganados}G · {j.perdidos}P</span></span>
+              </li>
+            );
+          })}
+        </ul>
       </>}
       <p class="aviso">Si eres tributo y no puedes estar, avisa <b>antes de las 18:00</b>: entra el siguiente mejor puntaje personal.</p>
       <h2>Cómo jugar TSUKIBET</h2>

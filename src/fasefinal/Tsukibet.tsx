@@ -97,8 +97,8 @@ function Elegir3({ tributos, actual, alGuardar }: { tributos: { id: string; nomb
   );
 }
 
-function Apostar({ s, m, queda, alApostar, activo }: { s: FF.SimFF; m: Mercado; queda: number; alApostar: (tributo: string, monto: number) => void; activo: boolean }) {
-  const [tributo, setTributo] = useState(''); const [monto, setMonto] = useState(50);
+function Apostar({ s, m, queda, alApostar, activo }: { s: FF.SimFF; m: Mercado; queda: number; alApostar: (tributo: string, monto: number) => Promise<void>; activo: boolean }) {
+  const [tributo, setTributo] = useState(''); const [monto, setMonto] = useState(50); const [ocupado, setOcupado] = useState(false);
   if (!activo || queda < 10) return null;
   const cuota = s.cuotas[m]?.[tributo];
   return (
@@ -106,19 +106,20 @@ function Apostar({ s, m, queda, alApostar, activo }: { s: FF.SimFF; m: Mercado; 
       <div class="ff-controles">
         <select value={tributo} onChange={(ev) => setTributo(ev.currentTarget.value)}><option value="">Tributo…</option>{s.tributos.map((t) => <option key={t.id} value={t.id}>{t.nombre} (×{s.cuotas[m]?.[t.id] ?? '—'})</option>)}</select>
         <input type="number" min={10} max={queda} step={10} value={monto} onInput={(ev) => setMonto(Number(ev.currentTarget.value))} aria-label="Monto" />
-        <button class="boton principal" disabled={!tributo || monto < 10 || monto > queda} onClick={() => alApostar(tributo, monto)}>Apostar{cuota ? ` (si gana: ${Math.floor(monto * cuota)})` : ''}</button>
+        <button class="boton principal" disabled={ocupado || !tributo || monto < 10 || monto > queda} onClick={async () => { setOcupado(true); try { await alApostar(tributo, monto); setTributo(''); } finally { setOcupado(false); } }}>{ocupado ? 'Apostando…' : `Apostar${cuota ? ` (si gana: ${Math.floor(monto * cuota)})` : ''}`}</button>
       </div>
     </details>
   );
 }
 
-function Paracaidas({ tributos, alMandar }: { tributos: { id: string; nombre: string }[]; alMandar: (tributo: string, nivel: 1 | 2) => void }) {
-  const [t, setT] = useState('');
+function Paracaidas({ tributos, alMandar }: { tributos: { id: string; nombre: string }[]; alMandar: (tributo: string, nivel: 1 | 2) => Promise<void> }) {
+  const [t, setT] = useState(''); const [ocupado, setOcupado] = useState(false);
+  const mandar = async (nivel: 1 | 2) => { setOcupado(true); try { await alMandar(t, nivel); } finally { setOcupado(false); } };
   return (
     <div class="ff-controles">
       <select value={t} onChange={(ev) => setT(ev.currentTarget.value)}><option value="">¿A quién?</option>{tributos.map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}</select>
-      <button class="boton" disabled={!t} onClick={() => alMandar(t, 1)}>Paracaídas (160)</button>
-      <button class="boton principal" disabled={!t} onClick={() => alMandar(t, 2)}>Paracaídas grande (320)</button>
+      <button class="boton" disabled={!t || ocupado} onClick={() => mandar(1)}>Paracaídas (160)</button>
+      <button class="boton principal" disabled={!t || ocupado} onClick={() => mandar(2)}>Paracaídas grande (320)</button>
     </div>
   );
 }

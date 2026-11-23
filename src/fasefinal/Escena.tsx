@@ -43,7 +43,7 @@ export function Retrato({ t, tam = 56, muerto = false, activo = false, estados =
   const src = pix ?? (t.avatar && !roto ? t.avatar : null);
   return (
     <span class={`ff8-retrato${muerto ? ' muerto' : ''}${activo ? ' activo' : ''}`} style={`width:${tam}px;height:${tam}px`} title={t.nombre}>
-      {src ? <img src={src} alt="" onError={() => setRoto(true)} /> : <span class="ff8-inicial" style={`font-size:${Math.round(tam * 0.4)}px`}>{t.nombre.slice(0, 1).toUpperCase()}</span>}
+      {src ? <img src={src} alt="" onError={() => setRoto(true)} /> : <span class="ff8-inicial" style={`font-size:${Math.round(tam * 0.4)}px`}>{([...t.nombre.replace(/[^\p{L}\p{N}]/gu, '')][0] ?? '?').toUpperCase()}</span>}
       {muerto && <span class="ff8-x" aria-hidden="true">✕</span>}
       {!muerto && estados.length > 0 && <span class="ff8-estados" aria-label={estados.join(', ')}>{[...new Set(estados)].map((e) => ICONO_ESTADO[e as keyof typeof ICONO_ESTADO] ?? '').join('')}</span>}
     </span>
@@ -58,7 +58,8 @@ function dibujar(g: CanvasRenderingContext2D, fondo: Fondo, t: number) {
   const cielo = noche ? ['#0b1026', '#111a3a', '#18244a'] : fondo === 'bano' ? ['#5a1a2a', '#8a2a3a', '#c2523a'] : fondo === 'incendio' ? ['#3a1408', '#7a2a10', '#c24a18'] : fondo === 'temporal' || fondo === 'niebla' ? ['#3a4250', '#4e5868', '#6a7484'] : ['#3d7fd6', '#5a98e2', '#86b8ee'];
   for (let i = 0; i < 3; i++) px(0, (i * 60) / 3, W, 21, cielo[i]);
   if (noche) for (let i = 0; i < 40; i++) { const x = (i * 53) % W, y = (i * 29) % 55; if (Math.sin(t * 2 + i) > -0.3) px(x, y, 1, 1, i % 3 ? '#7fb4ff' : '#fff6c9'); }
-  if (noche) { px(152, 8, 8, 12, '#fff1a8'); px(150, 10, 12, 8, '#fff1a8'); px(156, 9, 6, 8, cielo[0]); } // luna creciente else if (fondo !== 'temporal' && fondo !== 'niebla' && fondo !== 'incendio') { px(152, 10, 14, 14, '#ffd23c'); px(155, 13, 8, 8, '#fff1a8'); }
+  if (noche) { px(152, 8, 8, 12, '#fff1a8'); px(150, 10, 12, 8, '#fff1a8'); px(156, 9, 6, 8, cielo[0]); } // luna creciente
+  else if (fondo !== 'temporal' && fondo !== 'niebla' && fondo !== 'incendio') { px(152, 10, 14, 14, '#ffd23c'); px(155, 13, 8, 8, '#fff1a8'); }
   // Cerros, bosque y suelo
   for (let x = 0; x < W; x += 4) px(x, 52 + Math.sin(x / 17) * 6, 4, 60, noche ? '#16283e' : '#2f6a3a');
   for (let x = -6; x < W; x += 11) { const y = 62 + ((x * 7) % 5); px(x + 3, y - 10, 4, 10, noche ? '#0e1a2a' : '#245a2c'); px(x, y - 16, 10, 8, noche ? '#122236' : '#2e7a36'); px(x + 2, y - 20, 6, 5, noche ? '#122236' : '#3a8a40'); }
