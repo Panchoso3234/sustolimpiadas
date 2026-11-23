@@ -128,3 +128,16 @@
 @keyframes ff8-salto { 50% { transform: translateY(-6px); } }
 @media (max-width: 700px) { .ff8-escena { font-size: 22px; } .ff8-dialogo p { font-size: 24px; } .ff8-cartel h2, .ff8-canon h2, .ff8-podio h2, .ff8-ficha h2 { font-size: 20px; } }
 @media (prefers-reduced-motion: reduce) { .ff8-cartel, .ff8-canon, .ff8-retrato.muerto, .ff8-boom, .ff8-corona, .ff8-cursor, .ff8-suspenso, .ff8-parejas.girando { animation: none; } }
+
+/* Portada pública de la FASE FINAL (23-11) */
+.ffp-titular { font-size: 1.15rem; }
+.ffp-equipos { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 12px 0 18px; }
+.ffp-equipo { border: 1px solid var(--borde, #2c3a63); border-radius: 12px; padding: 10px 12px; background: rgba(255, 255, 255, .03); }
+.ffp-equipo h3 { margin: 0 0 8px; font-size: 1rem; }
+.ffp-especial { border-color: var(--oro, #e0b04a); }
+.ffp-equipo ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ffp-equipo li { display: grid; grid-template-columns: 36px 1fr auto; align-items: center; gap: 8px; }
+.ffp-foto { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+.ffp-inicial { display: grid; place-items: center; background: #2c3a63; font-weight: 700; }
+.ffp-reglas { padding-left: 18px; display: grid; gap: 6px; max-width: 75ch; }
+.ffp-equipo li b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
