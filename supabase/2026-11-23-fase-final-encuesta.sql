@@ -1,6 +1,6 @@
 -- Las Sustolimpiadas · 23-nov · Encuesta de la FASE FINAL (pedido de Pancho).
 -- 3 preguntas (lo mejor, lo peor, qué agregarías). Premio: 5 multis = 50 deseos, una vez por persona.
--- Se responde en la pestaña FASE FINAL cuando ya terminó al menos una simulación. Ejecutar UNA vez (se puede repetir sin daño).
+-- Se responde en la pestaña FASE FINAL, abierta para todos desde ya. Ejecutar UNA vez (se puede repetir sin daño).
 
 create table if not exists public.ff_encuesta (
   perfil_id uuid primary key default auth.uid() references public.perfiles (id) on delete cascade,
@@ -19,7 +19,6 @@ language plpgsql security definer set search_path = '' as $$
 declare v_yo uuid := (select auth.uid());
 begin
   if v_yo is null then return 'Entra con Discord para responder.'; end if;
-  if not exists (select 1 from public.ff_sims where resultado is not null) then return 'La encuesta se abre cuando termina la primera simulación.'; end if;
   p_mejor := btrim(coalesce(p_mejor, '')); p_peor := btrim(coalesce(p_peor, '')); p_agregar := btrim(coalesce(p_agregar, ''));
   if p_mejor = '' or p_peor = '' or p_agregar = '' then return 'Responde las 3 preguntas.'; end if;
   if greatest(char_length(p_mejor), char_length(p_peor), char_length(p_agregar)) > 500 then return 'Máximo 500 letras por respuesta.'; end if;

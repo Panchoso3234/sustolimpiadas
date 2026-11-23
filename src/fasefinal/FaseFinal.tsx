@@ -85,21 +85,21 @@ function Muro({ sims, avatares }: { sims: FF.SimFF[]; avatares: Map<string, stri
   );
 }
 
-/** Encuesta de 3 preguntas: se abre cuando termina la primera simulación; responderla da 5 multis (50 deseos). */
+/** Encuesta de 3 preguntas, abierta desde el 23-11 para todos; responderla da 5 multis (50 deseos). */
 function Encuesta() {
   const sesion = useSesion();
   const [ya, setYa] = useState<boolean | null>(null);
   const [r, setR] = useState({ mejor: '', peor: '', agregar: '' });
   const [ocupado, setOcupado] = useState(false); const [error, setError] = useState('');
   useEffect(() => { if (sesion.usuarioId) FF.miEncuesta().then(setYa); }, [sesion.usuarioId]);
-  const preguntas: [keyof typeof r, string][] = [['mejor', '¿Qué fue lo mejor de la gala?'], ['peor', '¿Qué fue lo peor o qué no te gustó?'], ['agregar', '¿Qué le agregarías para la próxima?']];
+  const preguntas: [keyof typeof r, string][] = [['mejor', '¿Qué es lo que más te ha gustado del torneo y de la Fase Final?'], ['peor', '¿Qué no te gustó o qué mejorarías?'], ['agregar', '¿Qué le agregarías para la próxima?']];
   const enviar = async () => {
     setOcupado(true); setError('');
     try { const e = await FF.responderEncuesta(r.mejor, r.peor, r.agregar); if (e && !e.startsWith('Ya respondiste')) setError(e); else setYa(true); } finally { setOcupado(false); }
   };
   return (
     <section class="ffp-encuesta">
-      <h2>Encuesta de la gala · premio: 5 multis</h2>
+      <h2>Encuesta de Las Sustolimpiadas · premio: 5 multis</h2>
       {!sesion.usuarioId ? <p>Entra con Discord para responder y llevarte <b>5 multis (50 deseos)</b>.</p>
         : ya === null ? <p class="tenue">La encuesta todavía no está disponible.</p>
         : ya ? <p class="ffp-gracias">¡Gracias por responder! Tus <b>5 multis (50 deseos)</b> ya están en el Gachapón.</p>
@@ -124,7 +124,7 @@ function VistaPublica() {
   return (
     <div class="pagina pagina-ancha arena">
       <Cartel terminadas={terminadas} />
-      {terminadas > 0 && <Encuesta />}
+      <Encuesta />
       <p>Son <b>6 simulaciones</b>, todos contra todos. Quien gana una sale de las siguientes, así que habrá 6 ganadores distintos.</p>
       <h2>Campeones de la noche</h2>
       <Muro sims={sims} avatares={avatares} />
