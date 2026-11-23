@@ -23,6 +23,9 @@ export async function premios(): Promise<{ perfil_id: string; puesto: number; pu
 export async function miSaldo(id: string | null): Promise<number | null> { if (!id) return null; const { data } = await supabase.from('gacha_billetera').select('protogemas').eq('perfil_id', id).maybeSingle(); return (data as { protogemas: number } | null)?.protogemas ?? 0; }
 
 export const pronosticar = (sim: number, mercado: Mercado, eleccion: string | string[]) => accion('ff_pronosticar', { p_sim: sim, p_mercado: mercado, p_eleccion: eleccion });
+// Encuesta post-gala (5 multis = 50 deseos). null = no se puede saber (falta el SQL o no hay sesión)
+export async function miEncuesta(): Promise<boolean | null> { const { data, error } = await supabase.from('ff_encuesta').select('perfil_id').maybeSingle(); return error ? null : !!data; }
+export const responderEncuesta = (mejor: string, peor: string, agregar: string) => accion('ff_responder_encuesta', { p_mejor: mejor, p_peor: peor, p_agregar: agregar });
 export const apostar = (sim: number, mercado: Mercado, tributo: string, monto: number) => accion('ff_apostar', { p_sim: sim, p_mercado: mercado, p_tributo: tributo, p_monto: monto });
 export const mandarParacaidas = (sim: number, tributo: string, nivel: 1 | 2) => accion('ff_paracaidas_mandar', { p_sim: sim, p_tributo: tributo, p_nivel: nivel });
 export const publicar = (sims: { n: number; tributos: { id: string; nombre: string }[]; cuotas: Cuotas }[]) => accion('ff_publicar', { p_sims: sims });

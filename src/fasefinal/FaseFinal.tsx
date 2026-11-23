@@ -85,6 +85,34 @@ function Muro({ sims, avatares }: { sims: FF.SimFF[]; avatares: Map<string, stri
   );
 }
 
+/** Encuesta de 3 preguntas: se abre cuando termina la primera simulación; responderla da 5 multis (50 deseos). */
+function Encuesta() {
+  const sesion = useSesion();
+  const [ya, setYa] = useState<boolean | null>(null);
+  const [r, setR] = useState({ mejor: '', peor: '', agregar: '' });
+  const [ocupado, setOcupado] = useState(false); const [error, setError] = useState('');
+  useEffect(() => { if (sesion.usuarioId) FF.miEncuesta().then(setYa); }, [sesion.usuarioId]);
+  const preguntas: [keyof typeof r, string][] = [['mejor', '¿Qué fue lo mejor de la gala?'], ['peor', '¿Qué fue lo peor o qué no te gustó?'], ['agregar', '¿Qué le agregarías para la próxima?']];
+  const enviar = async () => {
+    setOcupado(true); setError('');
+    try { const e = await FF.responderEncuesta(r.mejor, r.peor, r.agregar); if (e && !e.startsWith('Ya respondiste')) setError(e); else setYa(true); } finally { setOcupado(false); }
+  };
+  return (
+    <section class="ffp-encuesta">
+      <h2>Encuesta de la gala · premio: 5 multis</h2>
+      {!sesion.usuarioId ? <p>Entra con Discord para responder y llevarte <b>5 multis (50 deseos)</b>.</p>
+        : ya === null ? <p class="tenue">La encuesta todavía no está disponible.</p>
+        : ya ? <p class="ffp-gracias">¡Gracias por responder! Tus <b>5 multis (50 deseos)</b> ya están en el Gachapón.</p>
+        : <>
+          <p>Responde 3 preguntas y te llevas <b>5 multis (50 deseos)</b> para el Gachapón. Una vez por persona.</p>
+          {preguntas.map(([k, txt]) => <label key={k} class="ffp-pregunta">{txt}<textarea rows={2} maxLength={500} value={r[k]} onInput={(ev) => setR({ ...r, [k]: ev.currentTarget.value })} /></label>)}
+          {error && <p class="aviso">{error}</p>}
+          <button class="boton principal" disabled={ocupado || !r.mejor.trim() || !r.peor.trim() || !r.agregar.trim()} onClick={enviar}>{ocupado ? 'Enviando…' : 'Enviar y recibir 5 multis'}</button>
+        </>}
+    </section>
+  );
+}
+
 function VistaPublica() {
   const { personal, avatares, orden } = useTributos();
   const [sims, setSims] = useState<FF.SimFF[]>([]);
@@ -96,6 +124,7 @@ function VistaPublica() {
   return (
     <div class="pagina pagina-ancha arena">
       <Cartel terminadas={terminadas} />
+      {terminadas > 0 && <Encuesta />}
       <p>Son <b>6 simulaciones</b>, todos contra todos. Quien gana una sale de las siguientes, así que habrá 6 ganadores distintos.</p>
       <h2>Campeones de la noche</h2>
       <Muro sims={sims} avatares={avatares} />

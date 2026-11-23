@@ -29,6 +29,7 @@ export const AVATAR_MANUAL: Record<string, string> = {
   '74c777b6-054e-423b-9809-e61ce93af182': `${BASE}fasefinal/avatares/umi.webp`,      // Umi (Too)
   'c642fb1d-3537-4749-8b50-822770b700f9': `${BASE}fasefinal/avatares/chakal.webp`,   // chakaldelatierra
   'bb7480a3-a577-4c77-9af6-2540f1e8c784': `${BASE}fasefinal/avatares/datura.png`,    // Datura
+  'd6d61d35-c65a-49a7-a316-fb3fec8e9784': `${BASE}fasefinal/avatares/ratalia.png`,   // 🫧 RataliaChaquetitasInsanotas68 (23-11)
 };
 
 export function armarFicha(personal: Jugador[], duelos: Duelo[], records: Map<string, Fila[]> | null, avatares: Map<string, string | null>): FichaTributo[] {

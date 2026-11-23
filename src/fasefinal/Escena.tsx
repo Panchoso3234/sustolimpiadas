@@ -1,49 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
 import type { PasoGala, ResultadoGala } from './motor';
-import type { FichaTributo } from './foto';
+import { AVATAR_MANUAL, type FichaTributo } from './foto';
 import { ESCENARIOS } from './eventos';
 
 // FASE FINAL en 8 bits (pedido de Pancho del 22-11): un evento a la vez, grande y legible para transmitir por Discord;
 // cartel por etapa, texto que se escribe letra por letra, suspenso antes de cada muerte, cañonazos uno por uno, barra
-// de tributos abajo, retratos pixelados y fondos pixel art por etapa. Se avanza con clic (izquierdo o derecho), espacio
+// de tributos abajo, retratos y fondos pixel art por etapa. Se avanza con clic (izquierdo o derecho), espacio
 // o flechas. Todo es solo presentación: el resultado lo decide el motor con la semilla.
 
 const quieto = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const escenarioDe = new Map(ESCENARIOS.map((x) => [x.titulo, x.id]));
 
-// ───────── Retratos pixelados ─────────
-const cache = new Map<string, Promise<string | null>>();
-/** Reduce la imagen a n×n píxeles (recorte centrado) para que se vea 8 bits al agrandarla. Si no se puede, null. */
-function pixelar(src: string, n: number): Promise<string | null> {
-  const clave = `${src}|${n}`;
-  if (!cache.has(clave)) cache.set(clave, new Promise((ok) => {
-    const img = new Image(); img.crossOrigin = 'anonymous'; img.decoding = 'async';
-    img.onload = () => {
-      try {
-        const cv = document.createElement('canvas'); cv.width = n; cv.height = n;
-        const g = cv.getContext('2d')!, lado = Math.min(img.naturalWidth, img.naturalHeight);
-        g.imageSmoothingEnabled = true;
-        g.drawImage(img, (img.naturalWidth - lado) / 2, (img.naturalHeight - lado) / 2, lado, lado, 0, 0, n, n);
-        ok(cv.toDataURL('image/png'));
-      } catch { ok(null); }
-    };
-    img.onerror = () => ok(null);
-    img.src = src;
-  }));
-  return cache.get(clave)!;
-}
+// ───────── Retratos ─────────
+// Foto normal, sin pixelar (pedido de Pancho del 23-11). Primero la foto entregada a mano (vale aunque la foto de la gala
+// se haya congelado antes de agregarla) y si falla, la de Discord; si ninguna carga, la inicial.
 const ICONO_ESTADO = { herido: '🩸', envenenado: '🧪', hambriento: '🍖' } as const;
 
 export function Retrato({ t, tam = 56, muerto = false, activo = false, estados = [] }: { t?: FichaTributo; tam?: number; muerto?: boolean; activo?: boolean; estados?: string[] }) {
-  const [pix, setPix] = useState<string | null>(null);
-  const [roto, setRoto] = useState(false);
-  useEffect(() => { setPix(null); setRoto(false); if (t?.avatar) pixelar(t.avatar, 28).then(setPix); }, [t?.avatar]);
+  const fotos = t ? [...new Set([AVATAR_MANUAL[t.id], t.avatar].filter((x): x is string => !!x))] : [];
+  const [fallas, setFallas] = useState(0);
+  useEffect(() => setFallas(0), [fotos.join('|')]);
   if (!t) return null;
-  const src = pix ?? (t.avatar && !roto ? t.avatar : null);
+  const src = fotos[fallas] ?? null;
   return (
     <span class={`ff8-retrato${muerto ? ' muerto' : ''}${activo ? ' activo' : ''}`} style={`width:${tam}px;height:${tam}px`} title={t.nombre}>
-      {src ? <img src={src} alt="" onError={() => setRoto(true)} /> : <span class="ff8-inicial" style={`font-size:${Math.round(tam * 0.4)}px`}>{([...t.nombre.replace(/[^\p{L}\p{N}]/gu, '')][0] ?? '?').toUpperCase()}</span>}
+      {src ? <img src={src} alt="" onError={() => setFallas((n) => n + 1)} /> : <span class="ff8-inicial" style={`font-size:${Math.round(tam * 0.4)}px`}>{([...t.nombre.replace(/[^\p{L}\p{N}]/gu, '')][0] ?? '?').toUpperCase()}</span>}
       {muerto && <span class="ff8-x" aria-hidden="true">✕</span>}
       {!muerto && estados.length > 0 && <span class="ff8-estados" aria-label={estados.join(', ')}>{[...new Set(estados)].map((e) => ICONO_ESTADO[e as keyof typeof ICONO_ESTADO] ?? '').join('')}</span>}
     </span>

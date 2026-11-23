@@ -82,7 +82,7 @@
 .ff8-previos li { background: rgba(11, 15, 30, .7); padding: 4px 10px; margin-bottom: 4px; border: 2px solid #2a3466; }
 .ff8-caras { display: flex; gap: 14px; justify-content: center; }
 .ff8-retrato { position: relative; display: inline-grid; place-items: center; flex: none; background: #1b2550; border: 4px solid #fff6dd; box-shadow: 4px 4px 0 #0b0f1e; overflow: hidden; }
-.ff8-retrato img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+.ff8-retrato img { width: 100%; height: 100%; object-fit: cover; }
 .ff8-retrato.activo { border-color: #ffd23c; }
 .ff8-retrato.muerto img, .ff8-retrato.muerto .ff8-inicial { filter: grayscale(1) brightness(.55); }
 .ff8-retrato.muerto { border-color: #6a6a7a; animation: ff8-muere .5s steps(4); }
@@ -155,3 +155,8 @@
 .ffp-reglas { padding-left: 18px; display: grid; gap: 6px; max-width: 75ch; }
 @media (prefers-reduced-motion: reduce) { .ffp-vivo { animation: none; } .ffp-cromo { transition: none; } }
 .ffp-casilla .ffp-chico { font-size: 9px; }
+.ffp-encuesta { border: 4px solid #7cffcb; box-shadow: 5px 5px 0 #0b0f1e; background: #141c3a; padding: 14px 16px; margin: 0 4px 22px; display: grid; gap: 10px; max-width: 760px; }
+.ffp-encuesta h2 { margin: 0; }
+.ffp-pregunta { display: grid; gap: 4px; font-weight: 700; }
+.ffp-pregunta textarea { width: 100%; resize: vertical; font: inherit; font-weight: 400; padding: 8px; border-radius: 6px; }
+.ffp-gracias { color: #7cffcb; }
