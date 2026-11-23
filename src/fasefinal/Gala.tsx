@@ -6,7 +6,8 @@ import { PUNTOS_BASE, leerPuntos } from '../juegos/puntos';
 import { listarAjustesCartas } from '../juegos/wcDatos';
 import { recordsDeSiempre } from '../juegos/marcas';
 import { armarFicha, type FichaTributo } from './foto';
-import { simular, type PasoGala, type Patrocinio, type ResultadoGala } from './motor';
+import { simular, type PasoGala, type Patrocinio, type ResultadoGala, type Ritmo } from './motor';
+import { Escena, FondoPixel, Presentacion8, Retrato, armarMomentos, pasoDe } from './Escena';
 import { calcularCuotas } from './cuotas';
 import * as FF from './ffDatos';
 import { BANCO, ESCENARIOS } from './eventos';
@@ -17,9 +18,7 @@ import './fasefinal.css';
 // la hora exacta. Al final se revela el secreto y cualquiera puede repetir cada simulación con simular().
 
 const PREMIOS = ['Comisión de dibujo + bendición lunar', 'Bendición lunar', 'Bendición lunar', 'Bendición lunar', 'Bendición lunar', 'Bendición lunar'];
-const VELOCIDAD = { lento: 9000, normal: 6000, rapido: 3500 } as const;
-type Vel = keyof typeof VELOCIDAD;
-interface Sim { parejas: [string, string][]; solo: string | null; inicio: string | null; semilla: string | null; paso: number; ganador: string | null; huellaPron?: string }
+interface Sim { parejas: [string, string][]; solo: string | null; inicio: string | null; semilla: string | null; paso: number; ganador: string | null; huellaPron?: string; ritmo?: Ritmo }
 interface Estado { tributos: FichaTributo[] | null; congelada: string | null; secreto: string; huella: string; sims: Sim[] }
 
 const CLAVE = (ensayo: boolean) => (ensayo ? 'susto.fasefinal.ensayo' : 'susto.fasefinal');
@@ -138,47 +137,26 @@ function Preparar({ e, vivo, poner, avisar, ensayo }: { e: Estado; vivo: { ficha
 }
 
 function Presentacion({ tributos }: { tributos: FichaTributo[] }) {
-  const [i, setI] = useState(0);
-  const t = tributos[Math.min(i, tributos.length - 1)];
-  useEffect(() => {
-    const tecla = (ev: KeyboardEvent) => { if (ev.key === 'ArrowRight' || ev.key === ' ') { ev.preventDefault(); setI((x) => Math.min(tributos.length - 1, x + 1)); } if (ev.key === 'ArrowLeft') setI((x) => Math.max(0, x - 1)); };
-    addEventListener('keydown', tecla); return () => removeEventListener('keydown', tecla);
-  }, [tributos.length]);
-  if (!t) return null;
-  return (
-    <section class="ff-escena ff-presentacion" aria-live="polite">
-      <div class="ff-contador">Tributo {i + 1} de {tributos.length}</div>
-      <Avatar t={t} tam={180} />
-      <h2 class="ff-nombre">{t.nombre}</h2>
-      <p class="ff-distrito">Distrito de origen: <b>{t.distrito}</b></p>
-      <p class="ff-titulo">«{t.titulo}»</p>
-      <ul class="ff-numeros">
-        <li><b>{t.puntos.toLocaleString('es-CL')}</b>puntos en la liga</li>
-        <li><b>{t.ganados}/{t.jugados}</b>duelos ganados</li>
-        <li><b>{t.primeros}</b>récords</li>
-        {t.atributo && <li><b>{t.atributo}</b>su fuerte</li>}
-      </ul>
-      <div class="ff-controles"><button class="boton" disabled={i === 0} onClick={() => setI(i - 1)}>← Anterior</button><button class="boton principal" disabled={i >= tributos.length - 1} onClick={() => setI(i + 1)}>Siguiente →</button></div>
-    </section>
-  );
+  return <Presentacion8 tributos={tributos} />;
 }
+
+const RITMOS: { id: Ritmo; nombre: string; nota: string }[] = [
+  { id: 'corta', nombre: 'Corta', nota: '~4 días' }, { id: 'normal', nombre: 'Normal', nota: '~5 días' }, { id: 'larga', nombre: 'Larga', nota: '~6 días' },
+];
 
 function Simulacion({ k, e, ensayo, nombres, porId, fuera, poner, alTerminar }: { k: number; e: Estado; ensayo: boolean; nombres: Map<string, string>; porId: Map<string, FichaTributo>; fuera: string[]; poner: (f: (x: Estado) => Estado) => void; alTerminar: () => void }) {
   const s = e.sims[k];
   const participantes = (e.tributos ?? []).filter((t) => !fuera.includes(t.id));
   const [girando, setGirando] = useState(false);
-  const [auto, setAuto] = useState(false);
-  const [vel, setVel] = useState<Vel>('normal');
-  const [oculto, setOculto] = useState(false);
-  const [zoom, setZoom] = useState(1);
   const ponerSim = (f: (x: Sim) => Sim) => poner((x) => ({ ...x, sims: x.sims.map((y, i) => (i === k ? f(y) : y)) }));
-  // Paracaídas del público (TSUKIBET): cambian la simulación desde el paso siguiente; los anteriores no se mueven
+  // Paracaídas del público (TSUKIBET): cambian la simulación desde la etapa siguiente; lo ya mostrado no se mueve
   const [paracaidas, setParacaidas] = useState<FF.ParacaidasFF[]>([]);
   const patrocinios: Patrocinio[] = paracaidas.map((x) => ({ tributo: x.tributo, desdePaso: x.desde_paso, fuerza: x.nivel }));
-  const resultado: ResultadoGala | null = useMemo(() => (s.semilla ? simular(participantes, s.parejas, BANCO, ESCENARIOS, s.semilla, patrocinios) : null), [s.semilla, s.parejas, participantes.length, paracaidas.length]);
+  const ritmo: Ritmo = s.ritmo ?? 'normal';
+  const resultado: ResultadoGala | null = useMemo(() => (s.semilla ? simular(participantes, s.parejas, BANCO, ESCENARIOS, s.semilla, patrocinios, { ritmo }) : null), [s.semilla, s.parejas, participantes.length, paracaidas.length, ritmo]);
   const pasos: PasoGala[] = resultado?.pasos ?? [];
-  const total = pasos.length + 1; // + el podio
-  const fin = s.paso >= pasos.length;
+  const momentos = useMemo(() => armarMomentos(pasos), [pasos]);
+  const etapaActual = pasoDe(momentos[s.paso], pasos); // s.paso ahora es el momento (un evento a la vez)
 
   const girar = () => {
     setGirando(true);
@@ -186,107 +164,56 @@ function Simulacion({ k, e, ensayo, nombres, porId, fuera, poner, alTerminar }: 
     for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
     const parejas: [string, string][] = [];
     for (let i = 0; i + 1 < ids.length; i += 2) parejas.push([ids[i], ids[i + 1]]);
-    setTimeout(() => { ponerSim((x) => ({ ...x, parejas, solo: ids.length % 2 ? ids[ids.length - 1] : null })); setGirando(false); }, 1200);
+    setTimeout(() => { ponerSim((x) => ({ ...x, parejas, solo: ids.length % 2 ? ids[ids.length - 1] : null })); setGirando(false); }, 1400);
   };
   const empezar = async () => {
     // El servidor cierra los pronósticos y entrega su hora y la huella de los pronósticos: entran a la semilla
     const cierre = ensayo ? null : await FF.cerrar(k + 1, participantes.map((t) => t.id));
     const inicio = cierre?.cierre ?? new Date().toISOString(), huellaPron = cierre?.huella ?? '';
     const semilla = await sha(`${e.secreto}|sim${k + 1}|${inicio}|${huellaPron}`);
-    ponerSim((x) => ({ ...x, inicio, semilla, huellaPron, paso: 0 }));
+    ponerSim((x) => ({ ...x, inicio, semilla, huellaPron, paso: 0, ritmo }));
   };
-  // En cada paso: avisar al servidor (habilita los paracaídas entre el Día 1 y la Noche 3) y leer los que llegaron
+  // En cada etapa: avisar al servidor (habilita los paracaídas entre el Día 1 y la Noche 3) y leer los que llegaron
   useEffect(() => {
     if (ensayo || !s.semilla || s.ganador) return;
     const limite = pasos.findIndex((p) => p.titulo === 'Cañonazos · Noche 3');
-    const abiertos = s.paso >= 1 && s.paso < pasos.length && (limite < 0 || s.paso < limite);
-    FF.avanzar(k + 1, s.paso, abiertos);
+    const abiertos = etapaActual >= 1 && etapaActual < pasos.length && (limite < 0 || etapaActual < limite);
+    FF.avanzar(k + 1, etapaActual, abiertos);
     FF.paracaidas(k + 1).then((l) => { if (l.length !== paracaidas.length) setParacaidas(l); });
-  }, [s.paso, s.semilla, pasos.length]);
-  const mover = (d: number) => ponerSim((x) => ({ ...x, paso: Math.max(0, Math.min(total - 1, x.paso + d)) }));
-
-  // Modo automático y atajos: espacio/→ siguiente, ← atrás, A automático, P pausa, H esconde el panel, + y − zoom
-  useEffect(() => {
-    if (!auto || !s.semilla || fin) return;
-    const id = setTimeout(() => mover(1), VELOCIDAD[vel]); return () => clearTimeout(id);
-  }, [auto, s.paso, s.semilla, vel, fin]);
-  useEffect(() => {
-    const tecla = (ev: KeyboardEvent) => {
-      if ((ev.target as HTMLElement)?.tagName === 'INPUT') return;
-      if (ev.key === ' ' || ev.key === 'ArrowRight') { ev.preventDefault(); if (s.semilla) mover(1); }
-      else if (ev.key === 'ArrowLeft') mover(-1);
-      else if (ev.key === 'a' || ev.key === 'A') setAuto(true);
-      else if (ev.key === 'p' || ev.key === 'P') setAuto(false);
-      else if (ev.key === 'h' || ev.key === 'H') setOculto((x) => !x);
-      else if (ev.key === '+') setZoom((z) => Math.min(1.8, z + 0.1));
-      else if (ev.key === '-') setZoom((z) => Math.max(0.7, z - 0.1));
-    };
-    addEventListener('keydown', tecla); return () => removeEventListener('keydown', tecla);
-  }, [s.semilla, total]);
-
+  }, [etapaActual, s.semilla, pasos.length]);
+  const mover = (d: number) => ponerSim((x) => ({ ...x, paso: Math.max(0, Math.min(momentos.length - 1, x.paso + d)) }));
   const nombre = (id: string) => porId.get(id)?.nombre ?? id;
-  const resaltar = (texto: string, ids: string[]) => {
-    const nombres = ids.map(nombre).sort((a, b) => b.length - a.length);
-    if (!nombres.length) return texto;
-    const re = new RegExp(`(${nombres.map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'g');
-    return texto.split(re).map((parte, i) => (nombres.includes(parte) ? <b key={i}>{parte}</b> : parte));
-  };
 
-  // Antes de empezar: ruleta de parejas
+  // Antes de empezar: ruleta de parejas y ritmo
   if (!s.semilla) return (
-    <section class="ff-escena">
-      <h2>Simulación {k + 1} · premio: {PREMIOS[k]}</h2>
-      <p class="tenue">{participantes.length} tributos{fuera.length ? ` (sin los ganadores anteriores: ${fuera.map(nombre).join(', ')})` : ''}. La ruleta arma parejas al azar: el «distrito nuevo». Todos pueden eliminar a todos.</p>
-      <div class={`ff-parejas${girando ? ' girando' : ''}`}>
-        {s.parejas.map(([a, b], i) => <div key={i} class="ff-pareja"><span class="ff-dist">Distrito {i + 1}</span><Avatar t={porId.get(a)} tam={56} /><b>{nombre(a)}</b><span class="tenue">y</span><Avatar t={porId.get(b)} tam={56} /><b>{nombre(b)}</b></div>)}
-        {s.solo && <div class="ff-pareja"><span class="ff-dist">Sin pareja</span><Avatar t={porId.get(s.solo)} tam={56} /><b>{nombre(s.solo)}</b></div>}
+    <section class="ff8-escena ff8-previa">
+      <FondoPixel fondo="noche" />
+      <div class="ff8-cabecera"><span>Simulación {k + 1}</span><span>Premio: {PREMIOS[k]}</span></div>
+      <div class="ff8-centro">
+        <p class="ff8-intro">{participantes.length} tributos{fuera.length ? ` (sin los ganadores anteriores: ${fuera.map(nombre).join(', ')})` : ''}. La ruleta arma parejas al azar: el «distrito nuevo». Todos pueden eliminar a todos.</p>
+        <div class={`ff8-parejas${girando ? ' girando' : ''}`}>
+          {s.parejas.map(([a, b], i) => <div key={i} class="ff8-pareja"><span class="ff8-dist">Distrito {i + 1}</span><Retrato t={porId.get(a)} tam={56} /><b>{nombre(a)}</b><span>y</span><Retrato t={porId.get(b)} tam={56} /><b>{nombre(b)}</b></div>)}
+          {s.solo && <div class="ff8-pareja"><span class="ff8-dist">Sin pareja</span><Retrato t={porId.get(s.solo)} tam={56} /><b>{nombre(s.solo)}</b></div>}
+        </div>
       </div>
-      <div class="ff-controles">
+      <div class="ff8-panel">
         <button class="boton" disabled={girando} onClick={girar}>{s.parejas.length ? 'Volver a girar' : 'Girar la ruleta'}</button>
+        <label class="chico">Ritmo <select value={ritmo} onChange={(ev) => ponerSim((x) => ({ ...x, ritmo: ev.currentTarget.value as Ritmo }))}>{RITMOS.map((r) => <option key={r.id} value={r.id}>{r.nombre} ({r.nota})</option>)}</select></label>
         <button class="boton principal" disabled={!s.parejas.length || girando} onClick={empezar}>Empezar la simulación</button>
       </div>
     </section>
   );
+  if (!resultado) return null;
 
-  const paso = pasos[s.paso];
   return (
-    <section class={`ff-escena ff-sim${oculto ? ' transmision' : ''}`} style={{ '--ff-zoom': zoom }}>
-      {!fin && paso && <>
-        <div class="ff-contador">Simulación {k + 1} · paso {s.paso + 1} de {pasos.length}</div>
-        <h2 class={`ff-etapa ff-${paso.tipo}`}>{paso.titulo}</h2>
-        {paso.intro && <p class="ff-intro">{paso.intro}</p>}
-        {paracaidas.filter((x) => x.desde_paso === s.paso).map((x) => <p key={x.id} class="ff-paracaidas">🪂 Paracaídas de {nombres.get(x.perfil_id) ?? 'alguien del público'} para <b>{nombre(x.tributo)}</b>{x.nivel === 2 ? ' (grande)' : ''}</p>)}
-        <ul class="ff-lineas">{paso.lineas.map((l, i) => (
-          <li key={i} class={l.muertos.length ? 'fatal' : ''}>
-            <span class="ff-caras">{l.tributos.map((id) => <Avatar key={id} t={porId.get(id)} tam={paso.tipo === 'caidos' ? 64 : 40} />)}</span>
-            <span>{paso.tipo === 'caidos' ? <>💥 {l.texto}</> : resaltar(l.texto, l.tributos)}</span>
-          </li>
-        ))}</ul>
-      </>}
-      {fin && resultado && (
-        <div class="ff-podio">
-          <h2>Ganador de la simulación {k + 1}</h2>
-          <Avatar t={porId.get(resultado.ganador)} tam={200} />
-          <p class="ff-nombre">{nombre(resultado.ganador)}</p>
-          <p class="ff-distrito">{porId.get(resultado.ganador)?.distrito} · premio: <b>{PREMIOS[k]}</b></p>
-          <ol class="ff-top">{resultado.top3.slice(1).map((id, i) => <li key={id} value={i + 2}><Avatar t={porId.get(id)} tam={40} /> {nombre(id)}</li>)}</ol>
-          {!s.ganador ? <button class="boton principal" onClick={async () => {
-            // Paga TSUKIBET con el resultado (no en el ensayo)
-            if (!ensayo) await FF.registrarResultado(k + 1, { ganador: resultado.ganador, primero: resultado.caidas[0], sobrevive: resultado.sobrevivenBano, top3: resultado.top3 });
-            ponerSim((x) => ({ ...x, ganador: resultado.ganador })); alTerminar();
-          }}>Confirmar y seguir</button> : <p class="tenue">Ganador guardado.</p>}
-        </div>
-      )}
-      {!oculto && (
-        <div class="ff-controles ff-panel">
-          <button class="boton" disabled={s.paso === 0} onClick={() => mover(-1)}>← Atrás</button>
-          <button class="boton principal" disabled={fin} onClick={() => mover(1)}>Siguiente →</button>
-          <button class="boton" aria-pressed={auto} onClick={() => setAuto(!auto)}>{auto ? 'Pausa (P)' : 'Automático (A)'}</button>
-          <select value={vel} onChange={(ev) => setVel(ev.currentTarget.value as Vel)} aria-label="Velocidad"><option value="lento">Lento</option><option value="normal">Normal</option><option value="rapido">Rápido</option></select>
-          <span class="tenue chico">H esconde este panel · + y − cambian el tamaño del texto</span>
-        </div>
-      )}
-    </section>
+    <Escena pasos={pasos} resultado={resultado} porId={porId} participantes={participantes.map((t) => t.id)} cursor={s.paso} mover={mover}
+      titulo={`Simulación ${k + 1}`} premio={PREMIOS[k]}
+      paracaidas={paracaidas.map((x) => ({ id: x.id, desde_paso: x.desde_paso, nombre: nombres.get(x.perfil_id) ?? 'alguien del público', tributo: x.tributo, nivel: x.nivel }))}
+      alFinal={!s.ganador ? <button class="boton principal" onClick={async () => {
+        // Paga TSUKIBET con el resultado (no en el ensayo)
+        if (!ensayo) await FF.registrarResultado(k + 1, { ganador: resultado.ganador, primero: resultado.caidas[0], sobrevive: resultado.sobrevivenBano, top3: resultado.top3 });
+        ponerSim((x) => ({ ...x, ganador: resultado.ganador })); alTerminar();
+      }}>Confirmar y seguir</button> : <p>Ganador guardado.</p>} />
   );
 }
 

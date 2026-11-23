@@ -36,7 +36,7 @@
 .ff-intro { max-width: 60ch; font-style: italic; margin: 0; }
 .ff-lineas { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; width: min(100%, 760px); }
 .ff-lineas li { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--noche-2) 85%, transparent); }
-.ff-lineas li.fatal { border-left: 4px solid var(--sangre); }
+.ff-lineas li.fatal { background: color-mix(in srgb, var(--sangre) 18%, var(--noche-2)); }
 .ff-lineas b { color: var(--luna); }
 .ff-caras { display: flex; gap: 6px; }
 .ff-podio { display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -56,3 +56,75 @@
 @media (prefers-reduced-motion: reduce) { .ff-parejas.girando { animation: none; } }
 .ff-chip { font: inherit; font-size: .86rem; font-weight: 700; padding: 5px 11px; border-radius: 99px; border: 2px solid var(--linea); background: transparent; color: var(--hueso); cursor: pointer; touch-action: manipulation; }
 .ff-chip.activa { border-color: var(--luna); background: color-mix(in srgb, var(--luna) 22%, var(--noche-2)); }
+
+/* ───────── FASE FINAL en 8 bits (22-11) ───────── */
+.ff8-escena { --ff8-zoom: 1; position: relative; overflow: hidden; min-height: min(82vh, 760px); border: 4px solid #0b0f1e; outline: 4px solid #e8e1cc; display: flex; flex-direction: column; color: #fff6dd; font-family: "VT323", ui-monospace, monospace; font-size: calc(28px * var(--ff8-zoom)); line-height: 1.15; user-select: none; cursor: pointer; background: #0b1026; }
+.ff8-escena:fullscreen { min-height: 100vh; outline: none; border: none; }
+.ff8-fondo { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; z-index: 0; }
+.ff8-cabecera, .ff8-centro, .ff8-barra, .ff8-panel { position: relative; z-index: 1; }
+.ff8-cabecera { display: flex; justify-content: space-between; gap: 12px; padding: 10px 14px; font-family: "Press Start 2P", monospace; font-size: calc(13px * var(--ff8-zoom)); background: rgba(11, 16, 38, .78); border-bottom: 4px solid #0b0f1e; }
+.ff8-cabecera b { color: #ffd23c; }
+.ff8-centro { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 18px 14px; text-align: center; }
+.ff8-cartel { background: rgba(11, 16, 38, .86); border: 4px solid #fff6dd; box-shadow: 8px 8px 0 #0b0f1e; padding: 22px 28px; max-width: 900px; animation: ff8-entra .35s steps(4) both; }
+.ff8-cartel h2, .ff8-canon h2, .ff8-podio h2, .ff8-ficha h2 { font-family: "Press Start 2P", monospace; font-weight: 400; margin: 0; font-size: calc(34px * var(--ff8-zoom)); color: #ffd23c; text-shadow: 4px 4px 0 #0b0f1e; }
+.ff8-cartel.ff8-noche h2 { color: #9db8ff; }
+.ff8-cartel.ff8-bano h2, .ff8-cartel.ff8-caidos h2 { color: #ff5a6e; }
+.ff8-cartel.ff8-arena h2 { color: #ffb347; }
+.ff8-intro { margin: 10px 0 0; color: #e6dfc8; max-width: 60ch; }
+.ff8-dialogo { width: min(100%, 980px); background: #0b0f1e; border: 4px solid #fff6dd; box-shadow: inset 0 0 0 4px #3a4a8a, 8px 8px 0 rgba(0, 0, 0, .5); padding: 18px 22px; text-align: left; min-height: 3.6em; }
+.ff8-dialogo.fatal { border-color: #ff5a6e; box-shadow: inset 0 0 0 4px #7a1426, 8px 8px 0 rgba(0, 0, 0, .5); }
+.ff8-dialogo p { margin: 0; font-size: calc(34px * var(--ff8-zoom)); }
+.ff8-dialogo b { color: #ffd23c; font-weight: 400; }
+.ff8-dialogo .ff8-extra { color: #7cffcb; font-size: calc(26px * var(--ff8-zoom)); margin-top: 8px; }
+.ff8-cursor { animation: ff8-parpadeo .6s steps(2) infinite; color: #ffd23c; }
+.ff8-suspenso { text-align: center; color: #ff5a6e; letter-spacing: .4em; animation: ff8-parpadeo .5s steps(2) infinite; }
+.ff8-previos { list-style: none; margin: 0; padding: 0; width: min(100%, 980px); text-align: left; opacity: .75; font-size: calc(22px * var(--ff8-zoom)); }
+.ff8-previos li { background: rgba(11, 15, 30, .7); padding: 4px 10px; margin-bottom: 4px; border: 2px solid #2a3466; }
+.ff8-caras { display: flex; gap: 14px; justify-content: center; }
+.ff8-retrato { position: relative; display: inline-grid; place-items: center; flex: none; background: #1b2550; border: 4px solid #fff6dd; box-shadow: 4px 4px 0 #0b0f1e; overflow: hidden; }
+.ff8-retrato img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+.ff8-retrato.activo { border-color: #ffd23c; }
+.ff8-retrato.muerto img, .ff8-retrato.muerto .ff8-inicial { filter: grayscale(1) brightness(.55); }
+.ff8-retrato.muerto { border-color: #6a6a7a; animation: ff8-muere .5s steps(4); }
+.ff8-inicial { font-family: "Press Start 2P", monospace; color: #ffd23c; }
+.ff8-x { position: absolute; inset: 0; display: grid; place-items: center; color: #ff5a6e; font-family: "Press Start 2P", monospace; font-size: 60%; text-shadow: 2px 2px 0 #0b0f1e; }
+.ff8-estados { position: absolute; right: 0; bottom: 0; font-size: 50%; line-height: 1; background: rgba(11, 15, 30, .8); padding: 1px 2px; }
+.ff8-barra { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; padding: 10px; background: rgba(11, 16, 38, .82); border-top: 4px solid #0b0f1e; }
+.ff8-panel { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; padding: 8px 10px; background: #0b0f1e; font-family: "Nunito", sans-serif; font-size: 14px; cursor: default; }
+.ff8-escena.transmision .ff8-panel { display: none; }
+.ff8-historial { position: absolute; top: 52px; right: 8px; bottom: 120px; width: min(360px, 80%); overflow: auto; background: rgba(11, 15, 30, .94); border: 4px solid #fff6dd; padding: 10px; font-size: 20px; text-align: left; cursor: default; z-index: 2; }
+.ff8-historial h3 { font-family: "Press Start 2P", monospace; font-size: 12px; color: #ffd23c; margin: 0 0 8px; }
+.ff8-canon { display: flex; flex-direction: column; align-items: center; gap: 8px; background: rgba(11, 15, 30, .82); border: 4px solid #ff5a6e; box-shadow: 8px 8px 0 #0b0f1e; padding: 20px 32px; animation: ff8-entra .3s steps(4) both; }
+.ff8-canon p { margin: 0; }
+.ff8-boom { font-family: "Press Start 2P", monospace; color: #ff5a6e; font-size: calc(22px * var(--ff8-zoom)); animation: ff8-temblor .4s steps(6); }
+.ff8-quedan { color: #ffd23c; }
+.ff8-podio { display: flex; flex-direction: column; align-items: center; gap: 8px; background: rgba(11, 15, 30, .8); border: 4px solid #ffd23c; box-shadow: 8px 8px 0 #0b0f1e; padding: 18px 28px; }
+.ff8-podio p { margin: 0; }
+.ff8-corona { font-size: 56px; animation: ff8-salto 1s steps(4) infinite; }
+.ff8-top { display: flex; gap: 22px; padding: 0; margin: 4px 0; list-style-position: inside; align-items: center; }
+.ff8-top li { display: flex; align-items: center; gap: 8px; }
+.ff8-destacados { list-style: none; padding: 0; margin: 4px 0; font-size: calc(24px * var(--ff8-zoom)); text-align: left; }
+.ff8-destacados b { color: #ffd23c; font-weight: 400; }
+.ff8-paracaidas { margin: 10px 0 0; padding: 6px 12px; background: #1b2550; border: 3px solid #7cffcb; color: #7cffcb; }
+.ff8-ficha { display: flex; gap: 28px; align-items: center; background: rgba(11, 15, 30, .84); border: 4px solid #fff6dd; box-shadow: 8px 8px 0 #0b0f1e; padding: 24px 30px; text-align: left; flex-wrap: wrap; justify-content: center; }
+.ff8-ficha p { margin: 6px 0; }
+.ff8-titulo { color: #ffd23c; }
+.ff8-stats { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 10px 0 0; align-items: center; }
+.ff8-stats dt { font-family: "Press Start 2P", monospace; font-size: 12px; color: #9db8ff; }
+.ff8-stats dd { margin: 0; display: flex; align-items: center; gap: 10px; }
+.ff8-barrita { display: inline-flex; gap: 2px; }
+.ff8-barrita i { width: 10px; height: 16px; background: #2a3466; }
+.ff8-barrita i.lleno { background: #7cffcb; }
+.ff8-parejas { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; width: 100%; max-width: 1100px; }
+.ff8-parejas.girando { animation: ff8-parpadeo .25s steps(2) infinite; }
+.ff8-pareja { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; background: rgba(11, 15, 30, .84); border: 4px solid #fff6dd; padding: 10px; font-size: 24px; }
+.ff8-pareja b { color: #ffd23c; font-weight: 400; }
+.ff8-dist { flex-basis: 100%; font-family: "Press Start 2P", monospace; font-size: 11px; color: #9db8ff; }
+.ff8-previa, .ff8-presentacion { cursor: default; }
+@keyframes ff8-entra { from { transform: scale(.85); opacity: 0; } }
+@keyframes ff8-parpadeo { 50% { opacity: 0; } }
+@keyframes ff8-muere { 25%, 75% { opacity: .2; } 50% { opacity: 1; } }
+@keyframes ff8-temblor { 20% { transform: translate(-4px, 2px); } 40% { transform: translate(4px, -2px); } 60% { transform: translate(-2px, -2px); } 80% { transform: translate(2px, 2px); } }
+@keyframes ff8-salto { 50% { transform: translateY(-6px); } }
+@media (max-width: 700px) { .ff8-escena { font-size: 22px; } .ff8-dialogo p { font-size: 24px; } .ff8-cartel h2, .ff8-canon h2, .ff8-podio h2, .ff8-ficha h2 { font-size: 20px; } }
+@media (prefers-reduced-motion: reduce) { .ff8-cartel, .ff8-canon, .ff8-retrato.muerto, .ff8-boom, .ff8-corona, .ff8-cursor, .ff8-suspenso, .ff8-parejas.girando { animation: none; } }

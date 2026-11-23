@@ -7,6 +7,10 @@ import { generador } from '../nucleo/azar';
 export type Etapa = 'bano' | 'dia' | 'noche' | 'banquete' | 'arena';
 export type Atributo = 'Velocidad' | 'Fuerza' | 'Precisión' | 'Agilidad' | 'Astucia' | 'Temple' | 'Instinto';
 export type Categoria = 'arma' | 'supervivencia' | 'comida' | 'ingenio';
+/** Estados que deja un evento: suben el riesgo de morir después (las muertes llegan con historia). */
+export type Estado = 'herido' | 'envenenado' | 'hambriento';
+/** Ritmo de la gala: cuántas muertes por etapa (decisión de Pancho del 22-11: menos muertes de golpe). */
+export type Ritmo = 'corta' | 'normal' | 'larga';
 
 /** La mochila de la Cornucopia: objetos realistas (decisión de Pancho). */
 export const OBJETOS: Record<string, Categoria> = {
@@ -39,12 +43,16 @@ export interface Evento {
   traicion?: boolean; pareja?: boolean;
   /** Solo para eventos de arena: a qué escenario pertenece. */
   escenario?: string;
+  /** Deja un estado a un puesto (herido, envenenado, hambriento). */
+  estado?: { puesto: number; tipo: Estado }[];
+  /** Le quita todos los estados a estos puestos (se cura, come, encuentra agua). */
+  cura?: number[];
 }
 export interface Escenario { id: string; titulo: string; intro: string }
 
-export interface LineaGala { texto: string; tributos: string[]; muertos: string[] }
+export interface LineaGala { texto: string; tributos: string[]; muertos: string[]; estados?: { id: string; tipo: Estado }[]; curados?: string[]; objetos?: { id: string; objeto: string }[] }
 export interface PasoGala { tipo: Etapa | 'caidos'; titulo: string; intro?: string; lineas: LineaGala[] }
-export interface ResultadoGala { pasos: PasoGala[]; ganador: string; caidas: string[]; sobrevivenBano: string[]; top3: string[] }
+export interface ResultadoGala { pasos: PasoGala[]; ganador: string; caidas: string[]; sobrevivenBano: string[]; top3: string[]; eliminaciones: Record<string, number> }
 
 /** Un paracaídas del público: desde qué etapa (índice de paso) ayuda a ese tributo. */
 export interface Patrocinio { tributo: string; desdePaso: number; fuerza: 1 | 2 }
@@ -62,14 +70,28 @@ function probTraicion(tipo: Etapa, numero: number) {
   return numero >= 2 ? 0.08 : 0.03;
 }
 
-/** Cuántos deberían caer en una etapa (sin reloj: el final llega por la suma de etapas). */
-function metaMuertes(tipo: Etapa, vivos: number, total: number, r: () => number) {
-  const f = tipo === 'bano' ? 0.28 + r() * 0.08 : tipo === 'banquete' ? 0.25 : tipo === 'arena' ? 0.3 + r() * 0.1 : 0.1 + r() * 0.1;
-  const base = tipo === 'bano' ? total : vivos;
-  return Math.min(vivos - 1, Math.max(tipo === 'bano' ? 2 : vivos > 2 ? 1 : 1, Math.round(base * f)));
+/** Probabilidad de que un día o una noche tenga 2 muertes en vez de 1, según el ritmo. */
+const DOBLE: Record<Ritmo, number> = { corta: 0.7, normal: 0.35, larga: 0.12 };
+/** Probabilidad de que un DÍA pase sin muertes (solo heridas, hallazgos y sustos), según el ritmo. */
+const DIA_TRANQUILO: Record<Ritmo, number> = { corta: 0.1, normal: 0.45, larga: 0.62 };
+/** Tope de muertes por etapa (22-11): baño de sangre 20-25 %, día o noche 1 o 2, banquete y arena hasta 3. */
+export function topeMuertes(tipo: Etapa, vivos: number, total: number) {
+  if (tipo === 'bano') return Math.max(2, Math.round(total * 0.25));
+  if (tipo === 'banquete' || tipo === 'arena') return 3;
+  return 2;
+}
+/** Cuántas deberían caer en esta etapa (nunca sobre el tope, y siempre deja al menos uno vivo). */
+function metaMuertes(tipo: Etapa, vivos: number, total: number, ritmo: Ritmo, dia: number, r: () => number) {
+  let meta: number;
+  if (tipo === 'bano') meta = Math.round(total * (0.2 + r() * 0.05));
+  else if (tipo === 'banquete' || tipo === 'arena') meta = 1 + (r() < 0.6 ? 1 : 0) + (r() < 0.2 ? 1 : 0);
+  else if (tipo === 'dia' && dia < 7 && r() < DIA_TRANQUILO[ritmo]) meta = 0; // un día tranquilo: la tensión sube sin muertes
+  else meta = 1 + (r() < (tipo === 'dia' ? DOBLE[ritmo] / 2 : DOBLE[ritmo]) || dia >= 7 ? 1 : 0); // desde el Día 7 se apura
+  return Math.max(tipo === 'bano' ? 2 : 0, Math.min(meta, topeMuertes(tipo, vivos, total), vivos - 1));
 }
 
-export function simular(tributos: Tributo[], parejas: [string, string][], banco: Evento[], escenarios: Escenario[], semilla: string, patrocinios: Patrocinio[] = []): ResultadoGala {
+export function simular(tributos: Tributo[], parejas: [string, string][], banco: Evento[], escenarios: Escenario[], semilla: string, patrocinios: Patrocinio[] = [], opciones: { ritmo?: Ritmo } = {}): ResultadoGala {
+  const ritmo: Ritmo = opciones.ritmo ?? 'normal';
   const r = generador(`fase-final|${semilla}`);
   const pick = <T,>(xs: T[]) => xs[Math.floor(r() * xs.length)];
   const pesado = <T,>(xs: T[], peso: (x: T) => number): T => {
@@ -87,6 +109,10 @@ export function simular(tributos: Tributo[], parejas: [string, string][], banco:
   const botiquinUsado = new Set<string>();
   const visto = new Map<string, number>(tributos.map((t) => [t.id, 0])); // última etapa en que apareció
   const caidas: string[] = [], pendientesCanon: string[] = [], pasos: PasoGala[] = [];
+  const estados = new Map<string, Set<Estado>>(tributos.map((t) => [t.id, new Set()]));
+  const cruces = new Map<string, number>(); // arcos: cuántas veces se cruzaron dos tributos
+  const par = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+  const eliminaciones: Record<string, number> = {};
   let sobrevivenBano: string[] = [];
 
   const cat = (id: string) => (mochila.get(id) ?? []).map((o) => OBJETOS[o]);
@@ -103,7 +129,7 @@ export function simular(tributos: Tributo[], parejas: [string, string][], banco:
   };
   // Mérito suave (fórmula aprobada) elevado a INTENSIDAD: en cada evento solo compiten 2 o 3, así que sin el exponente el
   // efecto se diluye. Calibrado para la meta del plan con 18 tributos: mejor ~9 %, promedio ~5,6 %, peor ~3,4 %.
-  const wVictima = (id: string, tipo: Etapa, paso: number) => ((1.2 - 0.4 * porId.get(id)!.poder) * M(id, tipo, paso)) ** INTENSIDAD;
+  const wVictima = (id: string, tipo: Etapa, paso: number) => ((1.2 - 0.4 * porId.get(id)!.poder) * M(id, tipo, paso)) ** INTENSIDAD * (1 + 0.9 * (estados.get(id)?.size ?? 0));
   const wAutor = (id: string) => ((0.8 + 0.4 * porId.get(id)!.poder) * (cat(id).includes('arma') ? 1.3 : 1)) ** INTENSIDAD;
   const cumple = (id: string, req?: { categoria?: Categoria; atributo?: Atributo }) => !req || ((!req.categoria || cat(id).includes(req.categoria)) && (!req.atributo || porId.get(id)!.atributo === req.atributo));
 
@@ -139,15 +165,23 @@ export function simular(tributos: Tributo[], parejas: [string, string][], banco:
       }
       muertos.push(id);
     }
-    for (const d of e.da ?? []) { const id = asignado.get(d.puesto)!; const m = mochila.get(id)!; if (m.length < 2 && !muertos.includes(id)) m.push(d.objeto); }
-    return { texto, tributos: [...asignado.values()], muertos };
+    const objetos: { id: string; objeto: string }[] = [], nuevos: { id: string; tipo: Estado }[] = [], curados: string[] = [];
+    for (const d of e.da ?? []) { const id = asignado.get(d.puesto)!; const m = mochila.get(id)!; if (m.length < 2 && !muertos.includes(id)) { m.push(d.objeto); objetos.push({ id, objeto: d.objeto }); } }
+    for (const x of e.estado ?? []) { const id = asignado.get(x.puesto)!; if (!muertos.includes(id)) { estados.get(id)!.add(x.tipo); nuevos.push({ id, tipo: x.tipo }); } }
+    for (const p of e.cura ?? []) { const id = asignado.get(p)!; if (estados.get(id)!.size) { estados.get(id)!.clear(); curados.push(id); } }
+    if (muertos.length) for (const a of e.autores ?? []) { const id = asignado.get(a)!; eliminaciones[id] = (eliminaciones[id] ?? 0) + muertos.length; }
+    const ids = [...asignado.values()];
+    for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) cruces.set(par(ids[i], ids[j]), (cruces.get(par(ids[i], ids[j])) ?? 0) + 1);
+    return { texto, tributos: ids, muertos, ...(nuevos.length ? { estados: nuevos } : {}), ...(curados.length ? { curados } : {}), ...(objetos.length ? { objetos } : {}) };
   }
 
   /** Una etapa completa: cada vivo aparece al menos una vez (y algunos, una segunda), con la meta de caídos. */
   function etapa(tipo: Etapa, numero: number, titulo: string, intro?: string, escenario?: string) {
     const paso = pasos.length, lineas: LineaGala[] = [];
     const vivosAntes = [...vivos];
-    const meta = metaMuertes(tipo, vivos.size, tributos.length, r);
+    const meta = metaMuertes(tipo, vivos.size, tributos.length, ritmo, numero, r);
+    // La meta de la etapa también es su techo: así no caen varios de golpe por un evento con dos víctimas
+    const tope = Math.min(topeMuertes(tipo, vivos.size, tributos.length), vivos.size - 1, Math.max(meta, vivos.size === 2 ? 1 : 0));
     let murieron = 0;
     const candidatos = banco.filter((e) => e.etapas.includes(tipo) && (tipo !== 'arena' || !e.escenario || e.escenario === escenario));
     // Traiciones primero (raras al principio)
@@ -155,7 +189,7 @@ export function simular(tributos: Tributo[], parejas: [string, string][], banco:
       const b = pareja.get(a);
       // Si los 2 últimos son pareja, se enfrentan sí o sí
       const final = vivos.size === 2;
-      if (!b || a > b || !vivos.has(a) || !vivos.has(b) || (!final && r() >= probTraicion(tipo, numero))) continue;
+      if (!b || a > b || !vivos.has(a) || !vivos.has(b) || murieron >= tope || (!final && r() >= probTraicion(tipo, numero))) continue;
       const opciones = candidatos.filter((e) => e.traicion);
       const l = opciones.length ? aplicar(pick(opciones), [a, b], tipo, paso) : null;
       if (l) { lineas.push(l); for (const m of l.muertos) { vivos.delete(m); caidas.push(m); pendientesCanon.push(m); murieron++; } for (const id of l.tributos) visto.set(id, paso); }
@@ -171,7 +205,7 @@ export function simular(tributos: Tributo[], parejas: [string, string][], banco:
       if (!vivos.has(t)) { cola.shift(); continue; }
       const quedan = (enCola ? cola.length : 1) + (extra - extras);
       const pFatal = vivos.size <= 1 ? 0 : Math.min(0.9, Math.max(0, (meta - murieron) / Math.max(1, quedan)) * 1.6);
-      const quiereFatal = r() < pFatal;
+      const quiereFatal = murieron < tope && r() < pFatal;
       let linea: LineaGala | null = null;
       for (let intento = 0; intento < 30 && !linea; intento++) {
         const opciones = candidatos.filter((e) => !e.traicion && !!e.muere?.length === quiereFatal && n(e) <= vivos.size);
@@ -182,8 +216,12 @@ export function simular(tributos: Tributo[], parejas: [string, string][], banco:
         if (fuente.length < k - 1) continue;
         const grupo = [t];
         const resto = [...fuente];
-        while (grupo.length < k) { const x = e.pareja && grupo.length === 1 ? pareja.get(t) : pick(resto); if (!x || !resto.includes(x)) break; grupo.push(x); resto.splice(resto.indexOf(x), 1); }
+        // Arcos: quien ya se cruzó con t tiene más chances de volver a cruzarse. En un evento fatal, los que traen un estado
+        // (herido, envenenado, hambriento) entran más seguido: la muerte llega con historia
+        const peso = (x: string) => (1 + 1.5 * Math.min(2, cruces.get(par(t, x)) ?? 0)) * (quiereFatal ? 1 + 1.5 * (estados.get(x)?.size ?? 0) : 1);
+        while (grupo.length < k) { const x = e.pareja && grupo.length === 1 ? pareja.get(t) : pesado(resto, peso); if (!x || !resto.includes(x)) break; grupo.push(x); resto.splice(resto.indexOf(x), 1); }
         linea = aplicar(e, grupo, tipo, paso);
+        if (linea && murieron + linea.muertos.length > tope) linea = null; // nunca sobre el tope de la etapa
       }
       if (!linea) linea = { texto: `${nombre(t)} pasa la ${tipo === 'noche' ? 'noche' : 'jornada'} en silencio, atento a cualquier ruido.`, tributos: [t], muertos: [] };
       lineas.push(linea);
@@ -216,7 +254,7 @@ export function simular(tributos: Tributo[], parejas: [string, string][], banco:
     if (vivos.size > 1 && dia === diaBanquete) etapa('banquete', dia, 'El banquete', 'Al amanecer suena la trompeta: en la Cornucopia esperan mochilas con lo que cada uno más necesita.');
     // Eventos de arena desde el Día 2; el Día 5 es seguro si quedan más de 4
     const forzar = dia >= 5 && vivos.size > 4;
-    if (vivos.size > 1 && dia >= 2 && escenarios.length && (forzar || r() < 0.22)) {
+    if (vivos.size > 1 && dia >= 2 && escenarios.length && (forzar || r() < 0.15)) {
       const libres = escenarios.filter((x) => !arenaUsadas.has(x.id)), esc = pick(libres.length ? libres : escenarios);
       arenaUsadas.add(esc.id);
       etapa('arena', dia, esc.titulo, esc.intro, esc.id);
@@ -227,5 +265,5 @@ export function simular(tributos: Tributo[], parejas: [string, string][], banco:
   // Si quedara más de uno por el tope de días (no debería pasar), el de más mérito gana
   if (vivos.size > 1) { const quedan = [...vivos].sort((a, b) => porId.get(b)!.poder - porId.get(a)!.poder); for (const id of quedan.slice(1)) { vivos.delete(id); caidas.push(id); } }
   const ganador = [...vivos][0];
-  return { pasos, ganador, caidas, sobrevivenBano, top3: [ganador, ...caidas.slice(-2).reverse()] };
+  return { pasos, ganador, caidas, sobrevivenBano, top3: [ganador, ...caidas.slice(-2).reverse()], eliminaciones };
 }

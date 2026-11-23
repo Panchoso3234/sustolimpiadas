@@ -112,3 +112,25 @@ test('cuotas: entre ×1,05 y ×20, con 15 % de margen, y las probabilidades de g
   assert.ok(Math.abs(suma - 1) < 1e-9, `suma ${suma}`);
   for (const m of Object.values(r.cuotas)) for (const c of Object.values(m)) assert.ok(c >= 1.05 && c <= 20);
 });
+
+test('tope de muertes por etapa: baño 25 %, día o noche 2, banquete y arena 3', async () => {
+  const { topeMuertes } = await import('../src/fasefinal/motor');
+  for (let i = 0; i < 200; i++) {
+    const g = correr(`tope${i}`);
+    for (const p of g.pasos) {
+      if (p.tipo === 'caidos') continue;
+      const murieron = p.lineas.reduce((s, l) => s + l.muertos.length, 0);
+      assert.ok(murieron <= topeMuertes(p.tipo, 18, tributos.length), `semilla ${i}: ${murieron} en ${p.titulo}`);
+    }
+  }
+});
+
+test('ritmo: la gala normal dura entre 5 y 7 días (promedio); la larga dura más que la corta', () => {
+  const dias = (ritmo: 'corta' | 'normal' | 'larga') => Array.from({ length: 150 }, (_, i) => simular(tributos, parejas, BANCO, ESCENARIOS, `r${i}`, [], { ritmo }).pasos.filter((p) => p.tipo === 'dia').length);
+  const prom = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;
+  const n = dias('normal'), c = dias('corta'), l = dias('larga');
+  console.log(`# días promedio: corta ${prom(c).toFixed(1)}, normal ${prom(n).toFixed(1)}, larga ${prom(l).toFixed(1)}`);
+  assert.ok(prom(n) >= 4.8 && prom(n) <= 7, `normal ${prom(n)}`);
+  assert.ok(prom(l) > prom(c));
+  assert.deepEqual(simular(tributos, parejas, BANCO, ESCENARIOS, 'x', [], { ritmo: 'larga' }), simular(tributos, parejas, BANCO, ESCENARIOS, 'x', [], { ritmo: 'larga' }));
+});
