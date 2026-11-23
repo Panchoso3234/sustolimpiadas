@@ -47,6 +47,8 @@ export interface Evento {
   estado?: { puesto: number; tipo: Estado }[];
   /** Le quita todos los estados a estos puestos (se cura, come, encuentra agua). */
   cura?: number[];
+  /** Evento personalizado: puesto → id del tributo dueño. Solo sale si esos tributos están vivos y juegan (nunca fatal). */
+  para?: Record<number, string>;
 }
 export interface Escenario { id: string; titulo: string; intro: string }
 
@@ -114,6 +116,8 @@ export function simular(tributos: Tributo[], parejas: [string, string][], banco:
   const par = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
   const eliminaciones: Record<string, number> = {};
   let sobrevivenBano: string[] = [];
+  const personales = banco.filter((e) => e.para && !e.muere?.length && !e.traicion && Object.values(e.para).every((id) => porId.has(id)));
+  const usadosPersonales = new Set<string>(); // cada evento personal sale a lo más una vez por gala
 
   const cat = (id: string) => (mochila.get(id) ?? []).map((o) => OBJETOS[o]);
   /** M: modificador por objetos y patrocinios; nunca baja de 0,80. */
@@ -152,6 +156,8 @@ export function simular(tributos: Tributo[], parejas: [string, string][], banco:
       else { asignado.set(1, a); asignado.set(2, b); }
       libres.length = 0;
     }
+    // Evento personal: cada dueño va en su puesto
+    for (const [pp, id] of Object.entries(e.para ?? {})) { if (!libres.includes(id)) return null; asignado.set(Number(pp), id); libres.splice(libres.indexOf(id), 1); }
     for (const p of e.muere ?? []) if (!asignado.has(p) && !tomar(p, (id) => wVictima(id, tipo, paso))) return null;
     for (const p of e.autores ?? []) if (!asignado.has(p) && !tomar(p, wAutor)) return null;
     for (let p = 1; p <= k; p++) if (!asignado.has(p) && !tomar(p, () => 1)) return null;
@@ -183,7 +189,8 @@ export function simular(tributos: Tributo[], parejas: [string, string][], banco:
     // La meta de la etapa también es su techo: así no caen varios de golpe por un evento con dos víctimas
     const tope = Math.min(topeMuertes(tipo, vivos.size, tributos.length), vivos.size - 1, Math.max(meta, vivos.size === 2 ? 1 : 0));
     let murieron = 0;
-    const candidatos = banco.filter((e) => e.etapas.includes(tipo) && (tipo !== 'arena' || !e.escenario || e.escenario === escenario));
+    const candidatos = banco.filter((e) => !e.para && e.etapas.includes(tipo) && (tipo !== 'arena' || !e.escenario || e.escenario === escenario));
+    const conPersonal = new Set<string>(); // máximo un evento personal por tributo en cada etapa
     // Traiciones primero (raras al principio)
     for (const a of vivosAntes) {
       const b = pareja.get(a);
@@ -207,6 +214,18 @@ export function simular(tributos: Tributo[], parejas: [string, string][], banco:
       const pFatal = vivos.size <= 1 ? 0 : Math.min(0.9, Math.max(0, (meta - murieron) / Math.max(1, quedan)) * 1.6);
       const quiereFatal = murieron < tope && r() < pFatal;
       let linea: LineaGala | null = null;
+      // Eventos personalizados (no fatales): si t tiene uno disponible, a veces sale en vez de uno genérico.
+      // Sin eventos personales en el banco no se consume azar: las galas de siempre no cambian.
+      if (!quiereFatal && personales.length && !conPersonal.has(t)) {
+        const mios = personales.filter((e) => e.para![1] === t && !usadosPersonales.has(e.id) && e.etapas.includes(tipo) && n(e) <= vivos.size && Object.values(e.para!).every((id) => vivos.has(id)));
+        if (mios.length && r() < 0.35) {
+          const e = pick(mios), grupo = Array.from({ length: n(e) }, (_, i) => e.para![i + 1] ?? null);
+          const libres = [...vivos].filter((id) => !grupo.includes(id));
+          for (let i = 0; i < grupo.length; i++) if (!grupo[i]) { const x = pick(libres); grupo[i] = x; libres.splice(libres.indexOf(x), 1); }
+          linea = aplicar(e, grupo as string[], tipo, paso);
+          if (linea) { usadosPersonales.add(e.id); conPersonal.add(t); }
+        }
+      }
       for (let intento = 0; intento < 30 && !linea; intento++) {
         const opciones = candidatos.filter((e) => !e.traicion && !!e.muere?.length === quiereFatal && n(e) <= vivos.size);
         if (!opciones.length) break;

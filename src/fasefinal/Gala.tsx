@@ -10,7 +10,10 @@ import { simular, type PasoGala, type Patrocinio, type ResultadoGala, type Ritmo
 import { Escena, FondoPixel, Presentacion8, Retrato, armarMomentos, pasoDe } from './Escena';
 import { calcularCuotas } from './cuotas';
 import * as FF from './ffDatos';
-import { BANCO, ESCENARIOS } from './eventos';
+import { BANCO as BANCO_GENERAL, ESCENARIOS } from './eventos';
+import { PERSONALES } from './eventosPersonales';
+// La gala usa el banco general más los eventos personalizados (no fatales; ver eventosPersonales.ts)
+const BANCO = [...BANCO_GENERAL, ...PERSONALES];
 import './fasefinal.css';
 
 // Panel de la gala (solo organización y staff). Todo queda guardado en este navegador: si se cae, vuelve al mismo paso.

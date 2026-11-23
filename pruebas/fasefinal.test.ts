@@ -134,3 +134,41 @@ test('ritmo: la gala normal dura entre 5 y 7 días (promedio); la larga dura má
   assert.ok(prom(l) > prom(c));
   assert.deepEqual(simular(tributos, parejas, BANCO, ESCENARIOS, 'x', [], { ritmo: 'larga' }), simular(tributos, parejas, BANCO, ESCENARIOS, 'x', [], { ritmo: 'larga' }));
 });
+
+test('eventos personales: nunca fatales, solo con sus dueños vivos y jugando, una vez por gala', async () => {
+  const { PERSONALES } = await import('../src/fasefinal/eventosPersonales');
+  const ids = [...new Set(PERSONALES.flatMap((e) => Object.values(e.para!)))];
+  // Faltan 2 dueños (no juegan esta simulación): sus eventos no pueden salir
+  const fuera = ids.slice(0, 2), juegan = ids.slice(2);
+  const ts: Tributo[] = juegan.map((id, i) => ({ id, nombre: `T${i}`, poder: i / juegan.length }));
+  const ps: [string, string][] = Array.from({ length: Math.floor(ts.length / 2) }, (_, i) => [ts[i * 2].id, ts[i * 2 + 1].id]);
+  const porTexto = new Map(PERSONALES.map((e) => [e.id, e]));
+  let usados = 0;
+  for (let i = 0; i < 80; i++) {
+    const g = simular(ts, ps, [...BANCO, ...PERSONALES], ESCENARIOS, `pers${i}`), muertos = new Set<string>(), vistos = new Set<string>();
+    for (const p of g.pasos) {
+      if (p.tipo === 'caidos') continue;
+      for (const l of p.lineas) {
+        const e = PERSONALES.find((x) => Object.values(x.para!).every((id) => l.tributos.includes(id)) && l.texto === x.texto.replace(/\{(\d)\}/g, (_, d) => ts.find((t) => t.id === l.tributos[Number(d) - 1])?.nombre ?? '?'));
+        if (!e) { for (const m of l.muertos) muertos.add(m); continue; }
+        usados++;
+        assert.equal(l.muertos.length, 0, `${e.id} mató a alguien`);
+        for (const id of Object.values(e.para!)) { assert.ok(!fuera.includes(id), `${e.id} salió sin su dueño`); assert.ok(!muertos.has(id), `${e.id} con dueño muerto`); }
+        assert.ok(!vistos.has(e.id), `${e.id} se repitió`); vistos.add(e.id);
+      }
+    }
+  }
+  assert.ok(porTexto.size === PERSONALES.length, 'ids repetidos');
+  assert.ok(usados > 80, `casi no salen: ${usados}`);
+  console.log(`# eventos personales usados en 80 galas: ${usados}`);
+});
+
+test('eventos personales: todos no fatales, con objetos válidos y dueños en su puesto', async () => {
+  const { PERSONALES, PREGUNTAS } = await import('../src/fasefinal/eventosPersonales');
+  for (const e of PERSONALES) {
+    assert.ok(!e.muere?.length && !e.traicion && !e.autores?.length, e.id);
+    for (const d of e.da ?? []) assert.ok(d.objeto in OBJETOS, `${e.id}: ${d.objeto}`);
+    for (const p of Object.keys(e.para!)) assert.ok(e.texto.includes(`{${p}}`), `${e.id}: falta {${p}}`);
+  }
+  for (const q of PREGUNTAS) assert.ok(q.correcta >= 0 && q.correcta < q.opciones.length, q.pregunta);
+});

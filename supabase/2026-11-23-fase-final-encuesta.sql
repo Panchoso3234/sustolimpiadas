@@ -10,9 +10,9 @@ create table if not exists public.ff_encuesta (
   creado timestamptz not null default now()
 );
 alter table public.ff_encuesta enable row level security;
--- Cada uno ve solo su respuesta (para saber si ya respondió); se escribe solo por la función
+-- Cada uno ve solo su respuesta (para saber si ya respondió); el admin las ve todas en FASE FINAL. Se escribe solo por la función
 drop policy if exists ff_encuesta_mia on public.ff_encuesta;
-create policy ff_encuesta_mia on public.ff_encuesta for select to authenticated using (perfil_id = (select auth.uid()));
+create policy ff_encuesta_mia on public.ff_encuesta for select to authenticated using (perfil_id = (select auth.uid()) or public.es_admin());
 
 create or replace function public.ff_responder_encuesta(p_mejor text, p_peor text, p_agregar text) returns text
 language plpgsql security definer set search_path = '' as $$

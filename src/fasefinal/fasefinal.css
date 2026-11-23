@@ -160,3 +160,16 @@
 .ffp-pregunta { display: grid; gap: 4px; font-weight: 700; }
 .ffp-pregunta textarea { width: 100%; resize: vertical; font: inherit; font-weight: 400; padding: 8px; border-radius: 6px; }
 .ffp-gracias { color: #7cffcb; }
+/* Organización: selector de vista, preguntas y respuestas de la encuesta */
+.ffp-selector { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 4px 4px; }
+.ffp-selector button { font-family: "Press Start 2P", monospace; font-size: 11px; padding: 10px 14px; background: #141c3a; color: #e8e1cc; border: 3px solid #2c3a63; box-shadow: 3px 3px 0 #0b0f1e; cursor: pointer; }
+.ffp-selector button.activo { border-color: #ffd23c; color: #ffd23c; }
+.ffp-pregunta-caja { border: 4px solid #ffd23c; box-shadow: 5px 5px 0 #0b0f1e; background: #0b1026; color: #fff6dd; padding: 18px; margin: 8px 4px 22px; display: grid; gap: 10px; }
+.ffp-pregunta-texto { font-family: "VT323", monospace; font-size: 38px; line-height: 1.1; margin: 0; }
+.ffp-opciones { font-family: "VT323", monospace; font-size: 30px; margin: 0; padding-left: 40px; display: grid; gap: 4px; }
+.ffp-opciones .correcta { color: #7cffcb; }
+.ffp-opciones .apagada { opacity: .45; }
+.ffp-respuestas ul { list-style: none; padding: 0; display: grid; gap: 10px; }
+.ffp-respuestas li { background: #141c3a; border: 2px solid #2c3a63; border-radius: 8px; padding: 10px 14px; }
+.ffp-respuestas li p { margin: 4px 0; overflow-wrap: anywhere; }
+.ffp-quien { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }

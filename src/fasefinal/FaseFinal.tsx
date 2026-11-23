@@ -8,6 +8,7 @@ import { Gala, PREMIOS } from './Gala';
 import { FondoPixel, Retrato } from './Escena';
 import * as FF from './ffDatos';
 import { Tsukibet } from './Tsukibet';
+import { PREGUNTAS } from './eventosPersonales';
 import { AVATAR_MANUAL, type FichaTributo } from './foto';
 import './fasefinal.css';
 
@@ -18,11 +19,11 @@ import './fasefinal.css';
 export function FaseFinal() {
   const sesion = useSesion();
   const rol = sesion.perfil?.rol;
-  // Solo en desarrollo: ?ffprueba muestra el panel con tributos inventados (para probar sin iniciar sesión)
-  if (import.meta.env.DEV && location.search.includes('ffprueba')) return <div class="pagina pagina-ancha arena"><Gala /></div>;
+  // Solo en desarrollo: ?ffprueba muestra la vista de organización (panel con tributos inventados) sin iniciar sesión
+  if (import.meta.env.DEV && location.search.includes('ffprueba')) return <Organizacion rolAdmin />;
   if (sesion.cargando) return <div class="pagina arena"><p class="tenue">Cargando…</p></div>;
   if (rol !== 'admin' && rol !== 'guardian') return <VistaPublica />;
-  return <VistaStaff rolAdmin={rol === 'admin'} />;
+  return <Organizacion rolAdmin={rol === 'admin'} />;
 }
 
 /** La liga ya cerró: quiénes clasificaron (tabla oficial en vivo; los reemplazos de las 18:00 se ven solos). */
@@ -91,7 +92,7 @@ function Encuesta() {
   const [ya, setYa] = useState<boolean | null>(null);
   const [r, setR] = useState({ mejor: '', peor: '', agregar: '' });
   const [ocupado, setOcupado] = useState(false); const [error, setError] = useState('');
-  useEffect(() => { if (sesion.usuarioId) FF.miEncuesta().then(setYa); }, [sesion.usuarioId]);
+  useEffect(() => { if (sesion.usuarioId) FF.miEncuesta(sesion.usuarioId).then(setYa); }, [sesion.usuarioId]);
   const preguntas: [keyof typeof r, string][] = [['mejor', '¿Qué es lo que más te ha gustado del torneo y de la Fase Final?'], ['peor', '¿Qué no te gustó o qué mejorarías?'], ['agregar', '¿Qué le agregarías para la próxima?']];
   const enviar = async () => {
     setOcupado(true); setError('');
@@ -159,6 +160,71 @@ function VistaPublica() {
   );
 }
 
+/** Organización y staff: selector entre lo que ve el público y la administración de la FASE FINAL (se recuerda la última). */
+function Organizacion({ rolAdmin }: { rolAdmin: boolean }) {
+  const [vista, setVista] = useState<'admin' | 'publico'>(() => { try { return localStorage.getItem('ff-vista') === 'publico' ? 'publico' : 'admin'; } catch { return 'admin'; } });
+  const cambiar = (v: 'admin' | 'publico') => { setVista(v); try { localStorage.setItem('ff-vista', v); } catch { /* sin almacenamiento */ } };
+  return (
+    <>
+      <div class="ffp-selector" role="tablist" aria-label="Vista de FASE FINAL">
+        <button role="tab" aria-selected={vista === 'admin'} class={vista === 'admin' ? 'activo' : ''} onClick={() => cambiar('admin')}>⚙ Administración</button>
+        <button role="tab" aria-selected={vista === 'publico'} class={vista === 'publico' ? 'activo' : ''} onClick={() => cambiar('publico')}>👁 Lo que ve el público</button>
+      </div>
+      {vista === 'publico' ? <VistaPublica /> : <VistaStaff rolAdmin={rolAdmin} />}
+    </>
+  );
+}
+
+/** Respuestas de la encuesta (solo admin; la base solo se las entrega al admin). */
+function Respuestas() {
+  const [lista, setLista] = useState<{ perfil_id: string; mejor: string; peor: string; agregar: string; creado: string }[] | null>(null);
+  const [nombres, setNombres] = useState<Map<string, string>>(new Map());
+  const [error, setError] = useState('');
+  const leer = async () => {
+    const [r, p] = await Promise.all([supabase.from('ff_encuesta').select('perfil_id,mejor,peor,agregar,creado').order('creado', { ascending: false }), supabase.from('perfiles').select('id,nombre')]);
+    if (r.error) { setError(/does not exist|Could not find/.test(r.error.message) ? 'Falta ejecutar supabase/2026-11-23-fase-final-encuesta.sql en Supabase.' : r.error.message); setLista([]); return; }
+    setError(''); setLista((r.data ?? []) as never);
+    setNombres(new Map(((p.data ?? []) as { id: string; nombre: string }[]).map((x) => [x.id, x.nombre])));
+  };
+  useEffect(() => { leer(); }, []);
+  return (
+    <section class="ffp-respuestas">
+      <h2>Respuestas de la encuesta {lista ? `(${lista.length})` : ''} <button class="boton" onClick={leer}>Actualizar</button></h2>
+      {error && <p class="aviso">{error}</p>}
+      {!lista ? <p class="tenue">Cargando…</p> : !lista.length ? <p class="tenue">Todavía nadie responde.</p> : (
+        <ul>{lista.map((x) => (
+          <li key={x.perfil_id}>
+            <p class="ffp-quien"><b>{nombres.get(x.perfil_id) ?? 'Alguien'}</b> <span class="tenue chico">{new Date(x.creado).toLocaleString('es-CL')}</span></p>
+            <p><b>Lo que más le gustó:</b> {x.mejor}</p>
+            <p><b>Lo que no le gustó / mejoraría:</b> {x.peor}</p>
+            <p><b>Qué agregaría:</b> {x.agregar}</p>
+          </li>
+        ))}</ul>
+      )}
+    </section>
+  );
+}
+
+/** Preguntas «¿Quién…?» para mostrar entre simulaciones (pantalla compartida). */
+function Preguntas() {
+  const [i, setI] = useState(0); const [ver, setVer] = useState(false);
+  const q = PREGUNTAS[i];
+  const mover = (d: number) => { setI((x) => (x + d + PREGUNTAS.length) % PREGUNTAS.length); setVer(false); };
+  return (
+    <section class="ffp-pregunta-caja">
+      <p class="ffp-chico">PREGUNTA PARA EL PÚBLICO · {i + 1} DE {PREGUNTAS.length}</p>
+      <p class="ffp-pregunta-texto">{q.pregunta}</p>
+      <ol class="ffp-opciones">{q.opciones.map((o, k) => <li key={k} class={ver && k === q.correcta ? 'correcta' : ver ? 'apagada' : ''}>{o}{ver && k === q.correcta ? ' ✔' : ''}</li>)}</ol>
+      {ver && q.nota && <p class="tenue">{q.nota}</p>}
+      <div class="ff-controles">
+        <button class="boton" onClick={() => mover(-1)}>← Anterior</button>
+        <button class="boton principal" onClick={() => setVer(!ver)}>{ver ? 'Ocultar respuesta' : 'Mostrar respuesta'}</button>
+        <button class="boton" onClick={() => mover(1)}>Siguiente →</button>
+      </div>
+    </section>
+  );
+}
+
 /** Lo que ve el staff mientras se construye: quiénes clasificarían hoy. */
 function VistaStaff({ rolAdmin }: { rolAdmin: boolean }) {
   const { personal } = useTributos();
@@ -167,7 +233,7 @@ function VistaStaff({ rolAdmin }: { rolAdmin: boolean }) {
     <div class="pagina pagina-ancha arena">
       <div class="sigla">Fase 2 · vista del staff</div>
       <h1>FASE FINAL</h1>
-      <p class="aviso">Solo la organización y el staff ven esta página. El público ve la lista de tributos y TSUKIBET. Gala: <b>lunes 23-11, 21:00</b>.</p>
+      <p class="aviso">Solo la organización y el staff ven esta vista. Usa «Lo que ve el público» para revisar la portada. Gala: <b>lunes 23-11, 21:00</b>.</p>
       <h2>Tributos si la liga cerrara hoy ({tributos.length})</h2>
       {!personal ? <p class="tenue">Cargando…</p> : (
         <div class="tabla-caja">
@@ -181,7 +247,7 @@ function VistaStaff({ rolAdmin }: { rolAdmin: boolean }) {
       )}
       <p class="tenue chico">La lista se congela el lunes 23 a las 00:00. Reemplazos (si alguien no está o no quiere participar): el siguiente mejor puntaje personal, hasta las 18:00.</p>
       <Tsukibet />
-      {rolAdmin && <><h2>Panel de la gala</h2><Gala /></>}
+      {rolAdmin && <><h2>Panel de la gala</h2><Gala /><h2>Preguntas para el público</h2><Preguntas /><Respuestas /></>}
     </div>
   );
 }
