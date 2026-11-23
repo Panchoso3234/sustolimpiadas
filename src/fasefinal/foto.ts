@@ -19,6 +19,18 @@ interface Fila { perfil: string; puntaje: number }
 const motorDe = new Map(TODOS.map((j) => [j.id, j.motor]));
 const nombreJuego = new Map(TODOS.map((j) => [j.id, j.nombre]));
 
+// Fotos que Pancho entregó a mano (22-11) para quienes no tenían o tenían el ícono de Discord roto.
+// Están en public/fasefinal/avatares y no dependen de Discord.
+const BASE = import.meta.env?.BASE_URL ?? '/';
+export const AVATAR_MANUAL: Record<string, string> = {
+  '71b7403e-187e-48f0-abaf-aae4c849be1b': `${BASE}fasefinal/avatares/fenix.png`,     // Fénix
+  'b759934e-0140-4148-96f3-5b64f13dffba': `${BASE}fasefinal/avatares/infinite.webp`, // Infinite™
+  '6a5c5850-95f2-4892-881c-ef21a5b9fb01': `${BASE}fasefinal/avatares/paltita.gif`,   // Paltita
+  '74c777b6-054e-423b-9809-e61ce93af182': `${BASE}fasefinal/avatares/umi.webp`,      // Umi (Too)
+  'c642fb1d-3537-4749-8b50-822770b700f9': `${BASE}fasefinal/avatares/chakal.webp`,   // chakaldelatierra
+  'bb7480a3-a577-4c77-9af6-2540f1e8c784': `${BASE}fasefinal/avatares/datura.png`,    // Datura
+};
+
 export function armarFicha(personal: Jugador[], duelos: Duelo[], records: Map<string, Fila[]> | null, avatares: Map<string, string | null>): FichaTributo[] {
   const clasificados = personal.filter((j) => j.clasifica);
   const base = clasificados.map((j) => {
@@ -51,7 +63,7 @@ export function armarFicha(personal: Jugador[], duelos: Duelo[], records: Map<st
   const pPuntos = norm(base.map((b) => b.j.puntos)), pRecords = norm(base.map((b) => 3 * b.primeros + b.podios));
   return base.map((b, i) => ({
     id: b.j.id, nombre: b.j.nombre, distrito: b.j.equipo?.nombre ?? 'Sin equipo', poder: Math.round((0.7 * pPuntos[i] + 0.3 * pRecords[i]) * 1000) / 1000,
-    atributo: b.atributo, avatar: avatares.get(b.j.id) ?? null, titulo: b.titulo, puntos: b.j.puntos, ganados: b.ganados, jugados: b.jugados,
+    atributo: b.atributo, avatar: AVATAR_MANUAL[b.j.id] ?? avatares.get(b.j.id) ?? null, titulo: b.titulo, puntos: b.j.puntos, ganados: b.ganados, jugados: b.jugados,
     primeros: b.primeros, podios: b.podios, atributos: b.atributos, entrada: b.j.clasifica as 'equipo' | 'especial',
   }));
 }
