@@ -114,7 +114,52 @@ function Encuesta() {
   );
 }
 
+/** Historial público: el relato completo de cada simulación oficial (se guarda al confirmarla en el panel). */
+function Historial() {
+  const [lista, setLista] = useState<FF.HistorialFF[] | null>(null);
+  const [sel, setSel] = useState(0);
+  const leer = () => FF.listarHistorial().then((l) => { setLista(l); setSel((x) => Math.min(x, Math.max(0, l.length - 1))); });
+  useEffect(() => { leer(); const id = setInterval(leer, 60000); return () => clearInterval(id); }, []);
+  if (!lista) return <p class="tenue">Cargando el historial…</p>;
+  if (!lista.length) return <section class="ffp-historial"><h2>Historial de la gala</h2><p class="tenue">Todavía no termina ninguna simulación oficial. Aquí quedará el relato completo de cada una: etapas, eventos, cañonazos, paracaídas y podio.</p></section>;
+  const h = lista[sel];
+  return (
+    <section class="ffp-historial">
+      <h2>Historial de la gala</h2>
+      <div class="ffp-selector" role="tablist">{lista.map((x, i) => <button key={x.n} role="tab" aria-selected={i === sel} class={i === sel ? 'activo' : ''} onClick={() => setSel(i)}>Simulación {x.n}</button>)}</div>
+      <div class="ffp-hcab">
+        <p class="ffp-chico">SIMULACIÓN {h.n} · {h.premio}</p>
+        <p class="ffp-grande">♛ {h.ganador}</p>
+        <p class="tenue chico">{h.fecha ? new Date(h.fecha).toLocaleString('es-CL') : ''} · ritmo {h.ritmo} · {h.dias} días · {h.tributos} tributos</p>
+        <ol class="ffp-podio">{h.top3.map((x, i) => <li key={i}><b>{['1.º', '2.º', '3.º'][i]}</b> {x}</li>)}</ol>
+        {h.eliminaciones.length > 0 && <p class="chico">Más eliminaciones: {h.eliminaciones.slice(0, 3).map((x) => `${x.nombre} (${x.n})`).join(', ')}</p>}
+        {h.paracaidas.length > 0 && <p class="chico">Paracaídas: {h.paracaidas.map((x) => `${x.de} → ${x.para}${x.nivel === 2 ? ' (grande)' : ''}`).join(' · ')}</p>}
+      </div>
+      {h.pasos.map((p, i) => (
+        <details key={i} class={`ffp-etapa ${p.tipo}`} open={i < 2}>
+          <summary>{p.titulo}{p.tipo === 'caidos' ? '' : ` · ${p.lineas.length} eventos`}</summary>
+          {p.intro && <p class="tenue"><i>{p.intro}</i></p>}
+          <ul>{p.lineas.map((l, j) => <li key={j} class={l.m.length ? 'muerte' : ''}>{l.m.length ? '💀 ' : ''}{l.t}</li>)}</ul>
+        </details>
+      ))}
+    </section>
+  );
+}
+
 function VistaPublica() {
+  const [pestana, setPestana] = useState<'portada' | 'historial'>('portada');
+  return (
+    <>
+      <div class="ffp-selector ffp-pestanas" role="tablist" aria-label="FASE FINAL">
+        <button role="tab" aria-selected={pestana === 'portada'} class={pestana === 'portada' ? 'activo' : ''} onClick={() => setPestana('portada')}>Portada</button>
+        <button role="tab" aria-selected={pestana === 'historial'} class={pestana === 'historial' ? 'activo' : ''} onClick={() => setPestana('historial')}>📜 Historial</button>
+      </div>
+      {pestana === 'portada' ? <Portada /> : <div class="pagina pagina-ancha arena"><Historial /></div>}
+    </>
+  );
+}
+
+function Portada() {
   const { personal, avatares, orden } = useTributos();
   const [sims, setSims] = useState<FF.SimFF[]>([]);
   useEffect(() => { const leer = () => FF.listarSims().then(setSims); leer(); const id = setInterval(leer, 30000); return () => clearInterval(id); }, []);

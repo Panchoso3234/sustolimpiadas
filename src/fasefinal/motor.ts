@@ -118,6 +118,8 @@ export function simular(tributos: Tributo[], parejas: [string, string][], banco:
   let sobrevivenBano: string[] = [];
   const personales = banco.filter((e) => e.para && !e.muere?.length && !e.traicion && Object.values(e.para).every((id) => porId.has(id)));
   const usadosPersonales = new Set<string>(); // cada evento personal sale a lo más una vez por gala
+  const usadosGenerales = new Set<string>(); // un evento genérico no se repite en la gala mientras queden otros posibles
+  const fresco = (xs: Evento[]) => { const f = xs.filter((e) => !usadosGenerales.has(e.id)); return f.length ? f : xs; };
 
   const cat = (id: string) => (mochila.get(id) ?? []).map((o) => OBJETOS[o]);
   /** M: modificador por objetos y patrocinios; nunca baja de 0,80. */
@@ -198,8 +200,8 @@ export function simular(tributos: Tributo[], parejas: [string, string][], banco:
       const final = vivos.size === 2;
       if (!b || a > b || !vivos.has(a) || !vivos.has(b) || murieron >= tope || (!final && r() >= probTraicion(tipo, numero))) continue;
       const opciones = candidatos.filter((e) => e.traicion);
-      const l = opciones.length ? aplicar(pick(opciones), [a, b], tipo, paso) : null;
-      if (l) { lineas.push(l); for (const m of l.muertos) { vivos.delete(m); caidas.push(m); pendientesCanon.push(m); murieron++; } for (const id of l.tributos) visto.set(id, paso); }
+      const ev = opciones.length ? pick(fresco(opciones)) : null, l = ev ? aplicar(ev, [a, b], tipo, paso) : null;
+      if (l) { usadosGenerales.add(ev!.id); lineas.push(l); for (const m of l.muertos) { vivos.delete(m); caidas.push(m); pendientesCanon.push(m); murieron++; } for (const id of l.tributos) visto.set(id, paso); }
     }
     // Cola: todos los vivos que no aparecieron, los que llevan más rato sin aparecer van primero (un poco favorecidos)
     let cola = [...vivos].filter((id) => !lineas.some((l) => l.tributos.includes(id)));
@@ -229,7 +231,7 @@ export function simular(tributos: Tributo[], parejas: [string, string][], banco:
       for (let intento = 0; intento < 30 && !linea; intento++) {
         const opciones = candidatos.filter((e) => !e.traicion && !!e.muere?.length === quiereFatal && n(e) <= vivos.size);
         if (!opciones.length) break;
-        const e = pick(opciones), k = n(e);
+        const e = pick(fresco(opciones)), k = n(e);
         const otrosCola = cola.filter((id) => id !== t && vivos.has(id)), otrosVivos = [...vivos].filter((id) => id !== t);
         const fuente = enCola && otrosCola.length >= k - 1 ? otrosCola : otrosVivos;
         if (fuente.length < k - 1) continue;
@@ -241,6 +243,7 @@ export function simular(tributos: Tributo[], parejas: [string, string][], banco:
         while (grupo.length < k) { const x = e.pareja && grupo.length === 1 ? pareja.get(t) : pesado(resto, peso); if (!x || !resto.includes(x)) break; grupo.push(x); resto.splice(resto.indexOf(x), 1); }
         linea = aplicar(e, grupo, tipo, paso);
         if (linea && murieron + linea.muertos.length > tope) linea = null; // nunca sobre el tope de la etapa
+        if (linea) usadosGenerales.add(e.id);
       }
       if (!linea) linea = { texto: `${nombre(t)} pasa la ${tipo === 'noche' ? 'noche' : 'jornada'} en silencio, atento a cualquier ruido.`, tributos: [t], muertos: [] };
       lineas.push(linea);

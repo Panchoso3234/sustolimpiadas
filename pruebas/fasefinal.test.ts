@@ -172,3 +172,13 @@ test('eventos personales: todos no fatales, con objetos válidos y dueños en su
   }
   for (const q of PREGUNTAS) assert.ok(q.correcta >= 0 && q.correcta < q.opciones.length, q.pregunta);
 });
+
+test('casi no se repiten eventos genéricos en una gala (menos de 1 por gala en promedio)', () => {
+  let rep = 0;
+  for (let i = 0; i < 60; i++) {
+    const vistos = new Map<string, number>();
+    for (const p of correr(`rep${i}`).pasos) if (p.tipo !== 'caidos') for (const l of p.lineas) { if (/en silencio/.test(l.texto)) continue; const k = l.texto.replace(/Tributo \d+/g, '·'); vistos.set(k, (vistos.get(k) ?? 0) + 1); }
+    for (const c of vistos.values()) if (c > 1) rep += c - 1;
+  }
+  assert.ok(rep / 60 < 1, `repetidos por gala: ${rep / 60}`);
+});

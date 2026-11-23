@@ -214,7 +214,18 @@ function Simulacion({ k, e, ensayo, nombres, porId, fuera, poner, alTerminar }: 
       paracaidas={paracaidas.map((x) => ({ id: x.id, desde_paso: x.desde_paso, nombre: nombres.get(x.perfil_id) ?? 'alguien del público', tributo: x.tributo, nivel: x.nivel }))}
       alFinal={!s.ganador ? <button class="boton principal" onClick={async () => {
         // Paga TSUKIBET con el resultado (no en el ensayo)
-        if (!ensayo) await FF.registrarResultado(k + 1, { ganador: resultado.ganador, primero: resultado.caidas[0], sobrevive: resultado.sobrevivenBano, top3: resultado.top3 });
+        if (!ensayo) {
+          await FF.registrarResultado(k + 1, { ganador: resultado.ganador, primero: resultado.caidas[0], sobrevive: resultado.sobrevivenBano, top3: resultado.top3 });
+          // Historial público: el relato completo, con nombres (si falla, la gala sigue; se avisa)
+          const err = await FF.guardarHistorial(k + 1, {
+            n: k + 1, premio: PREMIOS[k], fecha: s.inicio, ritmo, dias: pasos.filter((p) => p.tipo === 'dia').length, tributos: participantes.length,
+            ganador: nombre(resultado.ganador), top3: resultado.top3.map(nombre),
+            eliminaciones: Object.entries(resultado.eliminaciones).sort((a, b) => b[1] - a[1]).map(([id, n]) => ({ nombre: nombre(id), n })),
+            paracaidas: paracaidas.map((x) => ({ de: nombres.get(x.perfil_id) ?? 'alguien del público', para: nombre(x.tributo), nivel: x.nivel })),
+            pasos: pasos.map((p) => ({ tipo: p.tipo, titulo: p.titulo, ...(p.intro ? { intro: p.intro } : {}), lineas: p.lineas.map((l) => ({ t: l.texto, m: l.muertos.map(nombre) })) })),
+          });
+          if (err) alert(`El resultado quedó registrado, pero no se pudo guardar el historial: ${err}`);
+        }
         ponerSim((x) => ({ ...x, ganador: resultado.ganador })); alTerminar();
       }}>Confirmar y seguir</button> : <p>Ganador guardado.</p>} />
   );

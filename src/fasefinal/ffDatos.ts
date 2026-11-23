@@ -14,7 +14,9 @@ async function accion(fn: string, args: Record<string, unknown>): Promise<string
   return mensaje(error) ?? ((data as string | null) || null);
 }
 
-export async function listarSims(): Promise<SimFF[]> { const { data, error } = await supabase.from('ff_sims').select('*').order('n'); return error ? [] : ((data as SimFF[] | null) ?? []); }
+// Sin la columna historial (pesa): se lee aparte, solo en la pestaña Historial
+const COLUMNAS_SIM = 'n,estado,tributos,cuotas,participantes,cierre,huella_pronosticos,paso,paracaidas_abiertos,resultado';
+export async function listarSims(): Promise<SimFF[]> { const { data, error } = await supabase.from('ff_sims').select(COLUMNAS_SIM).order('n'); return error ? [] : ((data as SimFF[] | null) ?? []); }
 export async function misPronosticos(): Promise<{ sim: number; mercado: Mercado; eleccion: string | string[] }[]> { const { data, error } = await supabase.from('ff_pronosticos').select('sim,mercado,eleccion'); return error ? [] : ((data ?? []) as never); }
 export async function misApuestas(): Promise<ApuestaFF[]> { const { data, error } = await supabase.from('ff_apuestas').select('*').order('id'); return error ? [] : ((data as ApuestaFF[] | null) ?? []); }
 export async function paracaidas(sim: number): Promise<ParacaidasFF[]> { const { data, error } = await supabase.from('ff_paracaidas').select('*').eq('sim', sim).order('id'); return error ? [] : ((data as ParacaidasFF[] | null) ?? []); }
@@ -31,6 +33,12 @@ export const mandarParacaidas = (sim: number, tributo: string, nivel: 1 | 2) => 
 export const publicar = (sims: { n: number; tributos: { id: string; nombre: string }[]; cuotas: Cuotas }[]) => accion('ff_publicar', { p_sims: sims });
 export const avanzar = (sim: number, paso: number, abiertos: boolean) => supabase.rpc('ff_avanzar', { p_sim: sim, p_paso: paso, p_paracaidas: abiertos }).then(() => undefined, () => undefined);
 export const registrarResultado = (sim: number, r: { ganador: string; primero: string; sobrevive: string[]; top3: string[] }) => accion('ff_resultado', { p_sim: sim, p_resultado: r });
+/** Relato completo de una simulación oficial, para la pestaña Historial (todo con nombres, ya listo para mostrar). */
+export interface HistorialFF { n: number; premio: string; fecha: string | null; ritmo: string; dias: number; tributos: number; ganador: string; top3: string[];
+  eliminaciones: { nombre: string; n: number }[]; paracaidas: { de: string; para: string; nivel: number }[];
+  pasos: { tipo: string; titulo: string; intro?: string; lineas: { t: string; m: string[] }[] }[] }
+export const guardarHistorial = (sim: number, h: HistorialFF) => accion('ff_guardar_historial', { p_sim: sim, p_historial: h });
+export async function listarHistorial(): Promise<HistorialFF[]> { const { data, error } = await supabase.from('ff_sims').select('n,historial').not('historial', 'is', null).order('n'); return error ? [] : ((data ?? []) as { historial: HistorialFF }[]).map((x) => x.historial); }
 export const premiar = () => accion('ff_premiar', {});
 /** Cierra los pronósticos (al apretar «Empezar»): devuelve la hora del servidor y la huella, o null si no se pudo. */
 export async function cerrar(sim: number, participantes: string[]): Promise<{ cierre: string; huella: string } | null> {

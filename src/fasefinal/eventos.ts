@@ -307,4 +307,5 @@ export const BANCO: Evento[] = [
   e('h083', ['arena'], '{1} y {2} conversan una hora en la niebla hasta descubrir que no se conocían.', { escenario: 'niebla' }),
   e('h084', ['arena'], '{1} choca con {2} en la oscuridad. Los dos piden perdón y siguen caminando.', { escenario: 'apagon' }),
   e('h085', ['arena'], '{1} mira todo desde un cerro y lo va narrando en voz alta como partido de fútbol.'),
+  e('h086', DN, '{1} le enseña a {2} a armar una trampa. {2} cae en la primera y no vuelve a levantarse.', { muere: [2] }), // pedido de Pancho (23-11): la víctima sale por mérito, como en todo evento fatal
 ];
